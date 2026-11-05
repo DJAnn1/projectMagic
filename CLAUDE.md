@@ -26,7 +26,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Syntax check:** selene parses every file: `~/AppData/Roaming/Code/User/globalStorage/kampfkarren.selene-vscode/selene.exe --display-style quiet <files>` (0 parse errors = syntax OK). Use it after edits, since VS Code diagnostics may be empty for unanalysed files.
 - **Client → server intents use `Net.send`** (`Net.fire` is server → client only; using it on the client broke running and dashing once).
 
-## Where we left off (session 2026-11-05)
+## Where we left off (session 2026-11-05, last commit `474d573`)
 
 **Next step:** early-game plan item 5, the first creatures (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
 
@@ -68,6 +68,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Practice yard on markers / in the Journal? A first-hit reward on a dummy (plan item 7)?
 - Roblox's default camera zooms with I/O, so I opens the inventory AND zooms: disable I/O zoom?
 - Lighting haze (Atmosphere density 0.28) OK? Should fire that spreads after a spell count as a crime?
+- Should more forms open at Sensing (Burst, Beam)? It's a data change in `Data/MasteryTiers`. Should the spawn plaza be no-PvP now that everyone can attack at range from minute one? Thrown Strike in slot 2 instead of 3?
+- Beginner quests: permanent map pins for the practice yard and the mentor? Should finishing "Lamps at Dusk" actually light the lamps (today it's flavour)? Beginner rewards: add coins or a starter item (only the lost pet pays 10)?
 - Parked VFX questions are listed under "Open design questions" below.
 
 ## Decisions already made (don't re-ask)
