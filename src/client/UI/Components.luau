@@ -16,11 +16,11 @@
 	Sizes are in pixels at UIScale 1; InterfaceController's UIScale handles the screen size.
 ]]
 
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 type Scope = Kit.Scope
 
@@ -90,16 +90,15 @@ function C.tween(instance: Instance, kind: string, props: { [string]: any })
 	TweenService:Create(instance, TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
+-- A UI sound by Theme.sounds key (a library role), through the UI sound group (its volume is
+-- Settings › UI sounds). Unknown keys and "" are silent.
 function C.sound(key: string)
-	local id = Theme.sounds[key]
-	if not id or id == "" then
+	local role = Theme.sounds[key]
+	if not role or role == "" then
 		return
 	end
-	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.Volume = 0.5
-	SoundService:PlayLocalSound(sound)
-	sound:Destroy()
+	local group = if string.sub(role, 1, 4) == "ui." or string.sub(role, 1, 6) == "sting." then "UI" else nil
+	Audio.play(role, { group = group, vary = false })
 end
 
 -- ─── Text ───────────────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ local Players = game:GetService("Players")
 
 local FxPool = require(script.Parent.FxPool)
 local DomainFx = require(script.Parent.DomainFx)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
 
 export type Style = {
@@ -373,18 +374,30 @@ end
 
 local liveSounds = 0
 
-function FxLayers.sound(position: Vector3, sound: DomainFx.Sound, volumeMult: number?)
+-- A 3D one-shot. `group` is an Audio group ("Spells" by default, "Combat" for hit feedback); a
+-- library sound that failed to load plays its built-in fallback (DomainFx.Sound.fallback) instead.
+function FxLayers.sound(position: Vector3, sound: DomainFx.Sound, volumeMult: number?, group: string?)
 	if liveSounds >= MAX_SOUNDS then
 		return
+	end
+	local id = sound.id
+	local pitch, volume = sound.pitch, sound.volume
+	if Audio.failed(id) then
+		local fb = sound.fallback
+		if not fb then
+			return
+		end
+		id, pitch, volume = fb.id, fb.pitch, fb.volume
 	end
 	liveSounds += 1
 	local holder = Instance.new("Attachment")
 	holder.WorldPosition = position
 	holder.Parent = workspace.Terrain
 	local s = Instance.new("Sound")
-	s.SoundId = sound.id
-	s.Volume = sound.volume * (volumeMult or 1)
-	s.PlaybackSpeed = sound.pitch * (0.94 + rng:NextNumber() * 0.12)
+	s.SoundId = id
+	s.Volume = volume * (volumeMult or 1)
+	s.PlaybackSpeed = pitch * (0.94 + rng:NextNumber() * 0.12)
+	s.SoundGroup = Audio.group(group or "Spells")
 	s.RollOffMode = Enum.RollOffMode.InverseTapered
 	s.RollOffMinDistance = 10
 	s.RollOffMaxDistance = 220

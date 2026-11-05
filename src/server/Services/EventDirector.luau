@@ -275,6 +275,11 @@ function EventDirector.init(_self: any, ctx: any)
 	log, bus, flags = ctx.log, ctx.bus, ctx.flags
 	world = ctx.get("WorldStateService")
 	chronicle = ctx.get("WorldService")
+	-- RegionInfo carries the event a player stands in (the client's music: "event").
+	world:setEventLookup(function(x: number, z: number): string?
+		local here = EventDirector:activeAt(x, z)
+		return if here[1] then here[1].type else nil
+	end)
 	local admin = ctx.get("AdminService")
 
 	local eventTypes = {}

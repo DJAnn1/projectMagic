@@ -49,6 +49,7 @@ local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local Recipes = require(script.Parent.FxRecipes)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 export type Style = FxLayers.Style
 
@@ -827,6 +828,7 @@ function SpellFx.lightning(origin: Vector3, point: Vector3, style: Style, tier: 
 	if not anchor then
 		return
 	end
+	Audio.play(if length > 30 then "lightning.strike" else "lightning.zap", { position = point })
 	local segments = math.clamp(math.floor(length / 6) + 2, 3, 5)
 	local joints: { Attachment } = { anchor:FindFirstChild("A") :: Attachment }
 	for i = 1, segments do

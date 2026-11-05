@@ -21,6 +21,7 @@ local ActionRules = require(Shared.Magic.ActionRules)
 local Client = script.Parent.Parent
 local SpellFx = require(Client:WaitForChild("Fx").SpellFx)
 local SlashFx = require(Client.Fx.SlashFx)
+local Audio = require(Client:WaitForChild("Audio").Audio)
 
 local RANGE = 120
 local HIT_AT = 0.3
@@ -60,6 +61,7 @@ local function onSeq(player: Player, character: Model)
 		if ActionRules.read(character).seq ~= seq or not root.Parent then
 			return
 		end
+		Audio.play("combat.slash", { position = root.Position })
 		SlashFx.arc(root, {
 			clip = snapshot.variant,
 			swing = seq,

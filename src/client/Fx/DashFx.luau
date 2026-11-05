@@ -23,6 +23,7 @@ local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local SpellFx = require(script.Parent.SpellFx)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local TEX = DomainFx.textures
 local DRAW_RANGE = 220
@@ -183,7 +184,11 @@ function DashFx.cue(cue: { [string]: any })
 		end
 	end
 	local look = if domain then DomainFx.look(domain) else nil
-	FxLayers.sound(from, if look then look.sounds.launch else { id = DomainFx.sounds.whoosh, pitch = 1.3, volume = 0.4 }, 0.8)
+	if look then
+		FxLayers.sound(from, look.sounds.launch, 0.8)
+	else
+		Audio.play("combat.dash", { position = from, fallback = DomainFx.sounds.whoosh })
+	end
 end
 
 return DashFx

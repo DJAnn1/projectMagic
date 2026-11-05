@@ -88,3 +88,13 @@ Every sound and music track the game will use, by role. Data: `src/shared/Audio/
 | `music.mystic` | [Mystical Nature](https://create.roblox.com/store/asset/1839883317) | loop | [Mystical Journey (A)](https://create.roblox.com/store/asset/1842471518) |
 | `music.snow` | [Frozen Planet](https://create.roblox.com/store/asset/1844634116) | loop |  |
 | `music.desert` | [Desert Journey (b)](https://create.roblox.com/store/asset/1839873157) | loop |  |
+
+## The sound system (built 2026-11-05, not yet run)
+
+- **`Client/Audio/Audio`:** SoundGroups under SoundService (Master, with Music, Spells, Combat, UI, Ambience inside it); `play(role, opts)` for one-shots (3D at a position, or flat), with caps per group; `preload()` loads every library asset once and remembers failures, so a broken pick plays its built-in fallback (or nothing) instead of erroring; `groupFor(role)` by prefix.
+- **`Controllers/AudioController`:** volumes from Settings (six sliders: everything, music, spells, combat, menus and fanfares, ambience); the music director (combat for 12 s after you're hurt or land a hit, then a world event where you stand, a town, a biome's music, night, explore; changes wait 6 s and let a track play 25 s, then crossfade over 3 s; combat starts at once); ambience by biome, a town's crowd, crickets at night (missing roles are silence).
+- **Wired in:** DomainFx spell sounds per domain (library first, built-in fallback), lightning zaps and strikes, UI clicks/pages/chimes and fanfares (`Theme.sounds` keys now name roles), hit/crit/kill and the hurt hit, block and parry, slash, dash, bow release and arrow hits, knockdown, backfire.
+- **`RegionInfo.event`:** the world event covering where you stand (EventDirector registers a lookup with WorldStateService); RegionInfo is re-sent when it changes.
+- **Admin:** `sound <role>` plays one role to you (auditioning; long tracks stop after 12 s).
+- **Not yet:** the quest-done fanfare (no client signal when a quest ends), wind and blizzard ambience, signature pitch for spells, beam and zone loops.
+- `Tests/Audio.spec` checks every domain's three spell sounds, entry shape, and every role the client asks for by name.

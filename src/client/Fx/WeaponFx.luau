@@ -13,6 +13,8 @@
 
 local RunService = game:GetService("RunService")
 
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
+
 local MAX_LIVE = 40
 local STICK_SECONDS = 4
 
@@ -138,10 +140,15 @@ function WeaponFx.cue(cue: any)
 		}
 		table.insert(order, id)
 		ensureStepper()
+		-- The release: a bow or crossbow twang, a thrown knife's whoosh (Combat group).
+		Audio.play(if cue.look == "knife" then "combat.slash" else "weapon.bowRelease", { position = cue.origin })
 	elseif cue.stage == "impact" then
 		local f = flights[id]
 		if not f then
 			return
+		end
+		if typeof(cue.point) == "Vector3" and not cue.expired then
+			Audio.play("weapon.arrowHit", { position = cue.point })
 		end
 		if typeof(cue.point) == "Vector3" and not cue.struck and not cue.expired then
 			-- Stuck in a wall or the ground: leave it there a moment, pointing the way it flew.

@@ -2,6 +2,9 @@
 --[[
 	VFX tools (docs/Combat.md §8).
 
+	sound <role>
+		Plays one sound or music role (docs/Audio.md) to you, to audition the picks.
+
 	fxpreview <domain> [power] [property] [tier]
 		Plays one domain's whole visual vocabulary in front of you, ~8 s, to YOUR client only:
 		cast circle → projectile (muzzle flash, streak trail, impact) → beam → chain → burst →
@@ -17,9 +20,28 @@ local Net = require(Shared.Net)
 local ActionState = require(Server.Magic.Cast.ActionState)
 local Util = require(script.Parent.Parent.Util)
 
+local AudioLibrary = require(Shared.Audio.AudioLibrary)
+
 local previewIds = 1_000_000 -- far above Delivery's projectile ids, so keys never collide
 
 return function(admin: any, deps: any)
+	local roles: { string } = {}
+	for role in AudioLibrary.entries do
+		table.insert(roles, role)
+	end
+	table.sort(roles)
+	admin:Register({
+		name = "sound",
+		category = "Spells",
+		description = "Audition a sound or music role from Shared/Audio/AudioLibrary (only you hear it; long tracks stop after 12 s)",
+		args = { { name = "role", type = "enum", options = roles } },
+		handler = function(ctx, a)
+			Net.fire("WorldEffect", ctx.player, { kind = "sound", role = a.role })
+			local entry = AudioLibrary.get(a.role)
+			return if entry then string.format("%s: %s (rbxassetid://%d)", a.role, entry.name, entry.id) else a.role
+		end,
+	})
+
 	admin:Register({
 		name = "fxpreview",
 		category = "Spells",

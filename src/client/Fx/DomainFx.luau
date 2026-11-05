@@ -7,7 +7,7 @@
 
 	Every texture falls back to a built-in rbxasset (verified in the Studio content folder), so
 	everything renders before custom art exists. Uploaded textures go in UPLOADED below; sounds
-	are still built-in. docs/Combat.md §8 lists what to commission.
+	come from Shared/Audio/AudioLibrary (built-in ones are the fallbacks). docs/Combat.md §8 lists what to commission.
 
 	Fields
 		body      the main particle mass (bolt body, impact cloud): texture, size, lifetime, speed,
@@ -22,6 +22,7 @@
 ]]
 
 local KenneyTextures = require(script.Parent.KenneyTextures)
+local AudioLibrary = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Audio.AudioLibrary)
 
 --[[
 	Uploaded textures, one per role. Each value is either
@@ -118,7 +119,8 @@ local SND = {
 	tick = S .. "volume_slider.ogg",
 }
 
-export type Sound = { id: string, pitch: number, volume: number }
+-- `fallback`: the built-in sound to play if a library sound failed to load (Client/Audio/Audio).
+export type Sound = { id: string, pitch: number, volume: number, fallback: { id: string, pitch: number, volume: number }? }
 export type Look = {
 	body: { texture: string, size: number, lifetime: number, speed: number, additive: boolean },
 	sparks: { texture: string, size: number, speed: number, gravity: number, lifetime: number },
@@ -136,6 +138,16 @@ local function snd(id: string, pitch: number, volume: number): Sound
 	return { id = id, pitch = pitch, volume = volume }
 end
 
+-- A library role's sound (Shared/Audio/AudioLibrary, licensed Creator Store audio) at its own
+-- pitch and volume, with a built-in sound to fall back on (missing role, or it failed to load).
+local function lib(role: string, fallback: Sound): Sound
+	local entry = AudioLibrary.get(role)
+	if not entry then
+		return fallback
+	end
+	return { id = "rbxassetid://" .. tostring(entry.id), pitch = 1, volume = entry.volume, fallback = fallback }
+end
+
 local looks: { [string]: Look } = {
 	energy = {
 		body = { texture = TEX.fire, size = 1.4, lifetime = 0.45, speed = 6, additive = true },
@@ -145,7 +157,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 6, range = 1.6, flicker = 0.35 },
 		mark = "scorch",
 		shake = 1,
-		sounds = { cast = snd(SND.rise, 0.7, 0.35), launch = snd(SND.whoosh, 1.5, 0.45), impact = snd(SND.boom, 1.15, 0.6) },
+		sounds = { cast = lib("energy.cast", snd(SND.rise, 0.7, 0.35)), launch = lib("energy.launch", snd(SND.whoosh, 1.5, 0.45)), impact = lib("energy.impact", snd(SND.boom, 1.15, 0.6)) },
 	},
 	earth = {
 		body = { texture = TEX.burstSmoke, size = 2.2, lifetime = 0.9, speed = 9, additive = false },
@@ -155,7 +167,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 1.5, range = 1, flicker = 0 },
 		mark = "crack",
 		shake = 1.6,
-		sounds = { cast = snd(SND.thud, 0.55, 0.5), launch = snd(SND.whoosh, 0.7, 0.5), impact = snd(SND.boom, 0.65, 0.75) },
+		sounds = { cast = lib("earth.cast", snd(SND.thud, 0.55, 0.5)), launch = lib("earth.launch", snd(SND.whoosh, 0.7, 0.5)), impact = lib("earth.impact", snd(SND.boom, 0.65, 0.75)) },
 	},
 	water = {
 		body = { texture = TEX.sparkles, size = 1.1, lifetime = 0.6, speed = 14, additive = false },
@@ -165,7 +177,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 2, range = 1.2, flicker = 0 },
 		mark = "puddle",
 		shake = 0.8,
-		sounds = { cast = snd(SND.splash, 1.4, 0.3), launch = snd(SND.whoosh, 1.1, 0.45), impact = snd(SND.splash, 0.9, 0.7) },
+		sounds = { cast = lib("water.cast", snd(SND.splash, 1.4, 0.3)), launch = lib("water.launch", snd(SND.whoosh, 1.1, 0.45)), impact = lib("water.impact", snd(SND.splash, 0.9, 0.7)) },
 	},
 	air = {
 		body = { texture = TEX.smoke, size = 2, lifetime = 0.5, speed = 22, additive = false },
@@ -175,7 +187,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 1, range = 1, flicker = 0 },
 		mark = nil,
 		shake = 0.7,
-		sounds = { cast = snd(SND.wind, 1.3, 0.3), launch = snd(SND.wind, 1.8, 0.45), impact = snd(SND.whoosh, 0.8, 0.6) },
+		sounds = { cast = lib("air.cast", snd(SND.wind, 1.3, 0.3)), launch = lib("air.launch", snd(SND.wind, 1.8, 0.45)), impact = lib("air.impact", snd(SND.whoosh, 0.8, 0.6)) },
 	},
 	life = {
 		body = { texture = TEX.sparkles, size = 1, lifetime = 0.9, speed = 5, additive = true },
@@ -185,7 +197,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 2.5, range = 1.3, flicker = 0 },
 		mark = "bloom",
 		shake = 0.4,
-		sounds = { cast = snd(SND.rise, 1.1, 0.3), launch = snd(SND.whoosh, 1.3, 0.35), impact = snd(SND.splash, 1.6, 0.4) },
+		sounds = { cast = lib("life.cast", snd(SND.rise, 1.1, 0.3)), launch = lib("life.launch", snd(SND.whoosh, 1.3, 0.35)), impact = lib("life.impact", snd(SND.splash, 1.6, 0.4)) },
 	},
 	mind = {
 		body = { texture = TEX.glow, size = 1.6, lifetime = 0.7, speed = 4, additive = true },
@@ -195,7 +207,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 2.5, range = 1.2, flicker = 0.15 },
 		mark = "rune",
 		shake = 0.5,
-		sounds = { cast = snd(SND.tick, 0.5, 0.4), launch = snd(SND.whoosh, 1.7, 0.35), impact = snd(SND.tick, 0.35, 0.6) },
+		sounds = { cast = lib("mind.cast", snd(SND.tick, 0.5, 0.4)), launch = lib("mind.launch", snd(SND.whoosh, 1.7, 0.35)), impact = lib("mind.impact", snd(SND.tick, 0.35, 0.6)) },
 	},
 	spirit = {
 		body = { texture = TEX.glow, size = 1.8, lifetime = 0.8, speed = 5, additive = true },
@@ -205,7 +217,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 3, range = 1.4, flicker = 0.1 },
 		mark = "rune",
 		shake = 0.6,
-		sounds = { cast = snd(SND.wind, 0.6, 0.3), launch = snd(SND.whoosh, 1.2, 0.4), impact = snd(SND.boom, 1.6, 0.4) },
+		sounds = { cast = lib("spirit.cast", snd(SND.wind, 0.6, 0.3)), launch = lib("spirit.launch", snd(SND.whoosh, 1.2, 0.4)), impact = lib("spirit.impact", snd(SND.boom, 1.6, 0.4)) },
 	},
 	void = {
 		body = { texture = TEX.implode, size = 2, lifetime = 0.6, speed = 3, additive = false },
@@ -215,7 +227,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 0.6, range = 0.8, flicker = 0.2 },
 		mark = "void",
 		shake = 0.9,
-		sounds = { cast = snd(SND.wind, 0.45, 0.35), launch = snd(SND.whoosh, 0.55, 0.45), impact = snd(SND.boom, 0.45, 0.55) },
+		sounds = { cast = lib("void.cast", snd(SND.wind, 0.45, 0.35)), launch = lib("void.launch", snd(SND.whoosh, 0.55, 0.45)), impact = lib("void.impact", snd(SND.boom, 0.45, 0.55)) },
 	},
 	space = {
 		body = { texture = TEX.vortex, size = 2, lifetime = 0.6, speed = 2, additive = true },
@@ -225,7 +237,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 2.5, range = 1.2, flicker = 0.25 },
 		mark = "rune",
 		shake = 0.8,
-		sounds = { cast = snd(SND.tick, 0.7, 0.4), launch = snd(SND.whoosh, 2, 0.4), impact = snd(SND.boom, 1.9, 0.4) },
+		sounds = { cast = lib("space.cast", snd(SND.tick, 0.7, 0.4)), launch = lib("space.launch", snd(SND.whoosh, 2, 0.4)), impact = lib("space.impact", snd(SND.boom, 1.9, 0.4)) },
 	},
 	time = {
 		body = { texture = TEX.vortex, size = 2.2, lifetime = 1, speed = 1.5, additive = true },
@@ -235,7 +247,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 3, range = 1.4, flicker = 0 },
 		mark = "rune",
 		shake = 0.7,
-		sounds = { cast = snd(SND.tick, 0.9, 0.45), launch = snd(SND.wind, 0.8, 0.35), impact = snd(SND.tick, 0.6, 0.7) },
+		sounds = { cast = lib("time.cast", snd(SND.tick, 0.9, 0.45)), launch = lib("time.launch", snd(SND.wind, 0.8, 0.35)), impact = lib("time.impact", snd(SND.tick, 0.6, 0.7)) },
 	},
 	gravity = {
 		body = { texture = TEX.implode, size = 2.6, lifetime = 0.7, speed = 2, additive = false },
@@ -245,7 +257,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 1.2, range = 1, flicker = 0 },
 		mark = "crack",
 		shake = 1.8,
-		sounds = { cast = snd(SND.thud, 0.4, 0.5), launch = snd(SND.wind, 0.5, 0.45), impact = snd(SND.boom, 0.4, 0.8) },
+		sounds = { cast = lib("gravity.cast", snd(SND.thud, 0.4, 0.5)), launch = lib("gravity.launch", snd(SND.wind, 0.5, 0.45)), impact = lib("gravity.impact", snd(SND.boom, 0.4, 0.8)) },
 	},
 	reality = {
 		body = { texture = TEX.square, size = 0.9, lifetime = 0.5, speed = 12, additive = true },
@@ -255,7 +267,7 @@ local looks: { [string]: Look } = {
 		light = { brightness = 3, range = 1.3, flicker = 0.6 },
 		mark = "rune",
 		shake = 1,
-		sounds = { cast = snd(SND.tick, 1.4, 0.45), launch = snd(SND.tick, 1.8, 0.4), impact = snd(SND.boom, 2.2, 0.45) },
+		sounds = { cast = lib("reality.cast", snd(SND.tick, 1.4, 0.45)), launch = lib("reality.launch", snd(SND.tick, 1.8, 0.4)), impact = lib("reality.impact", snd(SND.boom, 2.2, 0.45)) },
 	},
 }
 

@@ -29,6 +29,7 @@ local FxPool = require(script.Parent.Parent.Fx.FxPool)
 local CombatFeedback = require(script.Parent.Parent.Fx.CombatFeedback)
 local WeaponFx = require(script.Parent.Parent.Fx.WeaponFx)
 local DashFx = require(script.Parent.Parent.Fx.DashFx)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
 
@@ -66,6 +67,8 @@ local function knockdown(active: boolean, duration: any)
 	local token = downToken
 	if active then
 		humanoid.PlatformStand = true
+		local root = humanoid.RootPart
+		Audio.play("combat.knockdown", { position = if root then root.Position else nil })
 		local seconds = if typeof(duration) == "number" then math.clamp(duration, 0.2, 5) else 1.6
 		task.delay(seconds, function()
 			if token == downToken and humanoid.Parent then
@@ -96,6 +99,12 @@ local function handle(effect: { [string]: any })
 		WeaponFx.cue(effect)
 	elseif kind == "dash" then
 		DashFx.cue(effect)
+	elseif kind == "sound" then
+		-- The admin command `sound <role>`: audition a library sound here (a one-shot; long
+		-- music and ambience play for up to 12 s, then stop).
+		if typeof(effect.role) == "string" then
+			Audio.play(effect.role, { vary = false })
+		end
 	elseif kind == "field" then
 		SpellFx.field(effect)
 	elseif kind == "field_end" then

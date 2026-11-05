@@ -20,6 +20,7 @@ local RunService = game:GetService("RunService")
 local Client = script.Parent.Parent
 local SpellFx = require(Client:WaitForChild("Fx").SpellFx)
 local Theme = require(Client:WaitForChild("UI").Theme)
+local Audio = require(Client:WaitForChild("Audio").Audio)
 
 local MAX_WARDS = 16
 local RANGE = 160
@@ -155,12 +156,17 @@ local function watch(model: Model)
 		local ward = wards[model]
 		if ward then
 			ward.flashUntil = os.clock() + FLASH
+			Audio.play("combat.block", { position = ward.root.Position })
 		end
 	end)
 	model:GetAttributeChangedSignal("ParriedAt"):Connect(function()
 		local ward = wards[model]
 		if ward then
 			ward.parryUntil = os.clock() + PARRY_FLASH
+		end
+		local root = model:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") then
+			Audio.play("combat.parry", { position = root.Position, volume = 1.2 })
 		end
 		parryText(model)
 	end)

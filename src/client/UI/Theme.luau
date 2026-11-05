@@ -105,32 +105,35 @@ function Theme.duration(kind: string): number
 end
 
 -- ─── Sound ──────────────────────────────────────────────────────────────────
--- rbxassetid strings. "" = not delivered yet (docs/UI.md §6); playing it is a silent no-op.
+-- Key -> a role in Shared/Audio/AudioLibrary (licensed Creator Store audio), played by C.sound
+-- through the UI sound group. "" = silent.
 
 Theme.sounds = {
-	open = "",
-	close = "",
-	select = "",
-	confirm = "",
-	deny = "",
-	tierUp = "",
-	discovery = "",
-	awaken = "",
-	backlash = "",
-	lowReservoir = "",
-	castFail = "",
-	domain_energy = "",
-	domain_earth = "",
-	domain_water = "",
-	domain_air = "",
-	domain_life = "",
-	domain_mind = "",
-	domain_spirit = "",
-	domain_void = "",
-	domain_space = "",
-	domain_time = "",
-	domain_gravity = "",
-	domain_reality = "",
+	open = "ui.open",
+	close = "ui.close",
+	select = "ui.click",
+	confirm = "ui.confirm",
+	deny = "ui.error",
+	tierUp = "sting.tierUp",
+	breakthrough = "sting.breakthrough",
+	discovery = "sting.discovery",
+	questDone = "sting.questDone",
+	awaken = "sting.awakening",
+	backlash = "spell.backfire",
+	lowReservoir = "ui.notify",
+	castFail = "ui.error",
+	domain_energy = "energy.cast",
+	domain_earth = "earth.cast",
+	domain_water = "water.cast",
+	domain_air = "air.cast",
+	domain_life = "life.cast",
+	domain_mind = "mind.cast",
+	domain_spirit = "spirit.cast",
+	domain_void = "void.cast",
+	domain_space = "space.cast",
+	domain_time = "time.cast",
+	domain_gravity = "gravity.cast",
+	domain_reality = "reality.cast",
 } :: { [string]: string }
 
 -- ─── Domains ────────────────────────────────────────────────────────────────

@@ -78,6 +78,9 @@ local settlementStore: any = nil
 
 local gen: WorldGen.WorldGen? = nil
 local magic: MagicMap.MagicMap? = nil
+-- EventDirector registers this (it depends on us, so we can't require it): the type of a world
+-- event covering a point, for RegionInfo (the client's music switches to "event").
+local eventLookup: ((number, number) -> string?)? = nil
 local index: WorldIndex.WorldIndex? = nil
 local placement: POIPlacer.Placement? = nil
 local ready = Signal.new()
@@ -911,7 +914,9 @@ local function regionInfoLoop()
 			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if root then
 				local p = root.Position
-				local id = regionIdAt(p.X, p.Z)
+				-- Re-sent when the region changes, or an event starts or ends where you stand.
+				local event = if eventLookup then eventLookup(p.X, p.Z) else nil
+				local id = tostring(regionIdAt(p.X, p.Z)) .. "|" .. (event or "")
 				if lastRegionInfo[player] ~= id then
 					lastRegionInfo[player] = id
 					local s = (gen :: WorldGen.WorldGen):sample(p.X, p.Z)
@@ -922,6 +927,7 @@ local function regionInfoLoop()
 						density = math.floor(WorldStateService:densityAt(p.X, p.Z) * 100 + 0.5) / 100,
 						resonance = resonance,
 						settlement = (WorldStateService:settlementAt(p.X, p.Z) or {} :: any).name,
+						event = event,
 					})
 				end
 			end
@@ -1277,6 +1283,10 @@ function WorldStateService.addPOI(_self: any, poi: POIPlacer.POI)
 end
 
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
+
+function WorldStateService.setEventLookup(_self: any, lookup: (number, number) -> string?)
+	eventLookup = lookup
+end
 
 function WorldStateService.init(_self: any, ctx: any)
 	log, bus, flags = ctx.log, ctx.bus, ctx.flags

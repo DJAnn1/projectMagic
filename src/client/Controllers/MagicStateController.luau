@@ -60,6 +60,7 @@ export type RegionView = {
 	density: number,
 	resonance: { [string]: number },
 	settlement: string?,
+	event: string?, -- a world event covering where you stand (AudioController: event music)
 }
 
 export type ReservoirView = {

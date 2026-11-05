@@ -25,6 +25,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Registry = require(Shared.Magic.Registry)
 local FxLayers = require(script.Parent.FxLayers)
+local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 local DomainFx = require(script.Parent.DomainFx)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
 
@@ -255,15 +256,16 @@ local function showMarker(crit: boolean, killed: boolean)
 			m.Visible = false
 		end
 	end)
-	local tick = { id = DomainFx.sounds.tick, pitch = if killed then 0.7 elseif crit then 2 else 1.6, volume = if killed then 0.9 else 0.6 }
-	local camera = workspace.CurrentCamera
-	FxLayers.sound(camera.CFrame.Position, tick, 1)
+	-- Your hit landed: a body hit, a heavier one for a crit, a fall for a kill (Combat group).
+	Audio.play(if killed then "combat.kill" elseif crit then "combat.crit" else "combat.hit", { fallback = DomainFx.sounds.tick, vary = true })
 end
 
 local hurtToken = 0
 
 local function hurtFlash(share: number)
 	ensureScreen()
+	-- You were hit: the body-hit sound, louder for a bigger share of your health.
+	Audio.play("combat.hit", { volume = math.clamp(0.6 + share * 2, 0.6, 1.4), vary = true })
 	hurtToken += 1
 	local token = hurtToken
 	local peak = math.clamp(0.35 + share * 2, 0.35, 0.85)

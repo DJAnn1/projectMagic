@@ -209,7 +209,7 @@ local function onEvent(event: any)
 			toast("New branch opened: " .. branchName(event.branch), Theme.branchColor(event.branch))
 		end
 	elseif kind == "breakthrough" then
-		C.sound("tierUp")
+		C.sound("breakthrough")
 		toast("Breakthrough in " .. branchName(event.branch) .. "!", Theme.branchColor(event.branch))
 	elseif kind == "discovery" then
 		C.sound("discovery")
