@@ -18,6 +18,7 @@
 	  street     planted trees in stone rings along main roads in the inner ring (tidy rows)
 	  patches    the ground plan's deliberate grass: gardens (low fence, crop rows), the village
 	             green (a shade tree and a bench), orchards (a fenced 3 x 3 grid of fruit trees)
+	  practiceYard  three fireproof training dummies just off the plaza (free to strike: PracticeTarget)
 	  ground     plaza curbs (gaps where streets leave), hay by barns, puddles on street shoulders
 	             (tag "Puddle": shown when the weather is wet, always in wet biomes), cart tracks
 	             along packed-earth main streets
@@ -222,6 +223,30 @@ function SettlementDecor.plan(layout: Layout.Layout, gen: any, worldSeed: number
 			claim(at, 1.6)
 		end
 	end
+	-- A practice yard just off the plaza (docs/EarlyGamePlan.md item 2): three training dummies a
+	-- new player can strike freely (PracticeTarget: never a crime). The first clear spot on rings
+	-- around the plaza, turned to face it.
+	do
+		local placed = false
+		for _, extra in { 9, 14, 20, 27 } do
+			if placed then
+				break
+			end
+			local start = rng:NextNumber() * math.pi * 2
+			for step = 0, 11 do
+				local a = start + step / 12 * math.pi * 2
+				local at = center + Vector3.new(math.cos(a), 0, math.sin(a)) * (layout.plaza + extra)
+				if clear(at, 6.5) then
+					local y = ground(at.X, at.Z)
+					add("practiceYard", CFrame.lookAt(Vector3.new(at.X, y, at.Z), Vector3.new(center.X, y, center.Z)), {})
+					claim(at, 6.5)
+					placed = true
+					break
+				end
+			end
+		end
+	end
+
 	-- Scholar enclaves also ring the town with taller spires.
 	if culture == "loreseat" then
 		for k = 0, 3 do
@@ -473,6 +498,79 @@ local function crate(k: Kit, at: Vector3, size: number, rng: Random)
 end
 
 local BUILDERS: { [string]: (Kit, Item, Styles.Culture, Random) -> () } = {}
+
+--[[
+	A practice yard: a dirt pad, three straw training dummies in a row facing the plaza, posts at the
+	back corners and a sign. Each dummy is its own Model with a Humanoid (spells target and damage
+	it through the normal pipeline), PracticeTarget (hitting it is never a crime) and an
+	Interactable "dummy" root (InteractionService: damage readout, Reset prompt, heals itself).
+	Every piece has Flammability 0 (ThermalSim): practising Scorch must not set the town alight.
+]]
+local STRAW = Color3.fromRGB(205, 175, 100)
+
+local function fireproof(p: BasePart)
+	p:SetAttribute("Flammability", 0)
+end
+
+local function practiceDummy(k: Kit, item: Item, index: number, x: number)
+	local dummy = Instance.new("Model")
+	dummy.Name = "TrainingDummy"
+	dummy:SetAttribute("PracticeTarget", true)
+	local function piece(name: string, size: Vector3, offset: CFrame, color: Color3, material: Enum.Material): BasePart
+		local p = part(k, name, size, CFrame.new(x, 0, 0) * offset, material, color)
+		fireproof(p)
+		p.Parent = dummy
+		return p
+	end
+	piece("Stand", Vector3.new(2.4, 0.4, 2.4), CFrame.new(0, 0.2, 0), WOOD_COLOR, WOOD)
+	piece("Post", Vector3.new(0.5, 3, 0.5), CFrame.new(0, 1.9, 0), WOOD_COLOR, WOOD)
+	local root = piece("HumanoidRootPart", Vector3.new(2, 2.4, 1), CFrame.new(0, 4.4, 0), STRAW, Enum.Material.Sand)
+	piece("Head", Vector3.new(1.4, 1.4, 1.4), CFrame.new(0, 6.3, 0), STRAW, Enum.Material.Sand)
+	piece("Arms", Vector3.new(4.4, 0.6, 0.6), CFrame.new(0, 5, 0), WOOD_COLOR, WOOD)
+	local humanoid = Instance.new("Humanoid")
+	humanoid.MaxHealth = 1000
+	humanoid.Health = 1000
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humanoid.BreakJointsOnDeath = false
+	humanoid.RequiresNeck = false
+	humanoid.Parent = dummy
+	dummy.PrimaryPart = root
+	dummy.Parent = k.model
+	root:SetAttribute("Interactable", "dummy")
+	root:SetAttribute("InteractId", string.format("%s:dummy%d", item.id, index))
+	CollectionService:AddTag(root, "Interactable")
+end
+
+BUILDERS.practiceYard = function(k, item, style, rng)
+	-- The pad (thin, so it hugs gentle slopes) and two posts at the back corners.
+	local pad = part(k, "Pad", Vector3.new(12, 0.3, 7), CFrame.new(0, 0.05, 0), Enum.Material.Ground, vary(rng, Color3.fromRGB(122, 96, 70), 0.05), { shadow = false })
+	fireproof(pad)
+	for _, side in { -1, 1 } do
+		fireproof(upright(k, "Post", 3.2, 0.5, Vector3.new(side * 6.2, 0, 3.4), WOOD, WOOD_COLOR))
+	end
+	-- The dummies, in a row across the pad, their fronts (-Z) toward the plaza.
+	for i, x in { -4, 0, 4 } do
+		practiceDummy(k, item, i, x)
+	end
+	-- A sign on a post at one front corner, readable from the plaza.
+	fireproof(upright(k, "SignPost", 3.4, 0.4, Vector3.new(6.6, 0, -3.2), WOOD, WOOD_COLOR))
+	local board = part(k, "Sign", Vector3.new(3.2, 1.6, 0.2), CFrame.new(6.6, 3.6, -3.3), Enum.Material.WoodPlanks, vary(rng, style.trim.color, 0.05))
+	fireproof(board)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 1
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Text = "Practice yard\nStrike freely"
+	label.TextScaled = true
+	label.Font = Enum.Font.Fantasy
+	label.TextColor3 = Color3.fromRGB(40, 28, 18)
+	label.Parent = gui
+	gui.Parent = board
+end
 
 BUILDERS.anchor = function(k, item)
 	local p = part(k, "SettlementAnchor", Vector3.new(1, 1, 1), CFrame.new(0, 0.5, 0), Enum.Material.SmoothPlastic, Color3.new(1, 1, 1), { collide = false, transparency = 1, shadow = false })
@@ -751,6 +849,7 @@ local TAGS: { [string]: string } = {
 	anchor = "SettlementAnchor", lamp = "LampPost", fence = "Fence", goods = "Goods", forge = "OpenForge", spire = "CrystalSpire",
 	flowers = "Planter", banner = "Banner", brazier = "Brazier", cart = "Cart", dock = "Dock", tree = "Tree", rock = "Rock",
 	garden = "Garden", bench = "Bench", curb = "Curb", hay = "Hay", puddle = "Puddle", tracks = "CartTracks",
+	practiceYard = "PracticeYard",
 }
 
 function SettlementDecor.build(item: Item, culture: string, parent: Instance): (Model?, number)

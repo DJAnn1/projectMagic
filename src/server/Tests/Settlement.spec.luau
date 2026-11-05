@@ -386,6 +386,22 @@ return function(t: any)
 			expect((kinds.lamp or 0) > 0 and (kinds.tree or 0) + (kinds.rock or 0) > 0).toBe(true)
 		end)
 
+		it("gives (nearly) every settlement a practice yard near its plaza (docs/EarlyGamePlan.md item 2)", function()
+			local yards = 0
+			for i, plan in plans do
+				for _, item in plan do
+					if item.kind == "practiceYard" then
+						yards += 1
+						local layout = layouts[i]
+						local flat = Vector3.new(item.cframe.Position.X - layout.center.X, 0, item.cframe.Position.Z - layout.center.Z)
+						expect(flat.Magnitude <= layout.plaza + 30).toBe(true) -- close enough to find
+					end
+				end
+			end
+			t.log(string.format("  practice yards: %d of %d settlements", yards, #plans))
+			expect(yards >= math.ceil(#plans * 0.8)).toBe(true)
+		end)
+
 		it("never puts trees, rocks or goods on a lot or in the sea", function()
 			for i, plan in plans do
 				local layout = layouts[i]

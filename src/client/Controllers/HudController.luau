@@ -1049,6 +1049,7 @@ local function buildFirstSteps(scope: Scope, root: Frame, compact: boolean)
 		end
 		C.text("Your magic answers.", "heading", { LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
 		C.text(howToCast(name), "body", { LayoutOrder = 2, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+		C.text("The straw dummies in the practice yard by the plaza are free to strike.", "caption", { LayoutOrder = 3, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
 	end)
 end
 

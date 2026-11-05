@@ -423,6 +423,7 @@ local function trainingDummy(b: Builder, at: CFrame, y: number)
 		p.Color = color
 		p.TopSurface = Enum.SurfaceType.Smooth
 		p.BottomSurface = Enum.SurfaceType.Smooth
+		p:SetAttribute("Flammability", 0) -- practice targets never catch fire (ThermalSim)
 		p.Parent = dummy
 		b.parts += 1
 		return p

@@ -44,3 +44,12 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Spec:** `Tests/Cantrips.spec` (every domain: a valid, damaging Strike and a utility at Sensing; seeded utility).
 - **Next:** item 2, practice targets in every town.
 
+## 4. Item 2, built (2026-11-05, not yet run)
+
+- **A practice yard in every town** (`SettlementDecor` kind `practiceYard`, tag `PracticeYard`): planned on the first clear spot on rings 9–27 studs out from the plaza edge, facing it. A dirt pad, three straw training dummies in a row, posts and a sign ("Practice yard / Strike freely").
+- **Each dummy** is its own Model with a Humanoid (normal targeting and damage), `PracticeTarget` (never a crime) and an Interactable "dummy" root (InteractionService: damage readout, Reset prompt, heals itself at 20%).
+- **Fireproof:** every piece has `Flammability = 0` (ThermalSim), the magic school's dummy too: practising Scorch can't set the town alight. The yard dummies are Sand, not Fabric.
+- **HUD:** the "Your magic answers" card points at the yard.
+- **Spec:** Settlement.spec checks at least 80% of settlements get a yard within reach of the plaza.
+- **Next:** item 3, the first ranged spell (the "First Steps" milestone).
+
