@@ -69,7 +69,7 @@ return function(t: any)
 				wanted += layout.wanted
 				expect(#layout.roads >= 1 or layout.id).toBe(true)
 			end
-			print(string.format("  %d settlements: %d of %d buildings placed", #layouts, placed, wanted))
+			t.log(string.format("  %d settlements: %d of %d buildings placed", #layouts, placed, wanted))
 			expect(placed >= wanted * 0.6).toBe(true)
 		end)
 
@@ -311,7 +311,7 @@ return function(t: any)
 					x += 8
 				end
 			end
-			print(string.format("  ground: %d sampled columns repainted, %d kept", painted, kept))
+			t.log(string.format("  ground: %d sampled columns repainted, %d kept", painted, kept))
 			expect(painted > 0).toBe(true)
 		end)
 
@@ -328,7 +328,7 @@ return function(t: any)
 					expect(#patch.id > 0).toBe(true)
 				end
 			end
-			print(string.format("  ground: %d deliberate grass patches", total))
+			t.log(string.format("  ground: %d deliberate grass patches", total))
 		end)
 
 		it("keeps wild trees out of every town core", function()
@@ -382,7 +382,7 @@ return function(t: any)
 				table.insert(list, kind .. " " .. n)
 			end
 			table.sort(list)
-			print("  decor across the world: " .. table.concat(list, ", "))
+			t.log("  decor across the world: " .. table.concat(list, ", "))
 			expect((kinds.lamp or 0) > 0 and (kinds.tree or 0) + (kinds.rock or 0) > 0).toBe(true)
 		end)
 
@@ -500,7 +500,7 @@ return function(t: any)
 				table.insert(list, kind .. " " .. n)
 			end
 			table.sort(list)
-			print("  max parts per type: " .. table.concat(list, ", "))
+			t.log("  max parts per type: " .. table.concat(list, ", "))
 		end)
 
 		it("varies with the seed", function()

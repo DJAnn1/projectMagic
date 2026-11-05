@@ -6,6 +6,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Signal = require(Shared.Core.Signal)
+local Logger = require(Shared.Core.Logger)
 local SignalBus = require(Shared.Core.SignalBus)
 local Topics = require(Shared.Core.Topics)
 local RateLimiter = require(Shared.Core.RateLimiter)
@@ -187,7 +188,7 @@ return function(t: any)
 	end)
 
 	if not DataService:isMock() then
-		print("  (DataService session specs skipped: not in mock mode)")
+		t.log("  (DataService session specs skipped: not in mock mode)")
 		return
 	end
 
@@ -227,11 +228,14 @@ return function(t: any)
 			expect(again).toBe(nil)
 			expect(why).toBe("ALREADY_LOADED")
 		end)
-		it("ends the session when another server takes the lock (expect a lock_lost error log)", function()
+		it("ends the session when another server takes the lock", function()
 			local record = getRecord(K1)
 			record.meta.lock.jobId = "another-server"
 			setRecord(K1, record)
-			expect(session:save()).toBe(false)
+			-- The lock_lost error is the behaviour under test: keep it out of the Output.
+			Logger.expecting("lock_lost", function()
+				expect(session:save()).toBe(false)
+			end)
 			expect(session:isActive()).toBe(false)
 		end)
 		it("takes over a stale lock left by a crashed server", function()

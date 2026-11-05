@@ -22,8 +22,24 @@ app:run()
 
 if RunService:IsStudio() then
 	if FeatureFlags.get("debug_run_tests") then
-		require(script.Tests.TestRunner).run(script.Tests)
-		require(script.Tests.MagicExamples)()
+		-- Quiet by default: failures print as they happen, then one summary line (yellow when
+		-- anything failed). debug_verbose_boot prints every check's details as before.
+		local verbose = FeatureFlags.get("debug_verbose_boot") == true
+		local specsPassed, specsFailed = require(script.Tests.TestRunner).run(script.Tests, verbose)
+		local examplesPassed, examplesFailed = require(script.Tests.MagicExamples)()
+		local summary = string.format(
+			"Boot checks: specs %d/%d · magic examples %d/%d%s",
+			specsPassed,
+			specsPassed + specsFailed,
+			examplesPassed,
+			examplesPassed + examplesFailed,
+			if verbose then "" else "  (details: flag debug_verbose_boot)"
+		)
+		if specsFailed + examplesFailed > 0 then
+			warn(summary)
+		else
+			print(summary)
+		end
 	end
 	task.spawn(function()
 		if FeatureFlags.get("debug_profile_stats") then

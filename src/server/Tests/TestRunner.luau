@@ -87,13 +87,22 @@ local function expect(actual: any): Expectation
 	}
 end
 
--- Returns passed, failed.
-function TestRunner.run(folder: Instance): (number, number)
+--[[
+	Returns passed, failed. Failures always print (warn). With `verbose`, also the header, the
+	summary and each spec's measurements (`t.log`); quiet, the caller prints one summary line.
+]]
+function TestRunner.run(folder: Instance, verbose: boolean?): (number, number)
 	local passed, failed = 0, 0
 	local path: { string } = {}
 
 	local t = {
 		expect = expect,
+		-- A spec's informational line (counts, measurements): printed only when verbose.
+		log = function(...: any)
+			if verbose then
+				print(...)
+			end
+		end,
 		describe = function(name: string, body: () -> ())
 			table.insert(path, name)
 			body()
@@ -121,7 +130,9 @@ function TestRunner.run(folder: Instance): (number, number)
 		return a.Name < b.Name
 	end)
 
-	print("──────── Unit specs ────────")
+	if verbose then
+		print("──────── Unit specs ────────")
+	end
 	for _, spec in specs do
 		local ok, err = pcall(function()
 			(require :: any)(spec)(t)
@@ -131,7 +142,9 @@ function TestRunner.run(folder: Instance): (number, number)
 			warn("  ✗ " .. spec.Name .. " failed to load: " .. tostring(err))
 		end
 	end
-	print(string.format("──────── %d passed, %d failed ────────", passed, failed))
+	if verbose then
+		print(string.format("──────── %d passed, %d failed ────────", passed, failed))
+	end
 	return passed, failed
 end
 

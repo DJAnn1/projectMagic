@@ -13,8 +13,8 @@
 	3. FORM (what shape)         touch / projectile / beam / burst / aura / zone / wall / pillar /
 	                             chain / summon / ritual: counts, sizes, speeds, lifetimes.
 
-	Textures are built-in rbxasset particles so everything works before custom art exists
-	(docs/UI.md §6 lists the custom textures to commission per particle style).
+	Textures come from DomainFx.textures (the uploaded Kenney pack, with built-in fallbacks), so
+	reactions, quakes and backlash match the spell layers (docs/UI.md §6 lists art to commission).
 ]]
 
 export type Refinement = {
@@ -44,9 +44,11 @@ Recipes.tiers = {
 	[8] = { spread = 0.5, flicker = 0, sizeJitter = 0, rate = 1.4, lifeSpread = 0.08, emission = 0.85, drag = 7, beamCurve = 0, trailLife = 0.4 },
 } :: { [number]: Refinement }
 
-local SPARKLES = "rbxasset://textures/particles/sparkles_main.dds"
-local FIRE = "rbxasset://textures/particles/fire_main.dds"
-local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+-- The same textures as the spell layers (DomainFx: uploaded Kenney art, built-in fallbacks).
+local TEX = require(script.Parent.DomainFx).textures
+local SPARKLES = TEX.sparkles
+local FIRE = TEX.fire
+local SMOKE = TEX.smoke
 
 -- Signature particle style -> texture and base shape of each particle.
 Recipes.particles = {

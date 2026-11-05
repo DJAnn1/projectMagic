@@ -576,15 +576,20 @@ function WorldStateService.settlementAt(_self: any, x: number, z: number): Settl
 	return nil
 end
 
--- Judges a cast inside a settlement and adjusts the caster's reputation there.
-function WorldStateService.judgeCast(self: any, player: Player, stats: Types.SpellStats, position: Vector3)
+--[[
+	Judges a cast inside a settlement and adjusts the caster's reputation there. `harmful` is
+	whether the cast actually did harm (CastService: it hurt a person or changed the land), not
+	just whether the spell could: a harmful spell that hit nothing is judged as harmless.
+]]
+function WorldStateService.judgeCast(self: any, player: Player, stats: Types.SpellStats, position: Vector3, harmful: boolean?)
 	local settlement = self:settlementAt(position.X, position.Z)
 	local state = playerData:get(player)
 	if not settlement or not state then
 		return
 	end
 	local branch = Registry.branches[stats.recipe.branch]
-	local delta, reason = Settlements.judgeCast(settlement, stats.domains, branch.tags, stats.harmful)
+	local didHarm = if harmful == nil then stats.harmful else harmful
+	local delta, reason = Settlements.judgeCast(settlement, stats.domains, branch.tags, didHarm)
 	if delta ~= 0 then
 		local reputation = state.data.reputation
 		reputation[settlement.id] = (reputation[settlement.id] or 0) + Settlements.scaleReputation(settlement, delta)

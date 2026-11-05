@@ -50,7 +50,8 @@ return {
 
 	-- Debug (Studio only)
 	foundation_markers = { default = true, description = "Red markers where a building's foundation check found terrain above the floor bottom or grass under it (SettlementService)." },
-	debug_run_tests = { default = true, description = "Run unit specs and magic examples on Studio boot." },
-	debug_profile_stats = { default = true, description = "Run the innate profile statistics on Studio boot (~3 s)." },
-	debug_journey_sim = { default = true, description = "Run the 30-hour progression journey simulation on Studio boot." },
+	debug_run_tests = { default = true, description = "Run unit specs and magic examples on Studio boot (one summary line; failures always print)." },
+	debug_verbose_boot = { default = false, description = "Print every boot check's details (each example spell, spec measurements, the settlement table)." },
+	debug_profile_stats = { default = false, description = "Run the innate profile statistics on Studio boot (~3 s, ~100 lines)." },
+	debug_journey_sim = { default = false, description = "Run the 30-hour progression journey simulation on Studio boot (~30 lines)." },
 }

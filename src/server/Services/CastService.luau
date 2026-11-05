@@ -397,6 +397,23 @@ local function aftermath(
 	local player, stats = p.player, p.stats
 	local totalDamage = reportHits(p, record, backfire)
 
+	--[[
+		Settlement law. A harmful spell only counts as harmful casting when it hurt someone (a
+		player or NPC; practice dummies don't count) or changed the land (terrain routes and the
+		world-recording ones: quakes, tsunamis). Otherwise a new player practising on the plaza
+		posted a bounty in ~7 casts (docs/Improvements.md, Feel #1). Banned domains, forbidden
+		magic and towns that ban all casting still judge every cast (Settlements.judgeCast).
+	]]
+	local hurtSomeone = false
+	for _, entry in record do
+		if not entry.practice then
+			hurtSomeone = true
+			break
+		end
+	end
+	local changedLand = p.route.recordsWorld == true or p.route.effect == "Terrain"
+	world:judgeCast(player, stats, landedAt, stats.harmful and (hurtSomeone or changedLand))
+
 	-- Magic leaves a trace: other magic that meets it here can react (InteractionMatrix).
 	runner:addPresence(
 		InteractionMatrix.tagsFor(stats),
@@ -1040,7 +1057,7 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 	local danger = reservoir.current < 0
 		or humanoid.Health <= humanoid.MaxHealth * T.challengeHealth
 		or #events:activeAt(point.X, point.Z) > 0
-	world:judgeCast(player, stats, point)
+	-- Settlement law is judged in aftermath(), once we know whether the spell hurt anyone.
 
 	Net.fire("CastResult", player, {
 		ok = true,

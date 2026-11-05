@@ -410,6 +410,7 @@ end
 local function trainingDummy(b: Builder, at: CFrame, y: number)
 	local dummy = Instance.new("Model")
 	dummy.Name = "TrainingDummy"
+	dummy:SetAttribute("PracticeTarget", true) -- hitting it is never a crime (WorldStateService.judgeCast)
 	local straw = Color3.fromRGB(205, 175, 100)
 	local function piece(name: string, size: Vector3, offset: CFrame, color: Color3, material: Enum.Material): BasePart
 		local p = Instance.new("Part")

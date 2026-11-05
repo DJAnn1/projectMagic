@@ -1,5 +1,7 @@
 # Improvements audit (2026-11-05)
 
+**Done 2026-11-05 (not yet run in Studio):** git baseline commit; quiet boot (Tech debt #1); crime-while-learning, smallest version (Feel #1: harm judged after the spell lands, practice dummies exempt); Future lighting + post-processing (Quick win #1); FxRecipes on DomainFx textures (Tech debt #5).
+
 Design only: what to improve in projectMagic as it stands, ranked by impact versus effort.
 Sizes: **S** = under one session, **M** = 1–3 sessions, **L** = a milestone's worth.
 "Roadmap" says where it fits in docs/Roadmap.md (M1 = the vertical slice).

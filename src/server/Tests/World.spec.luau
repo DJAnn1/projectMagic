@@ -54,7 +54,7 @@ return function(t: any)
 					table.insert(parts, string.format("%s %d", id, seen[id]))
 				end
 			end
-			print(string.format("  world %d: %d biomes on the 32x32 grid: %s", SEED, count, table.concat(parts, ", ")))
+			t.log(string.format("  world %d: %d biomes on the 32x32 grid: %s", SEED, count, table.concat(parts, ", ")))
 			expect(count >= 8).toBe(true)
 		end)
 		it("knows every biome it assigns", function()

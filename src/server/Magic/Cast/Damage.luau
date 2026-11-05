@@ -41,7 +41,8 @@ export type Info = {
 	blocked: boolean?, -- set by apply: a guard turned part of it away
 }
 
-export type RecordEntry = { name: string, dealt: number, crit: boolean, killed: boolean, kind: string, position: Vector3? }
+-- `practice`: the target is a practice dummy (model attribute PracticeTarget), not a person.
+export type RecordEntry = { name: string, dealt: number, crit: boolean, killed: boolean, kind: string, position: Vector3?, practice: boolean }
 
 local Damage = {}
 
@@ -107,6 +108,7 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 			killed = hitInfo.killed == true,
 			kind = kind,
 			position = if humanoid.RootPart then humanoid.RootPart.Position else nil,
+			practice = model ~= nil and model:GetAttribute("PracticeTarget") == true,
 		})
 	end
 	local hook = Damage.onDamage

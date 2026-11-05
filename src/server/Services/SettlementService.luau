@@ -785,7 +785,11 @@ function SettlementService.start(_self: any, _ctx: any)
 			world:setSpawn(first.center + dir * (first.plaza * 0.6))
 		end)
 	end
-	print(summary())
+	-- The full table (also the `settlements` admin command) only with debug_verbose_boot; printed
+	-- here it always read "0 buildings built", because buildings come with chunk builds later.
+	if flags and flags.get("debug_verbose_boot") == true then
+		print(summary())
+	end
 	task.spawn(function()
 		while true do
 			task.wait(PUDDLE_INTERVAL)

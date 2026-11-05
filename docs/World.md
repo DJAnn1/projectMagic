@@ -173,6 +173,7 @@ Placement (`POIPlacer`) uses every WorldIndex cell as a candidate. Each rule fil
 
 **How settlements change:**
 - `Settlements.judgeCast` applies a settlement's laws to casts inside it. Forbidden magic costs −25 reputation, a banned domain −12, and unlicensed harmful casting −6. Peaceful use of a revered domain earns +0.5, scaled by the culture's openness.
+- **Harm is judged by what the spell did, not what it could do (2026-11-05).** CastService judges in `aftermath`, after the spell lands. A harmful spell counts as harmful casting only if it hurt a person (a player or NPC; models with the `PracticeTarget` attribute, such as training dummies and admin test dummies, don't count) or changed the land (Terrain routes, quakes, tsunamis). A harmful spell that hit nothing is judged as harmless. Banned domains, forbidden magic and towns that ban all casting still judge every cast. Before this, a new player practising on the spawn plaza posted a bounty in ~7 casts.
 - Reputation is stored per player in their own data.
 - Settlement prosperity, relation drift and structural damage are stored as **additive deltas**, so every server's contributions merge cleanly.
 

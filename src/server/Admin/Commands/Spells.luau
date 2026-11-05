@@ -167,6 +167,7 @@ return function(admin: any, deps: any)
 		end
 		local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 		model.Name = "Test Dummy"
+		model:SetAttribute("PracticeTarget", true) -- hitting it is never a crime
 		humanoid.MaxHealth = hp
 		humanoid.Health = hp
 		humanoid.BreakJointsOnDeath = false

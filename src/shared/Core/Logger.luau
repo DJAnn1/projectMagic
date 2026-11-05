@@ -61,7 +61,13 @@ function Logger.format(entry: Entry): string
 	return table.concat(parts, " ")
 end
 
+-- Events a spec is provoking on purpose (Logger.expecting): neither printed nor counted.
+local expected: { [string]: number } = {}
+
 local function emit(level: number, scope: string, event: string, fields: { [string]: any }?)
+	if expected[event] then
+		return
+	end
 	counts[level] += 1
 	if level < minLevel then
 		return
@@ -78,6 +84,22 @@ local function emit(level: number, scope: string, event: string, fields: { [stri
 	end
 	for _, sink in sinks do
 		task.spawn(sink, entry)
+	end
+end
+
+--[[
+	Runs `body` with `event` marked as expected: while it runs, entries with that event name are
+	dropped (not printed, not counted in Logger.counts or `perf`). For specs that test a failure
+	path on purpose, so a deliberate error doesn't look like a real one in the Output. Errors in
+	`body` still propagate.
+]]
+function Logger.expecting(event: string, body: () -> ())
+	expected[event] = (expected[event] or 0) + 1
+	local ok, err = pcall(body)
+	local left = (expected[event] or 1) - 1
+	expected[event] = if left > 0 then left else nil
+	if not ok then
+		error(err, 0)
 	end
 end
 

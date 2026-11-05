@@ -12,6 +12,16 @@ local Types = require(Magic.Types)
 local MagicCore = require(Magic.MagicCore)
 local Reservoir = require(Magic.Reservoir)
 local Seed = require(Magic.Seed)
+local FeatureFlags = require(ReplicatedStorage.Shared.Core.FeatureFlags)
+
+-- Each example's details print only with debug_verbose_boot; failures (warn) always show, and
+-- init.server prints one summary line from the returned counts.
+local rawPrint = print
+local function print(...: any)
+	if FeatureFlags.get("debug_verbose_boot") then
+		rawPrint(...)
+	end
+end
 
 type CasterProfile = Types.CasterProfile
 type SpellStats = Types.SpellStats
@@ -123,7 +133,7 @@ local archmage: CasterProfile = {
 	mastery = { earth = 90, geomancy = 60, seismic = 80, faultwork = 85, cataclysm = 90 },
 }
 
-return function()
+return function(): (number, number)
 	print("──────── Magic grammar examples ────────")
 
 	-- ─── 1-9: spells built from the grammar ─────────────────────────────────
@@ -302,4 +312,5 @@ return function()
 	check("seed varies", Seed.derive(WORLD_SEED, "npc_42", "affinity") ~= Seed.derive(WORLD_SEED, "npc_43", "affinity"))
 
 	print(string.format("──────── %d passed, %d failed ────────", passed, failed))
+	return passed, failed
 end
