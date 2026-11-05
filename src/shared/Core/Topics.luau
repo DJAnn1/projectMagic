@@ -22,7 +22,7 @@ return table.freeze({
 	-- Combat (docs/Combat.md §6)
 	SpellCast = "SpellCast", -- { casterUserId, key, route, domain, power, point } a cast was accepted and paid
 	SpellHit = "SpellHit", -- { casterUserId, key, route, domain, total, targets: { { name, dealt, crit, killed, kind } } }
-	TargetDamaged = "TargetDamaged", -- { humanoid, model, amount, kind, sourceUserId?, crit, domain?, killed }
+	TargetDamaged = "TargetDamaged", -- { humanoid, model, amount, kind, sourceUserId?, crit, domain?, branch?, killed }
 	TargetKilled = "TargetKilled", -- { humanoid, model, kind, sourceUserId?, domain? }
 	StatusApplied = "StatusApplied", -- { humanoid, model, status, duration, sourceUserId? } a NEW status (not a refresh)
 	SpellResolved = "SpellResolved", -- { casterUserId, key, route, point, domains, branch, branchPath, property, verb, form, power, tags, effective, hits, harmful, forbidden }

@@ -28,7 +28,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 | 2 | **Practice targets in every town**: a training yard by the plaza (2–3 PracticeTarget dummies, no crime), before creatures exist. | S | EarlyGame #5, split | Fixes dead spot 2 now, cheaply. |
 | **3** | **First ranged spell** (built 2026-11-05): no milestone, no gate. Projectile opens at **Sensing**, and the awakening also gives your Strike thrown (Ember Dart...) in slot 3. The owner chose against the "First Steps" checklist: "I don't want to restrict anything for the player". | S | EarlyGame #2 | Dead spot 3. |
 | **4** | **Beginner situations + a mentor per town** (built 2026-11-05): practice yard, lamps at dusk, show me, lost pet, a lesson from the mentor, sparring; only below Adept, one at a time, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
-| 5 | **First creatures** (4–6 critters near settlements, every domain strong against one). | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
+| **5** | **First creatures** (built 2026-11-05): six critters in seeded dens around every town, every domain strong against at least one. | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
 | 6 | **Experimentation pays** (novelty XP, first-reaction toasts, Guided "try something"). | M | EarlyGame #7 | Once the basics work. |
 | 7 | **First-time flourishes** (first damage, first new verb/form: a stinger and a toast). The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
 | 8 | **Measure the first hour** (JourneySim + telemetry). | M | EarlyGame #8 | Last: measures the above. |
@@ -71,4 +71,29 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Specs:** Quest.spec: beginner templates are personal, maxTier 2 and ride beginner situations; no duel-type template below Novice; `anyEffect`; the technique hint.
 - **Not done (from EarlyGame #6):** Journal "Path" hints (3 soft goals from your profile).
 - **Next:** item 5, the first creatures.
+
+## 7. Item 5, built (2026-11-05, not yet run)
+
+| Creature | Behaviour | Weak to (at or below -0.3) | Resists |
+|---|---|---|---|
+| Ember Sprite | swarm, floats | water | energy |
+| Mud Crawler | defends its den | energy, time | earth, water |
+| Gust Moth | flees, floats, can't attack | earth, gravity | air |
+| Gloom Rat | swarm | spirit, mind, life | void |
+| Glass Beetle | defends its den | air, space | earth |
+| Mana Wisp | ignores you until hit, floats | void, reality | none at 0.3+ |
+
+- **Data:** `Server/Creatures/Data/Creatures` holds everything per creature, plus tuning. A new creature is one entry there.
+- **Dens:** `CreatureRules.planDens`, seeded from `(worldSeed, "settlement:<id>", "creatures")`. Up to 4 per town, a different type each, weighted by the town's biome, 45–150 studs beyond its edge, on dry gentle ground, outside every town and 45+ studs apart. Seeded per settlement rather than per chunk (the prompt's wording), because dens belong to towns. Roads aren't considered.
+- **Population:** dens are data until a player comes within 220 studs and the chunk is built; they sleep at 300. `creatures_max_alive` (70) caps the total, nearest dens first, at most 6 rigs built per second. A dead member respawns in 80–200 s, but not while someone stands within 35 studs of the den.
+- **Body:** `CreatureRig` builds a real Humanoid + HumanoidRootPart, so targeting, projectiles, statuses, knockdowns and lock-on need no creature code. Server network owner, atomic streaming, no animation yet. The Humanoid's own overhead shows the name and health.
+- **Movement:** straight-line `MoveTo` at 4 Hz, no pathfinding. The leash (32–44 studs from the den) keeps them out of town. Past it they go home, and on arrival they heal and forget the fight.
+- **Law:** hitting a creature is never a crime (`Damage` marks it `practice`, as with dummies).
+- **Weakness feedback:** "Weak!" or "Resists" floats over the target, using the status-word cue.
+- **Rewards:** everyone who dealt 20% of its health gets XP (`challenge` channel, to the branch that last hit it; `DamageModel` and `MeleeService` now pass `branch`) and their own seeded loot roll. Weapon-only kills give loot but no magic XP. Both scale by `1 / (1 + killsThisHour / 8)` per type, saved in `PlayerData.creatureHunt` so server-hopping doesn't reset it. The practice anti-grind also applies (AFK, repeats, relevance to your power ceiling).
+- **Items:** five new materials (`crawler_chitin`, `moth_dust`, `gloom_fur`, `beetle_glass`, `wisp_mote`); sprites drop the existing `ember_essence`. Loot goes straight to the inventory (world drops are Items stage 3). No recipes use them yet, apart from `gloom_fur` carrying the `hide` tag.
+- **Admin:** `creature spawn <type> [count]`, `creature clear`, `creatures`, `creaturedens`. Flag `creatures_enabled`.
+- **Spec:** `Tests/Creatures.spec` (10 tests).
+- **Not done (from EarlyGame #5):** guards killing pests and farmers paying for them (dens stay outside towns, so they never meet), creature sounds, animation, and a quest or Journal entry pointing at dens.
+- **Next:** item 6, experimentation pays.
 

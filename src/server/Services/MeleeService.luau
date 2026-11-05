@@ -112,6 +112,7 @@ local function strikeOne(player: Player, character: Model, root: BasePart, stats
 		pierce = false,
 		form = "touch", -- a blade is contact: a parry staggers the attacker
 		attacker = character,
+		branch = stats.recipe.branch,
 	})
 	if dealt <= 0 then
 		return false -- parried, warded away, or quest-protected

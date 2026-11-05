@@ -444,6 +444,7 @@ function EffectRunner.init(_self: any, ctx: any)
 			sourceUserId = source,
 			crit = info.crit == true,
 			domain = info.domain,
+			branch = info.branch,
 			killed = info.killed == true,
 		})
 		if info.killed then

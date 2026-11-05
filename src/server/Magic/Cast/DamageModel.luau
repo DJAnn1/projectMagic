@@ -118,6 +118,7 @@ function DamageModel.hit(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, share
 		pierce = ctx.stats.flags.piercing == true,
 		form = ctx.stats.recipe.form,
 		attacker = ctx.character,
+		branch = ctx.stats.recipe.branch,
 	})
 	return dealt, result
 end

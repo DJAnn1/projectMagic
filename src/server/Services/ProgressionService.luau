@@ -302,6 +302,27 @@ function ProgressionService.awardQuest(_self: any, player: Player, branchId: str
 	return nil
 end
 
+--[[
+	A creature kill (CreatureService), through the challenge channel so the practice anti-grind
+	applies: AFK earns nothing, the same creature type repeats out like the same recipe does
+	("creature:<type>" as the recipe key), and a creature far below your power ceiling teaches little
+	(`level` against MagicCore.powerCap). `amount` already carries the per-hour kill factor.
+]]
+function ProgressionService.awardCreatureKill(_self: any, player: Player, branchId: string, amount: number, creatureType: string, level: number): Progression.GainResult?
+	local state = stateOf(player)
+	if not state then
+		return nil
+	end
+	return gain(player, branchId, "challenge", amount, {
+		now = now(),
+		runtime = runtimeOf(player),
+		recipeKey = "creature:" .. creatureType,
+		power = level,
+		comfort = MagicCore.powerCap(state.caster, branchId),
+		effective = true,
+	})
+end
+
 function ProgressionService.recordFact(_self: any, player: Player, kind: string, id: string, value: number?)
 	local state = stateOf(player)
 	if state then

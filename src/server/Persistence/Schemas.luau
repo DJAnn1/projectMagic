@@ -96,6 +96,7 @@ Schemas.Player = {
 			infamy = { v = 0, t = 0 },
 			bounties = {}, -- settlementId -> { amount, faction, reason, t }
 			notoriety = {}, -- mythic domain -> { v, t }
+			creatureHunt = { hour = 0, total = 0, byType = {} }, -- kills this hour per type (CreatureService's anti-grind) + lifetime total (loot seed); reconcile fills old saves
 			-- Items (docs/Items.md §6; Server/Items/Inventory). Records use short keys (ItemTypes.Record).
 			inventory = {
 				currency = 0, -- coins

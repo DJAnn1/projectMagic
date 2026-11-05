@@ -33,6 +33,8 @@ return {
 	combat_anim_debug = { default = false, replicate = true, description = "Show each nearby character's and NPC's action state over its head (client labels; every client sees them, so Studio use)." },
 	combat_debug_log = { default = false, description = "Log every cast's damage breakdown (power, base, each target's damage, crits, kills) at Info level." },
 	magic_casting_enabled = { default = true, replicate = true, description = "Global kill switch for casting." },
+	creatures_enabled = { default = true, description = "Wild creatures around towns (CreatureService). Off puts every den to sleep." },
+	creatures_max_alive = { default = 70, description = "Most creatures alive on this server; when dens compete, the ones nearest a player fill first." },
 	npc_enabled = { default = true, description = "Simulate settlement NPCs (NPCService)." },
 	npc_day_seconds = { default = 1440, description = "Real seconds per game day (NPC schedules, day/night)." },
 	npc_population_mult = { default = 1, description = "Multiplier on every settlement's simulated population (0.25-3)." },
