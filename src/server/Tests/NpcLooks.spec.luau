@@ -98,6 +98,54 @@ return function(t: any)
 			t.expect(table.find(look.ids, Data.glasses) ~= nil).toBe(true)
 		end)
 
+		t.it("dresses every occupation, with pieces that exist, coloured by culture", function()
+			for occupation in NpcData.occupations do
+				t.expect(Data.outfits[occupation] ~= nil).toBe(true)
+			end
+			for _, outfit in Data.outfits do
+				for kind in (outfit.always or {}) :: { [string]: any } do
+					t.expect(Data.garments[kind] ~= nil).toBe(true)
+				end
+				for kind in (outfit.maybe or {}) :: { [string]: any } do
+					t.expect(Data.garments[kind] ~= nil).toBe(true)
+				end
+			end
+			local guard = NpcLooks.choose(npc({ occupation = "guard" }))
+			local kinds: { [string]: boolean } = {}
+			for _, g in guard.garments do
+				kinds[g.kind] = true
+			end
+			t.expect(kinds.tabardFront and kinds.tabardBack and kinds.belt).toBe(true)
+			-- The same NPC always wears the same thing.
+			local again = NpcLooks.choose(npc({ occupation = "guard" }))
+			t.expect(#again.garments).toBe(#guard.garments)
+			t.expect(again.garments[1].color).toBe(guard.garments[1].color)
+			-- The well-off get a buckle.
+			local rich = NpcLooks.choose(npc({ occupation = "smith", socialClass = "high" }))
+			local buckle = false
+			for _, g in rich.garments do
+				buckle = buckle or g.kind == "buckle"
+			end
+			t.expect(buckle).toBe(true)
+		end)
+
+		t.it("shows a strong mage's signature, and nobody else's", function()
+			t.expect(NpcLooks.choose(npc({})).accent).toBe(nil) -- no magic at all
+			local mage = npc({
+				magic = { mastery = { pyromancy = 100000 }, unlocked = {} },
+				profile = { signature = { primary = "#ff4020", secondary = "#ffd040", accent = "#40a0ff" } },
+			})
+			local look = NpcLooks.choose(mage)
+			t.expect(look.accent ~= nil).toBe(true)
+			local neon = 0
+			for _, g in look.garments do
+				if g.neon then
+					neon += 1
+				end
+			end
+			t.expect(neon >= 3).toBe(true) -- both wrists and a belt or sash
+		end)
+
 		t.it("lists every id once for preloading", function()
 			local ids = NpcLooks.allIds()
 			t.expect(#ids >= 60).toBe(true)

@@ -208,4 +208,86 @@ NpcLooks.scale = {
 } :: { [string]: number }
 NpcLooks.childScale = 0.8
 
+-- ─── Clothing (parts welded to the R6 body) ─────────────────────────────────
+--[[
+	Roblox makes no medieval classic clothing, so outfits are a few thin parts welded to the body
+	over the existing shirt/trouser colours. SmoothPlastic, never Fabric: ThermalSim treats Fabric
+	as tinder, and NPCs shouldn't catch fire from a nearby spell by accident.
+
+	garments   shape and place of each piece on its R6 body part (offset from that part's centre)
+	outfits    per occupation: pieces always worn, and pieces worn by chance
+	palette    the culture's cloth colours (tabards, robes, cloaks, sashes)
+	fixed      colours some pieces always have (leather aprons, white aprons)
+	wealth     socialClass shifts: "low" mutes and darkens the cloth, "high" deepens it, adds a
+	           metal buckle and makes a cloak likelier
+]]
+NpcLooks.garments = {
+	belt = { attach = "Torso", size = Vector3.new(2.06, 0.28, 1.06), offset = CFrame.new(0, -0.82, 0) },
+	buckle = { attach = "Torso", size = Vector3.new(0.34, 0.24, 0.06), offset = CFrame.new(0, -0.82, -0.56), metal = true },
+	apron = { attach = "Torso", size = Vector3.new(1.5, 2.7, 0.08), offset = CFrame.new(0, -0.75, -0.55) },
+	tabardFront = { attach = "Torso", size = Vector3.new(1.35, 3.0, 0.08), offset = CFrame.new(0, -0.6, -0.55) },
+	tabardBack = { attach = "Torso", size = Vector3.new(1.35, 3.0, 0.08), offset = CFrame.new(0, -0.6, 0.55) },
+	robe = { attach = "Torso", size = Vector3.new(2.2, 1.9, 1.25), offset = CFrame.new(0, -1.95, 0) },
+	cloak = { attach = "Torso", size = Vector3.new(2.15, 3.3, 0.1), offset = CFrame.new(0, -0.55, 0.58) },
+	sash = { attach = "Torso", size = Vector3.new(0.32, 2.75, 1.08), offset = CFrame.Angles(0, 0, math.rad(38)) },
+	wristR = { attach = "Right Arm", size = Vector3.new(1.06, 0.18, 1.06), offset = CFrame.new(0, -0.72, 0) },
+	wristL = { attach = "Left Arm", size = Vector3.new(1.06, 0.18, 1.06), offset = CFrame.new(0, -0.72, 0) },
+} :: { [string]: { attach: string, size: Vector3, offset: CFrame, metal: boolean? } }
+
+-- Colour sources: "culture" (palette), "leather", "linen" (white aprons), "dark".
+NpcLooks.outfits = {
+	guard = { always = { tabardFront = "culture", tabardBack = "culture", belt = "leather" }, maybe = { cloak = { 0.35, "culture" } } },
+	smith = { always = { apron = "leather", belt = "leather" } },
+	miner = { always = { belt = "leather" }, maybe = { apron = { 0.3, "leather" } } },
+	builder = { always = { belt = "leather" }, maybe = { apron = { 0.4, "leather" } } },
+	farmer = { always = { belt = "leather" }, maybe = { apron = { 0.3, "linen" } } },
+	herbalist = { always = { apron = "culture", belt = "leather" } },
+	healer = { always = { apron = "linen", belt = "leather" }, maybe = { robe = { 0.3, "culture" } } },
+	lamplighter = { always = { belt = "leather" }, maybe = { cloak = { 0.5, "dark" } } },
+	tidepriest = { always = { robe = "culture", sash = "culture2" } },
+	fisher = { always = { belt = "leather" }, maybe = { apron = { 0.3, "oilskin" } } },
+	weathercaller = { always = { robe = "culture" }, maybe = { sash = { 0.6, "culture2" }, cloak = { 0.3, "culture" } } },
+	scholar = { always = { robe = "culture" }, maybe = { sash = { 0.5, "culture2" } } },
+	merchant = { always = { belt = "leather" }, maybe = { sash = { 0.3, "culture" }, cloak = { 0.25, "culture" } } },
+	innkeeper = { always = { apron = "linen", belt = "leather" } },
+	hunter = { always = { cloak = "dark", belt = "leather" } },
+	child = { maybe = { belt = { 0.5, "leather" } } },
+	retired = { always = { belt = "leather" }, maybe = { robe = { 0.3, "culture" }, cloak = { 0.3, "dark" } } },
+} :: { [string]: { always: { [string]: string }?, maybe: { [string]: { any } }? } }
+
+NpcLooks.palette = {
+	tidecall = { Color3.fromRGB(46, 86, 128), Color3.fromRGB(64, 128, 132), Color3.fromRGB(196, 180, 140), Color3.fromRGB(32, 58, 92) },
+	frostfolk = { Color3.fromRGB(118, 124, 134), Color3.fromRGB(214, 216, 220), Color3.fromRGB(128, 36, 40), Color3.fromRGB(70, 74, 84) },
+	loreseat = { Color3.fromRGB(78, 52, 112), Color3.fromRGB(36, 46, 96), Color3.fromRGB(146, 120, 70), Color3.fromRGB(58, 40, 72) },
+	verdant = { Color3.fromRGB(60, 104, 54), Color3.fromRGB(102, 82, 50), Color3.fromRGB(140, 152, 74), Color3.fromRGB(42, 70, 46) },
+	forgehold = { Color3.fromRGB(58, 56, 60), Color3.fromRGB(128, 64, 40), Color3.fromRGB(90, 68, 50), Color3.fromRGB(150, 110, 60) },
+	skywarden = { Color3.fromRGB(214, 222, 232), Color3.fromRGB(110, 150, 200), Color3.fromRGB(180, 184, 196), Color3.fromRGB(70, 96, 140) },
+	wayfarer = { Color3.fromRGB(150, 116, 70), Color3.fromRGB(106, 84, 58), Color3.fromRGB(172, 140, 90), Color3.fromRGB(84, 92, 70) },
+	emberclan = { Color3.fromRGB(142, 40, 30), Color3.fromRGB(196, 96, 36), Color3.fromRGB(40, 34, 34), Color3.fromRGB(120, 70, 40) },
+} :: { [string]: { Color3 } }
+NpcLooks.defaultPalette = { Color3.fromRGB(110, 96, 80), Color3.fromRGB(90, 100, 110), Color3.fromRGB(130, 110, 80) }
+
+NpcLooks.fixed = {
+	leather = Color3.fromRGB(92, 62, 38),
+	linen = Color3.fromRGB(226, 220, 204),
+	dark = Color3.fromRGB(46, 44, 48),
+	oilskin = Color3.fromRGB(196, 160, 60),
+	gold = Color3.fromRGB(212, 172, 72),
+	iron = Color3.fromRGB(120, 120, 126),
+} :: { [string]: Color3 }
+
+NpcLooks.wealth = {
+	low = { mute = 0.4, darken = 0.15, buckle = false, cloakBonus = 0 },
+	middle = { mute = 0, darken = 0, buckle = false, cloakBonus = 0 },
+	high = { mute = 0, darken = 0.12, buckle = true, cloakBonus = 0.4 },
+} :: { [string]: { mute: number, darken: number, buckle: boolean, cloakBonus: number } }
+
+-- ─── Signature accents (strong mages show it) ───────────────────────────────
+--[[
+	By the NPC's best mastery tier index (NPCMagicLife.best): from `trim` on, Neon bands at the wrists
+	and a Neon belt or sash in the signature's primary colour; from `motes`, slow signature-coloured
+	sparkles at the hands; from `aura`, more of them. No PointLights (the light budget is the town's).
+]]
+NpcLooks.accent = { trim = 3, motes = 5, aura = 7, motesRate = 3, auraRate = 8 }
+
 return NpcLooks

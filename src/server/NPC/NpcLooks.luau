@@ -3,6 +3,11 @@
 	NpcLooks: hair, headwear, beards, glasses, scarves and body scale for NPC rigs (docs/NPC.md §6c).
 	Data: NPC/Data/NpcLooks (Roblox-made catalog accessories only).
 
+	CLOTHES  part-built outfits (Roblox makes no medieval classic clothing): belts, aprons, tabards,
+	         robes, cloaks, sashes by occupation, coloured from the culture's palette and shifted by
+	         wealth (socialClass); welded to the body, SmoothPlastic (never Fabric: fire), no collision.
+	ACCENTS  strong mages show it in their signature colour: Neon wrist bands and a Neon belt or
+	         sash from Skilled (tier 3), slow sparkles at the hands from Master (5), more from 7.
 	CHOOSE   choose(npc) is deterministic: a Random seeded from the NPC's own seed (itself from
 	         Seed.derive(worldSeed, id, "npc")), so the same person always looks the same, on every
 	         server. Inputs it reads: appearance.hair (colour) / build / feature, ageBand,
@@ -22,8 +27,12 @@ local InsertService = game:GetService("InsertService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Data = require(script.Parent.Data.NpcLooks)
+local NPCMagicLife = require(script.Parent.NPCMagicLife)
+local InnateProfile = require(script.Parent.Parent.Magic.InnateProfile)
 
-export type Look = { ids: { number }, scale: number }
+export type Garment = { kind: string, color: Color3, neon: boolean }
+export type Accent = { tier: number, primary: Color3, secondary: Color3 }
+export type Look = { ids: { number }, scale: number, garments: { Garment }, accent: Accent? }
 
 local NpcLooks = {}
 
@@ -133,7 +142,88 @@ function NpcLooks.choose(npc: any): Look
 	end
 
 	local scale = if child then Data.childScale else (Data.scale[tostring(a.build or "average")] or 1)
-	return { ids = ids, scale = scale }
+	local garments = NpcLooks.chooseClothes(npc, seed)
+	local accent = NpcLooks.chooseAccent(npc)
+	if accent then
+		-- The signature shows in Neon: wrist bands, and the belt (or a sash) takes the colour.
+		local lit = false
+		for _, g in garments do
+			if (g.kind == "belt" or g.kind == "sash") and not lit then
+				g.color, g.neon, lit = accent.primary, true, true
+			end
+		end
+		if not lit then
+			table.insert(garments, { kind = "sash", color = accent.primary, neon = true })
+		end
+		table.insert(garments, { kind = "wristR", color = accent.primary, neon = true })
+		table.insert(garments, { kind = "wristL", color = accent.secondary, neon = true })
+	end
+	return { ids = ids, scale = scale, garments = garments, accent = accent }
+end
+
+local GREYISH = Color3.fromRGB(120, 112, 100)
+local BLACK = Color3.new(0, 0, 0)
+
+local function sortedKeys(t: { [string]: any }): { string }
+	local keys: { string } = {}
+	for k in t do
+		table.insert(keys, k)
+	end
+	table.sort(keys)
+	return keys
+end
+
+-- The outfit: pieces from the occupation, colours from the culture's palette, shifted by wealth.
+function NpcLooks.chooseClothes(npc: any, seed: number): { Garment }
+	local rng = Random.new((seed + hash("clothes")) % 2147483647)
+	local palette = Data.palette[npc.culture or ""] or Data.defaultPalette
+	local wealth = Data.wealth[npc.socialClass or "middle"] or Data.wealth.middle
+	local first = palette[rng:NextInteger(1, #palette)]
+	local second = palette[rng:NextInteger(1, #palette)]
+	local function colourOf(source: string): Color3
+		local c = if source == "culture" then first elseif source == "culture2" then second else (Data.fixed[source] or first)
+		if source ~= "linen" then
+			c = c:Lerp(GREYISH, wealth.mute):Lerp(BLACK, wealth.darken)
+		end
+		return c
+	end
+	local out: { Garment } = {}
+	local outfit = Data.outfits[npc.occupation or ""]
+	if outfit then
+		for _, kind in sortedKeys(outfit.always or {}) do
+			table.insert(out, { kind = kind, color = colourOf((outfit.always :: any)[kind]), neon = false })
+		end
+		for _, kind in sortedKeys(outfit.maybe or {}) do
+			local entry = (outfit.maybe :: any)[kind]
+			local chance = entry[1] + (if kind == "cloak" then wealth.cloakBonus else 0)
+			if rng:NextNumber() < chance then
+				table.insert(out, { kind = kind, color = colourOf(entry[2]), neon = false })
+			end
+		end
+	end
+	-- The well-off wear a metal buckle on their belt.
+	if wealth.buckle then
+		for _, g in out do
+			if g.kind == "belt" then
+				table.insert(out, { kind = "buckle", color = Data.fixed.gold, neon = false })
+				break
+			end
+		end
+	end
+	return out
+end
+
+-- The signature accent for a strong mage (nil below Skilled, or without a profile).
+function NpcLooks.chooseAccent(npc: any): Accent?
+	local ok, _, _, tier = pcall(NPCMagicLife.best, npc)
+	if not ok or typeof(tier) ~= "number" or tier < Data.accent.trim then
+		return nil
+	end
+	local okColours, colours = pcall(InnateProfile.signatureColors, npc.profile)
+	if not okColours or typeof(colours) ~= "table" then
+		return nil
+	end
+	return { tier = tier, primary = colours.primary, secondary = colours.secondary }
 end
 
 -- Every id the data can produce (preload).
@@ -225,12 +315,71 @@ end
 
 -- ─── Applying ───────────────────────────────────────────────────────────────
 
+local GARMENT_TAG = "NpcGarment"
+local MOTES = "rbxasset://textures/particles/sparkles_main.dds"
+
 local function strip(model: Model)
 	for _, child in model:GetChildren() do
 		if child:IsA("Accessory") and child:GetAttribute(TAG) then
 			child:Destroy()
 		end
 	end
+	for _, item in model:GetDescendants() do
+		if item:GetAttribute(GARMENT_TAG) then
+			item:Destroy()
+		end
+	end
+end
+
+-- One clothing piece welded to its body part.
+local function addGarment(model: Model, garment: Garment)
+	local def = Data.garments[garment.kind]
+	local host = def and model:FindFirstChild(def.attach)
+	if not def or not host or not host:IsA("BasePart") then
+		return
+	end
+	local part = Instance.new("Part")
+	part.Name = "Garment_" .. garment.kind
+	part.Size = def.size
+	part.Material = if garment.neon then Enum.Material.Neon elseif def.metal then Enum.Material.Metal else Enum.Material.SmoothPlastic
+	part.Color = garment.color
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Massless = true
+	part.CFrame = host.CFrame * def.offset
+	part:SetAttribute(GARMENT_TAG, true)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = host
+	weld.Part1 = part
+	weld.Parent = part
+	part.Parent = model
+end
+
+-- Slow signature-coloured sparkles at a hand (Master and above).
+local function addMotes(model: Model, armName: string, accent: Accent, rate: number)
+	local arm = model:FindFirstChild(armName)
+	if not arm or not arm:IsA("BasePart") then
+		return
+	end
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "SignatureMotes"
+	attachment.Position = Vector3.new(0, -arm.Size.Y / 2, 0)
+	attachment:SetAttribute(GARMENT_TAG, true)
+	attachment.Parent = arm
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = MOTES
+	e.Color = ColorSequence.new(accent.primary, accent.secondary)
+	e.LightEmission = 1
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 0) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	e.Lifetime = NumberRange.new(0.8, 1.4)
+	e.Speed = NumberRange.new(0.3, 0.8)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Acceleration = Vector3.new(0, 1.5, 0)
+	e.Rate = rate
+	e.Parent = attachment
 end
 
 function NpcLooks.apply(model: Model, humanoid: Humanoid, look: Look)
@@ -256,6 +405,17 @@ function NpcLooks.apply(model: Model, humanoid: Humanoid, look: Look)
 			end)
 		end
 	end
+	for _, garment in look.garments or {} do
+		addGarment(model, garment)
+	end
+	local accent = look.accent
+	if accent and accent.tier >= Data.accent.motes then
+		local rate = if accent.tier >= Data.accent.aura then Data.accent.auraRate else Data.accent.motesRate
+		addMotes(model, "Right Arm", accent, rate)
+		if accent.tier >= Data.accent.aura then
+			addMotes(model, "Left Arm", accent, rate)
+		end
+	end
 	if math.abs(look.scale - 1) > 0.005 then
 		pcall(function()
 			model:ScaleTo(look.scale)
@@ -270,7 +430,16 @@ function NpcLooks.describe(look: Look): string
 		local template = cache[id]
 		table.insert(names, if template then template.Name else (if failed[id] then tostring(id) .. " (failed)" else tostring(id) .. " (loading)"))
 	end
-	return string.format("%s · scale %.2f", if #names > 0 then table.concat(names, ", ") else "nothing on the head", look.scale)
+	local clothes: { string } = {}
+	for _, g in look.garments or {} do
+		table.insert(clothes, g.kind .. (if g.neon then " (signature)" else ""))
+	end
+	local accent = look.accent
+	return string.format("%s · wears %s · scale %.2f%s",
+		if #names > 0 then table.concat(names, ", ") else "nothing on the head",
+		if #clothes > 0 then table.concat(clothes, ", ") else "plain clothes",
+		look.scale,
+		if accent then string.format(" · signature accent (tier %d)", accent.tier) else "")
 end
 
 return NpcLooks
