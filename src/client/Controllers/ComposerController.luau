@@ -9,6 +9,14 @@
 		        Every option is shown, and unavailable ones say why ("Unlocks at Adept",
 		        "Conflicts with Silent"), so the grammar teaches itself.
 
+	Explanations (Shared/UI/SpellHelp, all text as data):
+		each step       its question and a longer "what this step means"
+		About card      the hovered (or gamepad-selected, or chosen) option in full: description,
+		                an example, and for a locked one the full reason plus what to do about it
+		preview         one plain sentence for the whole spell (SpellHelp.describe) under its name
+		How spells work a walkthrough (5 pages + a glossary), opened automatically the first time
+		                (hidden setting composerHelpSeen) and from the "?" button any time
+
 	Live preview: MagicCore.computeStats on the client's estimated caster (UI/KnownCaster) at the
 	player's current location (RegionInfo). Numbers carry "≈": the server recomputes with the real
 	profile on every cast and its result is the only one that counts.
@@ -28,6 +36,7 @@ local MagicCore = require(Shared.Magic.MagicCore)
 local GuardRules = require(Shared.Magic.GuardRules)
 local Strike = require(Shared.Magic.Strike)
 local Types = require(Shared.Magic.Types)
+local SpellHelp = require(Shared.UI.SpellHelp)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
@@ -135,6 +144,10 @@ local modeOverride: string? = nil -- "advanced" while editing a recipe passed in
 local loadedArgs: any = nil
 local spellName = ""
 local cardPowers: { [string]: Kit.Value<number> } = {}
+local focused = Kit.value(nil :: string?) -- the option the About card explains (hover / gamepad selection)
+local showHelp = Kit.value(false) -- the "How spells work" walkthrough
+local helpPage = Kit.value(1)
+local helpAutoShown = false -- opened once per session at most, even before the setting saves
 
 -- ─── Draft logic ────────────────────────────────────────────────────────────
 
@@ -419,7 +432,7 @@ end
 
 -- ─── Shared builders ────────────────────────────────────────────────────────
 
-local function optionTile(option: Option, order: number, onChoose: () -> ()): TextButton
+local function optionTile(option: Option, order: number, onChoose: () -> (), onFocus: (() -> ())?): TextButton
 	local button = C.button("", if option.available then onChoose else nil, {
 		kind = "ghost",
 		selected = option.selected,
@@ -452,7 +465,79 @@ local function optionTile(option: Option, order: number, onChoose: () -> ()): Te
 		TextWrapped = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}).Parent = texts
+	-- Hovering (mouse) or selecting (gamepad) shows the option in full on the About card. Disabled
+	-- tiles still get these, so a locked choice can always explain itself.
+	if onFocus then
+		button.MouseEnter:Connect(onFocus)
+		button.SelectionGained:Connect(onFocus)
+	end
 	return button
+end
+
+-- What to do about a locked option, from the reason the option builders give.
+local function nextStep(reason: string): string
+	if string.find(reason, "^Unlocks at") then
+		return "Keep casting spells in this branch: every cast builds mastery."
+	elseif string.find(reason, "^Needs a deeper branch") then
+		return "Open a deeper branch in the Grimoire (it grows out of this one)."
+	elseif string.find(reason, "^Needs mastery") then
+		return "Keep casting in this branch to raise your mastery."
+	elseif string.find(reason, "^Nothing you can do") then
+		return "As your mastery here grows, new verbs open up for it."
+	elseif string.find(reason, "^Conflicts with") then
+		return "Remove the other modifier first."
+	elseif string.find(reason, "slots used") then
+		return "Remove a modifier to make room; deeper branches hold more."
+	elseif string.find(reason, "^Too little ambient") then
+		return "Go somewhere the magic runs thicker, such as near a ley line."
+	end
+	return "Try a different choice earlier in the spell."
+end
+
+-- The About card: one option in full, for step `stepId`.
+local function aboutCard(parent: Instance, stepId: string, option: Option?, order: number)
+	local card = C.panel({
+		BackgroundTransparency = Theme.glass,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+	C.padding(Theme.space.m).Parent = card
+	C.list("y", Theme.space.xs).Parent = card
+	if not option then
+		C.text("Point at a choice (or select it with a gamepad) to read what it does.", "caption", { LayoutOrder = 1, Parent = card })
+		return
+	end
+	C.text("About: " .. option.name, "label", { FontFace = Theme.font.bold, LayoutOrder = 1, Parent = card })
+	local description = option.description
+	if stepId == "branch" then
+		local def = Registry.branches[option.id]
+		if def and typeof((def :: any).description) == "string" then
+			description = (def :: any).description .. " (" .. option.description .. ")"
+		end
+	end
+	C.text(description, "body", { LayoutOrder = 2, Parent = card })
+	local example: string? = nil
+	if stepId == "verb" then
+		local help = SpellHelp.verbs[option.id]
+		example = help and help.example
+	elseif stepId == "form" then
+		local help = SpellHelp.forms[option.id]
+		example = help and help.example
+	elseif stepId == "modifiers" then
+		local help = SpellHelp.modifiers[option.id]
+		example = help and ("Pick it for: " .. help.when)
+	end
+	if example then
+		C.text("e.g. " .. example, "caption", { TextColor3 = Theme.color.inkDim, LayoutOrder = 3, Parent = card })
+	end
+	if option.reason then
+		C.text("✗ Locked: " .. option.reason, "label", { TextColor3 = Theme.color.warn, LayoutOrder = 4, Parent = card })
+		C.text("→ " .. nextStep(option.reason), "caption", { LayoutOrder = 5, Parent = card })
+	elseif option.selected then
+		C.text("✓ Chosen", "caption", { TextColor3 = Theme.color.good, LayoutOrder = 4, Parent = card })
+	end
 end
 
 local function statLine(parent: Instance, order: number, label: string, value: string, color: Color3?)
@@ -510,7 +595,12 @@ local function buildStats(parent: Instance, recipe: Types.Recipe?, brief: boolea
 		return
 	end
 
+	local stats, errors = magic:preview(recipe)
 	C.text(sentence(recipe), "heading", { LayoutOrder = o(), TextColor3 = Theme.branchColor(recipe.branch) }).Parent = parent
+	-- What it does, in plain words (Shared/UI/SpellHelp).
+	local property = Registry.properties[recipe.property]
+	local harmful = if stats then stats.harmful else (property ~= nil and property.harmful == true)
+	C.text(SpellHelp.describe(recipe.verb, if property then property.name else recipe.property, recipe.form, recipe.modifiers, harmful), "body", { LayoutOrder = o() }).Parent = parent
 	if not brief then
 		local mods: { string } = {}
 		for _, m in recipe.modifiers do
@@ -519,7 +609,6 @@ local function buildStats(parent: Instance, recipe: Types.Recipe?, brief: boolea
 		C.text(string.format("%s · power %d%s", Registry.branches[recipe.branch].name, recipe.power, if #mods > 0 then " · " .. table.concat(mods, ", ") else ""), "caption", { LayoutOrder = o() }).Parent = parent
 	end
 
-	local stats, errors = magic:preview(recipe)
 	if not stats then
 		for _, e in errors do
 			local line = C.check(false, ERRORS[e.code] or e.message)
@@ -809,27 +898,62 @@ local function buildOptions(scope: Scope, parent: Instance)
 		end
 
 		local options: { Option }
-		local hint = ""
+		local help = SpellHelp.steps[def.id]
+		local hint = help.question
 		if def.id == "branch" then
 			options = branchOptions(d)
-			hint = "Which part of your magic?"
 		elseif def.id == "property" then
 			options = propertyOptions(d)
-			hint = "What will the spell affect?"
 		elseif def.id == "verb" then
 			options = verbOptions(d)
-			hint = "What will you do to it?"
 		elseif def.id == "form" then
 			options = formOptions(d)
-			hint = "What shape does it take?"
 		else
 			local slots
 			options, slots = modifierOptions(d)
-			hint = string.format("Optional refinements. You can hold %d.", slots)
+			hint = string.format("%s You can hold %d.", help.question, slots)
 		end
-		C.text(hint, "heading", { LayoutOrder = 0 }).Parent = scroll
+		C.text(hint, "heading", { LayoutOrder = -3 }).Parent = scroll
+		C.text(help.explain, "caption", { LayoutOrder = -2 }).Parent = scroll
+
+		-- The About card follows `focused` in its own region, so hovering never rebuilds the tiles.
+		local aboutHolder: Frame = Kit.create(nil, "Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			LayoutOrder = -1,
+			Parent = scroll,
+		})
+		Kit.dynamic(s, { focused }, function(s2)
+			local holder: Frame = Kit.create(nil, "Frame", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				Parent = aboutHolder,
+			})
+			s2:add(holder)
+			C.list("y", 0).Parent = holder
+			-- The hovered option if it's on this step, else the chosen one, else nothing.
+			local want = focused:get()
+			local hovered: Option? = nil
+			local chosen: Option? = nil
+			for _, option in options do
+				if option.id == want then
+					hovered = option
+				end
+				if option.selected and not chosen then
+					chosen = option
+				end
+			end
+			aboutCard(holder, def.id, hovered or chosen, 1)
+		end)
 
 		for order, option in options do
+			local function focus()
+				if focused:get() ~= option.id then
+					focused:set(option.id)
+				end
+			end
 			optionTile(option, order, function()
 				if def.id == "modifiers" then
 					local mods = table.clone(d.modifiers)
@@ -844,7 +968,7 @@ local function buildOptions(scope: Scope, parent: Instance)
 					update({ [def.id] = option.id })
 					step:set(math.min(index + 1, #STEPS))
 				end
-			end).Parent = scroll
+			end, focus).Parent = scroll
 		end
 		if #options == 0 then
 			C.text("Nothing to choose here yet.", "body", { LayoutOrder = 1, TextColor3 = Theme.color.inkDim }).Parent = scroll
@@ -1187,6 +1311,100 @@ local function buildGuided(scope: Scope, body: Frame)
 	end)
 end
 
+-- ─── How spells work (walkthrough + glossary) ───────────────────────────────
+
+local function closeHelp()
+	showHelp:set(false)
+	helpPage:set(1)
+	if magic.settings:get().composerHelpSeen ~= true then
+		task.spawn(magic.setSetting, magic, "composerHelpSeen", true)
+	end
+end
+
+-- Drawn over the Composer while showHelp is on: the tour's pages, then the glossary.
+local function buildHelp(scope: Scope, container: Frame)
+	Kit.dynamic(scope, { showHelp, helpPage }, function(s)
+		if not showHelp:get() then
+			return
+		end
+		local pages = #SpellHelp.tour + 1 -- the last page is the glossary
+		local index = math.clamp(helpPage:get(), 1, pages)
+
+		local shade: Frame = Kit.create(nil, "Frame", {
+			BackgroundColor3 = Theme.color.backdrop,
+			BackgroundTransparency = 0.25,
+			BorderSizePixel = 0,
+			Size = UDim2.fromScale(1, 1),
+			ZIndex = 10,
+			Parent = container,
+		})
+		s:add(shade)
+		local card = C.panel({
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.9, 0.9),
+			Parent = shade,
+		})
+		C.sizeLimit(640, 520).Parent = card
+		C.padding(Theme.space.l).Parent = card
+
+		local body = C.scroll({ Size = UDim2.new(1, 0, 1, -(Theme.minTouch + Theme.space.m)), Parent = card })
+		C.list("y", Theme.space.s).Parent = body
+		C.text(string.format("How spells work · %d of %d", index, pages), "caption", { LayoutOrder = 1, Parent = body })
+		if index <= #SpellHelp.tour then
+			local page = SpellHelp.tour[index]
+			C.text(page.title, "title", { LayoutOrder = 2, Parent = body })
+			C.text(page.body, "body", { LayoutOrder = 3, Parent = body })
+		else
+			C.text("Words you'll see", "title", { LayoutOrder = 2, Parent = body })
+			for i, entry in SpellHelp.glossary do
+				local row: Frame = Kit.create(nil, "Frame", {
+					BackgroundTransparency = 1,
+					Size = UDim2.fromScale(1, 0),
+					AutomaticSize = Enum.AutomaticSize.Y,
+					LayoutOrder = 2 + i,
+					Parent = body,
+				})
+				C.list("y", 2).Parent = row
+				C.text(entry.term, "label", { FontFace = Theme.font.bold, LayoutOrder = 1, Parent = row })
+				C.text(entry.text, "caption", { LayoutOrder = 2, Parent = row })
+			end
+		end
+
+		local buttons: Frame = Kit.create(nil, "Frame", {
+			BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.fromScale(0, 1),
+			Size = UDim2.new(1, 0, 0, Theme.minTouch),
+			Parent = card,
+		})
+		C.list("x", Theme.space.s, { HorizontalAlignment = Enum.HorizontalAlignment.Right }).Parent = buttons
+		local function button(text: string, kind: string, order: number, onClick: () -> ())
+			C.button(text, onClick, { kind = kind }, {
+				Size = UDim2.fromOffset(0, Theme.minTouch),
+				AutomaticSize = Enum.AutomaticSize.X,
+				LayoutOrder = order,
+				Parent = buttons,
+			})
+		end
+		if index < pages then
+			button("Skip", "ghost", 1, closeHelp)
+		end
+		if index > 1 then
+			button("Back", "ghost", 2, function()
+				helpPage:set(index - 1)
+			end)
+		end
+		button(if index < pages then "Next" else "Got it", "primary", 3, function()
+			if index < pages then
+				helpPage:set(index + 1)
+			else
+				closeHelp()
+			end
+		end)
+	end)
+end
+
 -- ─── Screen ─────────────────────────────────────────────────────────────────
 
 local function build(scope: Scope, container: Frame, args: any?)
@@ -1207,6 +1425,12 @@ local function build(scope: Scope, container: Frame, args: any?)
 		modeOverride = nil
 	end
 	local mode = modeOverride or magic.settings:get().composerMode or "simple"
+	-- First time in the Composer: the walkthrough opens by itself (once).
+	if not helpAutoShown and magic.settings:get().composerHelpSeen ~= true and next(magic.settings:get()) ~= nil then
+		helpAutoShown = true
+		helpPage:set(1)
+		showHelp:set(true)
+	end
 
 	-- Mode toggle
 	local top: Frame = Kit.create(nil, "Frame", {
@@ -1232,6 +1456,11 @@ local function build(scope: Scope, container: Frame, args: any?)
 		end, { kind = "ghost" }, { Size = UDim2.fromOffset(130, Theme.minTouch), LayoutOrder = 3 }).Parent = top
 	end
 
+	C.button(if compact then "?" else "? How spells work", function() -- phones: the top row is narrow
+		helpPage:set(1)
+		showHelp:set(true)
+	end, { kind = "ghost" }, { Size = UDim2.fromOffset(0, Theme.minTouch), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = 4 }).Parent = top
+
 	local body: Frame = Kit.create(nil, "Frame", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(0, Theme.minTouch + Theme.space.s),
@@ -1243,6 +1472,7 @@ local function build(scope: Scope, container: Frame, args: any?)
 	else
 		buildGuided(scope, body)
 	end
+	buildHelp(scope, container) -- last, so it draws over everything
 end
 
 function ComposerController.init(_self: any, ctx: any)

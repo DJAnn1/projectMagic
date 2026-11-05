@@ -191,6 +191,13 @@ Full:
 - The Power step shows 10 segments: within comfort plain, overreach in orange plus a caption, beyond the cap disabled. The cost source (Reservoir / Ambient / Vital) shows its reason when ambient is too thin here.
 - Errors and warnings appear in plain words (`ERRORS`, `WARNINGS` tables). An environment fact the client can't know shows as "Depends on the world where you cast it: enough water nearby."
 
+**Explanations (2026-11-05, ideas prompt 5).** All text lives in `Shared/UI/SpellHelp` (data, not UI code); `Tests/SpellHelp.spec` fails if a verb, form or modifier has none.
+- **Each step** opens with its question and a longer "what this step means".
+- **The About card** (top of the options) shows the hovered option (mouse), the selected one (gamepad) or the chosen one: the full description, an example ("e.g. Generate + Temperature: warm your hands, light a candle, or burn an enemy."), and for a locked option the full reason plus what to do ("→ Keep casting spells in this branch: every cast builds mastery."). It re-renders on its own, so hovering never rebuilds the tiles.
+- **The preview** adds one plain sentence for the whole spell under its name (`SpellHelp.describe`): "Makes temperature out of raw power, thrown as a bolt that flies where you aim. Seeks its target. It can hurt what it hits."
+- **How spells work** (the "?" button; opens by itself the first time, hidden setting `composerHelpSeen`): five pages (spells are sentences, Guided, Full, the preview, naming and mastery), then a glossary (reservoir, overdraw, power, comfortable power, backfire, instability, mastery, ambient magic, cast time, cooldown, modifier slots, strike).
+- Nothing secret is shown: the text describes the public grammar only.
+
 ### 4.5 Skill/Path view (designed)
 
 A zoomable, pannable graph. It's a `ScrollingFrame` canvas with a `UIScale` driven by pinch, the mouse wheel and the gamepad triggers; panning uses drag, the right stick or the arrow keys.

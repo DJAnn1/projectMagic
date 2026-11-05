@@ -104,6 +104,15 @@ local Settings: { [string]: SettingDef } = {
 		options = { "simple", "advanced" },
 		labels = { "Guided", "Full" },
 	},
+	composerHelpSeen = {
+		order = 101,
+		hidden = true,
+		label = "Composer help seen",
+		description = "The Spell Composer's first-time walkthrough has been shown (ComposerController).",
+		default = false,
+		options = { false, true },
+		labels = { "No", "Yes" },
+	},
 	controlsHintSeen = {
 		order = 100,
 		hidden = true,
