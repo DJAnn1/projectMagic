@@ -150,7 +150,7 @@ Yards and steps skip roads, the plaza, the sea and any other lot.
 - door steps of at most 0.6 each, from the yard up to the threshold.
 
 **Verification** runs after every build and again after any later chunk build nearby:
-- terrain-only rays every 2 studs across the interior, starting 6 studs above the floor. Terrain more than 0.6 studs above the floor TOP fails (`SHOW_THROUGH`). Terrain inside the slab is hidden by it, and smooth terrain lands up to ~0.5 stud off its fill target. (The first rule, "anything above the floor bottom", failed all 27 buildings on 2026-11-05 although every floor looked clean in play.)
+- terrain-only rays every 2 studs across the interior, starting 6 studs above the floor. Terrain more than 0.6 studs above the floor TOP fails (`SHOW_THROUGH`). Terrain inside the slab is hidden by it, and smooth terrain lands up to ~0.5 stud off its fill target. (The first rule, "anything above the floor bottom", failed all 27 buildings on 2026-11-05 although every floor looked clean in play.) On sloped Deepwatch lots, terrain still rose up to 1.3 studs above the floor top: the interior clear started 0.15 studs above the floor, and a part-filled voxel below renders higher. `clearInterior` now clears from the floor slab's bottom up.
 - `ReadVoxels` in a band around the floor. Any grass fails.
 
 There are no cellars yet. Upper floors sit inside the cleared interior box, so terrain can't reach them.

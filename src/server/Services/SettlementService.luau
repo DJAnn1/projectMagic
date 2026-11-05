@@ -278,13 +278,29 @@ local function folderFor(entry: Entry): Model
 	return model
 end
 
--- Clears terrain out of a building's interior volume (above the floor, inside the walls).
--- Returns false for buildings without one (stalls, wells).
+--[[
+	Clears terrain out of a building's interior: the room volume inside the walls, extended DOWN
+	to the floor slab's bottom. The room box starts 0.15 studs above the floor top, and a
+	part-filled voxel below it renders its surface up to ~1.3 studs higher (smooth terrain), so on
+	sloped lots terrain showed through floors (foundation_failed in Deepwatch, 2026-11-05). The
+	slab is a Part, so the terrain inside it is never needed. Returns false for buildings without
+	an interior (stalls, wells).
+]]
 local function clearInterior(model: Model): boolean
 	local cf = model:GetAttribute("InteriorCFrame")
 	local size = model:GetAttribute("InteriorSize")
 	if typeof(cf) ~= "CFrame" or typeof(size) ~= "Vector3" then
 		return false
+	end
+	local floor = model:FindFirstChild("Floor")
+	if floor and floor:IsA("BasePart") then
+		local top = cf.Position.Y + size.Y / 2
+		local bottom = floor.Position.Y - floor.Size.Y / 2 + 0.05
+		if bottom < cf.Position.Y - size.Y / 2 then
+			local height = top - bottom
+			cf = CFrame.new(cf.Position.X, bottom + height / 2, cf.Position.Z) * cf.Rotation
+			size = Vector3.new(size.X, height, size.Z)
+		end
 	end
 	workspace.Terrain:FillBlock(cf, size, Enum.Material.Air)
 	return true

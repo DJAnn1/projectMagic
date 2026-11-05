@@ -53,7 +53,7 @@ SpellHelp.steps = {
 SpellHelp.verbs = {
 	generate = { does = "Makes {p} out of raw power", example = "Generate + Temperature: warm your hands, light a candle, or burn an enemy." },
 	amplify = { does = "Strengthens the {p} something already has", example = "Amplify + Hardness: turn your skin to iron for a while." },
-	diminish = { does = "Weakens or smothers the {p} something has", example = "Diminish + Temperature: put out a fire, or chill a foe." },
+	reduce = { does = "Weakens or smothers the {p} something has", example = "Reduce + Temperature: put out a fire, or chill a foe." },
 	transfer = { does = "Moves {p} from one thing to another", example = "Transfer + Temperature: pull the heat out of a fire into your hands. Cheap, but needs a source." },
 	redirect = { does = "Steers {p} that's already moving", example = "Redirect + Flow: turn a river aside, or push a wave at someone." },
 	transmute = { does = "Turns {p} into a different state or kind", example = "Transmute + Phase: freeze water into ice to walk on." },

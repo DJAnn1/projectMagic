@@ -72,7 +72,7 @@ local function setWantsRun(on: boolean)
 		return
 	end
 	MovementClient.wantsRun:set(on)
-	Net.fire("RunIntent", on)
+	Net.send("RunIntent", on)
 end
 
 function MovementClient.toggleRun(_self: any)
@@ -163,7 +163,7 @@ function MovementClient.dash(_self: any)
 	if dash.kind == "impulse" then
 		startPush(root, dash, dir)
 	end
-	Net.fire("DashIntent", dir)
+	Net.send("DashIntent", dir)
 end
 
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
