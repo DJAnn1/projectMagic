@@ -27,7 +27,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 | **1** | **Innate spells on the hotbar** (built 2026-11-05): on your first awakening you get your domain's **Strike** (e.g. Scorch, touch, power 1) and a **utility** (a Sensing technique, or *Sense <property>*), named, in slots 1–2; Guided's "First spark" becomes the Strike; the walkthrough waits until you've cast once. | S–M | EarlyGame #3 + this audit | Fixes dead spots 1 and 5 in the first minute. |
 | 2 | **Practice targets in every town**: a training yard by the plaza (2–3 PracticeTarget dummies, no crime), before creatures exist. | S | EarlyGame #5, split | Fixes dead spot 2 now, cheaply. |
 | **3** | **First ranged spell** (built 2026-11-05): no milestone, no gate. Projectile opens at **Sensing**, and the awakening also gives your Strike thrown (Ember Dart...) in slot 3. The owner chose against the "First Steps" checklist: "I don't want to restrict anything for the player". | S | EarlyGame #2 | Dead spot 3. |
-| 4 | **Beginner situations + a mentor per town** (light the lamps, spar the training master, find a lost pet, "show me your magic"), only below Adept, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
+| **4** | **Beginner situations + a mentor per town** (built 2026-11-05): practice yard, lamps at dusk, show me, lost pet, a lesson from the mentor, sparring; only below Adept, one at a time, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
 | 5 | **First creatures** (4–6 critters near settlements, every domain strong against one). | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
 | 6 | **Experimentation pays** (novelty XP, first-reaction toasts, Guided "try something"). | M | EarlyGame #7 | Once the basics work. |
 | 7 | **First-time flourishes** (first damage, first new verb/form: a stinger and a toast). The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
@@ -61,4 +61,14 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **HUD:** "Your magic answers" also names the thrown spell and its slot ("Ember Dart in slot 3 throws your magic from afar.").
 - **Specs:** EarlyGame.spec checks every domain's projectile strike at **Sensing** (was Novice); Cantrips.spec checks every domain gets a damaging bolt, third.
 - **Next:** item 4, beginner situations and a mentor per town.
+
+## 6. Item 4, built (2026-11-05, not yet run)
+
+- **Situations:** `beginner` (and `beginner_dusk`, 17:00–22:00 game time) per player and nearest town within 300 studs, only while the best branch is below Adept (`QuestTuning.beginner`). Personal, so twenty newcomers in one town each get their own.
+- **Six templates** (`QuestTemplates` B1–B6, docs/Quests.md): Practice Yard (5 harmful hits on the dummies), Lamps at Dusk, Show Me (a seeded property of your domain, cast near a villager), The Lost goat/dog/cat/hen/lamb (sense or ask, then fetch from a seeded dry spot 45–110 studs out), A Lesson (the town mentor: mentor study XP + a hint naming your domain's next technique), Sparring (Novice only; the training master yields at half strength). Every one has a way through for any domain.
+- **Gates and pacing:** `requires.maxTier = 2` hides them from Adept and up; at most one beginner quest offered or active at once; low intensity (0.05–0.3), so the calm phase prefers them; Practice Yard and the Lesson weigh most. A Matter of Pride (rival duels) now needs Novice too.
+- **The mentor:** QuestFactory picker `mentor`, the town's highest-tier NPC mage, scholars and priests first; deterministic per town.
+- **Specs:** Quest.spec: beginner templates are personal, maxTier 2 and ride beginner situations; no duel-type template below Novice; `anyEffect`; the technique hint.
+- **Not done (from EarlyGame #6):** Journal "Path" hints (3 soft goals from your profile).
+- **Next:** item 5, the first creatures.
 

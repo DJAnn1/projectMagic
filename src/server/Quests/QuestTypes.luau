@@ -83,6 +83,7 @@ export type ObjectiveSpec = {
 	match: CastMatch?,
 	needs: { string }?, -- interaction tags that solve it (creative solutions)
 	unseen: boolean?,
+	anyEffect: boolean?, -- cast: counts even a cast that hit nothing (a show, not a result)
 	onNoticed: string?, -- outcome id when noticed
 	hidden: boolean?, -- not listed until done (discovered solutions)
 }
@@ -91,6 +92,7 @@ export type ObjectiveSpec = {
 export type Requirement = {
 	domains: { string }?, -- any of these awakened
 	minTier: number?, -- in the template's main branch slot, or best branch
+	maxTier: number?, -- best branch at most this tier (beginner quests: hidden from veterans)
 	lore: { string }?, -- all of these
 	currency: number?,
 	reputation: { [string]: number }?, -- faction id -> minimum standing
@@ -124,6 +126,7 @@ export type Rewards = {
 	reputation: { [string]: number }?, -- faction id or "settlement" (the situation's) -> delta
 	infamy: number?,
 	bounty: { faction: string, amount: number }?,
+	study: { kind: string, npc: string }?, -- ProgressionService:awardStudy from that NPC slot ("mentor"), in your best branch
 }
 
 export type Outcome = {
@@ -177,6 +180,7 @@ export type Template = {
 	protectOutcome: string?, -- outcome when one is
 	spawns: { [string]: { faction: string?, occupation: string?, near: string, fight: boolean? } }?, -- npcs made for the quest
 	autoStart: boolean?, -- starts without being accepted (being hunted is not optional)
+	beginner: boolean?, -- a first-hour quest: at most one beginner quest offered or active at once
 	holds: { [string]: string }?, -- npc slot -> position slot: the NPC stays there while the quest runs
 }
 

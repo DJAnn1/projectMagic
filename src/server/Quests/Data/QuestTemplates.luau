@@ -268,7 +268,7 @@ local templates: { Template } = {
 		id = "duel_challenge", type = "duel",
 		title = "A Matter of Pride", summary = "{rival} has heard about you, and doesn't believe it.",
 		giver = "rival", scope = "personal", situations = { "proud_rival" },
-		weight = 0.8, domains = {}, intensity = 0.6, difficulty = { 1, 8 },
+		weight = 0.8, domains = {}, intensity = 0.6, difficulty = { 1, 8 }, requires = { minTier = 2 }, -- never a duel at Sensing
 		slots = { rival = { kind = "npc", from = "npcId" }, town = { kind = "settlement", from = "settlementId" } },
 		stages = {
 			{ id = "challenge", text = "{rival} stands in your way.", options = {
@@ -680,6 +680,192 @@ local templates: { Template } = {
 			caught = { text = "They caught up with you. You wake up somewhere else, poorer and warned.", success = false, rewards = { currency = -50 }, world = { notoriety = -10 } },
 		},
 		failOutcome = "caught", expireHours = 6, cooldownHours = 24,
+	},
+
+	-- ─── First hour (docs/EarlyGamePlan.md item 4) ──────────────────────────
+	-- Small personal goals around your nearest town, only while your best branch is below Adept
+	-- (requires.maxTier = 2) and one at a time (`beginner`). Each has a way through for any domain.
+
+	-- B1. The practice yard: hit the straw dummies (PracticeTarget: never a crime).
+	{
+		id = "first_practice", type = "training", beginner = true,
+		title = "Practice Yard", summary = "The straw dummies in {town_name}'s practice yard are there to be hit. Nobody minds.",
+		scope = "personal", situations = { "beginner" },
+		weight = 1.6, domains = {}, intensity = 0.1, difficulty = { 1, 2 }, requires = { maxTier = 2 },
+		slots = { town = { kind = "settlement", from = "settlementId" }, yard = { kind = "position", pick = "tagged:PracticeYard" } },
+		stages = {
+			{ id = "practise", text = "Land five spells on the dummies in {yard_name}.", options = {
+				{ id = "spells", label = "Hit the dummies with magic", approach = "magic",
+					objectives = { o("cast", "hits", "Hit the training dummies with harmful magic", { at = "yard", radius = 16, count = 5, match = { harmful = true } }) },
+					outcome = "practised" },
+				{ id = "watch", label = "Watch the regulars train", approach = "wait",
+					objectives = { o("reach", "watch", "Watch from {yard_name}", { at = "yard", radius = 16, seconds = 60 }) },
+					outcome = "watched" },
+			} },
+		},
+		outcomes = {
+			practised = { text = "Five clean hits. The straw is scorched and your aim a little steadier.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 150 } } },
+			watched = { text = "You pick up a few habits just by watching.", success = true, rewards = { xp = { branch = "best:any", amount = 40 } } },
+			drifted = { text = "The dummies will still be there.", success = false },
+		},
+		failOutcome = "drifted", expireHours = 24, cooldownHours = 12,
+	},
+
+	-- B2. Light the lamps at dusk: heat or light near the plaza, or help carry the oil.
+	{
+		id = "light_the_lamps", type = "chore", beginner = true,
+		title = "Lamps at Dusk", summary = "Dusk in {town_name}, and the plaza lamps are still dark.",
+		scope = "personal", situations = { "beginner_dusk" },
+		weight = 1.2, domains = { "energy" }, intensity = 0.1, difficulty = { 1, 2 }, requires = { maxTier = 2 },
+		slots = { town = { kind = "settlement", from = "settlementId" }, centre = { kind = "position", pick = "settlementCenter" } },
+		stages = {
+			{ id = "light", text = "Light the lamps around the plaza of {town_name}.", options = {
+				{ id = "magic", label = "Light them with magic", approach = "magic",
+					objectives = { o("cast", "light", "Cast light or heat near the plaza lamps", { at = "centre", radius = 50, count = 3, anyEffect = true,
+						match = { properties = { "luminosity", "temperature", "combustion" } }, needs = { "light", "fire", "heat", "lightning" } }) },
+					outcome = "lit" },
+				{ id = "help", label = "Help carry the oil", approach = "talk",
+					objectives = { o("reach", "plaza", "Go to the plaza of {town_name}", { at = "centre", radius = 40, seconds = 20 }), o("wait", "carry", "Carry oil round the lamps", { hours = 1 }) },
+					ordered = true, outcome = "helped" },
+			} },
+		},
+		outcomes = {
+			lit = { text = "One by one the plaza lamps catch. Someone claps.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 120 }, reputation = { settlement = 5 } } },
+			helped = { text = "Oil-stained hands, and a plaza full of light.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 40 }, reputation = { settlement = 5 } } },
+			dark = { text = "Someone else lit them in the end.", success = false },
+		},
+		failOutcome = "dark", expireHours = 6, cooldownHours = 20,
+	},
+
+	-- B3. "Show me your magic": a villager asks to see one property of your domain.
+	{
+		id = "show_me_magic", type = "chore", beginner = true,
+		title = "Show Me", summary = "{curious} has heard you have {domain_name} magic and wants to see it.",
+		giver = "curious", scope = "personal", situations = { "beginner" },
+		weight = 1.2, domains = {}, intensity = 0.05, difficulty = { 1, 2 }, requires = { maxTier = 2 },
+		slots = {
+			town = { kind = "settlement", from = "settlementId" },
+			domain = { kind = "domain", from = "domain" },
+			root = { kind = "branch", from = "domain" },
+			property = { kind = "text", pick = "domainProperty:{domain}" },
+			curious = { kind = "npc", pick = "colleague:child,merchant,innkeeper,farmer,fisher,builder,herbalist" },
+		},
+		stages = {
+			{ id = "ask", text = "{curious} wants to see some {domain_name} magic.", options = {
+				{ id = "talk", label = "Talk to {curious}", approach = "talk", objectives = { o("talk", "ask", "Talk to {curious}", { target = "curious" }) }, next = "show" },
+			} },
+			{ id = "show", text = "{curious} asks to see {property_name}. Cast it near them, not at them.", options = {
+				{ id = "exact", label = "Show them {property_name}", approach = "magic",
+					objectives = { o("cast", "show", "Cast {property_name} magic near {curious}", { target = "curious", radius = 18, count = 2, anyEffect = true, match = { properties = { "{property}" } } }) },
+					outcome = "amazed" },
+				{ id = "any", label = "Show them something else", approach = "creative",
+					objectives = { o("cast", "other", "Cast any {domain_name} spell near {curious}", { target = "curious", radius = 18, count = 3, anyEffect = true, match = { branches = { "{root}" } } }) },
+					outcome = "pleased" },
+			} },
+		},
+		outcomes = {
+			amazed = { text = "{curious} stares, then laughs out loud. \"Again!\"", success = true,
+				rewards = { xp = { branch = "best:any", amount = 120 }, relationship = 0.15, reputation = { settlement = 5 } } },
+			pleased = { text = "Not what {curious} asked for, but they're delighted anyway.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 60 }, relationship = 0.1 } },
+			shrug = { text = "{curious} wandered off.", success = false },
+		},
+		failOutcome = "shrug", expireHours = 12, cooldownHours = 16,
+	},
+
+	-- B4. The lost pet: sense for it, or ask around; then go and get it.
+	{
+		id = "lost_pet", type = "rescue", beginner = true,
+		title = "The Lost {pet_name}", summary = "{owner}'s {pet_name} got out, somewhere outside {town_name}.",
+		giver = "owner", scope = "personal", situations = { "beginner" },
+		weight = 1, domains = {}, intensity = 0.15, difficulty = { 1, 2 }, requires = { maxTier = 2 },
+		slots = {
+			town = { kind = "settlement", from = "settlementId" },
+			owner = { kind = "npc", pick = "colleague:farmer,fisher,merchant,innkeeper,builder,smith,herbalist,hunter,retired" },
+			pet = { kind = "text", pick = "oneOf:goat,dog,cat,hen,lamb" },
+			spot = { kind = "position", pick = "aroundTown:45:110" },
+		},
+		stages = {
+			{ id = "find", text = "Find {owner}'s {pet_name} somewhere outside {town_name}.", options = {
+				{ id = "sense", label = "Sense for it", approach = "magic",
+					objectives = { o("cast", "sense", "Sense near where it was last seen", { at = "spot", radius = 70, count = 1, anyEffect = true, match = { verbs = { "sense" } } }),
+						o("reach", "fetch", "Go and fetch it", { at = "spot", radius = 10, seconds = 3 }) },
+					ordered = true, outcome = "found" },
+				{ id = "ask", label = "Ask around", approach = "talk",
+					objectives = { o("talk", "ask", "Ask {owner} where it ran", { target = "owner" }), o("reach", "fetch", "Go and fetch it", { at = "spot", radius = 10, seconds = 3 }) },
+					ordered = true, outcome = "found_asked" },
+			} },
+		},
+		outcomes = {
+			found = { text = "The {pet_name} was right where your senses said. {owner} is overjoyed.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 150 }, relationship = 0.25, reputation = { settlement = 5 }, currency = 10 } },
+			found_asked = { text = "A muddy {pet_name}, safely home. {owner} can't thank you enough.", success = true,
+				rewards = { xp = { branch = "best:any", amount = 60 }, relationship = 0.25, reputation = { settlement = 5 }, currency = 10 } },
+			wandered = { text = "The {pet_name} found its own way home.", success = false },
+		},
+		failOutcome = "wandered", expireHours = 24, cooldownHours = 24,
+	},
+
+	-- B5. A lesson from the town's mentor (QuestFactory "mentor"): mentor-channel study XP and a
+	-- hint naming your domain's next technique (SituationDetector.techniqueHint).
+	{
+		id = "mentor_lesson", type = "teaching", beginner = true,
+		title = "A Lesson", summary = "{mentor} teaches anyone in {town_name} who is willing to listen.",
+		giver = "mentor", scope = "personal", situations = { "beginner" },
+		weight = 1.4, domains = {}, intensity = 0.05, difficulty = { 1, 2 }, requires = { maxTier = 2 },
+		slots = { town = { kind = "settlement", from = "settlementId" }, mentor = { kind = "npc", pick = "mentor" } },
+		stages = {
+			{ id = "seek", text = "Find {mentor} and ask for a lesson.", options = {
+				{ id = "ask", label = "Ask {mentor} for a lesson", approach = "talk", objectives = { o("talk", "ask", "Talk to {mentor}", { target = "mentor" }) }, next = "lesson" },
+			} },
+			{ id = "lesson", text = "{mentor} watches you work. \"Again. Slower.\"", options = {
+				{ id = "practise", label = "Cast for {mentor}", approach = "magic",
+					objectives = { o("cast", "cast", "Cast any spell near {mentor}", { target = "mentor", radius = 20, count = 2, anyEffect = true }) },
+					outcome = "taught" },
+				{ id = "listen", label = "Just listen", approach = "wait",
+					objectives = { o("wait", "listen", "Listen to {mentor} for an hour", { hours = 1 }) }, outcome = "listened" },
+			} },
+		},
+		outcomes = {
+			taught = { text = "{mentor} nods. \"Better. {hint}\"", success = true, memory = "taught_me",
+				rewards = { study = { kind = "mentor", npc = "mentor" }, relationship = 0.2 } },
+			listened = { text = "{mentor} talks for an hour. One line sticks: \"{hint}\"", success = true,
+				rewards = { xp = { branch = "best:any", amount = 60 }, relationship = 0.1 } },
+			missed = { text = "{mentor} had other students today.", success = false },
+		},
+		failOutcome = "missed", expireHours = 24, cooldownHours = 20,
+	},
+
+	-- B6. Spar the training master: a duel for Novices only (never at Sensing).
+	{
+		id = "spar_master", type = "duel", beginner = true,
+		title = "Sparring", summary = "{master} drills {town_name}'s guard and will spar with a promising Novice.",
+		giver = "master", scope = "personal", situations = { "beginner" },
+		weight = 1, domains = {}, intensity = 0.3, difficulty = { 2, 2 }, requires = { minTier = 2, maxTier = 2 },
+		slots = { town = { kind = "settlement", from = "settlementId" }, master = { kind = "npc", pick = "colleague:guard" } },
+		stages = {
+			{ id = "ask", text = "Ask {master} for a bout.", options = {
+				{ id = "ask", label = "Ask for a bout", approach = "talk", objectives = { o("talk", "ask", "Talk to {master}", { target = "master" }) }, next = "spar" },
+			} },
+			{ id = "spar", text = "Spar with {master}. They'll call it at half strength.", hours = 3, failOnDeath = "beaten", options = {
+				{ id = "win", label = "Win the bout", approach = "force", objectives = { o("subdue", "win", "Bring {master} to half strength", { target = "master", share = 0.5 }) }, outcome = "won" },
+				{ id = "learn", label = "Land three hits and learn", approach = "magic",
+					objectives = { o("cast", "hits", "Land three harmful spells on {master}", { target = "master", radius = 30, count = 3, match = { harmful = true } }) }, outcome = "learned" },
+			} },
+		},
+		outcomes = {
+			won = { text = "{master} lowers their guard and grins. \"You'll do.\"", success = true, memory = "beat_me_fairly",
+				rewards = { xp = { branch = "best:any", amount = 250 }, relationship = 0.2, reputation = { settlement = 10 } } },
+			learned = { text = "{master} calls it. \"Good. Now do that when it counts.\"", success = true,
+				rewards = { xp = { branch = "best:any", amount = 120 }, relationship = 0.15 } },
+			beaten = { text = "{master} offers you a hand up. \"Better than most.\"", success = false,
+				rewards = { xp = { branch = "best:any", amount = 40 }, relationship = 0.1 } },
+			declined = { text = "{master} shrugs. The offer stands.", success = false },
+		},
+		failOutcome = "declined", expireHours = 12, cooldownHours = 24,
 	},
 }
 

@@ -147,10 +147,63 @@ return function(t: any)
 			local spec: any = { kind = "cast", id = "x", text = "", amount = 10, match = { domains = { "water" } } }
 			expect((Objectives.castGain(spec, cast({ effective = false })))).toBe(0)
 		end)
+		it("counts a show cast that hit nothing when the objective is anyEffect", function()
+			local spec: any = { kind = "cast", id = "x", text = "", count = 2, anyEffect = true, match = { verbs = { "sense" } } }
+			expect((Objectives.castGain(spec, cast({ effective = false, verb = "sense" })))).toBe(1)
+			expect((Objectives.castGain(spec, cast({ effective = false, verb = "generate" })))).toBe(0)
+		end)
 		it("respects ordered options", function()
 			local option: any = { id = "o", ordered = true, objectives = { { kind = "talk", id = "a", text = "" }, { kind = "talk", id = "b", text = "" } } }
 			expect(#Objectives.open(option, {})).toBe(1)
 			expect(Objectives.open(option, { ["o/a"] = 1 })[1].id).toBe("b")
+		end)
+	end)
+
+	describe("Beginner quests (EarlyGamePlan item 4)", function()
+		local beginners: { any } = {}
+		for _, template in QuestTemplates.list do
+			if template.beginner then
+				table.insert(beginners, template)
+			end
+		end
+		it("has at least six, all personal and hidden from Adept and above", function()
+			expect(#beginners >= 6).toBe(true)
+			for _, template in beginners do
+				if template.scope ~= "personal" or not template.requires or template.requires.maxTier ~= 2 then
+					error(template.id .. ": a beginner quest must be personal with requires.maxTier = 2", 0)
+				end
+				for _, kind in template.situations do
+					if kind ~= "beginner" and kind ~= "beginner_dusk" then
+						error(template.id .. ": beginner quests ride on beginner situations", 0)
+					end
+				end
+			end
+		end)
+		it("never offers a duel at Sensing", function()
+			for _, template in QuestTemplates.list do
+				local hasSubdue = false
+				for _, stage in template.stages do
+					for _, option in stage.options do
+						for _, spec in option.objectives do
+							if spec.kind == "subdue" then
+								hasSubdue = true
+							end
+						end
+					end
+				end
+				-- Hunters and atonement are about you, not offered sport; duels and spars are.
+				if hasSubdue and (template.type == "duel") then
+					if not template.requires or (template.requires.minTier or 0) < 2 then
+						error(template.id .. ": a duel needs requires.minTier >= 2", 0)
+					end
+				end
+			end
+			expect(true).toBe(true)
+		end)
+		it("hints at the next technique without naming anything secret", function()
+			local hint = SituationDetector.techniqueHint("energy", 1)
+			expect(string.find(hint, "Lantern", 1, true) ~= nil).toBe(true)
+			expect(#SituationDetector.techniqueHint("energy", 8) > 0).toBe(true)
 		end)
 	end)
 

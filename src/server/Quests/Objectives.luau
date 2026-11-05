@@ -103,10 +103,11 @@ end
 --[[
 	What one cast is worth to a cast/demonstrate objective (position checks are the caller's).
 	Amount objectives gain the recipe power; count objectives gain 1. Ineffective casts (that hit
-	nothing and changed nothing) don't count, so spamming at empty air achieves nothing.
+	nothing and changed nothing) don't count, so spamming at empty air achieves nothing, unless
+	the objective is a show (`anyEffect`: "show me your magic", a lesson).
 ]]
 function Objectives.castGain(spec: ObjectiveSpec, cast: Cast): (number, boolean)
-	if not cast.effective and spec.kind ~= "demonstrate" then
+	if not cast.effective and spec.kind ~= "demonstrate" and not spec.anyEffect then
 		return 0, false
 	end
 	local unit = if spec.amount then cast.power else 1

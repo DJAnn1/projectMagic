@@ -23,6 +23,9 @@
 		mythic_trail      you hold a hint toward a mythic domain but not its fragment
 		wanted            you have a bounty somewhere (ReputationService)
 		mythic_notoriety  your mythic notoriety crossed huntAt (the Quiet Hand)
+		beginner          below Adept and within beginnerRadius of a town (first-hour quests:
+		                  practice yard, show me your magic, lost pet, a lesson, a spar)
+		beginner_dusk     the same, in the evening (light the lamps)
 
 	Ids are deterministic ("<kind>:<subject>"), so a condition that persists is the same situation
 	on every scan, and nothing is offered twice for it. Nothing here reads a player's hidden latents.
@@ -36,6 +39,7 @@ local SubBranchRules = require(Server.Progression.SubBranchRules)
 local Settlements = require(Server.World.Settlements)
 local Progression = require(Server.Progression.Progression)
 local NPCMagicLife = require(Server.NPC.NPCMagicLife)
+local WorldClock = require(Server.NPC.WorldClock)
 local QuestTypes = require(script.Parent.QuestTypes)
 local Q = require(script.Parent.Data.QuestTuning)
 
@@ -333,6 +337,28 @@ function SituationDetector.scanPlayer(deps: Deps, player: Player, state: any, po
 		end
 	end
 
+	-- Beginners: small first-hour goals around the nearest town (docs/EarlyGamePlan.md item 4).
+	-- One situation per player and town, so twenty newcomers in one town never share a quest.
+	local best, bestBranch, bestXp = 0, nil :: string?, -1
+	for branchId in p.unlocked do
+		best = math.max(best, (Progression.getMasteryTier(p, branchId)))
+		local xp = p.xp[branchId] or 0
+		if xp > bestXp then
+			bestBranch, bestXp = branchId, xp
+		end
+	end
+	local town = nearestSettlement(deps.world, x, z, Q.beginner.radius)
+	local branchDef = bestBranch and Registry.branches[bestBranch]
+	if best < Q.beginner.belowTier and town and branchDef then
+		local domain = branchDef.domains[1]
+		local facts = { settlementId = town.id, domain = domain, hint = SituationDetector.techniqueHint(domain, best) }
+		table.insert(out, personal("beginner", town.id, userId, town.x, town.z, 0.1, facts))
+		local hour = WorldClock.hour()
+		if hour >= Q.beginner.duskFrom and hour < Q.beginner.duskTo then
+			table.insert(out, personal("beginner_dusk", town.id, userId, town.x, town.z, 0.1, facts))
+		end
+	end
+
 	-- Reputation: bounties and the Quiet Hand.
 	local rep = deps.reputation
 	for settlementId, bounty in rep:bountiesOf(player) do
@@ -355,13 +381,36 @@ function SituationDetector.scanPlayer(deps: Deps, player: Player, state: any, po
 	return out
 end
 
+--[[
+	A mentor's hint: the next named technique of `domain` above `tier` (the lowest such tier, then
+	by id), as one sentence. Techniques are public reference points (Data/Techniques), so this
+	never reveals a hidden latent.
+]]
+function SituationDetector.techniqueHint(domain: string, tier: number): string
+	local bestId, bestTier = nil :: string?, math.huge
+	for id, technique in Registry.techniques do
+		if technique.domain == domain and technique.tier > tier then
+			if technique.tier < bestTier or (technique.tier == bestTier and id < (bestId :: string)) then
+				bestId, bestTier = id, technique.tier
+			end
+		end
+	end
+	local technique = bestId and Registry.techniques[bestId]
+	if not technique then
+		return "Keep at it. The next step finds the ones who keep practising."
+	end
+	local tierName = Registry.masteryTiers.tiers[technique.tier + 1].name
+	local branch = Registry.branches[technique.recipe.branch]
+	return string.format("Work towards %s: %s It comes at %s, in %s.", technique.name, technique.description, tierName, if branch then branch.name else technique.recipe.branch)
+end
+
 SituationDetector.MYTHICS = MYTHICS
 
 -- Every kind a template may name (Tests/Quest.spec checks templates against it).
 SituationDetector.KINDS = {
 	"tunnel_collapse", "drought", "ley_shift", "tremors", "flood", "wildfire", "plague", "dispute",
 	"forbidden_experiment", "npc_goal_commission", "npc_goal_journey", "proud_rival", "debt_trouble", "rogue_mage",
-	"wants_teacher", "lore_gap", "mythic_trail", "wanted", "mythic_notoriety",
+	"wants_teacher", "lore_gap", "mythic_trail", "wanted", "mythic_notoriety", "beginner", "beginner_dusk",
 }
 
 return SituationDetector

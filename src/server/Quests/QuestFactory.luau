@@ -18,6 +18,13 @@
 		                    nearPoi:<type,type>          the nearest VISIBLE POI of those types
 		                    npcHome:<slot> / npcWork:<slot>   where that NPC lives / works
 		                    mythicSubBranch:<domain>     the first sub-branch of a mythic domain
+		                    mentor                       the town's most skilled NPC mage (teaching
+		                                                 trades first); the same person every time
+		                    aroundTown:<min>:<max>       a seeded dry spot that far from the town centre
+		                    tagged:<Tag>                 the nearest instance with that CollectionService
+		                                                 tag within 250 studs (PracticeYard)
+		                    domainProperty:<domain>      a seeded property of the domain's root branch
+		                    oneOf:<a,b,c>                a seeded word from the list (text slots)
 		Placeholders inside picks ("elder:{mythic}") use slots resolved earlier.
 	DISPLAY: npc slots show as the NPC's name ({giver}); every other slot also gets {<slot>_name}
 	(settlement, POI, branch, domain names). Derived: {<branch>_parent} for branch slots and
@@ -28,8 +35,11 @@
 ]]
 
 local Shared = game:GetService("ReplicatedStorage").Shared
+local CollectionService = game:GetService("CollectionService")
+
 local Registry = require(Shared.Magic.Registry)
 local Seed = require(Shared.Magic.Seed)
+local NPCMagicLife = require(script.Parent.Parent.NPC.NPCMagicLife)
 
 local QuestTypes = require(script.Parent.QuestTypes)
 
@@ -46,6 +56,10 @@ export type BuildContext = {
 }
 
 local MOMENTS: { [string]: string } = { time = "eclipse", gravity = "starfall", reality = "magic_storm" }
+-- Trades that teach: a mentor is picked among these first (then any mage).
+local TEACHING = { scholar = 3, tidepriest = 3, healer = 2, weathercaller = 2, herbalist = 1, smith = 1 }
+local TAG_NAMES: { [string]: string } = { PracticeYard = "the practice yard" }
+
 local POI_NAMES: { [string]: string } = {
 	mine = "the mine", dungeon = "the old delve", ruined_library = "the ruined library", academy = "the academy",
 	hermit_tower = "the hermit's tower", quiet_place = "the Quiet Place", sunken_shrine = "the Sunken Shrine",
@@ -232,6 +246,60 @@ local function resolveSlot(spec: QuestTypes.SlotSpec, situation: Situation, slot
 		local spot = if kind == "npcHome" then (npc.spots and npc.spots.home) else (npc.spots and npc.spots.work)
 		local p: Vector3 = if typeof(spot) == "Vector3" then spot else npc.position
 		return { value = { p.X, p.Y + 3, p.Z }, name = if kind == "npcHome" then npc.name .. "'s home" else npc.name .. "'s workshop" }
+	elseif kind == "mentor" then
+		local best, bestScore = nil, -math.huge
+		for _, npc in npcsIn(npcs, situation.settlementId or "") do
+			if npc.magic and npc.ageBand ~= "child" then
+				local _, _, tier = NPCMagicLife.best(npc)
+				local score = tier * 10 + (TEACHING[npc.occupation] or 0)
+				if tier >= 1 and score > bestScore then -- npcsIn is sorted by id: ties keep the first
+					best, bestScore = npc, score
+				end
+			end
+		end
+		return if best then { value = best.id, name = best.name, npc = best } else nil
+	elseif kind == "aroundTown" then
+		local lo, hi = string.match(rest, "^(%d+):(%d+)$")
+		local s = settlementById(world, situation.settlementId)
+		if not s or not lo or not hi then
+			return nil
+		end
+		local angle = rng:NextNumber() * math.pi * 2
+		local r = rng:NextNumber(tonumber(lo) :: number, tonumber(hi) :: number)
+		local ok, px, h, pz = pcall(world.findDryLand, world, s.x + math.cos(angle) * r, s.z + math.sin(angle) * r, 40)
+		if not ok or typeof(px) ~= "number" then
+			return nil
+		end
+		return { value = { px, h + 3, pz }, name = "outside " .. s.name }
+	elseif kind == "tagged" then
+		local best, bestD = nil :: Vector3?, 250 * 250
+		for _, inst in CollectionService:GetTagged(rest) do
+			local p: Vector3? = if inst:IsA("Model") then inst:GetPivot().Position elseif inst:IsA("BasePart") then inst.Position else nil
+			if p then
+				local d = (p.X - situation.x) ^ 2 + (p.Z - situation.z) ^ 2
+				if d < bestD then
+					best, bestD = p, d
+				end
+			end
+		end
+		return if best then { value = { best.X, best.Y + 3, best.Z }, name = TAG_NAMES[rest] or "the place" } else nil
+	elseif kind == "domainProperty" then
+		local root = Registry.branches[rest]
+		if not root or #root.ownProperties == 0 then
+			return nil
+		end
+		local list = table.clone(root.ownProperties)
+		table.sort(list)
+		local id = list[rng:NextInteger(1, #list)]
+		local def = Registry.properties[id]
+		return { value = id, name = if def then string.lower(def.name) else id }
+	elseif kind == "oneOf" then
+		local list = split(rest)
+		if #list == 0 then
+			return nil
+		end
+		local word = list[rng:NextInteger(1, #list)]
+		return { value = word, name = word }
 	elseif kind == "mythicSubBranch" then
 		local children = {}
 		for _, id in Registry.branchIds do

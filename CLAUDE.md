@@ -22,11 +22,13 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
   - `rojo build` does NOT check Luau syntax (a broken string once passed it); always read the VS Code diagnostics for every edited file. Diagnostics with no `linesInFile` may mean the file wasn't analysed.
 - **Git:** the repo now has history on branch **`baseline`** (no `main` yet). Commit each finished piece separately with a descriptive message; the owner has been fine with that ("build next" includes committing).
 - **How the owner drives work:** "Build next" / "Build prompt N" means continue the current plan. They reply to the open questions selectively; unanswered questions get a sensible default, said out loud, and stay in the open-questions list below.
+- **Before coding, say the plan** (asked 2026-11-05: "Tell me what you're doing before you code"): a short plan in the reply, then build.
+- **Syntax check:** selene parses every file: `~/AppData/Roaming/Code/User/globalStorage/kampfkarren.selene-vscode/selene.exe --display-style quiet <files>` (0 parse errors = syntax OK). Use it after edits, since VS Code diagnostics may be empty for unanalysed files.
 - **Client → server intents use `Net.send`** (`Net.fire` is server → client only; using it on the client broke running and dashing once).
 
 ## Where we left off (session 2026-11-05)
 
-**Next step:** early-game plan item 4, beginner situations and a mentor per town (docs/EarlyGamePlan.md §2). Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5).
+**Next step:** early-game plan item 5, the first creatures (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
 
 **Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
 | # | Prompt | State |
@@ -39,7 +41,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
 | 7 | Sounds + music | built (80 licensed picks, not auditioned) |
 | 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
-| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards) and 3 (ranged at Sensing) built; **item 4 next** |
+| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing) and 4 (beginner quests + mentor) built; **item 5 next** |
 | 10 | Gravity powers | not started |
 | 11 | Time powers | not started |
 
@@ -50,7 +52,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Movement: the run/dash remote fix (`Net.send`), dash flavours, lock-on toggle. The Deepwatch floor fix (`clearInterior` from the slab bottom).
 - Sound system (`Client/Audio/Audio`, `AudioController`, volumes, `sound <role>`); watch for an `[Audio] N of M sounds failed to load` line.
 - NPC looks, clothing and accents (`npclook`); watch for `[NpcLooks] N accessories failed to load`.
-- Innate spells (`cantrips_granted` in the log; slots 1–3: strike, utility, thrown strike), the "Your magic answers" card, practice yards, Projectile at Sensing. Expected boot line now `specs 327/329` (one new Cantrips test).
+- Innate spells (`cantrips_granted` in the log; slots 1–3: strike, utility, thrown strike), the "Your magic answers" card, practice yards, Projectile at Sensing. Beginner quests: watch for `quest_offered` with `first_practice` / `mentor_lesson` / `show_me_magic` / `lost_pet` / `light_the_lamps` / `spar_master` in the first minutes. Expected boot line now `specs 331/333` (one new Cantrips test, four new Quest.spec tests).
 
 **Verified in play 2026-11-05:** the VFX work (Kenney textures, lightning, slashes, muzzle flashes, `fxpreview`), the domain-tinted colours, the FoundationBuilder crash fix (44 buildings built), the relaxed foundation check (0 failures in the spawn town), the quick wins (one-line boot summary, no red `lock_lost`).
 
@@ -333,7 +335,7 @@ Design doc: `docs/NPC.md`. Code: `src/server/NPC/` (NPCFactory, NPCBrain + Utili
 - The strategy: freeze features; carve a vertical slice (Energy + Earth, the spawn town) out of the existing code with flags; verify it; then re-enable systems one milestone at a time (M1–M11, about 150–210 sessions).
 - Week-1 tasks are in its §7. The first one (`git init` + a baseline commit) is done: branch `baseline`, 2026-11-05.
 - The list below is the older backlog; where they conflict, follow the roadmap's order.
-- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts). Progress, what's built and the next step are in **"Where we left off"** at the top of this file. The early game continues in `docs/EarlyGamePlan.md` (8 items; 1–3 built).
+- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts). Progress, what's built and the next step are in **"Where we left off"** at the top of this file. The early game continues in `docs/EarlyGamePlan.md` (8 items; 1–4 built).
 - **Early-game prompt pack (2026-11-03): `docs/Prompts-EarlyGame.md`** (8 prompts). Audit finding: Earth, Mind, Void, Space, Time and Reality had no `harmful` property in their root branch; Life could only attack from Novice; Space and Time couldn't `generate` at all.
   - **Prompt 1, domain strikes (written 2026-11-03, not yet run; Combat.md §14):** shared `Data/Strikes` + `Magic/Strike`, server route `strike` + `Cast/Effects/Strike`, statuses `dazed`/`jinxed` (+ `critTaken`, `stripBeneficial`), `Compatibility.propertyVerb` (generate tempo/distance) read through the new `Registry.verbPropertyEff`, Composer "Strike" line, 7 SpellExamples, `Tests/EarlyGame.spec`. MagicExamples' "generate distance" rejection became "generate position". `generate probability`/`growth` on point forms changed route (fortune/restore → strike). `rojo build` clean; no diagnostics in the new files. No RECIPE_VERSION bump: the recipe shape didn't change, and routes are resolved at cast time.
 

@@ -13,6 +13,12 @@ return table.freeze({
 	mineStressRadius = 300,
 	lowDensity = 0.55, -- ambient density at a settlement that counts as a ley shift
 	hostileRelation = -0.35, -- settlement relation that counts as a dispute
+	beginner = { -- first-hour situations (SituationDetector.scanPlayer)
+		belowTier = 3, -- best branch below Adept
+		radius = 300, -- studs from a town's centre
+		duskFrom = 17, -- game hours: "light the lamps"
+		duskTo = 22,
+	},
 
 	-- ─── The Director (Services/QuestDirector) ──────────────────────────────
 	directorSeconds = 45, -- per-player decision interval (staggered)

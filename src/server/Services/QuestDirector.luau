@@ -55,6 +55,7 @@ local QuestTemplates = require(Server.Quests.Data.QuestTemplates)
 local Q = require(Server.Quests.Data.QuestTuning)
 local SituationDetector = require(Server.Quests.SituationDetector)
 local QuestFactory = require(Server.Quests.QuestFactory)
+local NPCMagicLife = require(Server.NPC.NPCMagicLife)
 local Objectives = require(Server.Quests.Objectives)
 
 type QuestState = QuestTypes.QuestState
@@ -236,6 +237,9 @@ local function meets(player: Player, state: any, req: QuestTypes.Requirement?): 
 	if req.minTier and bestTier(state) < req.minTier then
 		return false
 	end
+	if req.maxTier and bestTier(state) > req.maxTier then
+		return false
+	end
 	for _, loreId in (req.lore or {}) :: { string } do
 		if not state.data.progression.lore[loreId] then
 			return false
@@ -390,6 +394,19 @@ local function giveRewards(player: Player, quest: QuestState, rewards: QuestType
 	end
 	if rewards.infamy then
 		reputation:addInfamy(player, rewards.infamy, T[quest.template].title)
+	end
+	-- A lesson: mentor-channel study XP in your best branch (its own cooldown per mentor and branch).
+	if rewards.study then
+		local npc = npcOf(quest, rewards.study.npc)
+		local best = bestBranchIn(state, "any")
+		if npc and best then
+			local mentorTier = 1
+			if npc.magic then
+				local _, _, tier = NPCMagicLife.best(npc)
+				mentorTier = tier
+			end
+			progression:awardStudy(player, best, rewards.study.kind, npc.id, { mentorTier = mentorTier })
+		end
 	end
 	if rewards.bounty then
 		local id = quest.slots.town
@@ -749,6 +766,15 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 	if count >= Q.maxOffers or activeCount >= Q.maxActive then
 		return
 	end
+	-- Beginner quests come one at a time: a new player is never handed a pile of chores.
+	local beginnerOpen = false
+	for _, list in { q.offers, q.active } do
+		for _, quest in list do
+			if T[quest.template] and T[quest.template].beginner then
+				beginnerOpen = true
+			end
+		end
+	end
 	local tension = tensionOf(q)
 	local candidates: { { template: Template, situation: Situation, score: number } } = {}
 	local pool: { Situation } = {}
@@ -770,7 +796,7 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 	end
 	for _, s in pool do
 		for _, template in QuestTemplates.list do
-			if template.scope == "personal" then
+			if template.scope == "personal" and not (beginnerOpen and template.beginner) then
 				local id = template.id .. "|" .. s.id .. "|" .. player.UserId
 				if not q.active[id] and not q.offers[id] then
 					local sc = score(player, state, q, template, s, position, tension)
@@ -954,6 +980,25 @@ end
 
 -- ─── Events ─────────────────────────────────────────────────────────────────
 
+-- A cast match with its {slot} placeholders filled ("{branch_parent}", "{property}", "{domain}").
+local function fillMatch(quest: QuestState, match: QuestTypes.CastMatch?): QuestTypes.CastMatch?
+	if not match then
+		return nil
+	end
+	local m: any = table.clone(match)
+	for _, field in { "domains", "properties", "verbs", "forms", "routes", "branches" } do
+		local list = (match :: any)[field]
+		if list then
+			local out: { string } = {}
+			for _, v in list do
+				table.insert(out, QuestFactory.fill(quest, v))
+			end
+			m[field] = out
+		end
+	end
+	return m
+end
+
 local function onSpellResolved(payload: any)
 	local player = Players:GetPlayerByUserId(payload.casterUserId)
 	if not player or not enabled() then
@@ -977,23 +1022,14 @@ local function onSpellResolved(payload: any)
 								local branch = quest.slots[spec.branch or ""]
 								local key = Objectives.key(option.id, spec.id) .. "@"
 								local last = quest.progress[key] or -math.huge
-								if branch and table.find(cast.branchPath, branch) and WorldClock.now() - last >= (spec.spacingHours or 0) / 24 then
+								local matches = spec.match == nil or Objectives.castMatches(fillMatch(quest, spec.match), cast)
+								if branch and matches and table.find(cast.branchPath, branch) and WorldClock.now() - last >= (spec.spacingHours or 0) / 24 then
 									quest.progress[key] = WorldClock.now()
 									addProgress(quest, option.id, spec, 1, player, false)
 								end
 							else
-								local filled = spec.match
-								if filled and filled.branches then
-									local m = table.clone(filled)
-									local branches: { string } = {}
-									for _, b in filled.branches do
-										table.insert(branches, QuestFactory.fill(quest, b))
-									end
-									m.branches = branches
-									filled = m
-								end
 								local probe = table.clone(spec)
-								probe.match = filled
+								probe.match = fillMatch(quest, spec.match)
 								local gain, creative = Objectives.castGain(probe, cast)
 								addProgress(quest, option.id, spec, gain, player, creative)
 							end

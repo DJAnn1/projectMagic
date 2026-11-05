@@ -134,7 +134,7 @@ Casts that hit nothing and changed nothing never count, so spamming at the air d
 
 **World consequences:** relief or ending of the situation's event, startEvent, prosperity (ore folds in), tectonic stress ±, a day of density, relation drift between two towns, NPC mastery, NPC awakening, revealing a secret faction, clearing a bounty, mythic notoriety.
 
-### The 18 templates
+### The 24 templates
 
 | # | Template | Type | Scope | Ways through |
 |---|---|---|---|---|
@@ -143,7 +143,7 @@ Casts that hit nothing and changed nothing never count, so spamming at the air d
 | 3 | The Quiet Student | rescue + investigation | personal | ask/search or sense traces → unmake · talk down · subdue · *join the choir* |
 | 4 | Supplies for a Commission | delivery | personal | fetch · League standing · forge it yourself (creative) |
 | 5 | The Road to … | escort | personal | escort (ambush complication) · buy caravan fare |
-| 6 | A Matter of Pride | duel | personal | accept or walk away → win · win by misdirection |
+| 6 | A Matter of Pride | duel | personal | accept or walk away → win · win by misdirection (Novice and up: never a duel at Sensing) |
 | 7 | A Student of … | teaching | personal | 3 spaced lessons → watch them · let them find it alone |
 | 8 | The Missing Treatise | research | personal | search + sense the archive · buy a copy · derive it by experimenting |
 | 9 | The Ground Is Restless | crisis | shared | ease stress gently (≤ P4) · brace the town · evacuate · trigger it (bad) |
@@ -156,6 +156,14 @@ Casts that hit nothing and changed nothing never count, so spamming at the air d
 | 16 | The Coughing Sickness | crisis | shared | heal · purify water · fetch the remedy |
 | 17 | Settling Accounts | atonement | personal | pay the fine · work it off |
 | 18 | Quiet Footsteps | hunted (auto) | personal | fight · reach sanctuary · parley |
+| B1 | Practice Yard | training | personal, beginner | 5 harmful casts on the yard dummies · watch the regulars |
+| B2 | Lamps at Dusk | chore | personal, beginner (evening) | light or heat near the plaza · help carry the oil |
+| B3 | Show Me | chore | personal, beginner | cast the asked-for property near them · any spell of your domain |
+| B4 | The Lost … | rescue | personal, beginner | sense near the spot, then fetch · ask the owner, then fetch |
+| B5 | A Lesson | teaching | personal, beginner | cast for the town mentor (mentor study XP + a technique hint) · just listen |
+| B6 | Sparring | duel | personal, beginner (Novice only) | bring the training master to half strength · land three hits |
+
+**Beginner quests (2026-11-05, docs/EarlyGamePlan.md item 4).** Situations `beginner` / `beginner_dusk` (SituationDetector.scanPlayer): one per player and nearest town (within `QuestTuning.beginner.radius`, 300 studs), only while the player's best branch is below Adept. Facts: the town, the domain of the player's most-practised branch, and a mentor's hint (`SituationDetector.techniqueHint`: the next public technique of that domain, never a latent). The templates carry `beginner = true` and `requires.maxTier = 2` (a new hard gate: the tier band in `difficulty` only lowers a score), so veterans never see them; the Director keeps **at most one beginner quest offered or active** at a time. New pickers: `mentor` (the town's most skilled NPC mage, teaching trades first; the same person every time), `aroundTown:<min>:<max>`, `tagged:<Tag>`, `domainProperty:<domain>`, `oneOf:<list>`. New objective flag `anyEffect` (a show counts even if it hit nothing) and reward `study` (mentor-channel `awardStudy`). Cast matches now fill `{slot}` placeholders in every list, and `demonstrate` honours a `match`.
 
 ## 3. Three quests, start to finish
 
