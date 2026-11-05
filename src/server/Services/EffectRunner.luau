@@ -258,7 +258,7 @@ function EffectRunner.env(_self: any): InteractionMatrix.Env
 	return env
 end
 
-function EffectRunner.addPresence(_self: any, tags: { string }, position: Vector3, radius: number, power: number, owner: number?, effectId: number?)
+function EffectRunner.addPresence(_self: any, tags: { string }, position: Vector3, radius: number, power: number, owner: number?, effectId: number?, branch: string?)
 	local presence: InteractionMatrix.Presence = {
 		id = newId(),
 		tags = tags,
@@ -289,6 +289,7 @@ function EffectRunner.addPresence(_self: any, tags: { string }, position: Vector
 						metrics.reactions += 1
 						log:debug("reaction", { result = reaction.result })
 						EffectRunner:cue("reaction", { result = reaction.result, radius = math.min(presence.radius, other.radius) }, (presence.position + other.position) / 2, false)
+						bus:publish(Topics.MagicReaction, { result = reaction.result, description = reaction.description, owner = owner, branch = branch })
 					end
 				end
 			end

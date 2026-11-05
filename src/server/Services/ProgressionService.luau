@@ -250,6 +250,12 @@ function ProgressionService.awardDiscovery(_self: any, player: Player, branchId:
 	gain(player, branchId, "experimentation", base, { now = t })
 end
 
+-- Novelty and first reactions (DiscoveryLog): experimentation XP, with its daily cap. Unlike
+-- awardDiscovery this records no "discovery", so it never counts toward a breakthrough.
+function ProgressionService.awardExperiment(_self: any, player: Player, branchId: string, amount: number)
+	gain(player, branchId, "experimentation", amount, { now = now() })
+end
+
 -- Called with the domains an awakening just opened (CantripService registers it: it depends on
 -- us, so we can't require it).
 local awakenHook: ((Player, { string }) -> ())? = nil

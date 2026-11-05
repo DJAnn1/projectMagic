@@ -11,6 +11,11 @@
 	so two servers can't both win. Grants a large bonus, a chronicle entry, and an Epiphany
 	awakening attempt. Stored in data.discoveries.worldFirsts.
 
+	Novelty: the first effective cast of a new verb + property + form, at ANY power, pays falling
+	experimentation XP and a toast (Progression/Experiment). First reactions: the first time you
+	trigger each InteractionMatrix reaction pays reactionXp and says what you found. Neither counts
+	toward breakthroughs. SuggestSpell answers the Composer's "Try something".
+
 	Signature spell (paradigm shift): a world-first recipe you've named, cast 50+ times, and
 	reached Expert in, can be declared your signature (max 3). The creator casts it at
 	x1.1 power and x0.9 cost; it counts toward the Transcendent breakthrough.
@@ -20,9 +25,12 @@
 		list(player)                           -> { { key, at, worldFirst } }
 ]]
 
+local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local ServerScriptService = game:GetService("ServerScriptService")
 local Net = require(Shared.Net)
+local Topics = require(Shared.Core.Topics)
+local Experiment = require(script.Parent.Parent.Progression.Experiment)
 local Seed = require(Shared.Magic.Seed)
 local Types = require(Shared.Magic.Types)
 local Schemas = require(script.Parent.Parent.Persistence.Schemas)
@@ -43,6 +51,7 @@ local progression: any = nil
 local world: any = nil
 local spellbook: any = nil
 local claimedCache: { [string]: boolean } = {} -- hashes known to be claimed already
+local suggestCounts: { [Player]: number } = {}
 
 -- DataStore keys are limited to 50 characters; recipe keys can be longer. Two 32-bit FNV hashes.
 local function storeKey(recipeKey: string): string
@@ -89,22 +98,76 @@ local function tryWorldFirst(player: Player, stats: Types.SpellStats)
 	log:info("world_first", { userId = userId, branch = stats.recipe.branch })
 end
 
+-- The first effective cast of this verb + property + form, at any power (Progression/Experiment).
+-- Returns true when it was new.
+local function noteNovelty(player: Player, state: any, stats: Types.SpellStats): boolean
+	local d = state.data.discoveries
+	d.novelty = d.novelty or {}
+	local combo = Experiment.comboKey(stats.recipe)
+	local found = d.noveltyCount or 0
+	if d.novelty[combo] or found >= T.experimentation.noveltyCap then
+		return false
+	end
+	d.novelty[combo] = 1
+	d.noveltyCount = found + 1
+	progression:awardExperiment(player, stats.recipe.branch, Experiment.noveltyXp(found))
+	return true
+end
+
 function DiscoveryLog.recordCast(_self: any, player: Player, stats: Types.SpellStats, effective: boolean)
-	if not effective or stats.recipe.power < T.experimentation.minPowerForCredit then
+	if not effective then
 		return
 	end
 	local state = playerData:get(player)
 	if not state then
 		return
 	end
+	local novel = noteNovelty(player, state, stats)
 	local recipes = state.data.discoveries.recipes
-	if recipes[stats.key] then
+	if stats.recipe.power < T.experimentation.minPowerForCredit or recipes[stats.key] then
+		-- Not a discovery. A new idea still gets its toast (a discovery would have said it instead).
+		if novel then
+			Net.fire("ProgressionChanged", player, { { kind = "novelty", key = stats.key } })
+		end
 		return
 	end
 	recipes[stats.key] = os.time()
 	progression:awardDiscovery(player, stats.recipe.branch, stats.recipe.power, false)
 	Net.fire("ProgressionChanged", player, { { kind = "discovery", key = stats.key } })
 	task.spawn(tryWorldFirst, player, stats)
+end
+
+-- The first time you trigger each InteractionMatrix reaction. Only whoever cast the spell that set
+-- it off. There are few results and each pays once, so this can't be farmed.
+local function onReaction(payload: any)
+	local player = if payload.owner then Players:GetPlayerByUserId(payload.owner) else nil
+	local state = player and playerData:get(player)
+	if not player or not state then
+		return
+	end
+	local d = state.data.discoveries
+	d.reactions = d.reactions or {}
+	if d.reactions[payload.result] then
+		return
+	end
+	d.reactions[payload.result] = os.time()
+	if payload.branch then
+		progression:awardExperiment(player, payload.branch, T.experimentation.reactionXp)
+	end
+	Net.fire("ProgressionChanged", player, { { kind = "reaction", result = payload.result, text = payload.description } })
+	log:info("reaction_discovered", { userId = player.UserId, result = payload.result })
+end
+
+-- Guided's "Try something". Seeded per player, with a per-session counter so asking again moves on.
+local function suggest(player: Player): { [string]: any }?
+	local state = playerData:get(player)
+	if not state then
+		return nil
+	end
+	local n = (suggestCounts[player] or 0) + 1
+	suggestCounts[player] = n
+	local rng = Seed.random(world:getSeed(), "player:" .. player.UserId, "suggest", n)
+	return Experiment.suggest(state.caster, state.data.discoveries.novelty or {}, rng)
 end
 
 function DiscoveryLog.declareSignature(_self: any, player: Player, recipeKey: string): (boolean, string?)
@@ -174,6 +237,11 @@ function DiscoveryLog.init(_self: any, ctx: any)
 	spellbook = ctx.get("SpellbookService")
 	Net.handle("DeclareSignature", function(player: Player, recipeKey: string)
 		return DiscoveryLog:declareSignature(player, recipeKey)
+	end)
+	Net.handle("SuggestSpell", suggest)
+	ctx.bus:subscribe(Topics.MagicReaction, onReaction)
+	Players.PlayerRemoving:Connect(function(player)
+		suggestCounts[player] = nil
 	end)
 end
 

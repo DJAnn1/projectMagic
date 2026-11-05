@@ -28,7 +28,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 ## Where we left off (session 2026-11-05, last code commit `4e20e0a`)
 
-**Next step:** early-game plan item 6, experimentation pays (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 5 (six creatures in seeded dens around every town) is built (EarlyGamePlan §7), not yet run. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
+**Next step:** early-game plan item 7, first-time flourishes (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 5 (six creatures in seeded dens around every town) is verified in play. Item 6 (novelty XP, first-reaction toasts, Guided "Try something") is built (EarlyGamePlan §8), not yet run. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
 
 **Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
 | # | Prompt | State |
@@ -41,7 +41,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
 | 7 | Sounds + music | built (80 licensed picks, not auditioned) |
 | 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
-| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing), 4 (beginner quests + mentor) and 5 (first creatures) built; **item 6 next** |
+| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing), 4 (beginner quests + mentor), 5 (first creatures) and 6 (experimentation pays) built; **item 7 next** |
 | 10 | Gravity powers | not started |
 | 11 | Time powers | not started |
 
@@ -50,7 +50,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Finding your house: ⌂ marker, Journal "Show the way", `house goto`.
 - Composer explanations (`Shared/UI/SpellHelp`, About card, walkthrough + glossary).
 - Movement: the run/dash remote fix (`Net.send`), dash flavours, lock-on toggle. The Deepwatch floor fix (`clearInterior` from the slab bottom).
-- First creatures (`CreatureService`, `Server/Creatures/`; `creature_dens` in the log, `creature_killed` per kill; `creature spawn gloom_rat`, `creatures`, `creaturedens`). Expected boot line now `specs 341/343` (10 new tests in Creatures.spec). Check that legless bodies stand and float: HipHeight on a custom R15 rig, ellipsoids from SpecialMesh.
+- **Fixes from the 2026-11-05 Play log (`399553d`), all unverified:** audio preload used strings, which load as images, so all 80 sounds were marked failed (now Sound instances; a real failure list may still appear); beginner quests were crowded out by `escort_journey` and now win and may exceed `maxOffers`; junction road paint; practice yards placed before small props; foundation re-checks delayed 1 s (if `foundation_failed` still appears in settlement_2 the terrain really is above those floors, so look with `buildingcheck`). A `character_rescued reason="spawned in water"` at the spawn town (fromY 71, toY 69) is NOT explained or fixed.
+- Experimentation pays (`Progression/Experiment`, `DiscoveryLog`, `SuggestSpell`, `MagicReaction`; `reaction_discovered` in the log). Expected boot line now `specs 350/350` if every Play-log fix holds (7 new tests in Experiment.spec). There are no known Settlement failures any more: treat any failure as new. First creatures are verified in play; the look of their bodies hasn't been reported yet.
 - Sound system (`Client/Audio/Audio`, `AudioController`, volumes, `sound <role>`); watch for an `[Audio] N of M sounds failed to load` line.
 - NPC looks, clothing and accents (`npclook`); watch for `[NpcLooks] N accessories failed to load`.
 - Innate spells (`cantrips_granted` in the log; slots 1–3: strike, utility, thrown strike), the "Your magic answers" card, practice yards, Projectile at Sensing. Beginner quests: watch for `quest_offered` with `first_practice` / `mentor_lesson` / `show_me_magic` / `lost_pet` / `light_the_lamps` / `spar_master` in the first minutes. Expected boot line now `specs 331/333` (one new Cantrips test, four new Quest.spec tests).

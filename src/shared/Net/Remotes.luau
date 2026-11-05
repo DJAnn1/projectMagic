@@ -200,6 +200,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 2, perSecond = 0.2 },
 		maxBytes = 256,
 	},
+	SuggestSpell = { -- Guided's "Try something": a valid spell you haven't tried, or nil
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.5 },
+		maxBytes = 64,
+	},
 	SetHotbarSlot = { -- slot 1..10, recipe key (nil empties the slot)
 		kind = "Function",
 		from = "Client",

@@ -214,6 +214,11 @@ local function onEvent(event: any)
 	elseif kind == "discovery" then
 		C.sound("discovery")
 		toast("Discovered: " .. describeKey(event.key))
+	elseif kind == "novelty" then
+		toast("Something new: " .. describeKey(event.key))
+	elseif kind == "reaction" then
+		C.sound("discovery")
+		toast("You discovered: " .. tostring(event.text), Theme.color.accent)
 	elseif kind == "worldFirst" then
 		C.sound("discovery")
 		toast("World first! No one has cast this before you.", Theme.color.accent)

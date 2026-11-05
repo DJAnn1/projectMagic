@@ -29,7 +29,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 | **3** | **First ranged spell** (built 2026-11-05): no milestone, no gate. Projectile opens at **Sensing**, and the awakening also gives your Strike thrown (Ember Dart...) in slot 3. The owner chose against the "First Steps" checklist: "I don't want to restrict anything for the player". | S | EarlyGame #2 | Dead spot 3. |
 | **4** | **Beginner situations + a mentor per town** (built 2026-11-05): practice yard, lamps at dusk, show me, lost pet, a lesson from the mentor, sparring; only below Adept, one at a time, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
 | **5** | **First creatures** (built 2026-11-05): six critters in seeded dens around every town, every domain strong against at least one. | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
-| 6 | **Experimentation pays** (novelty XP, first-reaction toasts, Guided "try something"). | M | EarlyGame #7 | Once the basics work. |
+| **6** | **Experimentation pays** (built 2026-11-05): novelty XP, first-reaction toasts, Guided "try something". | M | EarlyGame #7 | Once the basics work. |
 | 7 | **First-time flourishes** (first damage, first new verb/form: a stinger and a toast). The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
 | 8 | **Measure the first hour** (JourneySim + telemetry). | M | EarlyGame #8 | Last: measures the above. |
 
@@ -96,4 +96,14 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Spec:** `Tests/Creatures.spec` (10 tests).
 - **Not done (from EarlyGame #5):** guards killing pests and farmers paying for them (dens stay outside towns, so they never meet), creature sounds, animation, and a quest or Journal entry pointing at dens.
 - **Next:** item 6, experimentation pays.
+- **Verified in play (2026-11-05):** dens (56 in 14 towns), `creature spawn`, kills, XP to the branch used and the falling reward factor.
+
+## 8. Item 6, built (2026-11-05, not yet run)
+
+- **Novelty XP:** the first *effective* cast of a new verb + property + form pays `max(3, 30 x 0.95^found)` base XP through the `experimentation` channel (daily cap 2500), with a "Something new: ..." toast. It works at power 1, which recipe discoveries ignore (`minPowerForCredit = 2`). Power and branch don't make a new combination. It doesn't count toward breakthroughs. Saved in `discoveries.novelty`, capped at 400 entries.
+- **First reactions:** the first time you trigger each `InteractionMatrix` reaction: "You discovered: <its description>", the discovery sound and 60 base XP. Only the caster who set it off is credited (`EffectRunner` publishes `MagicReaction`). Saved in `discoveries.reactions`.
+- **Try something:** Guided has a button at the top. The server (`SuggestSpell`, rate limited) picks a seeded spell from your unlocked branches that you haven't tried, one power under your ceiling, checked with the real validator, skipping forbidden branches. The client shows it as an ordinary card with the preview, Save and Customize. No world seed or hidden profile data reaches the client.
+- **Spec:** `Tests/Experiment.spec` (7 tests). Pure rules: `Progression/Experiment`.
+- **Not done (from EarlyGame #7):** the Grimoire page of rumoured techniques (not in this plan item), and toasts for environmental reactions such as dry grass catching or ice being slick: those don't run through the matrix.
+- **Next:** item 7, first-time flourishes.
 

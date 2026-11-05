@@ -26,6 +26,7 @@ return table.freeze({
 	TargetKilled = "TargetKilled", -- { humanoid, model, kind, sourceUserId?, domain? }
 	StatusApplied = "StatusApplied", -- { humanoid, model, status, duration, sourceUserId? } a NEW status (not a refresh)
 	SpellResolved = "SpellResolved", -- { casterUserId, key, route, point, domains, branch, branchPath, property, verb, form, power, tags, effective, hits, harmful, forbidden }
+	MagicReaction = "MagicReaction", -- { result, description, owner: number?, branch: string? } an InteractionMatrix reaction fired; owner triggered it
 	-- NPCs, quests and reputation (docs/Quests.md)
 	NpcTalked = "NpcTalked", -- { player, npcId, topic }
 	QuestOffered = "QuestOffered", -- { player, questId, template }

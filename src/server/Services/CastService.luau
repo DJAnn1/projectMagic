@@ -421,7 +421,8 @@ local function aftermath(
 		stats.area,
 		stats.power,
 		player.UserId,
-		outcome.effectId
+		outcome.effectId,
+		stats.recipe.branch
 	)
 	if not p.route.recordsWorld then
 		world:noteMagic(landedAt, stats.domains, stats.power)

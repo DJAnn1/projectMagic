@@ -52,6 +52,12 @@ local ProgressionTuning = {
 		personalFirstPerPower = 25,
 		worldFirst = 1500, -- first time ANYONE in the world casts it
 		minPowerForCredit = 2, -- P1 recipes are too trivial to count as discoveries
+		-- Novelty: the first effective cast of a new verb + property + form, at any power (Experiment).
+		noveltyBase = 30, -- base XP of the first one
+		noveltyDecay = 0.95, -- each one found multiplies the next by this
+		noveltyFloor = 3,
+		noveltyCap = 400, -- combos remembered per player; past this they stop paying (save size)
+		reactionXp = 60, -- the first time you trigger each InteractionMatrix reaction
 	},
 
 	-- ─── Observation ────────────────────────────────────────────────────────

@@ -38,6 +38,7 @@ local Strike = require(Shared.Magic.Strike)
 local Types = require(Shared.Magic.Types)
 local SpellHelp = require(Shared.UI.SpellHelp)
 local Cantrips = require(Shared.Magic.Cantrips)
+local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
@@ -145,6 +146,8 @@ local modeOverride: string? = nil -- "advanced" while editing a recipe passed in
 local loadedArgs: any = nil
 local spellName = ""
 local cardPowers: { [string]: Kit.Value<number> } = {}
+-- Guided's "Try something": { recipe } from the server, { none = true } when nothing's left, or nil.
+local suggestion: Kit.Value<any> = Kit.value(nil)
 local focused = Kit.value(nil :: string?) -- the option the About card explains (hover / gamepad selection)
 local showHelp = Kit.value(false) -- the "How spells work" walkthrough
 local helpPage = Kit.value(1)
@@ -1292,12 +1295,53 @@ local function buildGuided(scope: Scope, body: Frame)
 	C.list("y", Theme.space.m).Parent = scroll
 	C.padding(Theme.space.xs).Parent = scroll
 	statusLine(scope, scroll, 0)
-	Kit.dynamic(scope, { magic.known }, function(s)
+	-- Try something: one seeded spell you can cast and haven't, chosen by the server. It's an ordinary
+	-- card from there: the same preview, Save and Customize.
+	Kit.dynamic(scope, { suggestion }, function(s)
 		local holder: Frame = Kit.create(nil, "Frame", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 1,
+			Parent = scroll,
+		})
+		s:add(holder)
+		C.list("y", Theme.space.s).Parent = holder
+		local current = suggestion:get()
+		C.button(if current then "Try something else" else "Try something new", function()
+			task.spawn(function()
+				local ok, recipe = Net.invoke("SuggestSpell")
+				if ok then
+					suggestion:set(if typeof(recipe) == "table" then { recipe = recipe } else { none = true })
+				end
+			end)
+		end, { kind = "ghost", sound = "confirm" }, { Size = UDim2.fromOffset(220, Theme.minTouch), LayoutOrder = 1 }).Parent = holder
+		if current and current.none then
+			C.text("Nothing new within your reach right now. Grow a little, then ask again.", "caption", { LayoutOrder = 2 }).Parent = holder
+		elseif current then
+			local recipe = current.recipe
+			local cell: Frame = Kit.create(nil, "Frame", {
+				BackgroundTransparency = 1,
+				Size = UDim2.fromOffset(if interface.layout:get() == "Compact" then 330 else 360, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				LayoutOrder = 2,
+				Parent = holder,
+			})
+			buildCard(s, cell, {
+				id = "try_" .. table.concat({ recipe.branch, recipe.verb, recipe.property, recipe.form }, "_"),
+				name = "Try this",
+				description = sentence(recipe) .. ". You haven't cast anything like it yet.",
+				recipe = recipe,
+				domain = Registry.branches[recipe.branch].domains[1],
+			}, 1)
+		end
+	end)
+	Kit.dynamic(scope, { magic.known }, function(s)
+		local holder: Frame = Kit.create(nil, "Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			LayoutOrder = 2,
 			Parent = scroll,
 		})
 		s:add(holder)
