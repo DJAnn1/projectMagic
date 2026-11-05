@@ -7,7 +7,7 @@
 	         robes, cloaks, sashes by occupation, coloured from the culture's palette and shifted by
 	         wealth (socialClass); welded to the body, SmoothPlastic (never Fabric: fire), no collision.
 	ACCENTS  strong mages show it in their signature colour: Neon wrist bands and a Neon belt or
-	         sash from Skilled (tier 3), slow sparkles at the hands from Master (5), more from 7.
+	         sash from Skilled (tier 4), slow sparkles at the hands from Master (6), more from Grandmaster (7).
 	CHOOSE   choose(npc) is deterministic: a Random seeded from the NPC's own seed (itself from
 	         Seed.derive(worldSeed, id, "npc")), so the same person always looks the same, on every
 	         server. Inputs it reads: appearance.hair (colour) / build / feature, ageBand,

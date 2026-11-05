@@ -249,7 +249,7 @@ NPCs used to be plain recoloured rigs; the generated hair colour, build and feat
 - **Admin:** `npclook [npc]` shows what an NPC wears. Spec: `Tests/NpcLooks.spec`.
 - **Clothing** (part-built: Roblox's own classic clothing is all modern, jeans and logo shirts): belts, aprons, tabards (front and back), robes, cloaks and sashes, thin parts welded to the R6 body over the shirt/trouser colours. Per occupation (`Data.outfits`): guards a tabard + belt (35% a cloak), smiths a leather apron, innkeepers and healers a linen apron, scholars/tidepriests/weathercallers robes and sashes, hunters a dark cloak, and so on. Colours come from the culture's palette (tidecall blues, frostfolk greys and deep red, emberclan reds, verdant greens...).
 - **Wealth** (`socialClass`): low mutes and darkens the cloth; high deepens it, adds a gold buckle to the belt and makes a cloak likelier.
-- **Signature accents** (`NPCMagicLife.best` tier): from Skilled (3) Neon wrist bands and a Neon belt or sash in the signature colours; from Master (5) slow signature sparkles at the right hand; from 7 at both hands, denser. No PointLights.
+- **Signature accents** (`NPCMagicLife.best` tier): from Skilled (tier 4) Neon wrist bands and a Neon belt or sash in the signature colours; from Master (6) slow signature sparkles at the right hand; from Grandmaster (7) at both hands, denser. No PointLights.
 - **Material:** SmoothPlastic, Metal for buckles, Neon for accents; never Fabric (ThermalSim treats Fabric as tinder).
 - **Not yet:** face variety.
 

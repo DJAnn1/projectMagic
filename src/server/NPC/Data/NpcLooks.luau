@@ -288,6 +288,7 @@ NpcLooks.wealth = {
 	and a Neon belt or sash in the signature's primary colour; from `motes`, slow signature-coloured
 	sparkles at the hands; from `aura`, more of them. No PointLights (the light budget is the town's).
 ]]
-NpcLooks.accent = { trim = 3, motes = 5, aura = 7, motesRate = 3, auraRate = 8 }
+-- Tier indexes (Data/MasteryTiers): 4 Skilled, 6 Master, 7 Grandmaster.
+NpcLooks.accent = { trim = 4, motes = 6, aura = 7, motesRate = 3, auraRate = 8 }
 
 return NpcLooks
