@@ -3,8 +3,10 @@
 	Strikes: every domain's first attack. Key = domain id; every domain must have one (Registry).
 
 	The guarantee (docs/Combat.md §14, Tests/EarlyGame.spec): a caster at Sensing can build a
-	damaging spell from their domain's ROOT branch with `generate` + `touch`, and at Novice a
-	ranged one with `generate` + `projectile`.
+	damaging spell from their domain's ROOT branch with `generate` + `touch`, and a ranged one
+	with `generate` + `projectile` (Projectile opens at Sensing).
+
+	rangedName : the projectile version's name (Ember Dart...), the third innate spell
 
 	property : a property of the domain's ROOT branch (Registry checks)
 	verbs    : the verbs that make this a strike (generate: the only attacking verb at Sensing)
@@ -34,59 +36,59 @@ local Types = require(script.Parent.Parent.Types)
 local Strikes: { [string]: Types.StrikeDef } = {
 	-- Native: the root already attacks through an existing route.
 	energy = {
-		name = "Scorch", property = "temperature", verbs = { "generate" }, native = "thermal",
+		name = "Scorch", rangedName = "Ember Dart", property = "temperature", verbs = { "generate" }, native = "thermal",
 		flavour = "A flare of raw heat from your hand.",
 	},
 	water = {
-		name = "Scald", property = "temperature", verbs = { "generate" }, native = "thermal",
+		name = "Scald", rangedName = "Boiling Drop", property = "temperature", verbs = { "generate" }, native = "thermal",
 		flavour = "A spray of near-boiling water.",
 	},
 	air = {
-		name = "Thunderclap", property = "sound", verbs = { "generate" }, native = "harm",
+		name = "Thunderclap", rangedName = "Crack Shot", property = "sound", verbs = { "generate" }, native = "harm",
 		flavour = "A crack of compressed sound that hits like a fist.",
 	},
 	gravity = {
-		name = "Press", property = "weight", verbs = { "generate" }, native = "harm",
+		name = "Press", rangedName = "Heavy Mote", property = "weight", verbs = { "generate" }, native = "harm",
 		flavour = "A sudden, crushing heaviness on one body.",
 	},
 	spirit = {
-		name = "Soul Prick", property = "essence", verbs = { "generate" }, native = "harm",
+		name = "Soul Prick", rangedName = "Soul Dart", property = "essence", verbs = { "generate" }, native = "harm",
 		flavour = "A needle of spirit straight into the self.",
 	},
 
 	-- Strike route: these roots have no harmful property of their own.
 	earth = {
-		name = "Stone Shot", property = "hardness", verbs = { "generate" }, share = 1.0,
+		name = "Stone Shot", rangedName = "Pebble Sling", property = "hardness", verbs = { "generate" }, share = 1.0,
 		rider = { status = "slow", duration = 1, chance = 0.3, word = "may stagger" },
 		flavour = "A fist-sized stone, hardened in the air and hurled.",
 	},
 	life = {
-		name = "Thornlash", property = "growth", verbs = { "generate" }, share = 0.9,
+		name = "Thornlash", rangedName = "Thorn Dart", property = "growth", verbs = { "generate" }, share = 0.9,
 		rider = { status = "slow", duration = 1.5, chance = 0.5, word = "may snare" },
 		flavour = "Growth forced too fast: a lash of thorns.",
 	},
 	mind = {
-		name = "Psychic Spike", property = "perception", verbs = { "generate" }, share = 0.8,
+		name = "Psychic Spike", rangedName = "Mind Dart", property = "perception", verbs = { "generate" }, share = 0.8,
 		rider = { status = "dazed", duration = 2, word = "dazes (shaky casting)" },
 		flavour = "Too much sensation at once, driven behind the eyes.",
 	},
 	void = {
-		name = "Unmake", property = "aether", verbs = { "generate" }, share = 0.85,
+		name = "Unmake", rangedName = "Hollow Mote", property = "aether", verbs = { "generate" }, share = 0.85,
 		rider = { strip = 1, word = "strips a blessing" },
 		flavour = "A hollow pulse that eats whatever magic it meets.",
 	},
 	space = {
-		name = "Shear", property = "distance", verbs = { "generate" }, share = 0.9,
+		name = "Shear", rangedName = "Rift Dart", property = "distance", verbs = { "generate" }, share = 0.9,
 		rider = { shove = 40, word = "shoves aside" },
 		flavour = "A sliver of space opens through the target, and closes.",
 	},
 	time = {
-		name = "Hasten Decay", property = "tempo", verbs = { "generate" }, share = 0.55,
+		name = "Hasten Decay", rangedName = "Withering Mote", property = "tempo", verbs = { "generate" }, share = 0.55,
 		rider = { status = "rot", duration = 3, dotShare = 0.4, word = "ages (rot)" },
 		flavour = "A pulse of runaway time: years pass in one spot of flesh.",
 	},
 	reality = {
-		name = "Misfortune", property = "probability", verbs = { "generate" }, share = 0.85,
+		name = "Misfortune", rangedName = "Ill Omen", property = "probability", verbs = { "generate" }, share = 0.85,
 		rider = { status = "jinxed", duration = 4, word = "jinxes (crits likelier)" },
 		flavour = "The odds turn against them, and so does the blow.",
 	},

@@ -983,7 +983,8 @@ end
 -- Onboarding nudge, in two steps. No text wall: one sentence and one action each.
 --   no spells yet      "Something stirs in you." + Reach inward (the Composer)
 --   spells, none cast  "Your magic answers." + exactly how to use slot 1 on this input and cast
---                      mode (the awakening's innate spells land on slots 1-2: CantripService)
+--                      mode (the awakening's innate spells land on slots 1-3: CantripService),
+--                      plus the slot of the first ranged (projectile) spell on the bar
 -- Gone after the first cast that goes through.
 local castOnce = Kit.value(false)
 
@@ -1049,7 +1050,23 @@ local function buildFirstSteps(scope: Scope, root: Frame, compact: boolean)
 		end
 		C.text("Your magic answers.", "heading", { LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
 		C.text(howToCast(name), "body", { LayoutOrder = 2, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
-		C.text("The straw dummies in the practice yard by the plaza are free to strike.", "caption", { LayoutOrder = 3, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+		-- The first projectile on the bar (the thrown Strike, usually slot 3).
+		local hotbar = magic.hotbar:get()
+		for slot = 1, 10 do
+			local key = hotbar[slot]
+			local found = nil
+			for _, view in book do
+				if key and view.key == key and view.recipe and view.recipe.form == "projectile" then
+					found = view
+				end
+			end
+			if found then
+				local how = string.format("%s in slot %d throws your magic from afar.", found.name, slot)
+				C.text(how,"caption", { LayoutOrder = 3, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+				break
+			end
+		end
+		C.text("The straw dummies in the practice yard by the plaza are free to strike.", "caption", { LayoutOrder = 4, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
 	end)
 end
 

@@ -72,7 +72,7 @@ Schemas.Player = {
 			},
 			spellbook = {}, -- recipeKey -> { recipe, name, favorite, casts, addedAt }
 			hotbar = {}, -- slot "1".."10" -> recipeKey (a spellbook entry; cleared when the spell is removed)
-			cantrips = {}, -- domainId -> unix: its innate spells were granted (CantripService; reconcile fills old saves)
+			cantrips = {}, -- "<domain>:<kind>" -> unix (a bare "<domain>" = strike + utility, older saves): innate spells granted (CantripService; reconcile fills old saves)
 			discoveries = { -- compressed
 				recipes = {}, -- recipeKey -> first cast by you (unix)
 				worldFirsts = {}, -- recipeKey -> unix; recipes nobody in the world had cast before you

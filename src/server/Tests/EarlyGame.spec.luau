@@ -1,6 +1,6 @@
 --!strict
 -- Unit specs for the early-game guarantees (docs/Combat.md §14, docs/Prompts-EarlyGame.md):
--- every domain can attack from its root branch at Sensing, and at range from Novice, and the
+-- every domain can attack from its root branch at Sensing, with touch and at range, and the
 -- strike route never steals a spell that already had a job.
 
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -76,11 +76,11 @@ return function(t: any)
 			end
 		end)
 
-		it("lets a Novice caster attack at range from the root branch, in every domain", function()
-			local novice = Registry.masteryTiers.tiers[3].minMastery
+		it("lets a Sensing caster attack at range from the root branch, in every domain", function()
+			local sensing = Registry.masteryTiers.tiers[2].minMastery
 			for _, domainId in Registry.domainIds do
 				local def = Registry.strikes[domainId]
-				local id = routeAs(domainId, strikeRecipe(domainId, "projectile"), casterAt(domainId, novice))
+				local id = routeAs(domainId, strikeRecipe(domainId, "projectile"), casterAt(domainId, sensing))
 				expect(DAMAGING[id] == true).toBe(true)
 				expect(id).toBe(def.native or "strike")
 			end

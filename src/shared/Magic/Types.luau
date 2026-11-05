@@ -52,6 +52,7 @@ export type StrikeRider = {
 
 export type StrikeDef = {
 	name: string,
+	rangedName: string, -- the projectile version's name (the third innate spell: Cantrips.bolt)
 	property: string,
 	verbs: { string },
 	forms: { string }?,

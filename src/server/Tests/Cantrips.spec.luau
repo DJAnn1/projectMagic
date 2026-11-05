@@ -1,8 +1,8 @@
 --!strict
 --[[
 	Cantrips.spec: the awakening's innate spells (Shared/Magic/Cantrips, Services/CantripService).
-	For EVERY domain a fresh Sensing caster gets a Strike that is valid and actually damages, and a
-	utility spell; the utility is seeded (same seed, same spell).
+	For EVERY domain a fresh Sensing caster gets a Strike that is valid and actually damages, a
+	utility spell, and the thrown Strike (a projectile that damages); the utility is seeded.
 ]]
 
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -59,6 +59,28 @@ return function(t: any)
 				t.expect(strike.name ~= "").toBe(true)
 				t.expect(utility.name ~= "").toBe(true)
 				t.expect((MagicCore.validateRecipe(utility.recipe, caster))).toBe(true)
+			end
+		end)
+
+		t.it("gives every domain a damaging projectile at Sensing, after strike and utility", function()
+			for _, domainId in Registry.domainIds do
+				local caster = sensingCaster(domainId)
+				local spells = Cantrips.forDomain(domainId, caster, Random.new(7))
+				local bolt = spells[#spells]
+				if not bolt or bolt.kind ~= "bolt" then
+					error(domainId .. ": no thrown Strike at Sensing (or not last)")
+				end
+				t.expect(#spells).toBe(3)
+				t.expect(bolt.recipe.form).toBe("projectile")
+				t.expect(bolt.name).toBe(Registry.strikes[domainId].rangedName)
+				local ok, errors, normalized = MagicCore.validateRecipe(bolt.recipe, caster)
+				if not ok or not normalized then
+					error(domainId .. ": bolt invalid (" .. (errors[1] and errors[1].code or "?") .. ")")
+				end
+				local route = CastService.routeFor(normalized).id
+				if not DAMAGING[route] then
+					error(domainId .. ": bolt routes to " .. route .. ", which doesn't damage")
+				end
 			end
 		end)
 

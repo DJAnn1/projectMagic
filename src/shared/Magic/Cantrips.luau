@@ -3,13 +3,17 @@
 	Cantrips: the spells your awakening gives you (docs/EarlyGamePlan.md, plan item 1). Pure and
 	shared: Services/CantripService grants them, the Composer's Guided "First spark" uses strike().
 
-	For each awakened domain, two spells at the Sensing tier:
+	For each awakened domain, three spells at the Sensing tier (in this order, so a new player's
+	first domain fills hotbar slots 1-3):
 		strike   the domain's Strike (Data/Strikes: Scorch, Stone Shot...): generate <property> as
 		         touch, power 1. Every domain can attack with it from its root branch at Sensing
 		         (Tests/EarlyGame.spec guarantees it).
 		utility  a Sensing technique of that domain if it has one (Glow Mote, Pebble Nudge, Dew
 		         Sense), otherwise "Sense <property>" on a seeded property of the root branch, as an
 		         aura (or touch). Named after the technique or the property.
+		bolt     the same Strike thrown: form projectile, power 1, named by the strike's
+		         `rangedName` (Ember Dart, Pebble Sling...). Ranged magic from minute one
+		         (docs/EarlyGamePlan.md item 3); power 1 keeps it weak.
 	Seeded per player and domain (Seed.random(worldSeed, "player:<id>", "cantrip:<domain>")), so
 	two Fire players don't always get the same utility.
 ]]
@@ -28,6 +32,15 @@ function Cantrips.strike(domainId: string): ({ [string]: any }?, string?)
 		return nil, nil
 	end
 	return { branch = domainId, property = def.property, verb = def.verbs[1], form = "touch", power = 1, modifiers = {} }, def.name
+end
+
+-- The domain's Strike thrown: projectile, power 1.
+function Cantrips.bolt(domainId: string): ({ [string]: any }?, string?)
+	local def = Registry.strikes[domainId]
+	if not def then
+		return nil, nil
+	end
+	return { branch = domainId, property = def.property, verb = def.verbs[1], form = "projectile", power = 1, modifiers = {} }, def.rangedName
 end
 
 local function valid(recipe: { [string]: any }, caster: any): boolean
@@ -74,7 +87,7 @@ function Cantrips.utility(domainId: string, caster: any, rng: Random): ({ [strin
 	return nil, nil
 end
 
--- Both cantrips for a domain (only the ones the caster can actually cast).
+-- All cantrips for a domain (only the ones the caster can actually cast).
 function Cantrips.forDomain(domainId: string, caster: any, rng: Random): { Spell }
 	local out: { Spell } = {}
 	local strike, strikeName = Cantrips.strike(domainId)
@@ -84,6 +97,10 @@ function Cantrips.forDomain(domainId: string, caster: any, rng: Random): { Spell
 	local utility, utilityName = Cantrips.utility(domainId, caster, rng)
 	if utility and utilityName then
 		table.insert(out, { kind = "utility", name = utilityName, recipe = utility })
+	end
+	local bolt, boltName = Cantrips.bolt(domainId)
+	if bolt and boltName and valid(bolt, caster) then
+		table.insert(out, { kind = "bolt", name = boltName, recipe = bolt })
 	end
 	return out
 end

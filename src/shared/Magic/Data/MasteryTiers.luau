@@ -9,6 +9,9 @@
 	ceiling. Tiers marked `breakthrough` can't be entered by XP alone: mastery holds just below
 	them until the breakthrough's requirements are completed (see server Progression/Breakthroughs).
 	Any unlocked branch counts as at least Sensing.
+
+	Projectile opens at Sensing (2026-11-05, docs/EarlyGamePlan.md item 3): ranged magic is never
+	gated behind a task; the Sensing power ceiling (1) is what keeps a first bolt weak.
 ]]
 local Types = require(script.Parent.Parent.Types)
 
@@ -25,14 +28,14 @@ local MasteryTiers = {
 		},
 		{
 			index = 1, id = "sensing", name = "Sensing", minMastery = 1, powerCeiling = 1, breakthrough = false,
-			verbs = { "sense", "generate" }, forms = { "touch", "aura" }, vfxScale = 0.2,
-			unlocks = "Feel the branch's property around you; make the tiniest effects (a glow, a nudged pebble).",
+			verbs = { "sense", "generate" }, forms = { "touch", "aura", "projectile" }, vfxScale = 0.2,
+			unlocks = "Feel the branch's property around you; make the tiniest effects (a glow, a nudged pebble) and throw them.",
 			look = "A faint flicker in your palette; barely visible.",
 		},
 		{
 			index = 2, id = "novice", name = "Novice", minMastery = 10, powerCeiling = 3, breakthrough = false,
-			verbs = { "amplify", "reduce" }, forms = { "projectile", "burst" }, vfxScale = 0.4,
-			unlocks = "Strengthen or weaken what's already there; throw and burst small effects.",
+			verbs = { "amplify", "reduce" }, forms = { "burst" }, vfxScale = 0.4,
+			unlocks = "Strengthen or weaken what's already there; burst small effects around a point.",
 			look = "A steady glow; simple, slightly unstable particles.",
 		},
 		{

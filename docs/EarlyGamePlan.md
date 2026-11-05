@@ -26,7 +26,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 |---|---|---|---|---|
 | **1** | **Innate spells on the hotbar** (built 2026-11-05): on your first awakening you get your domain's **Strike** (e.g. Scorch, touch, power 1) and a **utility** (a Sensing technique, or *Sense <property>*), named, in slots 1–2; Guided's "First spark" becomes the Strike; the walkthrough waits until you've cast once. | S–M | EarlyGame #3 + this audit | Fixes dead spots 1 and 5 in the first minute. |
 | 2 | **Practice targets in every town**: a training yard by the plaza (2–3 PracticeTarget dummies, no crime), before creatures exist. | S | EarlyGame #5, split | Fixes dead spot 2 now, cheaply. |
-| 3 | **First ranged spell**: option C, a one-time "First Steps" milestone (cast 20, hit 5 targets, sense 3 things) that grants a block of XP so Novice (projectile) arrives in ~10 minutes. xpScale untouched. | M | EarlyGame #2 | Dead spot 3. Needs targets (item 2). |
+| **3** | **First ranged spell** (built 2026-11-05): no milestone, no gate. Projectile opens at **Sensing**, and the awakening also gives your Strike thrown (Ember Dart...) in slot 3. The owner chose against the "First Steps" checklist: "I don't want to restrict anything for the player". | S | EarlyGame #2 | Dead spot 3. |
 | 4 | **Beginner situations + a mentor per town** (light the lamps, spar the training master, find a lost pet, "show me your magic"), only below Adept, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
 | 5 | **First creatures** (4–6 critters near settlements, every domain strong against one). | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
 | 6 | **Experimentation pays** (novelty XP, first-reaction toasts, Guided "try something"). | M | EarlyGame #7 | Once the basics work. |
@@ -51,5 +51,14 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Fireproof:** every piece has `Flammability = 0` (ThermalSim), the magic school's dummy too: practising Scorch can't set the town alight. The yard dummies are Sand, not Fabric.
 - **HUD:** the "Your magic answers" card points at the yard.
 - **Spec:** Settlement.spec checks at least 80% of settlements get a yard within reach of the plaza.
-- **Next:** item 3, the first ranged spell (the "First Steps" milestone).
+- **Next:** item 3, the first ranged spell.
+
+## 5. Item 3, built (2026-11-05, not yet run)
+
+- **The owner's call:** nothing is restricted for the player. Instead of the "First Steps" milestone (cast 20, hit 5, sense 3 → an XP block) or a separate weak "flick" form, the real **Projectile form opens at Sensing** (`Data/MasteryTiers`; Novice now opens only amplify, reduce and Burst). The Sensing power ceiling (1) is what keeps a first bolt weak (~9 damage before resistances).
+- **A third innate spell:** your Strike thrown, power 1, named by `Data/Strikes` `rangedName`: Ember Dart (Energy), Boiling Drop (Water), Crack Shot (Air), Heavy Mote (Gravity), Soul Dart (Spirit), Pebble Sling (Earth), Thorn Dart (Life), Mind Dart (Mind), Hollow Mote (Void), Rift Dart (Space), Withering Mote (Time), Ill Omen (Reality). `Cantrips.bolt`; granted after the strike and utility, so a new player's first domain fills slots 1–3.
+- **Old saves:** `PlayerData.cantrips` now records `"<domain>:<kind>"`. A bare `"<domain>"` key (saved before today) counts as strike + utility given, so those players get only the bolt, on their next load, on their first empty slot.
+- **HUD:** "Your magic answers" also names the thrown spell and its slot ("Ember Dart in slot 3 throws your magic from afar.").
+- **Specs:** EarlyGame.spec checks every domain's projectile strike at **Sensing** (was Novice); Cantrips.spec checks every domain gets a damaging bolt, third.
+- **Next:** item 4, beginner situations and a mentor per town.
 

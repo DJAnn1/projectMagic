@@ -26,7 +26,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 ## Where we left off (session 2026-11-05)
 
-**Next step:** early-game plan item 3, the first ranged spell (docs/EarlyGamePlan.md §2). The owner hasn't chosen between the proposed **"First Steps" milestone** (cast 20, hit 5 targets, sense 3 things → a one-time XP block so Novice/projectile arrives in ~10 min; xpScale untouched) and a weak **"flick" form at Sensing**. Ask once, then build.
+**Next step:** early-game plan item 4, beginner situations and a mentor per town (docs/EarlyGamePlan.md §2). Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5).
 
 **Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
 | # | Prompt | State |
@@ -39,7 +39,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
 | 7 | Sounds + music | built (80 licensed picks, not auditioned) |
 | 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
-| 9 | Early game | step 1 plan done; items 1 (innate spells) and 2 (practice yards) built; **item 3 next** |
+| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards) and 3 (ranged at Sensing) built; **item 4 next** |
 | 10 | Gravity powers | not started |
 | 11 | Time powers | not started |
 
@@ -50,7 +50,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Movement: the run/dash remote fix (`Net.send`), dash flavours, lock-on toggle. The Deepwatch floor fix (`clearInterior` from the slab bottom).
 - Sound system (`Client/Audio/Audio`, `AudioController`, volumes, `sound <role>`); watch for an `[Audio] N of M sounds failed to load` line.
 - NPC looks, clothing and accents (`npclook`); watch for `[NpcLooks] N accessories failed to load`.
-- Innate spells (`cantrips_granted` in the log; slots 1–2), the "Your magic answers" card, practice yards.
+- Innate spells (`cantrips_granted` in the log; slots 1–3: strike, utility, thrown strike), the "Your magic answers" card, practice yards, Projectile at Sensing. Expected boot line now `specs 327/329` (one new Cantrips test).
 
 **Verified in play 2026-11-05:** the VFX work (Kenney textures, lightning, slashes, muzzle flashes, `fxpreview`), the domain-tinted colours, the FoundationBuilder crash fix (44 buildings built), the relaxed foundation check (0 failures in the spawn town), the quick wins (one-line boot summary, no red `lock_lost`).
 
@@ -81,6 +81,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Life is Uncommon.** Mythic domains are Time, Gravity and Reality.
 - **"Brush with Death" has a hard trigger:** health ≤ 5%, an enemy ≥ 1.5× stronger, and 10 s survived without healing. It's enforced through `requires`/`facts`.
 - **Asset sources (2026-11-05):** textures are the Kenney Particle Pack (CC0), uploaded by the owner (`Fx/KenneyTextures`, `DomainFx.UPLOADED` maps roles to names). Audio comes only from the licensed Creator Store libraries **ProSoundEffects** (SFX) and **APMOfficial** (music, stingers) (`Shared/Audio/AudioLibrary`, `docs/Audio.md`). NPC accessories are **Roblox-made catalog items** only (InsertService can load them at any price; they stay on the catalog). Third-party uploads are avoided: they can be deleted.
+- **Nothing is gated behind tasks for the player (2026-11-05):** "I don't want to restrict anything for the player." Projectile opens at Sensing; tiers still gate the other verbs/forms and the power ceiling. If more should open early, it's a data change in `Data/MasteryTiers`.
 - **Dash key is R** (gamepad L3); Left Ctrl toggles running; lock-on toggles by default.
 - **Settlement law judges harm by what a spell did**: harmful casts that hurt nobody (practice dummies don't count) and changed no land aren't crimes (World.md).
 - **Person-rarity rules were tuned:** a Gifted gift needs top affinity ≥ 0.55; Uncommon and Rare domains need ≥ 0.35. Measured shares: about 49 / 22 / 21 / 6.6 / 1.1, Common to Legendary.
@@ -332,7 +333,7 @@ Design doc: `docs/NPC.md`. Code: `src/server/NPC/` (NPCFactory, NPCBrain + Utili
 - The strategy: freeze features; carve a vertical slice (Energy + Earth, the spawn town) out of the existing code with flags; verify it; then re-enable systems one milestone at a time (M1–M11, about 150–210 sessions).
 - Week-1 tasks are in its §7. The first one (`git init` + a baseline commit) is done: branch `baseline`, 2026-11-05.
 - The list below is the older backlog; where they conflict, follow the roadmap's order.
-- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts). Progress, what's built and the next step are in **"Where we left off"** at the top of this file. The early game continues in `docs/EarlyGamePlan.md` (8 items; 1–2 built).
+- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts). Progress, what's built and the next step are in **"Where we left off"** at the top of this file. The early game continues in `docs/EarlyGamePlan.md` (8 items; 1–3 built).
 - **Early-game prompt pack (2026-11-03): `docs/Prompts-EarlyGame.md`** (8 prompts). Audit finding: Earth, Mind, Void, Space, Time and Reality had no `harmful` property in their root branch; Life could only attack from Novice; Space and Time couldn't `generate` at all.
   - **Prompt 1, domain strikes (written 2026-11-03, not yet run; Combat.md §14):** shared `Data/Strikes` + `Magic/Strike`, server route `strike` + `Cast/Effects/Strike`, statuses `dazed`/`jinxed` (+ `critTaken`, `stripBeneficial`), `Compatibility.propertyVerb` (generate tempo/distance) read through the new `Registry.verbPropertyEff`, Composer "Strike" line, 7 SpellExamples, `Tests/EarlyGame.spec`. MagicExamples' "generate distance" rejection became "generate position". `generate probability`/`growth` on point forms changed route (fortune/restore → strike). `rojo build` clean; no diagnostics in the new files. No RECIPE_VERSION bump: the recipe shape didn't change, and routes are resolved at cast time.
 

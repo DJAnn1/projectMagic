@@ -24,14 +24,16 @@ xpForMastery(m) = 2.3 · m^2.56          masteryForXp(xp) = (xp / 2.3)^(1/2.56)
 | # | Tier | Mastery | Power ceiling | Newly usable verbs | Newly usable forms | Breakthrough? | How it looks |
 |---|---|---|---|---|---|---|---|
 | 0 | Untouched | 0 | — | — | — | | — |
-| 1 | **Sensing** | 1 | 1 | Sense, Generate | Touch, Aura | | a faint flicker |
-| 2 | **Novice** | 10 | 3 | Amplify, Reduce | Projectile, Burst | | a steady glow; slightly unstable particles |
+| 1 | **Sensing** | 1 | 1 | Sense, Generate | Touch, Aura, Projectile | | a faint flicker |
+| 2 | **Novice** | 10 | 3 | Amplify, Reduce | Burst | | a steady glow; slightly unstable particles |
 | 3 | **Adept** | 25 | 5 | Transfer, Redirect, Store, Release | Beam, Wall, Pillar, Chain | | clean shapes; your signature colours become recognisable |
 | 4 | **Skilled** | 40 | 6 | Transmute, Bind | Zone | | your signature particle style and sound appear. *Specialization oaths open* |
 | 5 | **Expert** | 55 | 7 | | Summon | **yes** | residual sparks; your aura is visible to sensitives |
 | 6 | **Master** | 70 | 8 | | Ritual | **yes** | the environment answers: dust lifts, water ripples. *You can mentor unlocks* |
 | 7 | **Grandmaster** | 85 | 10 | | | **yes** | your palette saturates the area; an ambient effect follows you |
 | 8 | **Transcendent** | 100 | 10 | | | **yes (rare)** | magic bends toward you; **no overreach instability** |
+
+Projectile opens at **Sensing** (2026-11-05, owner: "I don't want to restrict anything for the player"): ranged magic is never gated behind a task. Power 1 at Sensing keeps a first bolt weak; mastery raises its power, not its availability.
 
 **What limits a spell's power** is the lowest of three values: the branch's own maximum, the tier ceiling above, and the comfort curve plus 2. Below that limit, mastery also keeps lowering cost (down to −45%), cast time (−35%) and instability (−50%). Each tier's `vfxScale` (0.2 → 1.35) tells the effects system how strongly your magic shows.
 

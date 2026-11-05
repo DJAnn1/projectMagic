@@ -377,7 +377,7 @@ Shares are of `DamageModel.base(power)` (a plain `harm` hit is 1.0, Thermal heat
 
 **UI.** The Composer shows "Strike ⚔ <name> · <rider>".
 
-**Spec:** `Tests/EarlyGame.spec` (every domain attacks at Sensing with touch and at Novice with a projectile, from the root; strikes are harmful; parity; riders exist; existing spells keep their routes; hybrids; strip and jinx).
+**Spec:** `Tests/EarlyGame.spec` (every domain attacks at Sensing with touch and with a projectile, from the root; strikes are harmful; parity; riders exist; existing spells keep their routes; hybrids; strip and jinx).
 
 ## 15. Running and the dash (written 2026-11-05, not yet run; ideas prompt 6)
 

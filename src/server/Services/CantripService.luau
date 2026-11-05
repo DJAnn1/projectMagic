@@ -2,10 +2,14 @@
 --[[
 	CantripService: your awakening gives you spells (docs/EarlyGamePlan.md, plan item 1).
 
-	For every awakened domain whose root branch is unlocked, once (PlayerData.cantrips records it):
-	its Strike (an attack: Scorch, Stone Shot...) and a utility spell (Shared/Magic/Cantrips), saved
-	in the spellbook with their names and put on the first empty hotbar slots (the first domain's
-	land in 1 and 2). Runs when a player's data loads (so existing saves get theirs too) and when an
+	For every awakened domain whose root branch is unlocked, once per spell kind: its Strike (an
+	attack: Scorch, Stone Shot...), a utility spell and the thrown Strike (Ember Dart...)
+	(Shared/Magic/Cantrips), saved in the spellbook with their names and put on the first empty
+	hotbar slots (the first domain's land in 1-3).
+
+	PlayerData.cantrips records what was given: "<domain>:<kind>" -> unix. A plain "<domain>" key
+	(saves from before the bolt existed) means its strike and utility were given; those players get
+	only the bolt, on their next load. Runs when a player's data loads (so existing saves get theirs too) and when an
 	awakening opens a new domain (ProgressionService's awaken hook). Then SpellbookChanged tells the
 	client to refetch.
 
@@ -45,17 +49,20 @@ local function grant(player: Player): number
 	for _, domainId in Registry.domainIds do
 		local awakened = caster.awakened and caster.awakened[domainId]
 		local unlocked = data.progression.unlocked[domainId]
-		if awakened and unlocked and not data.cantrips[domainId] then
+		if awakened and unlocked and not data.cantrips[domainId .. ":bolt"] then
+			local legacy = data.cantrips[domainId] ~= nil -- strike + utility already given (older save)
 			local rng = Seed.random(world:getSeed(), "player:" .. player.UserId, "cantrip:" .. domainId)
 			local spells = Cantrips.forDomain(domainId, caster, rng)
 			local given = 0
 			for _, spell in spells do
-				if spellbook:grant(player, spell.recipe, spell.name) then
+				local mark = domainId .. ":" .. spell.kind
+				local done = data.cantrips[mark] ~= nil or (legacy and spell.kind ~= "bolt")
+				if not done and spellbook:grant(player, spell.recipe, spell.name) then
+					data.cantrips[mark] = os.time()
 					given += 1
 				end
 			end
 			if given > 0 then
-				data.cantrips[domainId] = os.time()
 				granted += given
 				log:info("cantrips_granted", { userId = player.UserId, domain = domainId, spells = given })
 			end
