@@ -1,6 +1,6 @@
 # projectMagic: status and handoff
 
-An open-world Roblox magic sandbox. There's no linear story: everyone (players and NPCs) has innate magic that is procedurally generated, trained and mastered over time. It's written in Luau and synced to Studio with Rojo (`default.project.json`). Last updated **2026-11-02**.
+An open-world Roblox magic sandbox. There's no linear story: everyone (players and NPCs) has innate magic that is procedurally generated, trained and mastered over time. It's written in Luau and synced to Studio with Rojo (`default.project.json`). Last updated **2026-11-05**.
 
 ## How the owner works with Claude
 
@@ -19,6 +19,54 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
   - Remind them to **clear the Output first**; they once re-pasted an old log three times.
   - Remind them to run **only one `rojo serve`**; a duplicate instance once caused a duplicate spec module.
   - No Luau runtime exists locally (only `rojo`), so code can't be executed outside Studio. Verify with `rojo build` and the VS Code diagnostics.
+  - `rojo build` does NOT check Luau syntax (a broken string once passed it); always read the VS Code diagnostics for every edited file. Diagnostics with no `linesInFile` may mean the file wasn't analysed.
+- **Git:** the repo now has history on branch **`baseline`** (no `main` yet). Commit each finished piece separately with a descriptive message; the owner has been fine with that ("build next" includes committing).
+- **How the owner drives work:** "Build next" / "Build prompt N" means continue the current plan. They reply to the open questions selectively; unanswered questions get a sensible default, said out loud, and stay in the open-questions list below.
+- **Client → server intents use `Net.send`** (`Net.fire` is server → client only; using it on the client broke running and dashing once).
+
+## Where we left off (session 2026-11-05)
+
+**Next step:** early-game plan item 3, the first ranged spell (docs/EarlyGamePlan.md §2). The owner hasn't chosen between the proposed **"First Steps" milestone** (cast 20, hit 5 targets, sense 3 things → a one-time XP block so Novice/projectile arrives in ~10 min; xpScale untouched) and a weak **"flick" form at Sensing**. Ask once, then build.
+
+**Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
+| # | Prompt | State |
+|---|---|---|
+| 1 | Improvements audit | done: `docs/Improvements.md` (quick wins also built: git, quiet boot, crime fix, lighting, FxRecipes) |
+| 2 | Magic-system fun ideas (design only) | not started |
+| 3 | Engagement ideas (design only) | not started |
+| 4 | Controls panel (H) | built |
+| 5 | Composer explanations | built |
+| 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
+| 7 | Sounds + music | built (80 licensed picks, not auditioned) |
+| 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
+| 9 | Early game | step 1 plan done; items 1 (innate spells) and 2 (practice yards) built; **item 3 next** |
+| 10 | Gravity powers | not started |
+| 11 | Time powers | not started |
+
+**Built 2026-11-05 and NOT yet run in Studio** (ask for an Output after the next Play; expected boot line `specs 326/328 · magic examples 33/33`, the 2 failures being the known Settlement ones):
+- Controls screen + `Tests/Controls.spec`; gamepad L1/L2 and furniture-placement input clashes fixed.
+- Finding your house: ⌂ marker, Journal "Show the way", `house goto`.
+- Composer explanations (`Shared/UI/SpellHelp`, About card, walkthrough + glossary).
+- Movement: the run/dash remote fix (`Net.send`), dash flavours, lock-on toggle. The Deepwatch floor fix (`clearInterior` from the slab bottom).
+- Sound system (`Client/Audio/Audio`, `AudioController`, volumes, `sound <role>`); watch for an `[Audio] N of M sounds failed to load` line.
+- NPC looks, clothing and accents (`npclook`); watch for `[NpcLooks] N accessories failed to load`.
+- Innate spells (`cantrips_granted` in the log; slots 1–2), the "Your magic answers" card, practice yards.
+
+**Verified in play 2026-11-05:** the VFX work (Kenney textures, lightning, slashes, muzzle flashes, `fxpreview`), the domain-tinted colours, the FoundationBuilder crash fix (44 buildings built), the relaxed foundation check (0 failures in the spawn town), the quick wins (one-line boot summary, no red `lock_lost`).
+
+**Owner actions still pending:** re-upload the Block animation (111952812431898) under the place's creator (it still fails with "not owned"); audition the audio picks in `docs/Audio.md`.
+
+**Open questions from this session (unanswered; defaults in use):**
+- Running stamina drain: free for now (`MovementTuning.run.staminaPerSecond = 0`). Dash numbers (2 charges, 16 studs, 2.5 s refill) not yet judged.
+- Combat music holds 12 s after the last hit; quest-complete fanfare has no client signal yet.
+- Wind/blizzard ambience: no licensed pick; search third-party uploads or leave silent?
+- Paid Roblox-made catalog items on NPCs: used (they cost nothing); owner hasn't objected.
+- Faces for NPCs (classic faces)? Culture clothing palettes OK (`NPC/Data/NpcLooks` `palette`)?
+- Cantrip utility by temperament instead of a seeded "Sense <property>"?
+- Practice yard on markers / in the Journal? A first-hit reward on a dummy (plan item 7)?
+- Roblox's default camera zooms with I/O, so I opens the inventory AND zooms: disable I/O zoom?
+- Lighting haze (Atmosphere density 0.28) OK? Should fire that spreads after a spell count as a crime?
+- Parked VFX questions are listed under "Open design questions" below.
 
 ## Decisions already made (don't re-ask)
 
@@ -32,6 +80,9 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **PvP is on for all players (2026-11-03):** `pvp_enabled` defaults to true (`Config/Flags.luau`). The per-hit cap (`pvpMaxShare`, 60% of MaxHealth) still applies.
 - **Life is Uncommon.** Mythic domains are Time, Gravity and Reality.
 - **"Brush with Death" has a hard trigger:** health ≤ 5%, an enemy ≥ 1.5× stronger, and 10 s survived without healing. It's enforced through `requires`/`facts`.
+- **Asset sources (2026-11-05):** textures are the Kenney Particle Pack (CC0), uploaded by the owner (`Fx/KenneyTextures`, `DomainFx.UPLOADED` maps roles to names). Audio comes only from the licensed Creator Store libraries **ProSoundEffects** (SFX) and **APMOfficial** (music, stingers) (`Shared/Audio/AudioLibrary`, `docs/Audio.md`). NPC accessories are **Roblox-made catalog items** only (InsertService can load them at any price; they stay on the catalog). Third-party uploads are avoided: they can be deleted.
+- **Dash key is R** (gamepad L3); Left Ctrl toggles running; lock-on toggles by default.
+- **Settlement law judges harm by what a spell did**: harmful casts that hurt nobody (practice dummies don't count) and changed no land aren't crimes (World.md).
 - **Person-rarity rules were tuned:** a Gifted gift needs top affinity ≥ 0.55; Uncommon and Rare domains need ≥ 0.35. Measured shares: about 49 / 22 / 21 / 6.6 / 1.1, Common to Legendary.
 
 ## What exists (each system has a design doc)
@@ -279,9 +330,9 @@ Design doc: `docs/NPC.md`. Code: `src/server/NPC/` (NPCFactory, NPCBrain + Utili
 
 **Roadmap (2026-11-03): `docs/Roadmap.md`.**
 - The strategy: freeze features; carve a vertical slice (Energy + Earth, the spawn town) out of the existing code with flags; verify it; then re-enable systems one milestone at a time (M1–M11, about 150–210 sessions).
-- Week-1 tasks are in its §7. The first one is `git init` + a baseline commit: the repo has no commits yet.
+- Week-1 tasks are in its §7. The first one (`git init` + a baseline commit) is done: branch `baseline`, 2026-11-05.
 - The list below is the older backlog; where they conflict, follow the roadmap's order.
-- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts, simplest first: improvements audit, magic ideas, engagement ideas, controls panel, Composer explanations, run/Alt toggles + dash, sounds + music, NPC looks, early game, gravity powers, time powers). Prompt 7 step 1 (2026-11-05): 80 audio roles picked from the licensed Creator Store libraries (ProSoundEffects for SFX, APMOfficial for music/stingers), in `Shared/Audio/AudioLibrary` + `docs/Audio.md` (store links; not auditioned; gaps: wind and blizzard ambience). **Prompt 9 (2026-11-05):** `docs/EarlyGamePlan.md` maps the first 30 minutes and re-orders EarlyGame 2–8 into an 8-item plan; item 1 built, not yet run: innate spells (the domain Strike + a utility) granted on awakening to hotbar 1–2 (`Shared/Magic/Cantrips`, `Services/CantripService`, `SpellbookService:grant`, remote `SpellbookChanged`, save field `cantrips`), HUD "Your magic answers" how-to-cast step, Guided first spark = Strike, walkthrough after the first cast, `Tests/Cantrips.spec`. Item 2 built (not yet run): a practice yard with three fireproof dummies beside every plaza (`SettlementDecor` `practiceYard`). **NPC looks built (2026-11-05, not yet run; NPC.md §6c):** Roblox-made catalog hair, headwear, beards, scarves and body scale chosen from each NPC's seed, plus part-built clothing by occupation/culture/wealth and Neon signature accents for Skilled+ mages (`NPC/NpcLooks`, admin `npclook`). **Sound system built (2026-11-05, not yet run; docs/Audio.md §system):** `Client/Audio/Audio`, `Controllers/AudioController` (music director + ambience), six volume settings, everything wired, admin `sound <role>`, `Tests/Audio.spec`. Prompt 6 built (2026-11-05, not yet run; Combat.md §15): Left Ctrl run toggle (gamepad: full stick), default walk restored, Alt lock-on toggle (`lockOnMode`), server-checked dash on R with domain flavours (`MovementService`, `MovementClient`, `DashFx`, `Tests/Movement.spec`); running is free (staminaPerSecond 0) until the owner decides. Prompt 5 built (2026-11-05, not yet run): Composer explanations from `Shared/UI/SpellHelp` (step explanations, About card, plain-sentence preview, "How spells work" walkthrough + glossary; `Tests/SpellHelp.spec`; UI.md §4.4). Finding your house built (2026-11-05, not yet run; Buildings.md §8): ⌂ door marker, Journal "Show the way" arrow, `house goto`. Prompt 4 built (2026-11-05, not yet run): the Controls screen (H) from `Shared/UI/Controls` + `Tests/Controls.spec`, with two input clashes fixed on the way (docs/UI.md §7 Controls). Prompt 1 done: **`docs/Improvements.md`** (audit, 2026-11-05). Its biggest new finds: harmful casts in a licensed town are crimes even with no target (a new player gets a bounty in ~7 practice casts), there's no map, the repo still has no commits, real DataStores are untested on the published place, and `Lighting.Technology` is pinned to Voxel.
+- **Owner's ideas prompt pack (2026-11-05): `docs/Prompts-Ideas.md`** (11 prompts). Progress, what's built and the next step are in **"Where we left off"** at the top of this file. The early game continues in `docs/EarlyGamePlan.md` (8 items; 1–2 built).
 - **Early-game prompt pack (2026-11-03): `docs/Prompts-EarlyGame.md`** (8 prompts). Audit finding: Earth, Mind, Void, Space, Time and Reality had no `harmful` property in their root branch; Life could only attack from Novice; Space and Time couldn't `generate` at all.
   - **Prompt 1, domain strikes (written 2026-11-03, not yet run; Combat.md §14):** shared `Data/Strikes` + `Magic/Strike`, server route `strike` + `Cast/Effects/Strike`, statuses `dazed`/`jinxed` (+ `critTaken`, `stripBeneficial`), `Compatibility.propertyVerb` (generate tempo/distance) read through the new `Registry.verbPropertyEff`, Composer "Strike" line, 7 SpellExamples, `Tests/EarlyGame.spec`. MagicExamples' "generate distance" rejection became "generate position". `generate probability`/`growth` on point forms changed route (fortune/restore → strike). `rojo build` clean; no diagnostics in the new files. No RECIPE_VERSION bump: the recipe shape didn't change, and routes are resolved at cast time.
 
