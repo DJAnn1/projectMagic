@@ -763,9 +763,6 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 	for _ in q.active do
 		activeCount += 1
 	end
-	if count >= Q.maxOffers or activeCount >= Q.maxActive then
-		return
-	end
 	-- Beginner quests come one at a time: a new player is never handed a pile of chores.
 	local beginnerOpen = false
 	for _, list in { q.offers, q.active } do
@@ -774,6 +771,12 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 				beginnerOpen = true
 			end
 		end
+	end
+	-- Full: only a beginner quest may still come in, or three road escorts would lock a new player
+	-- out of them for good (seen in play, 2026-11-05).
+	local full = count >= Q.maxOffers or activeCount >= Q.maxActive
+	if full and (beginnerOpen or activeCount >= Q.maxActive) then
+		return
 	end
 	local tension = tensionOf(q)
 	local candidates: { { template: Template, situation: Situation, score: number } } = {}
@@ -807,6 +810,19 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 			end
 		end
 	end
+	-- A beginner quest wins whenever one fits. Otherwise the many NPC situations outnumber the few
+	-- beginner ones, and a new player's first offers are all errands for strangers.
+	local beginnerCandidates: { { template: Template, situation: Situation, score: number } } = {}
+	for _, c in candidates do
+		if c.template.beginner then
+			table.insert(beginnerCandidates, c)
+		end
+	end
+	if #beginnerCandidates > 0 then
+		candidates = beginnerCandidates
+	elseif full then
+		return
+	end
 	if #candidates == 0 then
 		return
 	end
@@ -815,18 +831,30 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 	if rng:NextNumber() > Q.offerChance then
 		return
 	end
-	local total = 0
-	for _, c in candidates do
-		total += c.score
-	end
-	local roll = rng:NextNumber() * total
-	for _, c in candidates do
-		roll -= c.score
-		if roll <= 0 then
-			local quest = QuestFactory.build(c.template, c.situation, { world = world, npcs = npcs, worldSeed = worldSeed, userId = player.UserId, position = position })
-			if quest then
-				offer(player, quest)
+	-- A pick can fail to build (no mentor in town, the yard not built yet): try another, and say so.
+	for _ = 1, 4 do
+		local total = 0
+		for _, c in candidates do
+			total += c.score
+		end
+		local roll = rng:NextNumber() * total
+		local chosen = #candidates
+		for i, c in candidates do
+			roll -= c.score
+			if roll <= 0 then
+				chosen = i
+				break
 			end
+		end
+		local c = candidates[chosen]
+		local quest = QuestFactory.build(c.template, c.situation, { world = world, npcs = npcs, worldSeed = worldSeed, userId = player.UserId, position = position })
+		if quest then
+			offer(player, quest)
+			return
+		end
+		log:info("quest_build_failed", { template = c.template.id, situation = c.situation.id })
+		table.remove(candidates, chosen)
+		if #candidates == 0 then
 			return
 		end
 	end

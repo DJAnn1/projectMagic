@@ -306,6 +306,8 @@ local function clearInterior(model: Model): boolean
 	return true
 end
 
+local verifyPending: { [Model]: boolean } = {}
+
 -- Verifies one building's foundation (FoundationBuilder.verify), keeps the report, logs a change
 -- of state (first failure, or a recovery) and refreshes the Studio markers.
 local function verifyFoundation(model: Model): FoundationBuilder.Report
@@ -342,7 +344,17 @@ local function reclearNear(cx: number, cz: number)
 					if p.X >= ox - INTERIOR_REACH - 20 and p.X <= ox + size + INTERIOR_REACH + 20
 						and p.Z >= oz - INTERIOR_REACH - 20 and p.Z <= oz + size + INTERIOR_REACH + 20 then
 						clearInterior(model)
-						verifyFoundation(model)
+						-- Checked a moment later: a ray cast in the same frame as the clear may still
+						-- meet the old terrain. Only one check per building is ever pending.
+						if not verifyPending[model] then
+							verifyPending[model] = true
+							task.delay(1, function()
+								verifyPending[model] = nil
+								if model.Parent then
+									verifyFoundation(model)
+								end
+							end)
+						end
 					end
 				end
 			end

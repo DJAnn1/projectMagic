@@ -498,7 +498,7 @@ return function(t: any)
 					end
 					local door = m:FindFirstChild("Door")
 					if door then
-						expect((door :: BasePart).CanCollide).toBe(false)
+						expect((door :: BasePart).CanCollide).toBe(true) -- closed and solid (docs/Buildings.md)
 					end
 					local anchors = 0
 					for _, att in (m.PrimaryPart :: BasePart):GetChildren() do

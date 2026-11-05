@@ -91,7 +91,10 @@ return function(t: any)
 				local b = Cantrips.forDomain(domainId, caster, Random.new(1234))
 				t.expect(#a).toBe(#b)
 				for i = 1, #a do
-					t.expect(MagicCore.recipeKey(a[i].recipe)).toBe(MagicCore.recipeKey(b[i].recipe))
+					-- recipeKey needs a normalized recipe (version, cost profile); these are raw.
+					local _, _, na = MagicCore.validateRecipe(a[i].recipe, caster)
+					local _, _, nb = MagicCore.validateRecipe(b[i].recipe, caster)
+					t.expect(MagicCore.recipeKey(na :: any)).toBe(MagicCore.recipeKey(nb :: any))
 				end
 			end
 		end)

@@ -497,11 +497,14 @@ function SettlementGround.materialAt(plan: Plan, ctx: Context, x: number, z: num
 	end
 	local mode = if zone == 1 then NATURAL else GRASS_ONLY
 	-- Roads keep their paint; their shoulders wear to earth, the width wandering by noise.
+	-- Two passes: a column on one road's shoulder can be on another road's paint (every junction).
 	for _, road in ctx.roads do
-		local dist = roadDistance(p, road)
-		if dist < road.width / 2 + 0.5 then
+		if roadDistance(p, road) < road.width / 2 + 0.5 then
 			return nil, 0
 		end
+	end
+	for _, road in ctx.roads do
+		local dist = roadDistance(p, road)
 		local shoulder = 1.5 + 1.5 * (math.clamp(Noise.fbm(plan.layers.shoulder, x, z), -1, 1) + 1)
 		if dist < road.width / 2 + shoulder then
 			return plan.materials.worn, mode

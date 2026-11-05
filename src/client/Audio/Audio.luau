@@ -98,26 +98,34 @@ end
 
 -- Preloads every library asset once; failures are remembered (and reported once, together).
 function Audio.preload()
-	local ids: { string } = {}
+	-- Sound instances, never bare id strings: PreloadAsync loads a string as an IMAGE, so every audio
+	-- id failed with "Asset type does not match requested type" and was marked failed (2026-11-05).
+	local sounds: { Sound } = {}
 	for role in AudioLibrary.entries do
 		local id = AudioLibrary.idOf(role)
 		if id then
-			table.insert(ids, id)
+			local sound = Instance.new("Sound")
+			sound.SoundId = id
+			table.insert(sounds, sound)
 		end
 	end
 	local bad: { string } = {}
 	pcall(function()
-		ContentProvider:PreloadAsync(ids, function(contentId: string, status: Enum.AssetFetchStatus)
+		ContentProvider:PreloadAsync(sounds, function(contentId: string, status: Enum.AssetFetchStatus)
 			if status ~= Enum.AssetFetchStatus.Success then
 				failed[contentId] = true
 				table.insert(bad, contentId)
 			end
 		end)
 	end)
-	if #bad > 0 then
-		warn(string.format("[Audio] %d of %d sounds failed to load and use fallbacks: %s", #bad, #ids, table.concat(bad, ", ")))
+	local total = #sounds
+	for _, sound in sounds do
+		sound:Destroy()
 	end
-	return #ids - #bad, #bad
+	if #bad > 0 then
+		warn(string.format("[Audio] %d of %d sounds failed to load and use fallbacks: %s", #bad, total, table.concat(bad, ", ")))
+	end
+	return total - #bad, #bad
 end
 
 -- Plays a content id once in a group. Returns the Sound (already playing) or nil.

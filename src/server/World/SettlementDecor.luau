@@ -151,6 +151,32 @@ function SettlementDecor.plan(layout: Layout.Layout, gen: any, worldSeed: number
 		end
 	end
 
+	-- A practice yard just off the plaza (docs/EarlyGamePlan.md item 2): three training dummies a
+	-- new player can strike freely (PracticeTarget: never a crime). The first clear spot on rings
+	-- around the plaza, turned to face it. Placed before the small props: it needs the most room, and
+	-- lamps and goods got there first in too many towns (Settlement.spec, 2026-11-05). `clear` keeps
+	-- out of the square plaza, whose corners reach further than the first rings.
+	do
+		local placed = false
+		for _, extra in { 9, 12, 16, 20, 24, 28 } do
+			if placed then
+				break
+			end
+			local start = rng:NextNumber() * math.pi * 2
+			for step = 0, 23 do
+				local a = start + step / 24 * math.pi * 2
+				local at = center + Vector3.new(math.cos(a), 0, math.sin(a)) * (layout.plaza + extra)
+				if clear(at, 6.5) then
+					local y = ground(at.X, at.Z)
+					add("practiceYard", CFrame.lookAt(Vector3.new(at.X, y, at.Z), Vector3.new(center.X, y, center.Z)), {})
+					claim(at, 6.5)
+					placed = true
+					break
+				end
+			end
+		end
+	end
+
 	-- Lamp posts along streets.
 	local lit = 0
 	for _, road in layout.roads do
@@ -223,30 +249,6 @@ function SettlementDecor.plan(layout: Layout.Layout, gen: any, worldSeed: number
 			claim(at, 1.6)
 		end
 	end
-	-- A practice yard just off the plaza (docs/EarlyGamePlan.md item 2): three training dummies a
-	-- new player can strike freely (PracticeTarget: never a crime). The first clear spot on rings
-	-- around the plaza, turned to face it.
-	do
-		local placed = false
-		for _, extra in { 9, 14, 20, 27 } do
-			if placed then
-				break
-			end
-			local start = rng:NextNumber() * math.pi * 2
-			for step = 0, 11 do
-				local a = start + step / 12 * math.pi * 2
-				local at = center + Vector3.new(math.cos(a), 0, math.sin(a)) * (layout.plaza + extra)
-				if clear(at, 6.5) then
-					local y = ground(at.X, at.Z)
-					add("practiceYard", CFrame.lookAt(Vector3.new(at.X, y, at.Z), Vector3.new(center.X, y, center.Z)), {})
-					claim(at, 6.5)
-					placed = true
-					break
-				end
-			end
-		end
-	end
-
 	-- Scholar enclaves also ring the town with taller spires.
 	if culture == "loreseat" then
 		for k = 0, 3 do
