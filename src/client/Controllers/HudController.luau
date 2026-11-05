@@ -926,7 +926,7 @@ local function buildMenu(_scope: Scope, root: Frame, compact: boolean)
 	})
 	C.list(if compact then "x" else "y", Theme.space.s).Parent = menu
 
-	for index, entry in { { "Grimoire", "Grimoire" }, { "Composer", "Composer" }, { "Inventory", "Inventory" }, { "Settings", "⚙" } } do
+	for index, entry in { { "Grimoire", "Grimoire" }, { "Composer", "Composer" }, { "Inventory", "Inventory" }, { "Controls", "Controls" }, { "Settings", "⚙" } } do
 		local id, label = entry[1], entry[2]
 		local hint = interface:hint(id)
 		local text = if compact then label elseif hint ~= "" then string.format("%s  [%s]", label, hint) else label

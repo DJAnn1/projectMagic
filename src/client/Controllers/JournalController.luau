@@ -16,6 +16,7 @@
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Controls = require(Shared.UI.Controls)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
@@ -295,7 +296,8 @@ function JournalController.init(_self: any, ctx: any)
 		id = "Journal",
 		title = "Journal",
 		order = 3,
-		key = Enum.KeyCode.J,
+		key = Controls.key("open_journal", "keyboard"), -- Shared/UI/Controls
+		gamepadKey = Controls.key("open_journal", "gamepad"),
 		build = build,
 	})
 end

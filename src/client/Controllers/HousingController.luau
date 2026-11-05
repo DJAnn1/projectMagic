@@ -248,6 +248,11 @@ function HousingController.start(_self: any, _ctx: any)
 		end
 		H.state:set(state, true)
 	end)
+	-- While placing, InterfaceController:isInputBlocked() is true, so casting, weapons and the
+	-- quickbar ignore the click and Q (this handler doesn't check it, so it still gets them).
+	H.placing:observe(function(p)
+		Players.LocalPlayer:SetAttribute("PlacingFurniture", if p ~= nil then true else nil)
+	end)
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if not H.placing:get() or processed then
 			return

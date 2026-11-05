@@ -22,6 +22,7 @@
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Controls = require(Shared.UI.Controls)
 local Registry = require(Shared.Magic.Registry)
 local MagicCore = require(Shared.Magic.MagicCore)
 local GuardRules = require(Shared.Magic.GuardRules)
@@ -1251,8 +1252,8 @@ function ComposerController.init(_self: any, ctx: any)
 		id = "Composer",
 		title = "Spell Composer",
 		order = 2,
-		key = Enum.KeyCode.C,
-		gamepadKey = Enum.KeyCode.ButtonX,
+		key = Controls.key("open_composer", "keyboard"), -- Shared/UI/Controls
+		gamepadKey = Controls.key("open_composer", "gamepad"),
 		build = build,
 	})
 end

@@ -10,6 +10,7 @@
 	options  every allowed value; anything else is refused
 	labels   what the Settings screen shows for each option (same order as `options`)
 	order    position on the Settings screen
+	hidden   not shown on the Settings screen (a remembered UI state, still validated and saved)
 ]]
 
 export type SettingDef = {
@@ -19,6 +20,7 @@ export type SettingDef = {
 	options: { any },
 	labels: { string },
 	order: number,
+	hidden: boolean?,
 }
 
 local Settings: { [string]: SettingDef } = {
@@ -93,6 +95,15 @@ local Settings: { [string]: SettingDef } = {
 		default = "simple",
 		options = { "simple", "advanced" },
 		labels = { "Guided", "Full" },
+	},
+	controlsHintSeen = {
+		order = 100,
+		hidden = true,
+		label = "Controls hint seen",
+		description = "The one-time \"Press H for controls\" hint has been shown (ControlsController).",
+		default = false,
+		options = { false, true },
+		labels = { "No", "Yes" },
 	},
 }
 

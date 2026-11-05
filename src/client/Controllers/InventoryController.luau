@@ -18,7 +18,8 @@
 		          equips, unequips or uses; hovering shows a floating tooltip with comparison
 		touch     tap selects; Move then tap the destination; the action buttons do the rest
 		gamepad   cells are selectable (A selects); the action buttons do the rest
-	QUICKBAR     4 slots: Z X V B on keyboard, L1 cycles and L2 uses on gamepad, tap on touch.
+	QUICKBAR     4 slots: Z X V B on keyboard; on gamepad tap D-pad down to use the selected slot,
+	             hold it to select the next; tap on touch. Keys come from Shared/UI/Controls.
 	             Scrolls aim like spells (the crosshair or mouse). Gear in a quickslot toggles.
 
 	Leaving the screen clears every NEW mark (one request, not one per hover).
@@ -30,6 +31,8 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Controls = require(Shared.UI.Controls)
+local Controls = require(Shared.UI.Controls)
 local ItemTypes = require(Shared.Items.ItemTypes)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local ItemInstance = require(Shared.Items.ItemInstance)
@@ -50,7 +53,9 @@ local CELL = 56
 local DRAG_START = 6 -- pixels before a press becomes a drag
 local LEFT_WIDTH = 270
 local RIGHT_WIDTH = 330
-local QUICK_KEYS = { Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.V, Enum.KeyCode.B }
+local QUICK_KEYS = Controls.keys("quick_items", "keyboard") -- Z X V B (Shared/UI/Controls)
+local QUICK_PAD = Controls.key("quick_items", "gamepad") -- D-pad down: tap uses, hold selects the next
+local QUICK_HOLD = 0.35 -- seconds before a held D-pad down counts as "next item"
 
 local InventoryController = {
 	name = "InventoryController",
@@ -71,6 +76,8 @@ local showSheet = Kit.value(false)
 local hovered = Kit.value(nil :: string?)
 local dropArmed = Kit.value(nil :: string?)
 local quickSelected = Kit.value(1)
+local padPress = 0 -- bumps on every D-pad-down press and release (cancels a stale hold timer)
+local padCycled = true -- true = the next release does nothing (it already cycled, or no press was seen)
 
 local dragging: { ref: string, start: Vector2, ghost: ScreenGui? }? = nil
 
@@ -946,8 +953,8 @@ function InventoryController.init(_self: any, ctx: any)
 		id = "Inventory",
 		title = "Inventory",
 		order = 4,
-		key = Enum.KeyCode.I,
-		gamepadKey = Enum.KeyCode.DPadUp,
+		key = Controls.key("open_inventory", "keyboard"), -- Shared/UI/Controls
+		gamepadKey = Controls.key("open_inventory", "gamepad"),
 		build = build,
 	})
 	interface:registerLayer({ id = "Quickbar", build = buildQuickbar })
@@ -980,10 +987,27 @@ function InventoryController.start(_self: any, _ctx: any)
 		local k = table.find(QUICK_KEYS, input.KeyCode)
 		if k then
 			useQuick(k)
-		elseif input.KeyCode == Enum.KeyCode.ButtonL1 then
-			quickSelected:set(quickSelected:get() % ItemRules.inventory.quickSlots + 1)
-		elseif input.KeyCode == Enum.KeyCode.ButtonL2 then
-			useQuick(quickSelected:get())
+		elseif QUICK_PAD and input.KeyCode == QUICK_PAD then
+			-- Gamepad. (It used to be L1 to cycle and L2 to use, which clashed with guard and
+			-- "ready a spell": readying a spell also drank the selected potion.)
+			padPress += 1
+			local press = padPress
+			padCycled = false
+			task.delay(QUICK_HOLD, function()
+				if press == padPress and UserInputService:IsGamepadButtonDown(input.UserInputType, QUICK_PAD) then
+					padCycled = true
+					quickSelected:set(quickSelected:get() % ItemRules.inventory.quickSlots + 1)
+				end
+			end)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if QUICK_PAD and input.KeyCode == QUICK_PAD then
+			padPress += 1 -- a release before QUICK_HOLD cancels the pending "next item"
+			if not padCycled and not interface:isInputBlocked() then
+				useQuick(quickSelected:get())
+			end
+			padCycled = true -- one release, one action
 		end
 	end)
 

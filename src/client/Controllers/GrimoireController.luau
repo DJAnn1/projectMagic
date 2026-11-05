@@ -21,6 +21,7 @@
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Controls = require(Shared.UI.Controls)
 local Registry = require(Shared.Magic.Registry)
 local MagicCore = require(Shared.Magic.MagicCore)
 local MasteryTiers = require(Shared.Magic.Data.MasteryTiers)
@@ -677,8 +678,8 @@ function GrimoireController.init(_self: any, ctx: any)
 		id = "Grimoire",
 		title = "Grimoire",
 		order = 1,
-		key = Enum.KeyCode.G,
-		gamepadKey = Enum.KeyCode.ButtonY,
+		key = Controls.key("open_grimoire", "keyboard"), -- Shared/UI/Controls
+		gamepadKey = Controls.key("open_grimoire", "gamepad"),
 		build = build,
 	})
 end

@@ -131,8 +131,14 @@ local function adminPanelOpen(): boolean
 	return Players.LocalPlayer:GetAttribute("AdminPanelOpen") == true
 end
 
+-- HousingController marks furniture placement with a local attribute: while placing, its own
+-- keys (click, R, Q, Esc) are the only play input, so a click places instead of also swinging.
+local function placingFurniture(): boolean
+	return Players.LocalPlayer:GetAttribute("PlacingFurniture") == true
+end
+
 function I.isInputBlocked(_self: any): boolean
-	return adminPanelOpen() or I.openScreen:get() ~= nil or UserInputService:GetFocusedTextBox() ~= nil
+	return adminPanelOpen() or placingFurniture() or I.openScreen:get() ~= nil or UserInputService:GetFocusedTextBox() ~= nil
 end
 
 -- ─── Open / close ───────────────────────────────────────────────────────────
@@ -358,8 +364,10 @@ local function buildSettings(_scope: Kit.Scope, container: Frame)
 	C.padding(Theme.space.xs).Parent = scroll
 
 	local ids: { string } = {}
-	for id in UISettings do
-		table.insert(ids, id)
+	for id, def in UISettings do
+		if not def.hidden then
+			table.insert(ids, id)
+		end
 	end
 	table.sort(ids, function(a, b)
 		return UISettings[a].order < UISettings[b].order

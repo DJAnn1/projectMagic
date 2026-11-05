@@ -52,6 +52,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Controls = require(Shared.UI.Controls)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Registry = require(Shared.Magic.Registry)
 local ActionRules = require(Shared.Magic.ActionRules)
@@ -68,10 +69,7 @@ local SLOT_COUNT = 8
 local PREDICTION_TIMEOUT = 3 -- seconds without any server answer before the prediction is dropped
 local MIN_CAST_ANIMATION = 0.35 -- matches CastTuning.minCastAnimation (server-only data)
 
-local SLOT_KEYS = {
-	Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four,
-	Enum.KeyCode.Five, Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight,
-}
+local SLOT_KEYS = Controls.keys("hotbar", "keyboard") -- 1..8 (Shared/UI/Controls)
 
 local TURN_RATE = 14 -- how fast the body turns to the aim while attuned (higher = snappier)
 local CROSSHAIR = "rbxasset://textures/MouseLockedCursor.png"
@@ -639,9 +637,9 @@ function CastClient.start(_self: any, _ctx: any)
 			end
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.KeyCode == Enum.KeyCode.ButtonL1 then
 			CastClient:raiseGuard()
-		elseif input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonB then
+		elseif Controls.matches("slash", input) then
 			CastClient:pressSlash()
-		elseif input.KeyCode == Enum.KeyCode.Q then
+		elseif Controls.matches("stow", input) then
 			CastClient:stow()
 		elseif input.KeyCode == Enum.KeyCode.DPadLeft or input.KeyCode == Enum.KeyCode.DPadRight then
 			local nextSlot = if input.KeyCode == Enum.KeyCode.DPadLeft then (selected - 2) % SLOT_COUNT + 1 else selected % SLOT_COUNT + 1

@@ -348,6 +348,17 @@ Every entry in `Theme.sounds` and `DomainStyles.icon` is `""` until delivered; c
 - Escape is left to the Roblox menu.
 - The F2 console blocks all UI keys while it's open.
 
+### Controls (2026-11-05)
+
+**The full, current list lives in `Shared/UI/Controls`**, not here: one entry per action (label, group, keyboard/mouse, gamepad, touch, contexts, owner, note, `shares`, `flag`).
+- **The Controls screen (H)** (`Controllers/ControlsController`, order 98, also in the HUD menu) is built from it: a device switch (starts on the one in use), one card per group, key chips, the context and a note per row. Rows with no binding on the chosen device are left out; flag-off rows say "(off right now)"; the Admin group shows only with the admin link.
+- **Controllers read their keys from it:** screen keys (Grimoire, Composer, Journal, Inventory, Controls), the hotbar 1–8, slash, stow, the quickbar Z X V B and its gamepad key. `Controls.keys(id, device)`, `Controls.key`, `Controls.matches(id, input)` (mouse inputs too), `Controls.display(name)`.
+- **`Tests/Controls.spec`** fails if two actions share a key on one device in contexts that can be live together (unless both list each other in `shares`, with the reason in `note`).
+- **First join:** a one-time toast "Press H to see every control" (hidden setting `controlsHintSeen`; `hidden = true` settings aren't shown on the Settings screen).
+- **Fixed while building it:**
+  - Gamepad L1 raised the guard and also cycled the quickbar; L2 readied a spell and also drank the selected quick item. The quickbar is now D-pad down: tap to use, hold to select the next.
+  - Placing furniture didn't block play input: the placing click also swung a weapon or cast, and Q also stowed. `InterfaceController:isInputBlocked()` is now true while placing (local attribute `PlacingFurniture`).
+
 ## 8. Accessibility
 
 All of these live in Settings, are saved per player, and are applied instantly with a rebuild:
