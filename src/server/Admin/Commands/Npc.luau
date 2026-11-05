@@ -18,6 +18,7 @@ local Server = script.Parent.Parent.Parent
 local NpcData = require(Server.NPC.Data.NpcData)
 local Quirks = require(Server.NPC.Data.Quirks)
 local NPCLOD = require(Server.NPC.NPCLOD)
+local NpcLooks = require(Server.NPC.NpcLooks)
 local NPCMagicLife = require(Server.NPC.NPCMagicLife)
 local WorldClock = require(Server.NPC.WorldClock)
 local Util = require(script.Parent.Parent.Util)
@@ -37,6 +38,17 @@ return function(admin: any, deps: any)
 		args = { npcArg(true) },
 		handler = function(_, a)
 			return npcs:describe(a.npc)
+		end,
+	})
+
+	admin:Register({
+		name = "npclook", category = "NPCs", description = "What an NPC wears (hair, headwear, beard, scarf) and their body scale (NPC/NpcLooks)",
+		args = { npcArg(true) },
+		handler = function(_, a)
+			local npc = a.npc
+			local appearance = npc.appearance or {}
+			return string.format("%s (%s, %s %s, %s hair, %s, %s): %s", npc.name, tostring(npc.ageBand), tostring(npc.culture), tostring(npc.occupation),
+				tostring(appearance.hair), tostring(appearance.build), tostring(appearance.feature), NpcLooks.describe(NpcLooks.choose(npc)))
 		end,
 	})
 

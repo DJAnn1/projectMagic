@@ -35,6 +35,7 @@ local Magic = script.Parent.Parent.Magic
 local Gear = require(Magic.Data.Gear)
 local Resistances = require(Magic.Cast.Resistances)
 local ActionState = require(Magic.Cast.ActionState)
+local NpcLooks = require(script.Parent.NpcLooks)
 
 local LOD = {}
 
@@ -76,6 +77,7 @@ type Rig = {
 	tracks: { [string]: AnimationTrack },
 	prompt: ProximityPrompt,
 	label: TextLabel,
+	look: NpcLooks.Look?, -- what the current wearer has on (re-applied once accessories load)
 }
 
 local pool: { Rig } = {}
@@ -162,7 +164,26 @@ local function buildRig(): Rig?
 end
 
 -- Builds rigs in the background until the pool holds `target` (yields between builds).
+local looksLoading = false
+
 function LOD.prewarm(target: number)
+	-- Hair, hats and beards (NPC/NpcLooks): load the catalog accessories once, in the background,
+	-- then re-dress every rig already in use.
+	if not looksLoading then
+		looksLoading = true
+		task.spawn(function()
+			local _, bad, ids = NpcLooks.preload(function()
+				for model, rig in rigByModel do
+					if model.Parent and rig.look then
+						NpcLooks.apply(model, rig.humanoid, rig.look)
+					end
+				end
+			end)
+			if bad > 0 then
+				warn(string.format("[NpcLooks] %d accessories failed to load and are skipped: %s", bad, table.concat(ids :: any, ", ")))
+			end
+		end)
+	end
 	if warming then
 		return
 	end
@@ -200,6 +221,10 @@ local function dress(rig: Rig, npc: any)
 			end
 		end
 	end
+	-- Hair, headwear, beard, scarf and body scale, chosen from the NPC's seed (NPC/NpcLooks).
+	local look = NpcLooks.choose(npc)
+	rig.look = look
+	NpcLooks.apply(rig.model, rig.humanoid, look)
 	rig.model.Name = npc.name
 	rig.model:SetAttribute("NpcId", npc.id)
 	rig.model:SetAttribute("MagicSignature", npc.signatureJson)

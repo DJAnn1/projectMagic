@@ -235,6 +235,20 @@ NPCService assigns buildings at boot (`assignBuildings`) from SettlementService 
   - Pathfinding uses a 1.5-stud agent radius so rigs fit through doorways.
 - **Shown in:** the inspector and `npc`, as "lives: House_03 (bed 2) · works: Smithy_01".
 
+## 6c. Looks (2026-11-05, ideas prompt 8; not yet run)
+
+NPCs used to be plain recoloured rigs; the generated hair colour, build and feature were never drawn. Now `NPC/NpcLooks` (rules) + `NPC/Data/NpcLooks` (79 ids) dress every rig when the pool hands it out (`NPCLOD.dress`).
+
+- **Assets:** only Roblox-made catalog accessories (creator Roblox), so `InsertService:LoadAsset` loads them on the server whatever their price, and they won't be deleted like third-party items. Searched 2026-11-05: the free catalog is almost all modern or branded, so the picks span Roblox's paid items too (no cost to us: NPCs wearing them buys nothing). All 79 ids were checked against the catalog.
+- **Deterministic:** a Random from the NPC's own seed, so each person always looks the same, on every server.
+- **Hair** by the rolled colour (black, brown, auburn, red, blond pools; ash/grey/white have no natural Roblox hair, so those NPCs use the blond pool and reach for a hood more often); 12% of adults are bald.
+- **Headwear** by occupation (guards 90% helms, farmers straw caps, fishers sailor caps and tricorns, scholars and weathercallers wizard hats, hunters hoods, smiths and miners iron helms...) and culture (frostfolk northern helms, fur hoods and winter scarves; tidecall sailors; wayfarer hoods; emberclan/verdant/loreseat/forgehold their own hats). Helms and hoods replace the hair under them.
+- **Faces:** "a braided beard" always gets one (red braided for red/auburn hair); other beards by age (elder scholars, weathercallers and the retired may get the Ancient Wizard Beard); "spectacles" gets glasses; a few elder guards and hunters an eyepatch.
+- **Build** scales the body (`Model:ScaleTo`): slight 0.93 … heavy 1.08; children 0.8.
+- **Loading:** `NpcLooks.preload` on the first `LOD.prewarm` (background, one asset per frame), then re-dresses live rigs; failures are warned once and skipped.
+- **Admin:** `npclook [npc]` shows what an NPC wears. Spec: `Tests/NpcLooks.spec`.
+- **Not yet:** clothing beyond the shirt/trouser colours (no fitting Roblox-made classic clothing found), faces, signature-colour accents for strong mages, wealth showing in clothing.
+
 ## 7. Level of detail and budgets
 
 | Tier | Enter / leave (studs to the nearest player) | Cap | What exists | Brain |
