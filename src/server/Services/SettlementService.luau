@@ -587,6 +587,13 @@ function SettlementService.setOwner(_self: any, lotId: string, npcId: string?)
 	end
 end
 
+-- The name of the settlement a lot belongs to ("Glenhold"), or nil for an unknown lot.
+function SettlementService.townOf(_self: any, lotId: string): string?
+	local found = lotIndex[lotId]
+	local settlement = found and found.entry.settlement
+	return if settlement and typeof(settlement.name) == "string" then settlement.name else nil
+end
+
 function SettlementService.lotName(_self: any, lotId: string): string
 	local found = lotIndex[lotId]
 	return if found then found.entry.names[lotId] or lotId else lotId

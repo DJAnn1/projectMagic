@@ -190,7 +190,11 @@ Stools and benches carry `NPCSeat` attachments: leisure points for NPC schedules
   - **Server check:** `PlaceDecor` re-checks ownership, that you're inside the house, that it's furniture, that the spot is inside the rooms, and the budget (30 pieces, 120 parts, 3 lanterns).
   - **Saving:** the item's whole record moves into `data.housing.decor`, so picking it up gives back the exact same item.
   - **Visibility:** pieces are built while their owner is on the server.
-- **Admin:** `house info|claim|release|forcerelease`.
+- **Finding your house (2026-11-05):** `HousingState` carries `home` (the front door, `SettlementService:anchor(lot, "Entrance")`, a planned spot before the house is built on this server) and `town` (`SettlementService:townOf`).
+  - A ⌂ marker over the door with the house, town and distance (QuestPinsController; hidden within 12 studs; setting *Home marker*).
+  - The Journal's Quests tab starts with "⌂ Your house: name, town · N studs away" and **Show the way**: the edge arrow points home (instead of at the tracked quest) until you arrive ("You're home."). Without a house it says how to buy one.
+- **Admin:** `house info|claim|goto|release|forcerelease` (`goto` teleports you to that player's front door).
+- **Studio note:** Studio's mock DataStore is in memory, so every Play starts with no house, no coins and no furniture (`firstJoin=true`). Only published servers keep them.
 
 ## 9. Not yet
 - the shop counter (the economy stage: merchants);

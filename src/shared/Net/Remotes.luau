@@ -316,7 +316,7 @@ local Remotes: { [string]: RemoteDef } = {
 	InventoryChanged = { kind = "Event", from = "Server" },
 	ContainerView = { kind = "Event", from = "Server" }, -- the container you have open (or { id, closed = true }); viewers only
 	StationView = { kind = "Event", from = "Server" },
-	HousingState = { kind = "Event", from = "Server" }, -- your house: { lot, name, built, lotCFrame, interiorCFrame, interiorSize, floorY, decor, decorMax, parts, partsMax } or {}
+	HousingState = { kind = "Event", from = "Server" }, -- your house: { lot, name, home, town, built, lotCFrame, interiorCFrame, interiorSize, floorY, decor, decorMax, parts, partsMax } or {}
 	OpenScreen = { kind = "Event", from = "Server" }, -- { id } the world asks the client to open a screen (a notice board opens the Journal) -- { id, station, tier, name }: a crafting station you just used -- InventoryView (Shared/Items/ItemTypes): the whole inventory, owner only, once per change
 	QuestPins = { kind = "Event", from = "Server" }, -- { { q, title, text, p: Vector3, tracked, shared, person } }: your open objectives (owner only, on change)
 }

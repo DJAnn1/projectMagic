@@ -15,6 +15,8 @@
 	Never colour alone: status is ✓ / ○ / ★ glyphs and words.
 ]]
 
+local Players = game:GetService("Players")
+
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Controls = require(Shared.UI.Controls)
 local Net = require(Shared.Net)
@@ -36,11 +38,12 @@ local KIND_GLYPH: { [string]: string } = {
 
 local JournalController = {
 	name = "JournalController",
-	dependencies = { "InterfaceController", "MagicStateController" },
+	dependencies = { "InterfaceController", "MagicStateController", "HousingController" },
 }
 
 local interface: any = nil
 local magic: any = nil
+local housing: any = nil
 
 local tab = Kit.value("quests")
 local page = Kit.value(1)
@@ -172,6 +175,42 @@ local function questCard(parent: Instance, quest: any, section: string, order: n
 	end
 end
 
+-- Your house, at the top of the Quests tab: where it is, and "Show the way" (the edge arrow
+-- points home until you arrive; QuestPinsController). Without a house, how to get one.
+local function homeCard(parent: Instance)
+	local state = housing.state:get()
+	local card = C.panel({
+		BackgroundTransparency = Theme.glass,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = 0,
+		Parent = parent,
+	})
+	C.padding(Theme.space.m).Parent = card
+	C.list("y", Theme.space.xs).Parent = card
+	if typeof(state) ~= "table" or typeof(state.home) ~= "Vector3" then
+		C.text("⌂ No house yet", "label", { FontFace = Theme.font.bold, LayoutOrder = 1, Parent = card })
+		C.text("Houses for sale have a sign by the door. Press it to buy; your house keeps your things.", "caption", { LayoutOrder = 2, Parent = card })
+		return
+	end
+	local town = if typeof(state.town) == "string" then state.town else "a town"
+	C.text(string.format("⌂ Your house: %s, %s", tostring(state.name), town), "label", { FontFace = Theme.font.bold, LayoutOrder = 1, Parent = card })
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		local d = (state.home - root.Position).Magnitude
+		C.text(if d < 12 then "You're there." else string.format("%d studs away", math.floor(d)), "caption", { LayoutOrder = 2, Parent = card })
+	end
+	local buttons = row(card, 3)
+	local showing = housing.trackHome:get() == true
+	smallButton(buttons, if showing then "Stop showing" else "Show the way", if showing then "ghost" else "secondary", function()
+		housing.trackHome:set(not showing)
+		if not showing then
+			interface:close() -- straight back to the world, where the arrow is
+		end
+	end)
+end
+
 local function section(parent: Instance, title: string, order: number): Frame
 	local box = column(parent, order)
 	C.text(title, "label", { FontFace = Theme.font.title, LayoutOrder = 0, Parent = box })
@@ -270,7 +309,7 @@ local function build(scope: Scope, container: Frame, _args: any?)
 		Size = UDim2.new(1, 0, 1, -52),
 		Parent = container,
 	})
-	Kit.dynamic(scope, { data, tab }, function(s)
+	Kit.dynamic(scope, { data, tab, housing.state, housing.trackHome }, function(s)
 		local body = column(scroll, 0)
 		s:add(body)
 		local d = data:get()
@@ -280,6 +319,7 @@ local function build(scope: Scope, container: Frame, _args: any?)
 		end
 		local t = tab:get()
 		if t == "quests" then
+			homeCard(body)
 			buildQuests(body, d)
 		elseif t == "log" then
 			buildLog(body, d)
@@ -292,6 +332,7 @@ end
 function JournalController.init(_self: any, ctx: any)
 	interface = ctx.get("InterfaceController")
 	magic = ctx.get("MagicStateController")
+	housing = ctx.get("HousingController")
 	interface:registerScreen({
 		id = "Journal",
 		title = "Journal",

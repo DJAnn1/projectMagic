@@ -25,10 +25,12 @@
 	               picking it up gives back exactly the same item). Placed pieces get a "Pick up"
 	               prompt (owner only). Pieces are built while their owner is on the server.
 	HousingState   (server -> owner) what the client needs to place: lot frame, interior box,
-	               floor height, budget use; {} when you own nothing.
+	               floor height, budget use, plus `home` (the front door's position) and `town`
+	               for the home marker and the Journal; {} when you own nothing.
 
-	Admin (category World): house info|claim|release [player] (claim is free; release with
-	force empties storage and furniture into nothing: testing only).
+	Admin (category World): house info|claim|goto|release [player] (claim is free; goto
+	teleports you to the owner's front door; release with force empties storage and furniture
+	into nothing: testing only).
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -46,6 +48,7 @@ local FurnitureModels = require(Shared.World.FurnitureModels)
 local Server = ServerScriptService.Server
 local Schemas = require(Server.Persistence.Schemas)
 local Inventory = require(Server.Items.Inventory)
+local AdminUtil = require(Server.Admin.Util)
 
 local PRICES: { [string]: number } = { house_small = 400, house_medium = 900, house_large = 1800 }
 local MAX_DECOR = 30
@@ -57,7 +60,7 @@ local REFRESH_SECONDS = 90
 
 local HousingService = {
 	name = "HousingService",
-	dependencies = { "NetService", "DataService", "PlayerDataService", "InventoryService", "WorldService", "SettlementService", "AdminService" },
+	dependencies = { "NetService", "DataService", "PlayerDataService", "InventoryService", "WorldService", "WorldStateService", "SettlementService", "AdminService" },
 }
 
 local log: any = nil
@@ -66,6 +69,7 @@ local flags: any = nil
 local playerData: any = nil
 local inventory: any = nil
 local worldService: any = nil
+local worldState: any = nil -- WorldStateService (house goto builds the area first)
 local settlements: any = nil
 local store: any = nil
 
@@ -177,6 +181,10 @@ local function pushState(player: Player)
 	Net.fire("HousingState", player, {
 		lot = h.lot,
 		name = h.name,
+		-- Where your front door is (the planned spot before the house is built on this server),
+		-- and its town: the client's home marker, edge arrow and Journal line use them.
+		home = settlements:anchor(h.lot, "Entrance"),
+		town = settlements:townOf(h.lot),
 		built = model ~= nil,
 		lotCFrame = model and model:GetAttribute("LotCFrame"),
 		interiorCFrame = model and model:GetAttribute("InteriorCFrame"),
@@ -571,12 +579,12 @@ end
 
 local function registerAdmin(admin: any)
 	admin:Register({
-		name = "house", category = "World", description = "Housing: info, claim the nearest vacant house free (testing), or release yours (force empties storage)",
+		name = "house", category = "World", description = "Housing: info, claim the nearest vacant house free (testing), goto (teleport to the owner's door), or release (force empties storage)",
 		args = {
-			{ name = "action", type = "enum", options = { "info", "claim", "release", "forcerelease" } },
+			{ name = "action", type = "enum", options = { "info", "claim", "goto", "release", "forcerelease" } },
 			{ name = "player", type = "player", default = "me" },
 		},
-		handler = function(_, a)
+		handler = function(ctx, a)
 			local player: Player = a.player
 			local h = housingOf(player)
 			if not h then
@@ -598,7 +606,18 @@ local function registerAdmin(admin: any)
 				end
 				return string.format("%s owns %s (%s) since %s: %d/%d furniture, %d/%d parts, %d lanterns, %d stacks in storage. Built here: %s",
 					player.Name, h.name, h.lot, os.date("%d %b", h.since), #h.decor, MAX_DECOR, parts, MAX_PARTS, lanterns, items, tostring(settlements:modelOf(h.lot) ~= nil))
-			elseif a.action == "claim" then
+			elseif a.action == "goto" then
+			if h.lot == "" then
+				return player.Name .. " owns no house"
+			end
+			local door = settlements:anchor(h.lot, "Entrance")
+			if not door then
+				return "can't find " .. h.lot
+			end
+			-- Teleports the admin who typed it (to the named player's house).
+			local _, message = AdminUtil.teleport(ctx.player, worldState, door, false)
+			return string.format("%s (%s, %s): %s", h.name, h.lot, settlements:townOf(h.lot) or "?", message)
+		elseif a.action == "claim" then
 				local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 				if not root then
 					return "no character"
@@ -632,6 +651,7 @@ function HousingService.init(_self: any, ctx: any)
 	playerData = ctx.get("PlayerDataService")
 	inventory = ctx.get("InventoryService")
 	worldService = ctx.get("WorldService")
+	worldState = ctx.get("WorldStateService")
 	settlements = ctx.get("SettlementService")
 	store = ctx.get("DataService"):openStore(Schemas.Housing)
 	Net.handle("PlaceDecor", place :: any)

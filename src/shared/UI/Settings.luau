@@ -72,6 +72,14 @@ local Settings: { [string]: SettingDef } = {
 		options = { true, false },
 		labels = { "On", "Off" },
 	},
+	homeMarker = {
+		order = 7.5,
+		label = "Home marker",
+		description = "A ⌂ marker over your house's door, with the distance. The Journal's \"Show the way\" adds an arrow home.",
+		default = true,
+		options = { true, false },
+		labels = { "On", "Off" },
+	},
 	castMode = {
 		order = 8,
 		label = "Casting",

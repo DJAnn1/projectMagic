@@ -11,7 +11,11 @@
 	Data: MagicStateController.questPins (QuestPins pushes from QuestDirector: only your quests,
 	only steps you can act on now; people pins move with the NPC). The Journal's Track button
 	picks the tracked quest; a newly started quest is tracked when nothing else is.
-	Setting: Quest markers (On/Off). Reduce motion stops the tracked marker's pulse.
+	home     a ⌂ marker over your house's front door (HousingController.state.home) with its name,
+	         town and distance; hidden once you're at the door. While the Journal's "Show the
+	         way" is on (HousingController.trackHome), the edge arrow points home instead of at
+	         the tracked quest, and switches itself off when you arrive.
+	Settings: Quest markers, Home marker (On/Off). Reduce motion stops the tracked marker's pulse.
 	Budget: at most 10 pins (server cap); one RenderStepped at 10 Hz for labels and the arrow.
 ]]
 
@@ -24,14 +28,16 @@ local Theme = require(UI.Theme)
 local TEXT_RANGE = 80 -- studs: untracked pins show their objective text this close
 local UNTRACKED_RANGE = 900 -- studs: untracked pins vanish beyond this
 local REACHED = 8 -- studs: a place pin this close fades (you're there)
+local HOME_REACHED = 12 -- studs from your door: you're home (marker hides, "Show the way" ends)
 local EDGE_MARGIN = 56 -- pixels from the screen edge for the arrow
 
 local QuestPinsController = {
 	name = "QuestPinsController",
-	dependencies = { "MagicStateController" },
+	dependencies = { "MagicStateController", "HousingController" },
 }
 
 local magic: any = nil
+local housing: any = nil
 local localPlayer = Players.LocalPlayer
 
 type Marker = {
@@ -43,6 +49,7 @@ type Marker = {
 }
 
 local markers: { Marker } = {}
+local homeMarker: Marker? = nil
 local arrowGui: ScreenGui? = nil
 local arrow: TextLabel? = nil
 local arrowText: TextLabel? = nil
@@ -104,6 +111,29 @@ local function makeMarker(pin: any): Marker
 	label.Parent = gui
 
 	return { holder = holder, gui = gui, glyph = glyph, label = label, pin = pin }
+end
+
+local function homeOn(): boolean
+	return magic.settings:get().homeMarker ~= false
+end
+
+-- The ⌂ marker over your door (or none: no house, or the setting is off).
+local function rebuildHome()
+	if homeMarker then
+		homeMarker.gui:Destroy()
+		homeMarker.holder:Destroy()
+		homeMarker = nil
+	end
+	local state = housing.state:get()
+	if not homeOn() or typeof(state) ~= "table" or typeof(state.home) ~= "Vector3" then
+		return
+	end
+	local where = if typeof(state.town) == "string" then string.format("Home · %s, %s", tostring(state.name), state.town) else "Home"
+	local m = makeMarker({ p = state.home, text = where, tracked = true, person = false })
+	m.glyph.Text = "⌂"
+	m.glyph.TextColor3 = Theme.color.good
+	m.gui.MaxDistance = math.huge
+	homeMarker = m
 end
 
 local function rebuild(pins: { any })
@@ -183,14 +213,33 @@ local function update()
 		end
 	end
 
-	-- The edge arrow, for the tracked quest's nearest pin when you can't see it.
+	-- Home: the label, and "you're home" (hide, end Show the way).
+	local home = homeMarker
+	local homeD = math.huge
+	if home then
+		homeD = (home.holder.WorldPosition - here).Magnitude
+		local atHome = homeD <= HOME_REACHED
+		home.gui.Enabled = not atHome
+		home.label.Text = home.pin.text .. "\n" .. distanceText(homeD)
+		if atHome and housing.trackHome:get() then
+			housing.trackHome:set(false)
+			magic.events:Fire({ kind = "notify", text = "You're home." })
+		end
+	end
+
+	-- The edge arrow: home while "Show the way" is on, else the tracked quest's nearest pin,
+	-- only when you can't see it.
 	ensureArrow()
 	local a, t = arrow :: TextLabel, arrowText :: TextLabel
-	if not nearestTracked or not markersOn() then
+	local target: Vector3
+	if home and housing.trackHome:get() then
+		target, nearestD = home.holder.WorldPosition, homeD
+	elseif nearestTracked and markersOn() then
+		target = (nearestTracked :: Marker).holder.WorldPosition
+	else
 		a.Visible, t.Visible = false, false
 		return
 	end
-	local target = (nearestTracked :: Marker).holder.WorldPosition
 	local screen, onScreen = camera:WorldToViewportPoint(target)
 	local view = camera.ViewportSize
 	if onScreen and screen.Z > 0 then
@@ -219,6 +268,7 @@ end
 
 function QuestPinsController.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
+	housing = ctx.get("HousingController")
 end
 
 function QuestPinsController.start(_self: any, _ctx: any)
@@ -226,7 +276,10 @@ function QuestPinsController.start(_self: any, _ctx: any)
 	-- The setting can change any time: rebuild when it does.
 	magic.settings:observe(function()
 		rebuild(magic.questPins:get())
+		rebuildHome()
 	end)
+	housing.state:observe(rebuildHome)
+	rebuildHome()
 	local acc = 0
 	RunService.RenderStepped:Connect(function(dt)
 		acc += dt
@@ -234,7 +287,7 @@ function QuestPinsController.start(_self: any, _ctx: any)
 			return
 		end
 		acc = 0
-		if #markers == 0 and not (arrow and arrow.Visible) then
+		if #markers == 0 and not homeMarker and not (arrow and arrow.Visible) then
 			return
 		end
 		local ok = pcall(update)

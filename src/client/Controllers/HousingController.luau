@@ -2,8 +2,11 @@
 --[[
 	HousingController: your house, and placing furniture in it (docs/Buildings.md §8).
 
-	state      HousingState pushes: { lot, name, built, lotCFrame, interiorCFrame, interiorSize,
-	           floorY, decor, decorMax, parts, partsMax } or nil when you own nothing
+	state      HousingState pushes: { lot, name, home, town, built, lotCFrame, interiorCFrame,
+	           interiorSize, floorY, decor, decorMax, parts, partsMax } or nil when you own nothing
+	           (home = your front door's position, town = its settlement's name)
+	trackHome  true while the Journal's "Show the way" is on: QuestPinsController points the edge
+	           arrow home instead of at the tracked quest, and turns this off when you arrive
 	placement  startPlacement(ref): from the Inventory screen ("Place" on a furniture item, while
 	           your house is built on this server). The screen closes and a see-through ghost of the
 	           piece follows the mouse (keyboard) or the screen centre (touch, gamepad), snapped to
@@ -40,6 +43,7 @@ local HousingController = {
 local H = HousingController
 H.state = Kit.value(nil :: any)
 H.placing = Kit.value(nil :: Placing?)
+H.trackHome = Kit.value(false)
 
 local interface: any = nil
 local magic: any = nil
@@ -243,6 +247,7 @@ function HousingController.start(_self: any, _ctx: any)
 	Net.listen("HousingState", function(state)
 		if typeof(state) ~= "table" or state.lot == nil then
 			H.state:set(nil)
+			H.trackHome:set(false) -- no house, no way home
 			stop()
 			return
 		end
