@@ -26,9 +26,9 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Syntax check:** selene parses every file: `~/AppData/Roaming/Code/User/globalStorage/kampfkarren.selene-vscode/selene.exe --display-style quiet <files>` (0 parse errors = syntax OK). Use it after edits, since VS Code diagnostics may be empty for unanalysed files.
 - **Client → server intents use `Net.send`** (`Net.fire` is server → client only; using it on the client broke running and dashing once).
 
-## Where we left off (session 2026-11-05, last commit `474d573`)
+## Where we left off (session 2026-11-05, last code commit `4e20e0a`)
 
-**Next step:** early-game plan item 5, the first creatures (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
+**Next step:** early-game plan item 6, experimentation pays (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 5 (six creatures in seeded dens around every town) is built (EarlyGamePlan §7), not yet run. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
 
 **Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
 | # | Prompt | State |
@@ -41,7 +41,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
 | 7 | Sounds + music | built (80 licensed picks, not auditioned) |
 | 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
-| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing) and 4 (beginner quests + mentor) built; **item 5 next** |
+| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing), 4 (beginner quests + mentor) and 5 (first creatures) built; **item 6 next** |
 | 10 | Gravity powers | not started |
 | 11 | Time powers | not started |
 
@@ -50,6 +50,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Finding your house: ⌂ marker, Journal "Show the way", `house goto`.
 - Composer explanations (`Shared/UI/SpellHelp`, About card, walkthrough + glossary).
 - Movement: the run/dash remote fix (`Net.send`), dash flavours, lock-on toggle. The Deepwatch floor fix (`clearInterior` from the slab bottom).
+- First creatures (`CreatureService`, `Server/Creatures/`; `creature_dens` in the log, `creature_killed` per kill; `creature spawn gloom_rat`, `creatures`, `creaturedens`). Expected boot line now `specs 341/343` (10 new tests in Creatures.spec). Check that legless bodies stand and float: HipHeight on a custom R15 rig, ellipsoids from SpecialMesh.
 - Sound system (`Client/Audio/Audio`, `AudioController`, volumes, `sound <role>`); watch for an `[Audio] N of M sounds failed to load` line.
 - NPC looks, clothing and accents (`npclook`); watch for `[NpcLooks] N accessories failed to load`.
 - Innate spells (`cantrips_granted` in the log; slots 1–3: strike, utility, thrown strike), the "Your magic answers" card, practice yards, Projectile at Sensing. Beginner quests: watch for `quest_offered` with `first_practice` / `mentor_lesson` / `show_me_magic` / `lost_pet` / `light_the_lamps` / `spar_master` in the first minutes. Expected boot line now `specs 331/333` (one new Cantrips test, four new Quest.spec tests).
@@ -70,6 +71,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Lighting haze (Atmosphere density 0.28) OK? Should fire that spreads after a spell count as a crime?
 - Should more forms open at Sensing (Burst, Beam)? It's a data change in `Data/MasteryTiers`. Should the spawn plaza be no-PvP now that everyone can attack at range from minute one? Thrown Strike in slot 2 instead of 3?
 - Beginner quests: permanent map pins for the practice yard and the mentor? Should finishing "Lamps at Dusk" actually light the lamps (today it's flavour)? Beginner rewards: add coins or a starter item (only the lost pet pays 10)?
+- Creatures: should some wander into town so guards fight them and farmers pay for it (needs NPCCombat to target non-players)? Should fighting one drop loot on the ground instead of straight to the bag? Sprites and rats attack on sight: too rough for minute one near the spawn town? Should the spawn town's dens be guaranteed gentle types?
 - Parked VFX questions are listed under "Open design questions" below.
 
 ## Decisions already made (don't re-ask)
