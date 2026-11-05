@@ -980,12 +980,43 @@ local function buildMenu(_scope: Scope, root: Frame, compact: boolean)
 	end
 end
 
--- Onboarding nudge: shown until the first spell exists. No text wall, one sentence and one button.
+-- Onboarding nudge, in two steps. No text wall: one sentence and one action each.
+--   no spells yet      "Something stirs in you." + Reach inward (the Composer)
+--   spells, none cast  "Your magic answers." + exactly how to use slot 1 on this input and cast
+--                      mode (the awakening's innate spells land on slots 1-2: CantripService)
+-- Gone after the first cast that goes through.
+local castOnce = Kit.value(false)
+
+local function howToCast(name: string): string
+	local mode = interface.inputMode:get()
+	local equip = (magic.settings:get().castMode or "equip") ~= "quick"
+	if mode == "Gamepad" then
+		return if equip then string.format("Press L2 to ready %s, then R2 to cast.", name) else string.format("Press R2 to cast %s.", name)
+	elseif mode == "Touch" then
+		return if equip then string.format("Tap slot 1 to ready %s, then Cast.", name) else string.format("Tap slot 1 to cast %s.", name)
+	end
+	return if equip then string.format("Press 1 to ready %s, then click to cast.", name) else string.format("Press 1 to cast %s.", name)
+end
+
 local function buildFirstSteps(scope: Scope, root: Frame, compact: boolean)
-	Kit.dynamic(scope, { magic.ready, magic.spellbook }, function(s)
-		if not magic.ready:get() or #magic.spellbook:get() > 0 then
+	-- Any spell already cast (a returning player) means the nudge is done.
+	scope:add(magic.spellbook:observe(function(book: any)
+		for _, view in book do
+			if (view.casts or 0) > 0 then
+				castOnce:set(true)
+			end
+		end
+	end))
+	scope:add(magic.events:Connect(function(event: any)
+		if typeof(event) == "table" and event.kind == "cast" and typeof(event.result) == "table" and event.result.ok then
+			castOnce:set(true)
+		end
+	end))
+	Kit.dynamic(scope, { magic.ready, magic.spellbook, magic.hotbar, castOnce, interface.inputMode, magic.settings }, function(s)
+		if not magic.ready:get() or castOnce:get() then
 			return
 		end
+		local book = magic.spellbook:get()
 		local card = C.panel({
 			Name = "FirstSteps",
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -998,13 +1029,26 @@ local function buildFirstSteps(scope: Scope, root: Frame, compact: boolean)
 		s:add(card)
 		C.padding(Theme.space.m).Parent = card
 		C.list("y", Theme.space.s).Parent = card
-		C.text("Something stirs in you.", "heading", { LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
-		C.text("Reach for it and see what answers.", "caption", { LayoutOrder = 2, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
-		local hint = interface:hint("Composer")
-		local button = C.button(if hint ~= "" then string.format("Reach inward  [%s]", hint) else "Reach inward", function()
-			interface:open("Composer")
-		end, { kind = "primary" }, { LayoutOrder = 3 })
-		button.Parent = card
+		if #book == 0 then
+			C.text("Something stirs in you.", "heading", { LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+			C.text("Reach for it and see what answers.", "caption", { LayoutOrder = 2, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+			local hint = interface:hint("Composer")
+			local button = C.button(if hint ~= "" then string.format("Reach inward  [%s]", hint) else "Reach inward", function()
+				interface:open("Composer")
+			end, { kind = "primary" }, { LayoutOrder = 3 })
+			button.Parent = card
+			return
+		end
+		-- The spell in slot 1 (an innate spell), else the first in the book.
+		local slotKey = magic.hotbar:get()[1]
+		local name = book[1].name
+		for _, view in book do
+			if view.key == slotKey then
+				name = view.name
+			end
+		end
+		C.text("Your magic answers.", "heading", { LayoutOrder = 1, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
+		C.text(howToCast(name), "body", { LayoutOrder = 2, TextXAlignment = Enum.TextXAlignment.Center }).Parent = card
 	end)
 end
 

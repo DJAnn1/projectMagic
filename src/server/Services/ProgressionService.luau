@@ -250,6 +250,14 @@ function ProgressionService.awardDiscovery(_self: any, player: Player, branchId:
 	gain(player, branchId, "experimentation", base, { now = t })
 end
 
+-- Called with the domains an awakening just opened (CantripService registers it: it depends on
+-- us, so we can't require it).
+local awakenHook: ((Player, { string }) -> ())? = nil
+
+function ProgressionService.setAwakenHook(_self: any, hook: (Player, { string }) -> ())
+	awakenHook = hook
+end
+
 -- Call after the innate profile changes (an awakening revealed a domain): unlocks its root.
 function ProgressionService.syncInnate(_self: any, player: Player)
 	local state = stateOf(player)
@@ -260,6 +268,9 @@ function ProgressionService.syncInnate(_self: any, player: Player)
 			table.insert(events, { kind = "unlock", branch = domainId })
 		end
 		afterChange(player, events)
+		if #added > 0 and awakenHook then
+			task.spawn(awakenHook, player, added)
+		end
 	end
 end
 

@@ -37,6 +37,7 @@ local GuardRules = require(Shared.Magic.GuardRules)
 local Strike = require(Shared.Magic.Strike)
 local Types = require(Shared.Magic.Types)
 local SpellHelp = require(Shared.UI.SpellHelp)
+local Cantrips = require(Shared.Magic.Cantrips)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
@@ -148,6 +149,7 @@ local focused = Kit.value(nil :: string?) -- the option the About card explains 
 local showHelp = Kit.value(false) -- the "How spells work" walkthrough
 local helpPage = Kit.value(1)
 local helpAutoShown = false -- opened once per session at most, even before the setting saves
+local castSeen = false -- a cast went through this session (the spellbook's counts lag a refetch)
 
 -- ─── Draft logic ────────────────────────────────────────────────────────────
 
@@ -1165,16 +1167,29 @@ local function guidedCards(): ({ Card }, { string })
 	end
 	for _, domainId in Registry.domainIds do
 		if known.caster.awakened[domainId] and not covered[domainId] then
-			local template = magic:templatesFor(domainId)[1]
-			if template then
-				local recipe = { branch = template.branch, property = template.property, verb = template.verb, form = template.form, power = 1 }
+			-- The domain's Strike (Shared/Magic/Cantrips) when it's castable: an attack, not a
+			-- harmless aura. Otherwise the first template, as before.
+			local strike, strikeName = Cantrips.strike(domainId)
+			if strike and strikeName and MagicCore.validateRecipe(strike, known.caster) then
 				table.insert(cards, 1, {
 					id = "spark_" .. domainId,
-					name = "First spark: " .. Registry.domains[domainId].name,
-					description = sentence(recipe :: any) .. ". The smallest thing you can do. Try it and see.",
-					recipe = recipe,
+					name = "First spark: " .. strikeName,
+					description = sentence(strike :: any) .. ". Your " .. Registry.domains[domainId].name .. " answers with an attack. Try it on a training dummy.",
+					recipe = strike,
 					domain = domainId,
 				})
+			else
+				local template = magic:templatesFor(domainId)[1]
+				if template then
+					local recipe = { branch = template.branch, property = template.property, verb = template.verb, form = template.form, power = 1 }
+					table.insert(cards, 1, {
+						id = "spark_" .. domainId,
+						name = "First spark: " .. Registry.domains[domainId].name,
+						description = sentence(recipe :: any) .. ". The smallest thing you can do. Try it and see.",
+						recipe = recipe,
+						domain = domainId,
+					})
+				end
 			end
 		end
 	end
@@ -1425,8 +1440,15 @@ local function build(scope: Scope, container: Frame, args: any?)
 		modeOverride = nil
 	end
 	local mode = modeOverride or magic.settings:get().composerMode or "simple"
-	-- First time in the Composer: the walkthrough opens by itself (once).
-	if not helpAutoShown and magic.settings:get().composerHelpSeen ~= true and next(magic.settings:get()) ~= nil then
+	-- The walkthrough opens by itself once, the first time you open the Composer AFTER your first
+	-- cast (docs/EarlyGamePlan.md: cast first, read later; the "?" button has it any time).
+	local hasCast = castSeen
+	for _, view in magic.spellbook:get() do
+		if (view.casts or 0) > 0 then
+			hasCast = true
+		end
+	end
+	if hasCast and not helpAutoShown and magic.settings:get().composerHelpSeen ~= true and next(magic.settings:get()) ~= nil then
 		helpAutoShown = true
 		helpPage:set(1)
 		showHelp:set(true)
@@ -1478,6 +1500,11 @@ end
 function ComposerController.init(_self: any, ctx: any)
 	interface = ctx.get("InterfaceController")
 	magic = ctx.get("MagicStateController")
+	magic.events:Connect(function(event: any)
+		if typeof(event) == "table" and event.kind == "cast" and typeof(event.result) == "table" and event.result.ok then
+			castSeen = true
+		end
+	end)
 	interface:registerScreen({
 		id = "Composer",
 		title = "Spell Composer",

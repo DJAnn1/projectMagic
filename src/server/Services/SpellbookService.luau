@@ -175,6 +175,53 @@ local function rename(player: Player, key: string, rawName: string): (boolean, s
 	return true, filtered
 end
 
+--[[
+	Gives a player a spell the game made for them (Services/CantripService): validated like a save,
+	named with game text (no player input, so nothing to filter beyond the usual display pass),
+	and put in the first empty hotbar slot from `fromSlot` (default 1) if it isn't on the bar yet.
+	Returns the recipe key, or nil (invalid, or the spellbook is full). The caller pushes
+	SpellbookChanged.
+]]
+function SpellbookService.grant(_self: any, player: Player, recipe: any, name: string, fromSlot: number?): string?
+	local state = playerData:get(player)
+	if not state then
+		return nil
+	end
+	local ok, _, normalized = MagicCore.validateRecipe(recipe, state.caster)
+	if not ok or not normalized then
+		return nil
+	end
+	local book = state.data.spellbook
+	local key = MagicCore.recipeKey(normalized)
+	if not book[key] then
+		local count = 0
+		for _ in book do
+			count += 1
+		end
+		if count >= MAX_SPELLS then
+			return nil
+		end
+		book[key] = { recipe = normalized, name = cleanName(name) or "", favorite = false, casts = 0, addedAt = os.time() }
+		local cache = filteredNames[player]
+		if cache then
+			cache[key] = nil
+		end
+	end
+	local hotbar = state.data.hotbar
+	for _, slotKey in hotbar do
+		if slotKey == key then
+			return key -- already on the bar
+		end
+	end
+	for slot = fromSlot or 1, HOTBAR_SLOTS do
+		if hotbar[tostring(slot)] == nil then
+			hotbar[tostring(slot)] = key
+			break
+		end
+	end
+	return key
+end
+
 -- The recipe key in a hotbar slot (1..10), if any.
 function SpellbookService.hotbarKey(_self: any, player: Player, slot: number): string?
 	local hotbar = hotbarOf(player)

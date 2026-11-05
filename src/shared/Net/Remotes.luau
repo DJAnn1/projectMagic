@@ -316,6 +316,7 @@ local Remotes: { [string]: RemoteDef } = {
 		resolved  { ok = true, stage = "resolved", key, cooldownUntil, effective, hits, backfired,
 		            interrupted?, note?, xp? = { branch, gained } } ]]
 	CastResult = { kind = "Event", from = "Server" },
+	SpellbookChanged = { kind = "Event", from = "Server" }, -- the server changed your spellbook (innate spells); refetch
 	DashResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { ok = true, style }; owner only
 	MeleeResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { hit = true, swing }; owner only
 	WeaponResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { hit = true } | { fired = true, ammo }; owner only
