@@ -94,7 +94,7 @@ local DENSITY_WORDS = {
 
 local HudController = {
 	name = "HudController",
-	dependencies = { "InterfaceController", "MagicStateController", "CastClient", "WeaponClient" },
+	dependencies = { "InterfaceController", "MagicStateController", "CastClient", "WeaponClient", "MovementClient" },
 }
 
 type Toast = { id: number, text: string, color: Color3, at: number }
@@ -113,6 +113,7 @@ type SlotWidget = {
 local interface: any = nil
 local magic: any = nil
 local castClient: any = nil
+local movement: any = nil -- MovementClient (touch Dash / Run)
 local weaponClient: any = nil
 
 -- State that survives HUD rebuilds.
@@ -534,6 +535,29 @@ local function buildReservoir(scope: Scope, root: Frame, compact: boolean)
 	scope:add(Players.LocalPlayer:GetAttributeChangedSignal("StaminaMax"):Connect(updateStamina))
 	updateStamina()
 
+	-- Dash charges (MovementService: Player attributes DashCharges / DashMax). Like stamina, shown
+	-- only while one is spent: ◆ ready, ◇ refilling, plus the word.
+	local dashLabel = C.text("", "caption", {
+		LayoutOrder = 8,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		FontFace = Theme.font.mono,
+		Visible = false,
+		Parent = cluster,
+	})
+	local function updateDash()
+		local player = Players.LocalPlayer
+		local charges, max = player:GetAttribute("DashCharges"), player:GetAttribute("DashMax")
+		if typeof(charges) ~= "number" or typeof(max) ~= "number" or max <= 0 then
+			return
+		end
+		dashLabel.Visible = charges < max
+		dashLabel.Text = "Dash " .. string.rep("◆", charges) .. string.rep("◇", max - charges)
+		dashLabel.TextColor3 = if charges == 0 then Theme.color.warn else Theme.color.inkDim
+	end
+	scope:add(Players.LocalPlayer:GetAttributeChangedSignal("DashCharges"):Connect(updateDash))
+	scope:add(Players.LocalPlayer:GetAttributeChangedSignal("DashMax"):Connect(updateDash))
+	updateDash()
+
 	-- Countdown chips and the low pulse need time to pass, not just new snapshots.
 	local elapsed = 0
 	scope:add(RunService.Heartbeat:Connect(function(dt)
@@ -820,7 +844,7 @@ local function buildHotbar(scope: Scope, root: Frame, compact: boolean)
 		Parent = root,
 	})
 
-	Kit.dynamic(scope, { magic.hotbar, magic.spellbook, magic.known, magic.region, castClient.selectedSlot, castClient.attuned, page }, function(s)
+	Kit.dynamic(scope, { magic.hotbar, magic.spellbook, magic.known, magic.region, castClient.selectedSlot, castClient.attuned, page, movement.wantsRun }, function(s)
 		table.clear(widgets)
 		local holder: Frame = Kit.create(nil, "Frame", {
 			BackgroundTransparency = 1,
@@ -846,6 +870,19 @@ local function buildHotbar(scope: Scope, root: Frame, compact: boolean)
 				LayoutOrder = 99,
 			})
 			pager.Parent = holder
+			-- Touch: Dash and the Run toggle, always (MovementClient).
+			C.button("Dash", function()
+				movement:dash()
+			end, { kind = "secondary" }, {
+				Size = UDim2.fromOffset(SLOT_SIZE, Theme.minTouch),
+				LayoutOrder = 99.2,
+			}).Parent = holder
+			C.button(if movement.wantsRun:get() then "Walk" else "Run", function()
+				movement:toggleRun()
+			end, { kind = "ghost", selected = movement.wantsRun:get() }, {
+				Size = UDim2.fromOffset(SLOT_SIZE, Theme.minTouch),
+				LayoutOrder = 99.4,
+			}).Parent = holder
 			-- Touch, equip mode: with a spell attuned, Cast (at the screen centre) and Stow.
 			if castClient.attuned:get() then
 				-- Press and hold to charge (or to keep a channel going); lift to cast.
@@ -1259,6 +1296,7 @@ function HudController.init(_self: any, ctx: any)
 	interface = ctx.get("InterfaceController")
 	magic = ctx.get("MagicStateController")
 	castClient = ctx.get("CastClient")
+	movement = ctx.get("MovementClient")
 	weaponClient = ctx.get("WeaponClient")
 	interface:registerLayer({ id = "HUD", build = build })
 	magic.events:Connect(onEvent)

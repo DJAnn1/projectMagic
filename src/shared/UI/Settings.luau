@@ -72,6 +72,14 @@ local Settings: { [string]: SettingDef } = {
 		options = { true, false },
 		labels = { "On", "Off" },
 	},
+	lockOnMode = {
+		order = 8.5,
+		label = "Lock-on",
+		description = "Left Alt (or the middle mouse button) locks your aim onto the target nearest the cursor. Toggle: press once to lock, again to let go. Hold: locked only while held.",
+		default = "toggle",
+		options = { "toggle", "hold" },
+		labels = { "Toggle", "Hold" },
+	},
 	homeMarker = {
 		order = 7.5,
 		label = "Home marker",

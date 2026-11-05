@@ -20,6 +20,7 @@ local StatusInfo: { [string]: Info } = {
 	root = { name = "Rooted", harmful = true, description = "You can't walk or jump." },
 	stasis = { name = "Stasis", harmful = true, description = "Held still in time." },
 	ward = { name = "Warded", harmful = false, description = "A ward soaks up damage and resists all magic." },
+	evading = { name = "Evading", harmful = false, description = "Mid-dash: you take less damage for a moment." },
 	hexed = { name = "Hexed", harmful = true, description = "You take more damage, and the curse gnaws at you." },
 	poison = { name = "Poisoned", harmful = true, description = "Losing health over time." },
 	rot = { name = "Rotting", harmful = true, description = "Losing health and slowed." },

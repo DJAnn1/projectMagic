@@ -75,6 +75,16 @@ local list: { Action } = {
 		note = "Hold right mouse and drag. Holding right mouse also raises your guard.",
 	},
 	{
+		id = "run", label = "Run (toggle)", group = "movement", order = 3.5,
+		keyboard = { "LeftControl" }, touch = "Run button", contexts = { "always" }, owner = "MovementClient",
+		note = "Press once to run, again to walk. Gamepad: push the left stick all the way. Running pauses while a spell is readied.",
+	},
+	{
+		id = "dash", label = "Dash", group = "movement", order = 3.6,
+		keyboard = { "R" }, gamepad = { "ButtonL3" }, touch = "Dash button", contexts = { "always" }, owner = "MovementClient",
+		note = "Where you're moving (or back, standing still). Two charges that refill; you take less damage mid-dash. A readied spell changes it: Energy flashsteps, Earth slides, Air gusts, Time rewinds, Gravity vaults.",
+	},
+	{
 		id = "zoom", label = "Zoom", group = "movement", order = 4,
 		keyboard = { "MouseWheel" }, touch = "Pinch", contexts = { "always" }, owner = "Roblox", shares = { "swap_spell" },
 		note = "While a spell is readied, the wheel swaps spells instead.",
@@ -117,7 +127,7 @@ local list: { Action } = {
 		id = "lock_on", label = "Lock on to a target", group = "casting", order = 7,
 		keyboard = { "LeftAlt", "MouseButton3" }, gamepad = { "ButtonR3" },
 		contexts = { "always" }, owner = "AimController",
-		note = "Keyboard: hold. Gamepad: click the right stick to toggle.",
+		note = "Press to lock, press again to let go (Settings › Lock-on can make it hold-to-lock). Gamepad: click the right stick.",
 	},
 
 	-- ─── Combat ────────────────────────────────────────────────────────────────

@@ -7,7 +7,8 @@
 	         touch). It ignores your own character, spell effects (MagicFx) and the reticle.
 	         sample() casts a fresh ray (used when a cast is sent); current() is the last sample,
 	         refreshed at SAMPLE_HZ (one ray; the reticle and turning to face the aim use it).
-	LOCK-ON  keyboard: hold Left Alt or the middle mouse button; gamepad: click the right stick (R3)
+	LOCK-ON  keyboard: Left Alt or the middle mouse button: press to lock, press again to let go
+	         (setting lockOnMode = "hold" makes it hold-to-lock); gamepad: click the right stick (R3)
 	         to toggle. Picks the living character (player or NPC) nearest the cursor on screen,
 	         inside LOCK_SCREEN_SHARE of the screen height and LOCK_RANGE studs. While locked, the
 	         aim is the target's chest and the cast names it as the target. The lock breaks when
@@ -34,7 +35,7 @@ local BREAK_HIDDEN = 1.0
 
 local AimController = {
 	name = "AimController",
-	dependencies = { "InterfaceController" },
+	dependencies = { "InterfaceController", "MagicStateController" },
 }
 
 AimController.locked = Kit.value(nil :: Model?)
@@ -45,6 +46,7 @@ local lastPoint = Vector3.zero
 local lastTarget: Model? = nil
 local hiddenSince: number? = nil
 local holdingLock = false
+local magic: any = nil
 
 local function screenPoint(): Vector2
 	local camera = workspace.CurrentCamera
@@ -194,8 +196,14 @@ local function isLockInput(input: InputObject): boolean
 	return input.KeyCode == Enum.KeyCode.LeftAlt or input.UserInputType == Enum.UserInputType.MouseButton3
 end
 
+-- Settings › Lock-on: "toggle" (the default) or "hold".
+local function lockHolds(): boolean
+	return magic ~= nil and magic.settings:get().lockOnMode == "hold"
+end
+
 function AimController.init(_self: any, ctx: any)
 	interface = ctx.get("InterfaceController")
+	magic = ctx.get("MagicStateController")
 end
 
 function AimController.start(self: any, _ctx: any)
@@ -204,8 +212,14 @@ function AimController.start(self: any, _ctx: any)
 			return
 		end
 		if isLockInput(input) then
-			holdingLock = true
-			self:lock()
+			if lockHolds() then
+				holdingLock = true
+				self:lock()
+			elseif AimController.locked:get() then
+				self:unlock()
+			else
+				self:lock()
+			end
 		elseif input.KeyCode == Enum.KeyCode.ButtonR3 then
 			if AimController.locked:get() then
 				self:unlock()

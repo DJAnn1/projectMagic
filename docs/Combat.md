@@ -378,3 +378,30 @@ Shares are of `DamageModel.base(power)` (a plain `harm` hit is 1.0, Thermal heat
 **UI.** The Composer shows "Strike ⚔ <name> · <rider>".
 
 **Spec:** `Tests/EarlyGame.spec` (every domain attacks at Sensing with touch and at Novice with a projectile, from the root; strikes are harmful; parity; riders exist; existing spells keep their routes; hybrids; strip and jinx).
+
+## 15. Running and the dash (written 2026-11-05, not yet run; ideas prompt 6)
+
+Rules: `Shared/Magic/Movement` + `Data/MovementTuning` (shared; `Tests/Movement.spec`). Server: `Services/MovementService`. Client: `Controllers/MovementClient`, `Fx/DashFx`. Keys: `Shared/UI/Controls` (`run`, `dash`).
+
+- **Running.** Left Ctrl toggles it (`RunIntent`); on a gamepad you run while the left stick is pushed far (hysteresis 0.92 on / 0.8 off); touch has a Run button. The server applies it only in the idle action state with no spell readied (the toggle stays on and resumes): a `run` walk multiplier (×1.55, stacks with slows and hastes through `StatusEffects.setWalkMultiplier`) and the character attribute `Running`. While that's on and you're moving, the client plays the **Run** clip over Roblox's default walk; walking is the default walk again (`CombatAnimations.locomotion` is empty). `staminaPerSecond` is 0: running is free until the owner says otherwise.
+- **Dash.** R / L3 / the touch Dash button, where you're moving (straight back when standing still). Two charges (2.5 s each to refill), 0.35 s apart, 12 stamina. The server checks a live body, the action state ("dash" allowed), a charge, the cooldown and the stamina, then sets `dashing` (the Dash clip; it also breaks a charging spell), applies `evading` (resist all ×0.4 for 0.35 s) and moves you.
+- **The readied spell flavours it** (`MovementTuning.dash.domains`), and its branch mastery adds 5% distance per tier:
+
+| Domain | Dash | Style | Moves you by |
+|---|---|---|---|
+| none | Dash | roll | client push |
+| Energy | Flashstep | blink | server: clear line, then PivotTo |
+| Earth | Stone slide | slide (×0.85) | client push |
+| Water | Wave ride | wave (×1.1) | client push |
+| Air | Gust | glide (×1.35, small lift) | client push |
+| Life / Spirit | Bound / Wisp step | jet | client push |
+| Mind / Void / Space / Reality | Misdirect / Fade / Fold / Slip | blink | server |
+| Time | Rewind | rewind | server: back to where you were 1 s ago (0.1 s position history; refused past 40 studs) |
+| Gravity | Vault | flip (big lift) | client push |
+
+- **Prediction.** The client plays the clip at once and, for impulse styles, pushes its own body with a horizontal `LinearVelocity` for 0.28 s (it owns its physics). `DashResult` refusals stop the push and cancel the clip (NO_CHARGES, TOO_SOON, WINDED, BUSY, REWIND_TOO_FAR).
+- **Checks for later.** After each dash the server compares how far you moved with what the dash allows (×1.6 slack + 4 studs) and logs `dash_overshoot`; the character carries `MoveAllowanceUntil` for the movement checks still to build (Backend.md §8).
+- **Looks** (`Fx/DashFx`, "dash" WorldEffect cue): impulse styles leave a trail in the domain's texture (grey dust when plain; a ground ring for the Vault); blink and rewind leave a fading afterimage of the body, flashes at both ends and a streak (reversed for rewind, plus a rune where you land).
+- **Lock-on** is now a toggle (Left Alt / middle mouse, press again to let go); Settings › Lock-on can make it hold-to-lock (`lockOnMode`).
+- **HUD:** "Dash ◆◇" under stamina while a charge is spent; touch gets Dash and Run/Walk buttons.
+- **Admin:** `movement [player]`, `dashes <n|inf|off> [player]`.

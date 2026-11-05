@@ -28,6 +28,7 @@ local SpellFx = require(script.Parent.Parent:WaitForChild("Fx").SpellFx)
 local FxPool = require(script.Parent.Parent.Fx.FxPool)
 local CombatFeedback = require(script.Parent.Parent.Fx.CombatFeedback)
 local WeaponFx = require(script.Parent.Parent.Fx.WeaponFx)
+local DashFx = require(script.Parent.Parent.Fx.DashFx)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
 
@@ -93,6 +94,8 @@ local function handle(effect: { [string]: any })
 		SpellFx.spell(effect)
 	elseif kind == "weapon" then
 		WeaponFx.cue(effect)
+	elseif kind == "dash" then
+		DashFx.cue(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
 	elseif kind == "field_end" then

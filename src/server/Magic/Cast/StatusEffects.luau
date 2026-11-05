@@ -53,6 +53,7 @@ local DEFS: { [string]: StatusDef } = {
 	root = { name = "Rooted", walk = 0, jump = 0, harmful = true },
 	stasis = { name = "Stasis", walk = 0, jump = 0, anchorNpc = true, animSpeed = 0, client = true, harmful = true },
 	ward = { name = "Warded", absorb = true },
+	evading = { name = "Evading" }, -- a dash's moment of damage resistance (opts.resist; MovementService)
 	hexed = { name = "Hexed", damageTaken = 1.25, dot = true, harmful = true },
 	poison = { name = "Poisoned", dot = true, harmful = true },
 	rot = { name = "Rotting", dot = true, walk = 0.85, harmful = true },

@@ -81,6 +81,20 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 6, perSecond = 5 },
 		maxBytes = 64,
 	},
+	RunIntent = { -- the running toggle on/off (Services/MovementService applies it only when allowed)
+		kind = "Event",
+		from = "Client",
+		args = { S.boolean },
+		rate = { capacity = 6, perSecond = 4 },
+		maxBytes = 16,
+	},
+	DashIntent = { -- a dash in this flat direction (Services/MovementService checks everything)
+		kind = "Event",
+		from = "Client",
+		args = { S.vector3(1.5) },
+		rate = { capacity = 4, perSecond = 3 },
+		maxBytes = 48,
+	},
 	GuardIntent = { -- raise or lower the guard (equip mode; Services/GuardService)
 		kind = "Event",
 		from = "Client",
@@ -302,6 +316,7 @@ local Remotes: { [string]: RemoteDef } = {
 		resolved  { ok = true, stage = "resolved", key, cooldownUntil, effective, hits, backfired,
 		            interrupted?, note?, xp? = { branch, gained } } ]]
 	CastResult = { kind = "Event", from = "Server" },
+	DashResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { ok = true, style }; owner only
 	MeleeResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { hit = true, swing }; owner only
 	WeaponResult = { kind = "Event", from = "Server" }, -- { ok = false, reason } | { hit = true } | { fired = true, ammo }; owner only
 	ReservoirState = { kind = "Unreliable", from = "Server" }, -- { current, max, strain, burnoutUntil, lockouts }; owner only

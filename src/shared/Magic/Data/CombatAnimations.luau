@@ -77,14 +77,11 @@ CombatAnimations.rigType = "R6" :: "R6" | "R15"
 --[[
 	Locomotion overrides for Roblox's default Animate script (the LocalScript in every character):
 	Animate child name → clip name in `animations`. The client swaps the Animation ids under those
-	children on spawn, so walking/running uses the owner's clips while Animate keeps handling
-	idle, jump, fall, climb and sit. R6's Animate plays its `walk` set while moving, so both point
-	at Run. Remove an entry to fall back to the Roblox default for that set.
+	children on spawn. Empty since 2026-11-05: walking uses Roblox's default walk, and the Run
+	clip plays only while the running toggle is on (Controllers/MovementClient). Put a walk clip
+	here (walk = "Walk") once there is one.
 ]]
-CombatAnimations.locomotion = {
-	walk = "Run",
-	run = "Run",
-} :: { [string]: string }
+CombatAnimations.locomotion = {} :: { [string]: string }
 
 CombatAnimations.animations = {
 	BlockStart = {

@@ -14,7 +14,7 @@ authority, data-driven content, seeded determinism, the 30–60 player / 100–3
 | 3 | Make the game more engaging (not linear) | design only | Ideas on top of quests / factions / the Director |
 | 4 | Controls panel | UI | One screen + one data module. **Built 2026-11-05** (UI.md §7 Controls) |
 | 5 | Spell-creation explanations | UI + data | Composer text and live previews; no new mechanics. **Built 2026-11-05** (UI.md §4.4) |
-| 6 | Run toggle, walk default, Alt toggle, dash | input + server | Input changes are small; the dash needs server validation |
+| 6 | Run toggle, walk default, Alt toggle, dash | input + server | Input changes are small; the dash needs server validation. **Built 2026-11-05** (Combat.md §15; dash = R) |
 | 7 | Spell sounds and music | audio system | Needs your soundpack first; a new audio layer + music director |
 | 8 | NPCs look better and more unique | world / visuals | Appearance data exists but isn't drawn; asset choices needed |
 | 9 | Make the early game more fun | design + several systems | Re-plans and continues Prompts-EarlyGame.md (2–8) |
