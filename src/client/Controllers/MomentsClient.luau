@@ -114,9 +114,11 @@ local function update()
 		showSurge:set(false)
 	end
 
+	-- Past its time, the panel goes, whatever the server has or hasn't said yet.
 	local id = localPlayer:GetAttribute("BorrowedPower")
-	relicId:set(if typeof(id) == "string" then id else "")
 	local untilBorrowed = localPlayer:GetAttribute("BorrowedUntil")
+	local running = typeof(id) == "string" and typeof(untilBorrowed) == "number" and untilBorrowed > t
+	relicId:set(if running then id :: any else "")
 	relicLine:set(if typeof(untilBorrowed) == "number" then string.format("%d s left", math.max(0, math.ceil(untilBorrowed - t))) else "")
 end
 

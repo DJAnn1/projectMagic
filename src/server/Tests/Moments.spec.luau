@@ -9,6 +9,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Server = ServerScriptService.Server
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local CastService = require(Server.Services.CastService)
+local AdminService = require(Server.Services.AdminService)
 local ItemUse = require(Server.Items.ItemUse)
 local EventRules = require(Server.Social.EventRules)
 
@@ -183,6 +184,30 @@ return function(t: any)
 			expect(#StatusEffects.snapshot(humanoid)).toBe(0)
 			expect(StatusEffects.damageDealtMult(humanoid)).toBeNear(1.2, 0.001)
 			StatusEffects.dispel(humanoid)
+		end)
+	end)
+
+	describe("Admin argument defaults", function()
+		-- The bug this guards: a left-out player reached handlers as the word "me".
+		local def: any = {
+			name = "spec",
+			args = {
+				{ name = "where", type = "string", default = "nearest" },
+				{ name = "player", type = "player", default = "me" },
+			},
+		}
+		local ctx: any = { player = "the caller" }
+		it("a left-out player default becomes the real caller", function()
+			local args: any = AdminService.parseArgs(def, {}, ctx)
+			expect(args.player).toBe("the caller")
+		end)
+		it("a player typed as me means the same", function()
+			local args: any = AdminService.parseArgs(def, { "here", "me" }, ctx)
+			expect(args.player).toBe("the caller")
+		end)
+		it("other string defaults stay as words for their handlers", function()
+			local args: any = AdminService.parseArgs(def, {}, ctx)
+			expect(args.where).toBe("nearest")
 		end)
 	end)
 

@@ -326,7 +326,11 @@ function SurgeService.start(_self: any, _ctx: any)
 	task.spawn(function()
 		while true do
 			task.wait(TICK)
-			tick()
+			-- One failure mustn't stop this loop: every Surge would then last forever.
+			local ok, err = pcall(tick)
+			if not ok then
+				log:throttled("surge_tick", 30, "Error", "surge_tick_failed", { err = err })
+			end
 		end
 	end)
 end

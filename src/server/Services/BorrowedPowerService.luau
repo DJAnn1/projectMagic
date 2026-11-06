@@ -128,7 +128,12 @@ function BorrowedPowerService.start(_self: any, _ctx: any)
 			local t = now()
 			for player, entry in table.clone(active) do
 				if t >= entry.expires then
-					finish(player)
+					-- One failure mustn't stop this loop: everyone after it would keep their relic forever.
+					local ok, err = pcall(finish, player)
+					if not ok then
+						active[player] = nil
+						log:error("borrowed_finish_failed", { err = err })
+					end
 				end
 			end
 		end

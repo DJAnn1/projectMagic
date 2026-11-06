@@ -263,7 +263,17 @@ local function parseArgs(def: CommandDef, tokens: { string }, ctx: Context): ({ 
 		end
 		if raw == nil or raw == "" then
 			if arg.default ~= nil then
-				out[arg.name], out[i] = arg.default, arg.default
+				local value = arg.default
+				-- A player default ("me") has to become a real player, or every handler gets the word "me".
+				-- Other string defaults ("nearest", "here") are read as words by their handlers: left alone.
+				if arg.type == "player" and typeof(value) == "string" then
+					local parsed, err = parseValue(arg, value, ctx)
+					if err or parsed == nil then
+						return nil, (err or ("bad " .. arg.name)) .. "\nusage: " .. usageOf(def)
+					end
+					value = parsed
+				end
+				out[arg.name], out[i] = value, value
 				continue
 			elseif arg.optional then
 				continue
@@ -281,6 +291,8 @@ local function parseArgs(def: CommandDef, tokens: { string }, ctx: Context): ({ 
 	end
 	return out, nil
 end
+
+AdminService.parseArgs = parseArgs -- for specs
 
 -- ─── Audit log ──────────────────────────────────────────────────────────────
 

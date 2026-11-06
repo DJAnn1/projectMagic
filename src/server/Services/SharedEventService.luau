@@ -964,8 +964,7 @@ function SharedEventService.start(_self: any, _ctx: any)
 			table.insert(towns, { id = settlement.id, name = settlement.name, x = settlement.x, z = settlement.z })
 		end
 		local acc = 0
-		while true do
-			task.wait(STEP_SECONDS)
+		local function step()
 			local active = current
 			if active and active.phase ~= "ended" and not enabled() then
 				finish(active, "cancelled")
@@ -981,6 +980,14 @@ function SharedEventService.start(_self: any, _ctx: any)
 				if active then
 					secondTick(active)
 				end
+			end
+		end
+		while true do
+			task.wait(STEP_SECONDS)
+			-- One failure mustn't stop this loop: no event would ever run on this server again.
+			local ok, err = pcall(step)
+			if not ok then
+				log:throttled("shared_event_step", 30, "Error", "shared_event_step_failed", { err = err })
 			end
 		end
 	end)
