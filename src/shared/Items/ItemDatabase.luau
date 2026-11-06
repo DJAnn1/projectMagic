@@ -20,6 +20,7 @@
 
 local Shared = script.Parent.Parent
 local Registry = require(Shared.Magic.Registry)
+local BorrowedPowers = require(Shared.Magic.Data.BorrowedPowers)
 local ItemTypes = require(script.Parent.ItemTypes)
 local Data = script.Parent.Data
 local Items = require(Data.Items)
@@ -52,7 +53,7 @@ ItemDatabase.sets = Affixes.sets
 -- ─── Validation ─────────────────────────────────────────────────────────────
 
 local AFFIX_CLASSES = { weapon = true, focus = true, armor = true, jewelry = true, tool = true }
-local USE_KINDS = { heal = true, reservoir = true, buff = true, study = true, spell = true, repair = true, cleanse = true }
+local USE_KINDS = { heal = true, reservoir = true, buff = true, study = true, spell = true, repair = true, cleanse = true, borrow = true }
 local ID_PATTERN = "^[a-z][a-z0-9_]*$"
 
 local function resistKeyValid(key: string): boolean
@@ -141,6 +142,8 @@ local function validateItem(def: ItemDef)
 				assert(Registry.branches[effect.branch], owner .. ": study needs a real branch")
 			elseif effect.kind == "spell" then
 				assert(typeof(effect.recipe) == "table", owner .. ": spell needs a recipe")
+			elseif effect.kind == "borrow" then
+				assert(BorrowedPowers.relics[effect.relic], owner .. ": borrow needs a real relic")
 			end
 		end
 	end

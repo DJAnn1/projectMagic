@@ -20,6 +20,7 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Registry = require(Shared.Magic.Registry)
 local MagicCore = require(Shared.Magic.MagicCore)
+local BorrowedPowers = require(Shared.Magic.Data.BorrowedPowers)
 local MasteryTiers = require(Shared.Magic.Data.MasteryTiers)
 local ItemTypes = require(Shared.Items.ItemTypes)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
@@ -125,6 +126,9 @@ function ItemWidgets.useText(def: ItemTypes.ItemDef): { string }
 			table.insert(out, string.format("Repairs your most worn gear by %d", e.amount))
 		elseif e.kind == "cleanse" then
 			table.insert(out, "Cures " .. table.concat(e.statuses, ", "))
+		elseif e.kind == "borrow" then
+			local relic = BorrowedPowers.relics[e.relic]
+			table.insert(out, if relic then string.format("%s: %d seconds of mythic magic, once", relic.name, relic.seconds) else "Mythic magic, once")
 		end
 	end
 	return out
