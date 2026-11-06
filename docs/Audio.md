@@ -70,6 +70,7 @@ Every sound and music track the game will use, by role. Data: `src/shared/Audio/
 | `sting.breakthrough` | [Triumphant Fanfare](https://create.roblox.com/store/asset/1845287239) | one-shot | [Triumphant Escape Sting](https://create.roblox.com/store/asset/1837953552) |
 | `sting.tierUp` | [Global Success StingA](https://create.roblox.com/store/asset/1848016523) | one-shot | [The Heroes Return](https://create.roblox.com/store/asset/9041815872) |
 | `sting.discovery` | [New Discovery (sting)](https://create.roblox.com/store/asset/1837765739) | one-shot | [Small Discoveries (sting b)](https://create.roblox.com/store/asset/9040172806) |
+| `sting.first` | [Small Discoveries (sting b)](https://create.roblox.com/store/asset/9040172806) | one-shot | none (first blow, first verb, first form) |
 | `sting.questDone` | [Four Short Fanfare Bridges 4](https://create.roblox.com/store/asset/1838597103) | one-shot |  |
 | `amb.forest` | [Neighborhood Birds 1](https://create.roblox.com/store/asset/9112835056) | loop | [Jungle Dawn 3](https://create.roblox.com/store/asset/9112807051) |
 | `amb.grassland` | [Morning Birds 2](https://create.roblox.com/store/asset/9116969466) | loop |  |

@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Registry = require(ReplicatedStorage.Shared.Magic.Registry)
 local MagicCore = require(ReplicatedStorage.Shared.Magic.MagicCore)
+local AudioLibrary = require(ReplicatedStorage.Shared.Audio.AudioLibrary)
 local Experiment = require(ServerScriptService.Server.Progression.Experiment)
 local T = require(ServerScriptService.Server.Progression.ProgressionTuning)
 local InteractionMatrix = require(ServerScriptService.Server.Magic.Cast.InteractionMatrix)
@@ -91,6 +92,27 @@ return function(t: any)
 				local recipe = Experiment.suggest(caster, {}, Random.new(seed)) :: any
 				t.expect(recipe.branch).toBe("earth")
 			end
+		end)
+
+		t.it("reads the verbs and forms an old save already used", function()
+			local recipe = { branch = "energy", property = "temperature", verb = "generate", form = "touch", power = 2, modifiers = {} }
+			local _, _, normalized = MagicCore.validateRecipe(recipe)
+			local key = MagicCore.recipeKey(normalized :: any)
+			local firsts = Experiment.firstsFromSave({ recipes = { [key] = 500 }, novelty = { ["sense|temperature|aura"] = 1 } })
+			t.expect(firsts["verb:generate"]).toBe(500)
+			t.expect(firsts["form:touch"]).toBe(500)
+			t.expect(firsts["verb:sense"] ~= nil).toBe(true)
+			t.expect(firsts["form:aura"] ~= nil).toBe(true)
+			t.expect(firsts["verb:reduce"]).toBe(nil)
+			t.expect(firsts.damage).toBe(nil) -- never inferred: a save can't show it
+		end)
+
+		t.it("starts a brand new save with no firsts", function()
+			t.expect(next(Experiment.firstsFromSave({ recipes = {}, novelty = {} }))).toBe(nil)
+		end)
+
+		t.it("has a stinger for first-time flourishes", function()
+			t.expect(AudioLibrary.get("sting.first") ~= nil).toBe(true)
 		end)
 
 		t.it("has a description for every reaction, for the discovery toast", function()

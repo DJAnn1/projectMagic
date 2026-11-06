@@ -30,7 +30,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 | **4** | **Beginner situations + a mentor per town** (built 2026-11-05): practice yard, lamps at dusk, show me, lost pet, a lesson from the mentor, sparring; only below Adept, one at a time, never a duel at Sensing. | M–L | EarlyGame #6 | Dead spot 4. |
 | **5** | **First creatures** (built 2026-11-05): six critters in seeded dens around every town, every domain strong against at least one. | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
 | **6** | **Experimentation pays** (built 2026-11-05): novelty XP, first-reaction toasts, Guided "try something". | M | EarlyGame #7 | Once the basics work. |
-| 7 | **First-time flourishes** (first damage, first new verb/form: a stinger and a toast). The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
+| **7** | **First-time flourishes** (built 2026-11-05): first damage, first new verb/form: a stinger and a toast. The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
 | 8 | **Measure the first hour** (JourneySim + telemetry). | M | EarlyGame #8 | Last: measures the above. |
 
 Rules kept: non-linear (suggestions and situations, never a mandatory chain), no paid features, `xpScale = 2.3`, server-authoritative, seeded.
@@ -106,4 +106,14 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Spec:** `Tests/Experiment.spec` (7 tests). Pure rules: `Progression/Experiment`.
 - **Not done (from EarlyGame #7):** the Grimoire page of rumoured techniques (not in this plan item), and toasts for environmental reactions such as dry grass catching or ice being slick: those don't run through the matrix.
 - **Next:** item 7, first-time flourishes.
+
+## 9. Item 7, built (2026-11-05, not yet run)
+
+- **What fires:** the first blow you ever land (spell, weapon or damage over time, on anything but yourself, dummies and creatures included), and the first effective cast of each verb and form. Each fires once per save: "First time: a blow that lands · Generate · Touch", with the new `sting.first` stinger.
+- **One moment, one flourish:** a spell's first hit and first cast arrive moments apart, so `DiscoveryLog` holds a first for 0.25 s and merges what arrives. A cast that opens a verb or form skips its novelty or discovery toast; the XP still pays.
+- **Saved:** `discoveries.firsts`, created on first use and filled from the save's recipes and novelty set, so existing players aren't told they've just found Generate. First damage can't be inferred from a save, so an existing player sees it once.
+- **Stinger:** "Small Discoveries (sting b)", 9040172806, previously the alternate for `sting.discovery`. Not auditioned.
+- **Spec:** `Tests/Experiment.spec` (3 more tests).
+- **Not done (from EarlyGame #4):** sputter and fizzle visuals near the power ceiling.
+- **Next:** item 8, measure the first hour.
 

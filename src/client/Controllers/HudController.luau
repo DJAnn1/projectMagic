@@ -214,6 +214,24 @@ local function onEvent(event: any)
 	elseif kind == "discovery" then
 		C.sound("discovery")
 		toast("Discovered: " .. describeKey(event.key))
+	elseif kind == "first" then
+		-- One toast and one stinger, however many firsts one moment held (DiscoveryLog merges them).
+		local parts: { string } = {}
+		if event.damage then
+			table.insert(parts, "a blow that lands")
+		end
+		local verb = Registry.verbs[event.verb]
+		if verb then
+			table.insert(parts, verb.name)
+		end
+		local form = Registry.forms[event.form]
+		if form then
+			table.insert(parts, form.name)
+		end
+		if #parts > 0 then
+			C.sound("first")
+			toast("First time: " .. table.concat(parts, " · "), Theme.color.accent)
+		end
 	elseif kind == "novelty" then
 		toast("Something new: " .. describeKey(event.key))
 	elseif kind == "reaction" then

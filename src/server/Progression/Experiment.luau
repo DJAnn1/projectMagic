@@ -32,6 +32,30 @@ function Experiment.noveltyXp(found: number): number
 	return math.max(E.noveltyFloor, E.noveltyBase * E.noveltyDecay ^ math.max(0, found))
 end
 
+--[[
+	The verbs and forms a save has already used, as firsts keys ("verb:<id>", "form:<id>"), read from
+	its recipes ("v|branch|property|verb|form|power|cost|mods") and novelty set ("verb|property|form").
+	So a player from before flourishes existed isn't told they've just discovered Generate.
+]]
+function Experiment.firstsFromSave(discoveries: { [string]: any }): { [string]: number }
+	local firsts: { [string]: number } = {}
+	for key, at in (discoveries.recipes or {}) :: { [string]: any } do
+		local parts = string.split(key, "|")
+		if parts[4] and parts[5] then
+			firsts["verb:" .. parts[4]] = if typeof(at) == "number" then at else 0
+			firsts["form:" .. parts[5]] = if typeof(at) == "number" then at else 0
+		end
+	end
+	for combo in (discoveries.novelty or {}) :: { [string]: any } do
+		local parts = string.split(combo, "|")
+		if parts[1] and parts[3] then
+			firsts["verb:" .. parts[1]] = firsts["verb:" .. parts[1]] or 0
+			firsts["form:" .. parts[3]] = firsts["form:" .. parts[3]] or 0
+		end
+	end
+	return firsts
+end
+
 local function shuffled(list: { string }, rng: Random): { string }
 	local out = table.clone(list)
 	for i = #out, 2, -1 do

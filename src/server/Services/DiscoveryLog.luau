@@ -52,6 +52,8 @@ local world: any = nil
 local spellbook: any = nil
 local claimedCache: { [string]: boolean } = {} -- hashes known to be claimed already
 local suggestCounts: { [Player]: number } = {}
+local pendingFirsts: { [Player]: { [string]: any } } = {}
+local FIRST_MERGE = 0.25 -- seconds a first waits for others from the same moment
 
 -- DataStore keys are limited to 50 characters; recipe keys can be longer. Two 32-bit FNV hashes.
 local function storeKey(recipeKey: string): string
@@ -114,6 +116,75 @@ local function noteNovelty(player: Player, state: any, stats: Types.SpellStats):
 	return true
 end
 
+--[[
+	First-time flourishes (docs/EarlyGamePlan.md §9): the first blow you ever land, and the first
+	effective cast of each verb and form, once per save. A spell's first hit and first cast arrive
+	moments apart, so they wait FIRST_MERGE seconds and go out as one event: one toast, one stinger.
+	Saved lazily in discoveries.firsts, filled from the old save on first use (Experiment.firstsFromSave).
+	At most one entry per verb and form plus "damage", so it stays tiny.
+]]
+local function firstsOf(state: any): { [string]: number }
+	local d = state.data.discoveries
+	if not d.firsts then
+		d.firsts = Experiment.firstsFromSave(d)
+	end
+	return d.firsts
+end
+
+local function queueFirst(player: Player, field: string, value: any)
+	local pending = pendingFirsts[player]
+	if pending then
+		pending[field] = value
+		return
+	end
+	pendingFirsts[player] = { kind = "first", [field] = value }
+	task.delay(FIRST_MERGE, function()
+		local event = pendingFirsts[player]
+		pendingFirsts[player] = nil
+		if event and player.Parent then
+			Net.fire("ProgressionChanged", player, { event })
+		end
+	end)
+end
+
+-- Returns true when this cast opened a verb or form you'd never used.
+local function noteFirstCast(player: Player, state: any, stats: Types.SpellStats): boolean
+	local firsts = firstsOf(state)
+	local now = os.time()
+	local recipe = stats.recipe
+	local any = false
+	if not firsts["verb:" .. recipe.verb] then
+		firsts["verb:" .. recipe.verb] = now
+		queueFirst(player, "verb", recipe.verb)
+		any = true
+	end
+	if not firsts["form:" .. recipe.form] then
+		firsts["form:" .. recipe.form] = now
+		queueFirst(player, "form", recipe.form)
+		any = true
+	end
+	return any
+end
+
+-- Any damage you deal to anything but yourself: spells, blades, bows, burns, dummies, creatures.
+local function onTargetDamaged(payload: any)
+	local source = payload.sourceUserId
+	local player = if source then Players:GetPlayerByUserId(source) else nil
+	if not player or payload.model == player.Character then
+		return
+	end
+	local state = playerData:get(player)
+	if not state then
+		return
+	end
+	local firsts = firstsOf(state)
+	if not firsts.damage then
+		firsts.damage = os.time()
+		queueFirst(player, "damage", true)
+		log:info("first_damage", { userId = source })
+	end
+end
+
 function DiscoveryLog.recordCast(_self: any, player: Player, stats: Types.SpellStats, effective: boolean)
 	if not effective then
 		return
@@ -123,17 +194,21 @@ function DiscoveryLog.recordCast(_self: any, player: Player, stats: Types.SpellS
 		return
 	end
 	local novel = noteNovelty(player, state, stats)
+	-- A first says it better than the smaller toasts, so they stay quiet for this cast. Their XP stands.
+	local first = noteFirstCast(player, state, stats)
 	local recipes = state.data.discoveries.recipes
 	if stats.recipe.power < T.experimentation.minPowerForCredit or recipes[stats.key] then
 		-- Not a discovery. A new idea still gets its toast (a discovery would have said it instead).
-		if novel then
+		if novel and not first then
 			Net.fire("ProgressionChanged", player, { { kind = "novelty", key = stats.key } })
 		end
 		return
 	end
 	recipes[stats.key] = os.time()
 	progression:awardDiscovery(player, stats.recipe.branch, stats.recipe.power, false)
-	Net.fire("ProgressionChanged", player, { { kind = "discovery", key = stats.key } })
+	if not first then
+		Net.fire("ProgressionChanged", player, { { kind = "discovery", key = stats.key } })
+	end
 	task.spawn(tryWorldFirst, player, stats)
 end
 
@@ -240,6 +315,7 @@ function DiscoveryLog.init(_self: any, ctx: any)
 	end)
 	Net.handle("SuggestSpell", suggest)
 	ctx.bus:subscribe(Topics.MagicReaction, onReaction)
+	ctx.bus:subscribe(Topics.TargetDamaged, onTargetDamaged)
 	Players.PlayerRemoving:Connect(function(player)
 		suggestCounts[player] = nil
 	end)

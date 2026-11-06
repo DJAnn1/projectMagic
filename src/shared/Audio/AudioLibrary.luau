@@ -76,6 +76,7 @@ local entries: { [string]: Entry } = {
 	["sting.breakthrough"] = { id = 1845287239, name = "Triumphant Fanfare", alt = { { id = 1837953552, name = "Triumphant Escape Sting" } }, loop = false, volume = 0.6 },
 	["sting.tierUp"] = { id = 1848016523, name = "Global Success StingA", alt = { { id = 9041815872, name = "The Heroes Return" } }, loop = false, volume = 0.55 },
 	["sting.discovery"] = { id = 1837765739, name = "New Discovery (sting)", alt = { { id = 9040172806, name = "Small Discoveries (sting b)" } }, loop = false, volume = 0.55 },
+	["sting.first"] = { id = 9040172806, name = "Small Discoveries (sting b)", loop = false, volume = 0.5 }, -- first blow, first verb, first form
 	["sting.questDone"] = { id = 1838597103, name = "Four Short Fanfare Bridges 4", loop = false, volume = 0.55 },
 	["amb.forest"] = { id = 9112835056, name = "Neighborhood Birds 1", alt = { { id = 9112807051, name = "Jungle Dawn 3" } }, loop = true, volume = 0.3 },
 	["amb.grassland"] = { id = 9116969466, name = "Morning Birds 2", loop = true, volume = 0.3 },

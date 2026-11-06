@@ -117,6 +117,7 @@ Theme.sounds = {
 	tierUp = "sting.tierUp",
 	breakthrough = "sting.breakthrough",
 	discovery = "sting.discovery",
+	first = "sting.first",
 	questDone = "sting.questDone",
 	awaken = "sting.awakening",
 	backlash = "spell.backfire",
