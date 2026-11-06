@@ -36,6 +36,7 @@ local Gear = require(Magic.Data.Gear)
 local Resistances = require(Magic.Cast.Resistances)
 local ActionState = require(Magic.Cast.ActionState)
 local NpcLooks = require(script.Parent.NpcLooks)
+local Activities = require(script.Parent.Data.Activities)
 
 local LOD = {}
 
@@ -684,6 +685,8 @@ ActionState.changed:Connect(followState)
 -- "stop all tracks" path covers them. One activity clip at a time.
 
 local activityChecked: { [string]: boolean } = {}
+-- Which play of a held clip is current, so an old freeze can't catch a newer play.
+local holdTokens: { [AnimationTrack]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 function LOD.stopActivity(npc: any)
 	local rig: Rig? = npc.rig
@@ -741,8 +744,29 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 			other:Stop(0.2)
 		end
 	end
-	track.Looped = looped
+	local hold = looped and Activities.holdAtEnd[slot] == true
+	track.Looped = looped and not hold
 	track:Play(0.2)
+	local playing = track
+	local token = (holdTokens[playing] or 0) + 1
+	holdTokens[playing] = token
+	if hold then
+		-- Sit down once, then stay: freeze just before the end, or the clip would stop and fade out.
+		task.spawn(function()
+			local waited = 0
+			while playing.Length <= 0 and waited < 3 do
+				task.wait(0.1)
+				waited += 0.1
+			end
+			if playing.Length <= 0 then
+				return
+			end
+			task.wait(math.max(0, playing.Length - playing.TimePosition - 0.05))
+			if holdTokens[playing] == token and playing.IsPlaying then
+				playing:AdjustSpeed(0)
+			end
+		end)
+	end
 end
 
 -- Welds a prop (Data/Activities.Props) to the right arm, or with nil removes the current one.
