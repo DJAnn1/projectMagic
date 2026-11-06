@@ -26,6 +26,11 @@ return table.freeze({
 	maxOffers = 3, -- open offers per player
 	maxActive = 5, -- active personal quests per player
 	offerHours = 6, -- real hours an unaccepted offer stays open
+	-- Party members advancing each other's quests (docs/Social.md §3).
+	party = {
+		helperShare = 0.6, -- a helper's rewards, as a share of what the quest's owner gets
+		assistRadius = 150, -- studs from the owner when it ends: being there counts as helping
+	},
 	-- Pacing: tension 0..1 per player. Calm wants intensity <= 0.35, rising <= 0.65, peak any.
 	tension = {
 		decayPerMinute = 0.02,

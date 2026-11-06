@@ -458,6 +458,7 @@ local function aftermath(
 		power = stats.recipe.power,
 		tags = InteractionMatrix.tagsFor(stats),
 		effective = outcome.effective and not backfire,
+		backfired = backfire,
 		hits = outcome.hits,
 		harmful = stats.harmful,
 		forbidden = branchDef ~= nil and table.find(branchDef.tags or {}, "forbidden") ~= nil,

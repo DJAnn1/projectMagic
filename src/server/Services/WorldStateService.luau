@@ -42,6 +42,7 @@ local TerrainBuilder = require(World.TerrainBuilder)
 local Settlements = require(World.Settlements)
 local CharacterSafety = require(World.CharacterSafety)
 local Damage = require(script.Parent.Parent.Magic.Cast.Damage)
+local PvpRules = require(script.Parent.Parent.Magic.Cast.PvpRules)
 
 export type Modifier = {
 	id: string,
@@ -663,7 +664,7 @@ end
 ]]
 -- Quake damage (World/Effects/Earthquake): everyone within `radius`, strongest at the centre.
 -- Players and NPC rigs alike, through Cast/Damage (damage numbers, NPC aggro, wards). Other players
--- only with pvp_enabled; the caster is always caught by their own quake; natural quakes (no
+-- follow Cast/PvpRules; the caster is always caught by their own quake; natural quakes (no
 -- caster) hit everyone. No `from`: a raised guard doesn't stop the ground shaking under you.
 function WorldStateService.damageCharacters(_self: any, position: Vector3, radius: number, amount: number, caster: Player?): { [Humanoid]: number }
 	local hits = {}
@@ -677,7 +678,7 @@ function WorldStateService.damageCharacters(_self: any, position: Vector3, radiu
 		if distance > radius then
 			return
 		end
-		if player and not (player == caster or caster == nil or flags.get("pvp_enabled")) then
+		if player and caster and not PvpRules.allowed(caster.UserId, player.UserId) then
 			return
 		end
 		local dealt = Damage.apply(humanoid, amount * (1 - distance / radius), if caster then caster.UserId else nil, "quake", {

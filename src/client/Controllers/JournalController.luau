@@ -116,7 +116,7 @@ local function questCard(parent: Instance, quest: any, section: string, order: n
 	C.padding(Theme.space.m).Parent = card
 	C.list("y", Theme.space.xs).Parent = card
 
-	local title = quest.title .. (if quest.scope == "shared" then "  · anyone can help" else "")
+	local title = quest.title .. (if quest.helping then "  · helping " .. quest.helping elseif quest.scope == "shared" then "  · anyone can help" else "")
 	C.text(title, "label", { FontFace = Theme.font.bold, LayoutOrder = 1, Parent = card })
 	C.text(quest.summary, "body", { TextColor3 = Theme.color.inkDim, LayoutOrder = 2, Parent = card })
 	if section ~= "offers" then
@@ -232,10 +232,11 @@ local function buildQuests(parent: Instance, d: any)
 	end
 	list("Asked of you", d.offers, "offers", 1)
 	list("Under way", d.active, "active", 2)
-	list("Trouble nearby", d.shared, "shared", 3)
+	list("Your party's quests", d.party, "shared", 3)
+	list("Trouble nearby", d.shared, "shared", 4)
 	if d.finished and #d.finished > 0 then
 		any = true
-		local box = section(parent, "Finished", 4)
+		local box = section(parent, "Finished", 5)
 		for i, f in d.finished do
 			C.text(string.format("%s %s — %s", if f.success then "★" else "·", f.title, f.text), "caption", {
 				TextColor3 = if f.success then Theme.color.ink else Theme.color.inkDim,

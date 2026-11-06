@@ -32,6 +32,7 @@ local Server = script.Parent.Parent
 local FactionData = require(Server.Quests.Data.Factions)
 local Q = require(Server.Quests.Data.QuestTuning)
 local NPCCombat = require(Server.NPC.NPCCombat)
+local PvpRules = require(Server.Magic.Cast.PvpRules)
 
 local F = FactionData.factions
 
@@ -248,8 +249,9 @@ local function onTargetDamaged(payload: any)
 		return
 	end
 	local humanoid: Humanoid? = payload.humanoid
-	if humanoid and humanoid:GetAttribute("QuestSanction") == source then
-		return -- a duel, or someone who came to kill you
+	local sanction = humanoid and humanoid:GetAttribute("QuestSanction")
+	if sanction == source or (typeof(sanction) == "number" and PvpRules.sameParty(sanction, source)) then
+		return -- a duel, or someone who came to kill you (you or a party member's quest)
 	end
 	local position = npc.position
 	local factions = FactionService:factionsOf(npc)

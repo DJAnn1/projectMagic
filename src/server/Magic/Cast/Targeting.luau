@@ -8,7 +8,8 @@
 		Targeting.inCone(origin, direction, reach, degrees, max, exclude?) -> { Hit }
 		Targeting.alongLine(from, to, max, ignore) -> { Hit }          thin ray, walls stop it
 		Targeting.alongBeam(from, to, radius, max, ignore) -> { Hit }  thick sweep, walls stop it
-		Targeting.canHarm(caster, model) -> boolean      PvP flag; never the caster (backfires excepted)
+		Targeting.canHarm(caster, model) -> boolean      Cast/PvpRules; never the caster (backfires excepted)
+		Targeting.canHelp(caster, model) -> boolean      heals and buffs: not across a duel
 		Targeting.lineOfSight(from, to, ignore, tolerance) -> (clear, hitPosition?)
 		Targeting.occluded(from, to, target) -> boolean   a solid wall between two points
 
@@ -31,9 +32,9 @@
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
-local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Aim = require(Shared.Magic.Aim)
 local CastTypes = require(script.Parent.CastTypes)
+local PvpRules = require(script.Parent.PvpRules)
 local C = require(script.Parent.Parent.Data.CombatTuning)
 
 export type Hit = CastTypes.Hit
@@ -62,15 +63,22 @@ function Targeting.characterOf(instance: Instance?): Hit?
 	return nil
 end
 
--- Other players are only harmed with pvp_enabled. NPCs always can be. Never yourself.
+-- Other players follow PvpRules (duels, party, pvp_enabled). NPCs always can be. Never yourself.
 function Targeting.canHarm(caster: Player, model: Model): boolean
 	if model == caster.Character then
 		return false
 	end
-	if Players:GetPlayerFromCharacter(model) then
-		return FeatureFlags.get("pvp_enabled") == true
+	local victim = Players:GetPlayerFromCharacter(model)
+	if victim then
+		return PvpRules.allowed(caster.UserId, victim.UserId)
 	end
 	return true
+end
+
+-- May this caster heal or buff that character? Anyone, unless a duel keeps them apart.
+function Targeting.canHelp(caster: Player, model: Model): boolean
+	local target = Players:GetPlayerFromCharacter(model)
+	return target == nil or PvpRules.canHelp(caster.UserId, target.UserId)
 end
 
 local function isSolid(instance: Instance): boolean

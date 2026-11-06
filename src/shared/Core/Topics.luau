@@ -25,7 +25,7 @@ return table.freeze({
 	TargetDamaged = "TargetDamaged", -- { humanoid, model, amount, kind, sourceUserId?, crit, domain?, branch?, killed }
 	TargetKilled = "TargetKilled", -- { humanoid, model, kind, sourceUserId?, domain? }
 	StatusApplied = "StatusApplied", -- { humanoid, model, status, duration, sourceUserId? } a NEW status (not a refresh)
-	SpellResolved = "SpellResolved", -- { casterUserId, key, route, point, domains, branch, branchPath, property, verb, form, power, tags, effective, hits, harmful, forbidden }
+	SpellResolved = "SpellResolved", -- { casterUserId, key, route, point, domains, branch, branchPath, property, verb, form, power, tags, effective, backfired, hits, harmful, forbidden }
 	MagicReaction = "MagicReaction", -- { result, description, owner: number?, branch: string? } an InteractionMatrix reaction fired; owner triggered it
 	-- NPCs, quests and reputation (docs/Quests.md)
 	NpcTalked = "NpcTalked", -- { player, npcId, topic }
@@ -42,6 +42,10 @@ return table.freeze({
 	ItemUsed = "ItemUsed", -- { player, itemId } a consumable, book or scroll was used successfully
 	HouseClaimed = "HouseClaimed", -- { player, lotId, price } (Services/HousingService)
 	ItemCrafted = "ItemCrafted", -- { player, recipe, itemId, count } (Services/CraftingService)
+	-- Social (docs/Social.md)
+	PartyChanged = "PartyChanged", -- { partyId } someone joined or left (Services/PartyService)
+	ComboTriggered = "ComboTriggered", -- { combo, a, b, position, targets, total } (Services/ComboService)
+	DuelEnded = "DuelEnded", -- { id, a, b, winner?, reason, rule } (Services/DuelService)
 
 	-- Client
 	ScreenChanged = "ScreenChanged", -- { screen: string? } full-screen UI opened (id) or closed (nil)

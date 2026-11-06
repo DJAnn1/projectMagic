@@ -136,6 +136,9 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		if harmful and not ctx.backfire and not Targeting.canHarm(ctx.player, hit.model) then
 			continue
 		end
+		if not harmful and not Targeting.canHelp(ctx.player, hit.model) then
+			continue -- no outside help in a duel
+		end
 		if params.cleanse then
 			affected += StatusEffects.cleanse(hit.humanoid, params.cleanse)
 		elseif statusId and StatusEffects.apply(hit.humanoid, statusId, { duration = duration, magnitude = magnitude, source = ctx.player.UserId, resist = wardResist }) then

@@ -72,7 +72,7 @@ local QuestDirector = {
 	dependencies = {
 		"NetService", "PlayerDataService", "WorldStateService", "WorldService", "EventDirector", "NPCService",
 		"ProgressionService", "ReputationService", "FactionService", "JournalService", "AdminService",
-		"InventoryService",
+		"InventoryService", "PartyService",
 	},
 }
 
@@ -89,6 +89,7 @@ local inventory: any = nil -- InventoryService
 local reputation: any = nil
 local factions: any = nil
 local journal: any = nil
+local parties: any = nil -- PartyService
 local worldSeed = 0
 
 local situations: { [string]: Situation } = {}
@@ -189,13 +190,31 @@ local function playersOf(quest: QuestState): { Player }
 	return out
 end
 
--- Every active quest a player can make progress on (their own + shared ones near them).
+--[[
+	Can a party member help with this personal quest? Not a first-hour quest (a veteran friend doing
+	your tutorial teaches you nothing), and not one that starts by itself because someone is hunting
+	you. Everything else: your party can advance it (docs/Social.md §3).
+]]
+local function sharesWithParty(quest: QuestState): boolean
+	local template = T[quest.template]
+	return template ~= nil and template.scope ~= "shared" and not template.beginner and not template.autoStart
+end
+
+-- Every active quest a player can make progress on: their own, their party's, and shared ones near them.
 local function activeFor(player: Player): { QuestState }
 	local out: { QuestState } = {}
 	local q = questsOf(player)
 	if q then
 		for _, quest in q.active do
 			table.insert(out, quest)
+		end
+	end
+	for _, mate in parties:matesOf(player) do
+		local theirs = questsOf(mate)
+		for _, quest in (if theirs then theirs.active else {}) :: { [string]: QuestState } do
+			if sharesWithParty(quest) then
+				table.insert(out, quest)
+			end
 		end
 	end
 	local root = rootOf(player)
@@ -505,6 +524,12 @@ local function enterStage(quest: QuestState, stageId: string)
 	for _, player in playersOf(quest) do
 		journal:log(player, "quest", QuestFactory.text(quest, stage.text), { questId = quest.id })
 	end
+	-- The party follows along too (their journal, not a toast per step of someone else's story).
+	if quest.owner and sharesWithParty(quest) then
+		for _, mate in parties:matesOfUser(quest.owner) do
+			journal:log(mate, "quest", QuestFactory.text(quest, stage.text), { questId = quest.id })
+		end
+	end
 end
 
 local function start(quest: QuestState, player: Player?)
@@ -575,10 +600,65 @@ local function addProgress(quest: QuestState, optionId: string, spec: QuestTypes
 		local id = tostring(contributor.UserId)
 		quest.contributors[id] = (quest.contributors[id] or 0) + gain
 	end
+	if contributor and quest.owner and contributor.UserId ~= quest.owner then
+		local helpers = quest.helpers or {}
+		helpers[tostring(contributor.UserId)] = true
+		quest.helpers = helpers
+	end
 	if quest.progress[key] >= required and before < required and contributor then
 		journal:log(contributor, "quest", "Done: " .. QuestFactory.text(quest, spec.text), { questId = quest.id })
 	end
 	checkOptions(quest)
+end
+
+--[[
+	The owner's party when their quest succeeds. A member counts if they advanced it or were near the
+	owner at the end (a healer never ticks an objective, and still helped). They get a share of the
+	good parts only: XP in their OWN best branch, coins, and standing gained. Never fines, infamy,
+	bounties, lore, lessons, awakenings, follow-ups or the quest's own NPC bond: those belong to the
+	person whose story it is. Being in a party when a quest fails costs you nothing.
+]]
+local function rewardHelpers(quest: QuestState, template: Template, outcome: any, outcomeId: string, text: string)
+	local owner = quest.owner
+	if not owner or not sharesWithParty(quest) then
+		return
+	end
+	local ownerPlayer = Players:GetPlayerByUserId(owner)
+	local ownerRoot = ownerPlayer and rootOf(ownerPlayer)
+	local rewards = outcome.rewards
+	for _, mate in parties:matesOfUser(owner) do
+		local root = rootOf(mate)
+		local near = ownerRoot ~= nil and root ~= nil and (ownerRoot.Position - root.Position).Magnitude <= Q.party.assistRadius
+		local helped = quest.helpers ~= nil and quest.helpers[tostring(mate.UserId)] == true
+		if helped or near then
+			if rewards then
+				local gains: { [string]: number } = {}
+				for key, delta in (rewards.reputation or {}) :: { [string]: number } do
+					if delta > 0 then
+						gains[key] = delta
+					end
+				end
+				giveRewards(mate, quest, {
+					xp = if rewards.xp then { branch = "best:any", amount = rewards.xp.amount } else nil,
+					currency = if rewards.currency and rewards.currency > 0 then rewards.currency else nil,
+					reputation = gains,
+				} :: any, Q.party.helperShare)
+			end
+			factions:deed(mate, "quest_helped", situationPosition(quest), { magnitude = 0.25 })
+			journal:log(mate, "outcome", text, { questId = quest.id })
+			local q = questsOf(mate)
+			if q then
+				table.insert(q.finished, {
+					id = quest.id, template = template.id, title = QuestFactory.text(quest, template.title),
+					outcome = outcomeId, text = text, success = true, t = os.time(), creative = #quest.creative > 0, helped = true,
+				})
+				while #q.finished > FINISHED_CAP do
+					table.remove(q.finished, 1)
+				end
+			end
+			log:info("quest_helped", { quest = quest.id, userId = mate.UserId })
+		end
+	end
 end
 
 finish = function(quest: QuestState, outcomeId: string, reason: string?)
@@ -654,6 +734,9 @@ finish = function(quest: QuestState, outcomeId: string, reason: string?)
 				table.insert(q.followUps, { template = outcome.followUp, situation = quest.situation, slots = quest.slots })
 			end
 		end
+	end
+	if outcome.success and (quest.status :: string) == "completed" then
+		rewardHelpers(quest, template, outcome, outcomeId, text)
 	end
 	-- An owner who was offline (or a shared quest nobody finished) still clears the record.
 	if quest.owner then
@@ -1095,7 +1178,9 @@ local function onTalked(payload: any)
 								quest.carried[gives] = true
 							end
 							addProgress(quest, option.id, spec, 1, player, false)
-						elseif spec.kind == "pay" and state then
+						elseif spec.kind == "pay" and state and (not quest.owner or quest.owner == player.UserId) then
+							-- Only your own quest can spend your coins: chatting to someone a
+							-- party member owes money must never empty your purse.
 							local amount = spec.amount or (spec.args and quest.slots[spec.args.amountSlot or ""]) or 0
 							if inventory:addCurrency(player, -amount, "quest pay " .. quest.template) then
 								addProgress(quest, option.id, spec, 1, player, false)
@@ -1136,7 +1221,9 @@ local function onDamaged(payload: any)
 			for _, spec in Objectives.open(option, quest.progress) do
 				if spec.kind == "subdue" and quest.slots[spec.target or ""] == npcId then
 					local owner = quest.owner
-					if (not owner or payload.sourceUserId == owner) and (payload.killed or share <= (spec.share or Q.duelYieldShare)) then
+					local source = payload.sourceUserId
+					local byOwner = not owner or source == owner or (source ~= nil and sharesWithParty(quest) and parties:sameParty(source, owner))
+					if byOwner and (payload.killed or share <= (spec.share or Q.duelYieldShare)) then
 						local npc = npcs:get(npcId)
 						if npc then
 							NPCCombat.disengage(npc) -- they yield
@@ -1214,7 +1301,8 @@ local function pollQuest(player: Player, quest: QuestState, root: BasePart, dt: 
 			elseif spec.kind == "escort" then
 				local npc = npcOf(quest, spec.target)
 				if npc and quest.owner then
-					if not npc.leash and (npc.position - root.Position).Magnitude <= 15 then
+					-- Only the owner picks them up: they follow the owner, wherever a helper stands.
+					if not npc.leash and player.UserId == quest.owner and (npc.position - root.Position).Magnitude <= 15 then
 						npcs:setLeash(npc, { kind = "follow", userId = quest.owner })
 						if npc.rig then
 							npc.rig.humanoid:SetAttribute("QuestWard", quest.owner)
@@ -1233,7 +1321,7 @@ local function pollQuest(player: Player, quest: QuestState, root: BasePart, dt: 
 						npc.rig.humanoid:SetAttribute("QuestSanction", quest.owner)
 					end
 					if not NPCCombat.engaged(npc) then
-						NPCCombat.challenge(npc, "u:" .. quest.owner)
+						NPCCombat.challenge(npc, "u:" .. player.UserId) -- whoever came close: the owner or a helper
 					end
 				end
 			elseif spec.kind == "witness" and near then
@@ -1405,7 +1493,7 @@ local function pinsFor(player: Player): { any }
 										text = QuestFactory.text(quest, spec.text),
 										p = p,
 										tracked = quest.tracked == true,
-										shared = quest.scope == "shared",
+										shared = quest.scope == "shared" or quest.owner ~= player.UserId,
 										person = npc ~= nil,
 									})
 								end
@@ -1448,16 +1536,22 @@ local function questsTab(player: Player, _page: number): any
 	for _, quest in q.active do
 		table.insert(active, viewOf(player, quest))
 	end
+	local party = {}
 	for _, quest in activeFor(player) do
 		if quest.scope == "shared" then
 			table.insert(nearby, viewOf(player, quest))
+		elseif quest.owner and quest.owner ~= player.UserId then
+			local view = viewOf(player, quest)
+			local owner = Players:GetPlayerByUserId(quest.owner)
+			view.helping = if owner then owner.DisplayName else "your party"
+			table.insert(party, view)
 		end
 	end
 	local finished = {}
 	for i = #q.finished, 1, -1 do
 		table.insert(finished, q.finished[i])
 	end
-	return { offers = offers, active = active, shared = nearby, finished = finished }
+	return { offers = offers, active = active, party = party, shared = nearby, finished = finished }
 end
 
 local function onActionInner(player: Player, questId: string, action: string): any
@@ -1828,6 +1922,7 @@ function QuestDirector.init(_self: any, ctx: any)
 	reputation = ctx.get("ReputationService")
 	factions = ctx.get("FactionService")
 	journal = ctx.get("JournalService")
+	parties = ctx.get("PartyService")
 
 	journal:setTab("quests", questsTab)
 	Net.handle("QuestAction", onAction)

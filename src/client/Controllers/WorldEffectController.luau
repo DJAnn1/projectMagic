@@ -15,6 +15,7 @@
 		backlash         a burst at the caster; our own backlash also shakes the camera
 		status           our own status overlays (blind, slowed time, silence, burning...)
 		                 (+ knockdown: our character falls for the duration, then gets up)
+		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
 		event, event_end world events (no visuals yet)
 	Everything visual is pooled and LOD-scaled inside SpellFx; a failing handler is logged, never
 	allowed to break the listener.
@@ -29,6 +30,7 @@ local FxPool = require(script.Parent.Parent.Fx.FxPool)
 local CombatFeedback = require(script.Parent.Parent.Fx.CombatFeedback)
 local WeaponFx = require(script.Parent.Parent.Fx.WeaponFx)
 local DashFx = require(script.Parent.Parent.Fx.DashFx)
+local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
@@ -132,6 +134,10 @@ local function handle(effect: { [string]: any })
 		CombatFeedback.heal(effect)
 	elseif kind == "statusTag" then
 		CombatFeedback.statusTag(effect)
+	elseif kind == "combo" then
+		ComboFx.play(effect)
+	elseif kind == "combo_ready" then
+		ComboFx.ready(effect)
 	end
 end
 

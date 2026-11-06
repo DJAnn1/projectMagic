@@ -209,6 +209,7 @@ export type QuestState = {
 	outcome: string?,
 	firedComplications: { string },
 	contributors: { [string]: number }?, -- shared: userId -> contribution
+	helpers: { [string]: boolean }?, -- personal: party members who advanced it (docs/Social.md §3)
 	tracked: boolean?,
 }
 

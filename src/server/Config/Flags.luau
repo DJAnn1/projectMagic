@@ -29,6 +29,10 @@ return {
 
 	-- Gameplay kill switches
 	pvp_enabled = { default = true, description = "Spells, melee, fire and disasters can hurt other players (the caster is always affected). On for everyone since 2026-11-03." },
+	party_enabled = { default = true, description = "Players can form parties (Services/PartyService). Existing parties stay until they leave." },
+	combos_enabled = { default = true, description = "Two party members' spells can combine into a combo (Services/ComboService)." },
+	emotes_enabled = { default = true, description = "Players can use emotes and flourishes (Services/EmoteService)." },
+	duels_enabled = { default = true, description = "Players can challenge each other to duels (Services/DuelService). Running duels finish." },
 	quests_enabled = { default = true, description = "Quest Director: situations, offers, quest progress and outcomes (Services/QuestDirector)." },
 	combat_anim_debug = { default = false, replicate = true, description = "Show each nearby character's and NPC's action state over its head (client labels; every client sees them, so Studio use)." },
 	combat_debug_log = { default = false, description = "Log every cast's damage breakdown (power, base, each target's damage, crits, kills) at Info level." },

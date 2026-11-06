@@ -320,6 +320,35 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 6, perSecond = 2 },
 		maxBytes = 96,
 	},
+	-- Social (docs/Social.md). Targets are UserIds (negative in Studio test sessions).
+	PartyAction = { -- op, userId? -> { ok, reason? } (Services/PartyService)
+		kind = "Function",
+		from = "Client",
+		args = { S.literal("invite", "accept", "decline", "leave", "kick", "promote"), S.optional(S.integer(-1000000, 2 ^ 53)) },
+		rate = { capacity = 6, perSecond = 1 },
+		maxBytes = 64,
+	},
+	DuelAction = { -- op, userId?, rule id? -> { ok, reason? } (Services/DuelService)
+		kind = "Function",
+		from = "Client",
+		args = { S.literal("challenge", "accept", "decline", "cancel", "yield"), S.optional(S.integer(-1000000, 2 ^ 53)), S.optional(ID) },
+		rate = { capacity = 5, perSecond = 1 },
+		maxBytes = 96,
+	},
+	EmoteIntent = { -- an emote id (Shared/Social/Data/Emotes) or "stop" (Services/EmoteService)
+		kind = "Event",
+		from = "Client",
+		args = { ID },
+		rate = { capacity = 4, perSecond = 1 },
+		maxBytes = 64,
+	},
+	ReportBlocks = { -- this client's Roblox block list; it can only hide things from the sender (Services/SocialSafetyService)
+		kind = "Event",
+		from = "Client",
+		args = { S.array(S.integer(-1000000, 2 ^ 53), 500) },
+		rate = { capacity = 3, perSecond = 0.2 },
+		maxBytes = 5000,
+	},
 	-- No admin remotes here: the Admin Panel's two RemoteEvents are created per admin inside
 	-- that admin's PlayerGui (Services/AdminService), so other clients never see them.
 
@@ -349,6 +378,10 @@ local Remotes: { [string]: RemoteDef } = {
 	HousingState = { kind = "Event", from = "Server" }, -- your house: { lot, name, home, town, built, lotCFrame, interiorCFrame, interiorSize, floorY, decor, decorMax, parts, partsMax } or {}
 	OpenScreen = { kind = "Event", from = "Server" }, -- { id } the world asks the client to open a screen (a notice board opens the Journal) -- { id, station, tier, name }: a crafting station you just used -- InventoryView (Shared/Items/ItemTypes): the whole inventory, owner only, once per change
 	QuestPins = { kind = "Event", from = "Server" }, -- { { q, title, text, p: Vector3, tracked, shared, person } }: your open objectives (owner only, on change)
+	PartyState = { kind = "Event", from = "Server" }, -- { id?, leader?, members = { { u, name, user } }, invites = { { from, name, user, expires } } }: yours, on change
+	PartyVitals = { kind = "Unreliable", from = "Server" }, -- { { u, h, m, r, rm, x?, z? } }: health, reservoir and rough position of your party, 2 Hz on change
+	DuelState = { kind = "Event", from = "Server" }, -- { phase, ... } (Services/DuelService): the two fighters only
+	EmoteCue = { kind = "Event", from = "Server" }, -- { u, id, on, hide? }: someone in range started or stopped an emote
 }
 
 return Remotes
