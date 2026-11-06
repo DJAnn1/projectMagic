@@ -335,6 +335,58 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 5, perSecond = 1 },
 		maxBytes = 96,
 	},
+	PartyLoot = { -- leader sets the party's loot mode -> { ok, reason? } (Services/PartyLootService)
+		kind = "Function",
+		from = "Client",
+		args = { S.literal("free_for_all", "round_robin", "need_greed") },
+		rate = { capacity = 4, perSecond = 1 },
+		maxBytes = 48,
+	},
+	LootRollChoice = { -- roll id, your answer (Services/PartyLootService)
+		kind = "Event",
+		from = "Client",
+		args = { ID, S.literal("need", "greed", "pass") },
+		rate = { capacity = 8, perSecond = 3 },
+		maxBytes = 96,
+	},
+	RequestSharedEvent = { -- -> the current server-wide event's state, or nil (Services/SharedEventService)
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.5 },
+		maxBytes = 16,
+	},
+	RequestWorldNews = { -- -> { news = { { text, t } }, board = { { rank, name, points, me } }, season, mine } (Services/WorldNewsService)
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.3 },
+		maxBytes = 16,
+	},
+	TradeAction = { -- op, a?, n? -> { ok, reason? } (Services/TradeService)
+		kind = "Function",
+		from = "Client",
+		args = {
+			S.literal("request", "accept", "decline", "cancel", "offer", "remove", "coins", "ready", "confirm"),
+			S.optional(S.string(1, 32)),
+			S.optional(S.integer(0, 1000000000)),
+		},
+		rate = { capacity = 10, perSecond = 4 },
+		maxBytes = 96,
+	},
+	MarketAction = { -- op, a?, b?, n?, m? -> { ok, reason?, ... } (Services/MarketService)
+		kind = "Function",
+		from = "Client",
+		args = {
+			S.literal("browse", "mine", "list", "auction", "buy", "bid", "cancel", "collect", "commission", "take", "complete"),
+			S.optional(S.string(1, 64)),
+			S.optional(S.string(1, 64)),
+			S.optional(S.integer(0, 1000000000)),
+			S.optional(S.integer(0, 1000)),
+		},
+		rate = { capacity = 8, perSecond = 2 },
+		maxBytes = 192,
+	},
 	EmoteIntent = { -- an emote id (Shared/Social/Data/Emotes) or "stop" (Services/EmoteService)
 		kind = "Event",
 		from = "Client",
@@ -382,6 +434,12 @@ local Remotes: { [string]: RemoteDef } = {
 	PartyVitals = { kind = "Unreliable", from = "Server" }, -- { { u, h, m, r, rm, x?, z? } }: health, reservoir and rough position of your party, 2 Hz on change
 	DuelState = { kind = "Event", from = "Server" }, -- { phase, ... } (Services/DuelService): the two fighters only
 	EmoteCue = { kind = "Event", from = "Server" }, -- { u, id, on, hide? }: someone in range started or stopped an emote
+	LootRoll = { kind = "Event", from = "Server" }, -- { id, item, n, expires } a need-or-greed roll opened, or { id, closed = true }: party members
+	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, place, x, y, z, radius, warnEnds, endsAt, progress, goal } or { phase = "none" }
+	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds }: your contribution, once a second while you're taking part
+	WorldNews = { kind = "Event", from = "Server" }, -- { text, t }: a rare feat somewhere in the world
+	TradeState = { kind = "Event", from = "Server" }, -- your trade window (Services/TradeService), or { stage = "none" }
+	MarketChanged = { kind = "Event", from = "Server" }, -- { mail = number }: refresh the Market screen; mail waiting for you
 }
 
 return Remotes

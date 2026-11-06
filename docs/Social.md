@@ -5,10 +5,10 @@ The owner's brief (2026-11-05): make playing with others fun without breaking th
 | Stage | What | State |
 |---|---|---|
 | **1** | Audit, parties with shared quest progress, the party UI, one two-player combo, emotes, consent-based duels | built 2026-11-05, not yet run |
-| 2 | Guilds | waiting for the owner to confirm stage 1 |
-| 3 | Shared world events | later |
-| 4 | Player markets, safe trading | later |
-| 5 | Social hubs, PvP modes | later |
+| 1b | Party sharing of creature XP and loot, quest XP and loot | built 2026-11-05, not yet run |
+| **2** | **Shared world events, cross-server news, markets, safe trading (owner asked for these next)** | **designed below, not written** |
+| 3 | Guilds | later |
+| 4 | Social hubs, PvP modes | later |
 
 Left out of stage 1 on purpose, to arrive with those stages: party loot options, shared discoveries, more combos and supportive roles, group scaling, mentorship, titles and banners, wagers, duel arenas and replays, mute and report tools, and the fake-player load test.
 
@@ -41,7 +41,7 @@ Ranked by how much it would hurt. **Fixed** means in this stage.
 4. **Fixed: hitting a party member's sanctioned rival was a crime.** `FactionService.luau:251` only excused the quest's owner.
 5. **Not fixed: griefing with open PvP.** With `pvp_enabled` on, anyone can attack anyone, including at spawn and new players. This was the owner's call on 2026-11-03, so it stays until they decide (see Open questions). Parties and duels work either way.
 6. **Not fixed: quest wards can clash.** Two players with quests on the same NPC overwrite each other's `QuestWard` (`QuestDirector.luau:1182`), and the loser's hits do nothing. Rare, and would need per-quest wards.
-7. **Not fixed: creature kills reward the last hit only** (`CreatureService.luau:22`). Fighting one together pays only whoever finishes it. Needs a design decision on assists; belongs with group scaling.
+7. **Corrected 2026-11-05:** this audit first said creature kills reward only the last hit. That was wrong: everyone who dealt `creditShare` of its health was already rewarded (`CreatureService.luau:21`). What was missing was credit for party members who dealt less, such as healers. Fixed in §3.
 8. **Not fixed: effects with no source hurt allies.** Fire that has spread with no recorded caster (`FireSim.luau:251`) and the steam reaction's burn (`InteractionMatrix.luau:184`) carry no source, so party protection can't apply to them. A non-damaging push (`Force.luau:80`) still moves anyone, which allows some griefing.
 9. **Not fixed: watching teaches for free.** `CastService.luau:479` gives observation XP to anyone nearby. Its anti-grind caps apply, but two friends can use it deliberately.
 
@@ -82,7 +82,48 @@ Each quest still has one owner and is saved in their data. Party members can adv
 - **Only the owner can:** accept, abandon, pay coins, and pick up an escort.
 - **Helper rewards**, when the quest succeeds, for anyone who advanced it or stood within 150 studs of the owner at the end: 60% of the XP (in their own best branch), coins and standing gained. Never fines, infamy, bounties, lore, lessons or awakenings; a failed quest costs helpers nothing.
 
-**Known limit:** shared crises still pay by personal contribution, so a healer standing by earns little.
+Shared crises: party members within 150 studs of a rewarded member now share at 60% of that member's share.
+
+### Shared creature XP and loot, and quest items (built 2026-11-05, not yet run)
+
+- **Share:** members within 120 studs of a kill each earn `(1 + 0.35 × (n − 1)) / n` of a solo reward: 67% for 2, 57% for 3, 51% for 4, 48% for 5 (`Data/PartyRewards`). Strangers still earn their own reward as before.
+- **Loot mode (leader picks, Party screen):** free for all, round robin (coins split evenly), or need or greed (gear only; stackables go round robin). `Services/PartyLootService`, `Social/LootRules`.
+- **Quest items are new.** Quests only paid coins before, so a successful quest now also has a seeded item drop by template type (`QuestTuning.loot`). This also applies to solo players. Chores, training, hunted and atonement quests drop nothing.
+- **Limit:** a need-or-greed roll is held in memory, so it's lost if the server closes. All-pass or no answer means nobody gets the item.
+
+---
+
+## Still to build (design agreed 2026-11-05, nothing written yet)
+
+The remotes below are already declared in `Net/Remotes` with no handlers: `RequestSharedEvent`, `RequestWorldNews`, `TradeAction`, `MarketAction`, `SharedEventState`, `SharedEventScore`, `WorldNews`, `TradeState`, `MarketChanged`. Adjust them freely.
+
+### Shared events (`SharedEventService`, `Data/SharedEvents`, pure `Social/EventRules`, client `SharedEventController`)
+
+- **Schedule:** `slot = floor(os.time() / 2400)`; type and place from `Seed.random(worldSeed, "shared_event", "schedule", slot)`, so every server runs the same event at the same time. Phases: 120 s warning, fight, ended. A server booting mid-event joins if at least 25% of the time remains.
+- **Types:** Elemental (boss with telegraphed slam), Magical Storm (3 static nodes, telegraphed strikes), Siege (raider waves walk to the plaza), Comet (impact, then shards to break; no terrain edits). Enemies are built with `CreatureRig` from local defs, carry a `SharedEvent` attribute, and spawn only once a player is near and the chunk is built. At most 24 alive.
+- **Scaling:** enemy health grows with players in the zone, and only upward (raise MaxHealth and Health by the difference).
+- **Contribution:** damage to event enemies (`TargetDamaged`), healing others (needs a new `TargetHealed` topic from `Damage.onHeal` in EffectRunner), and presence only if you acted in the last 30 s. Tiers: gold ≥ 40% of the top score, silver ≥ 10%, bronze above a small minimum. Needs 30 s in the zone. A failed event pays 35%.
+- **Server hopping:** the claim is `data.sharedEvents.claimed[slot]` in the session-locked save, checked before paying. Add the field to `Schemas.Player`. Contribution never carries between servers.
+- **Countdown:** a HUD panel (top centre, hidden during a duel), a world marker, and your score once a second.
+
+### Cross-server (`WorldNewsService`, `LeaderboardService`)
+
+- **Announcements:** subscribe to `WorldEventRecorded`; an allowlist of kinds becomes anonymous text ("Someone has awakened Time magic"). Add a topic in `ProgressionService.syncInnate` to detect mythic awakenings.
+- **History:** add `WorldService.recordOnce(id, kind, data)` with a deterministic id (one win per event type per day), so servers don't flood the 200-entry chronicle.
+- **Leaderboard:** seasonal OrderedDataStore (in-memory in Studio), writes queued and throttled, an opt-out setting, and removal in `DataService.eraseUser`.
+
+### Direct trade (`TradeService`, pure `Social/TradeModel`)
+
+Request and accept (a `tradeRequests` setting and blocks apply); offers by ref with a fingerprint of every record field; any change clears both confirmations; Ready, then a server-built final summary with total values, then a 3 s wait, then both Confirm. Commit through `InventoryService.transfer`, which needs a new public method to audit and recompute the second player. Refuse if coins would exceed `maxCurrency`, because `addCurrency` truncates. Refuse bound, quest, locked and equipped items. `saveNow` both players afterwards. **Known window:** a crash between the two saves could duplicate or lose a traded item.
+
+### Markets (`MarketService`, pure `Social/MarketBook`, `Schemas.Market`)
+
+- **Storage:** 4 shards per town, `scopedKey("market_<town>_<shard>")`, to stay under the per-key write limit. Each holds `listings`, `mail` and `tx`. Store user ids, never names.
+- **Escrow order, which prevents duplication:** (1) remove the items or coins in memory and write `data.market.pending[txId]`; (2) `saveNow`, and refund if it fails; (3) `store:update`, recording `tx[txId]`; (4) clear pending. On a clear refusal, refund. On an ambiguous datastore error, keep pending. Recovery at load and every 60 s: if `tx[txId]` exists it was applied; otherwise write `tx[txId] = "void"` and refund.
+- **Items leave only through mail:** sales, cancels, expiry, outbid refunds and proceeds all become `mail` entries. **Collect:** add to the inventory and set `data.market.claimed[mailId]` together, `saveNow`, then delete from the store. The session lock makes this exactly-once: on recovery, a mail entry already in `claimed` is only deleted.
+- **Rules:** usable only inside a town (`settlementAt`), M key plus a prompt on the `market_stall` building (add it to the InteractionController `openable` list). Fee 2% (min 1), tax 5%. Caps: 6 stalls, 3 auctions, 3 commissions. Stalls 48 h; auctions 12–24 h, 5% minimum raise, a bid in the last 60 s extends by 60 s. Validate records with `ItemInstance.validate` on listing and on delivery. Refuse a uid you already hold, and log it.
+- **Commissions:** the requester escrows materials and pay; a crafter takes it exclusively for 1 h. The crafter finishes at the right station (needs public helpers on CraftingService for nearest station and result roll), and the store then sends the item to the requester and pay to the crafter. Materials never reach the crafter, so they can't be stolen. Exclude hearth recipes.
+- **Also needed:** Controls entries (M, K), a "Trade" button in the Party screen's people list, specs in `Tests/Economy.spec`, and a note that market shards keep numeric user ids until entries expire (handle this for `eraseUser` before launch).
 
 ---
 

@@ -72,7 +72,7 @@ local QuestDirector = {
 	dependencies = {
 		"NetService", "PlayerDataService", "WorldStateService", "WorldService", "EventDirector", "NPCService",
 		"ProgressionService", "ReputationService", "FactionService", "JournalService", "AdminService",
-		"InventoryService", "PartyService",
+		"InventoryService", "PartyService", "PartyLootService",
 	},
 }
 
@@ -90,6 +90,7 @@ local reputation: any = nil
 local factions: any = nil
 local journal: any = nil
 local parties: any = nil -- PartyService
+local partyLoot: any = nil -- PartyLootService
 local worldSeed = 0
 
 local situations: { [string]: Situation } = {}
@@ -611,17 +612,49 @@ local function addProgress(quest: QuestState, optionId: string, spec: QuestTypes
 	checkOptions(quest)
 end
 
+-- This quest's item drop. `salt` separates one person's roll from another's; the quest id means
+-- abandoning and retrying rolls the same thing. `chanceMult` scales every chance.
+local function rollQuestLoot(quest: QuestState, template: Template, salt: number, chanceMult: number): { { item: string, n: number } }
+	local out: { { item: string, n: number } } = {}
+	local tableFor = Q.loot[template.type]
+	if tableFor == nil then
+		tableFor = Q.loot.default
+	end
+	if not tableFor then
+		return out
+	end
+	local rng = Seed.random(worldSeed, quest.id, "quest_loot", math.abs(salt))
+	for _, entry in tableFor :: { any } do
+		local roll, amount = rng:NextNumber(), rng:NextInteger(entry.min, entry.max)
+		if roll < entry.chance * chanceMult then
+			table.insert(out, { item = entry.item, n = amount })
+		end
+	end
+	return out
+end
+
+local function giveLoot(player: Player, items: { { item: string, n: number } }, source: string)
+	for _, entry in items do
+		inventory:give(player, entry.item, entry.n)
+	end
+	if #items > 0 then
+		log:info("quest_loot", { userId = player.UserId, items = #items, source = source })
+	end
+end
+
 --[[
 	The owner's party when their quest succeeds. A member counts if they advanced it or were near the
 	owner at the end (a healer never ticks an objective, and still helped). They get a share of the
-	good parts only: XP in their OWN best branch, coins, and standing gained. Never fines, infamy,
-	bounties, lore, lessons, awakenings, follow-ups or the quest's own NPC bond: those belong to the
-	person whose story it is. Being in a party when a quest fails costs you nothing.
+	good parts only: XP in their OWN best branch, coins, standing gained and item drops (by the
+	party's loot mode). Never fines, infamy, bounties, lore, lessons, awakenings, follow-ups or the
+	quest's own NPC bond: those belong to the person whose story it is. Being in a party when a quest
+	fails costs you nothing. Returns the members who counted.
 ]]
-local function rewardHelpers(quest: QuestState, template: Template, outcome: any, outcomeId: string, text: string)
+local function rewardHelpers(quest: QuestState, template: Template, outcome: any, outcomeId: string, text: string): { Player }
 	local owner = quest.owner
+	local counted: { Player } = {}
 	if not owner or not sharesWithParty(quest) then
-		return
+		return counted
 	end
 	local ownerPlayer = Players:GetPlayerByUserId(owner)
 	local ownerRoot = ownerPlayer and rootOf(ownerPlayer)
@@ -656,8 +689,36 @@ local function rewardHelpers(quest: QuestState, template: Template, outcome: any
 					table.remove(q.finished, 1)
 				end
 			end
+			table.insert(counted, mate)
 			log:info("quest_helped", { quest = quest.id, userId = mate.UserId })
 		end
+	end
+	return counted
+end
+
+-- Item drops for a personal quest that succeeded: the owner's roll, shared by the party's loot mode.
+local function dropPersonalLoot(quest: QuestState, template: Template, helpers: { Player })
+	local owner = quest.owner
+	local ownerPlayer = owner and Players:GetPlayerByUserId(owner)
+	if not owner then
+		return
+	end
+	local source = "quest " .. quest.template
+	if #helpers > 0 and partyLoot:modeOf(owner) ~= "free_for_all" then
+		local members: { Player } = table.clone(helpers)
+		if ownerPlayer then
+			table.insert(members, 1, ownerPlayer)
+		end
+		-- One roll for the group, a little richer for having helped each other.
+		local items = rollQuestLoot(quest, template, 0, 1 + Q.party.helperShare * #helpers)
+		partyLoot:pool(owner, members, items, 0, source)
+		return
+	end
+	if ownerPlayer then
+		giveLoot(ownerPlayer, rollQuestLoot(quest, template, 0, 1), source)
+	end
+	for _, helper in helpers do
+		giveLoot(helper, rollQuestLoot(quest, template, helper.UserId, Q.party.helperShare), source)
 	end
 end
 
@@ -687,6 +748,21 @@ finish = function(quest: QuestState, outcomeId: string, reason: string?)
 			local p = Players:GetPlayerByUserId(tonumber(id) or 0)
 			if p and top > 0 and v >= top * Q.contributionMin then
 				table.insert(recipients, { player = p, share = math.clamp(v / top, 0.4, 1) })
+			end
+		end
+		-- A party in a crisis together shares in it: a healer never ticks the objective.
+		local listed: { [Player]: boolean } = {}
+		for _, r in recipients do
+			listed[r.player] = true
+		end
+		for _, r in table.clone(recipients) do
+			local root = rootOf(r.player)
+			for _, mate in parties:matesOf(r.player) do
+				local mateRoot = rootOf(mate)
+				if not listed[mate] and root and mateRoot and (root.Position - mateRoot.Position).Magnitude <= Q.party.assistRadius then
+					listed[mate] = true
+					table.insert(recipients, { player = mate, share = r.share * Q.party.helperShare })
+				end
 			end
 		end
 	end
@@ -736,7 +812,13 @@ finish = function(quest: QuestState, outcomeId: string, reason: string?)
 		end
 	end
 	if outcome.success and (quest.status :: string) == "completed" then
-		rewardHelpers(quest, template, outcome, outcomeId, text)
+		if quest.owner then
+			dropPersonalLoot(quest, template, rewardHelpers(quest, template, outcome, outcomeId, text))
+		else
+			for _, r in recipients do
+				giveLoot(r.player, rollQuestLoot(quest, template, r.player.UserId, r.share), "quest " .. quest.template)
+			end
+		end
 	end
 	-- An owner who was offline (or a shared quest nobody finished) still clears the record.
 	if quest.owner then
@@ -1923,6 +2005,7 @@ function QuestDirector.init(_self: any, ctx: any)
 	factions = ctx.get("FactionService")
 	journal = ctx.get("JournalService")
 	parties = ctx.get("PartyService")
+	partyLoot = ctx.get("PartyLootService")
 
 	journal:setTab("quests", questsTab)
 	Net.handle("QuestAction", onAction)

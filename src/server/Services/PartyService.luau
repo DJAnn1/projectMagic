@@ -48,6 +48,7 @@ local reservoirs: any = nil
 local safety: any = nil
 local book = PartyModel.new()
 local vitalSignature: { [string]: string } = {}
+local lootModes: { [string]: string } = {} -- partyId -> mode, shown to members (PartyLootService owns the choice)
 
 local function now(): number
 	return workspace:GetServerTimeNow()
@@ -84,6 +85,7 @@ local function push(userId: number)
 	if party then
 		view.id = party.id
 		view.leader = party.leader
+		view.lootMode = lootModes[party.id]
 		for _, id in party.members do
 			local display, user = nameOf(id)
 			table.insert(view.members, { u = id, name = display, user = user })
@@ -129,7 +131,10 @@ local function removeMember(userId: number)
 	if not disbanded then
 		pushParty(party)
 	end
-	vitalSignature[party.id] = if disbanded then nil else vitalSignature[party.id]
+	if disbanded then
+		vitalSignature[party.id] = nil
+		lootModes[party.id] = nil
+	end
 	changed(party.id)
 end
 
@@ -292,6 +297,19 @@ end
 
 function PartyService.sameParty(_self: any, a: number, b: number): boolean
 	return PvpRules.sameParty(a, b)
+end
+
+function PartyService.leaderOf(_self: any, userId: number): number?
+	local party = PartyModel.partyOf(book, userId)
+	return party and party.leader
+end
+
+function PartyService.setLootMode(_self: any, partyId: string, mode: string)
+	lootModes[partyId] = mode
+	local party = book.parties[partyId]
+	if party then
+		pushParty(party)
+	end
 end
 
 -- ─── Admin ──────────────────────────────────────────────────────────────────

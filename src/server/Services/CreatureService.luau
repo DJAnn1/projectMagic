@@ -22,6 +22,8 @@
 		(challenge channel, to the branch they last hit it with; weapon-only kills give no magic XP)
 		and their own seeded loot roll, both scaled by rewardFactor(kills of this type this hour),
 		saved in PlayerData.creatureHunt so hopping servers doesn't reset it.
+		A party shares it (docs/Social.md §3): members near the body each earn PartyRewards.shareFor(n)
+		of the XP, and loot goes by the party's mode (PartyLootService). Strangers still earn their own.
 
 	Admin: creature, creatures, creaturedens.
 ]]
@@ -32,6 +34,7 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Topics = require(Shared.Core.Topics)
 local Seed = require(Shared.Magic.Seed)
+local PartyRewards = require(Shared.Social.Data.PartyRewards)
 
 local Server = script.Parent.Parent
 local Creatures = require(Server.Creatures.Data.Creatures)
@@ -45,7 +48,7 @@ local T = Creatures.tuning
 
 local CreatureService = {
 	name = "CreatureService",
-	dependencies = { "AdminService", "EffectRunner", "InventoryService", "PlayerDataService", "ProgressionService", "WorldService", "WorldStateService" },
+	dependencies = { "AdminService", "EffectRunner", "InventoryService", "PartyLootService", "PartyService", "PlayerDataService", "ProgressionService", "WorldService", "WorldStateService" },
 }
 
 type Slot = { creature: Creature?, respawnAt: number, generation: number }
@@ -90,6 +93,9 @@ local runner: any = nil
 local inventory: any = nil
 local playerData: any = nil
 local progression: any = nil
+local parties: any = nil
+local partyLoot: any = nil
+local poolCounter = 0
 
 local dens: { DenState } = {}
 local alive: { Creature } = {}
@@ -283,11 +289,28 @@ end
 
 -- ─── Death and rewards ──────────────────────────────────────────────────────
 
-local function rewardOne(creature: Creature, userId: number)
+-- Your strongest branch: where XP goes when you helped with no spell of your own on this kill.
+local function bestBranch(state: any): string?
+	local best, bestXp = nil, -1
+	for branchId in state.data.progression.unlocked do
+		local xp = state.data.progression.xp[branchId] or 0
+		if xp > bestXp then
+			best, bestXp = branchId, xp
+		end
+	end
+	return best
+end
+
+--[[
+	One player's reward. `share` is 1 alone, or PartyRewards.shareFor(party size). `inParty` means a
+	member with no spell on this kill still learns from it, in their best branch. `rollLoot` is off
+	when the party's loot is pooled. Returns their anti-grind factor (nil if they aren't loaded).
+]]
+local function rewardOne(creature: Creature, userId: number, share: number, inParty: boolean, rollLoot: boolean): number?
 	local player = Players:GetPlayerByUserId(userId)
 	local state = player and playerData:get(player)
 	if not player or not state then
-		return
+		return nil
 	end
 	local def = creature.def
 	local hunt = state.data.creatureHunt
@@ -304,19 +327,74 @@ local function rewardOne(creature: Creature, userId: number)
 	hunt.byType[def.id] = kills + 1
 	hunt.total += 1
 
-	local branch = creature.branch[userId]
+	local branch = creature.branch[userId] or (if inParty then bestBranch(state) else nil)
 	if branch then
-		progression:awardCreatureKill(player, branch, def.xp * factor, def.id, def.level)
+		progression:awardCreatureKill(player, branch, def.xp * factor * share, def.id, def.level)
 	end
-	local rng = Seed.random(worldService:getSeed(), "player:" .. userId, "creature_loot:" .. def.id, hunt.total)
-	local items, coins = CreatureRules.rollLoot(def, rng, factor)
-	for _, entry in items do
-		inventory:give(player, entry.item, entry.n)
+	local itemCount, coins = 0, 0
+	if rollLoot then
+		local rng = Seed.random(worldService:getSeed(), "player:" .. userId, "creature_loot:" .. def.id, hunt.total)
+		local items, rolledCoins = CreatureRules.rollLoot(def, rng, factor * share)
+		for _, entry in items do
+			inventory:give(player, entry.item, entry.n)
+		end
+		if rolledCoins > 0 then
+			inventory:addCurrency(player, rolledCoins, "creature:" .. def.id)
+		end
+		itemCount, coins = #items, rolledCoins
 	end
-	if coins > 0 then
-		inventory:addCurrency(player, coins, "creature:" .. def.id)
+	log:info("creature_killed", { userId = userId, type = def.id, branch = branch, factor = math.floor(factor * 100) / 100, share = math.floor(share * 100) / 100, items = itemCount, coins = coins })
+	return factor
+end
+
+-- A party's kill: everyone near shares the XP, and the loot goes by the party's mode.
+local function rewardParty(creature: Creature, leadUserId: number, members: { Player })
+	local def = creature.def
+	local share = PartyRewards.shareFor(#members)
+	local pooled = partyLoot:modeOf(leadUserId) ~= "free_for_all" and #members > 1
+	local factors, count = 0, 0
+	for _, member in members do
+		local factor = rewardOne(creature, member.UserId, share, true, not pooled)
+		if factor then
+			factors += factor
+			count += 1
+		end
 	end
-	log:info("creature_killed", { userId = userId, type = def.id, branch = branch, factor = math.floor(factor * 100) / 100, items = #items, coins = coins })
+	if pooled and count > 0 then
+		-- One roll for the group, worth what the whole group would have earned together.
+		poolCounter += 1
+		local rng = Seed.random(worldService:getSeed(), "party_loot:" .. leadUserId, "creature_loot:" .. def.id, poolCounter)
+		local items, coins = CreatureRules.rollLoot(def, rng, (factors / count) * share * count)
+		partyLoot:pool(leadUserId, members, items, coins, "creature:" .. def.id)
+	end
+end
+
+-- Everyone who earned this kill. Each party counts once, with its members near the body.
+local function rewardKill(creature: Creature)
+	local need = creature.def.health * T.creditShare
+	local handled: { [number]: boolean } = {}
+	local position = creature.root.Position
+	for userId, dealt in creature.dealt do
+		if dealt >= need and not handled[userId] then
+			local members = partyLoot:nearby(userId, position)
+			-- Anyone in the party who earned it counts wherever they now stand.
+			for otherId, otherDealt in creature.dealt do
+				local other = Players:GetPlayerByUserId(otherId)
+				if other and otherDealt >= need and otherId ~= userId and parties:sameParty(userId, otherId) and not table.find(members, other) then
+					table.insert(members, other)
+				end
+			end
+			for _, member in members do
+				handled[member.UserId] = true
+			end
+			if #members > 1 then
+				rewardParty(creature, userId, members)
+			else
+				handled[userId] = true
+				rewardOne(creature, userId, 1, false, true)
+			end
+		end
+	end
 end
 
 local function die(creature: Creature)
@@ -327,12 +405,7 @@ local function die(creature: Creature)
 	slot.respawnAt = if creature.den.temporary
 		then math.huge
 		else os.clock() + def.respawn.min + creature.rng:NextNumber() * (def.respawn.max - def.respawn.min)
-	local need = def.health * T.creditShare
-	for userId, dealt in creature.dealt do
-		if dealt >= need then
-			rewardOne(creature, userId)
-		end
-	end
+	rewardKill(creature)
 	-- Fades where it fell. Anchored so it doesn't roll off during the fade.
 	local model = creature.model
 	creature.root.Anchored = true
@@ -716,6 +789,8 @@ function CreatureService.init(_self: any, ctx: any)
 	inventory = ctx.get("InventoryService")
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
+	parties = ctx.get("PartyService")
+	partyLoot = ctx.get("PartyLootService")
 	registerAdmin(ctx.get("AdminService"))
 	ctx.bus:subscribe(Topics.TargetDamaged, onDamaged)
 end

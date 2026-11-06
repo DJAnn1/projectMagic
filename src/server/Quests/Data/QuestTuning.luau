@@ -31,6 +31,39 @@ return table.freeze({
 		helperShare = 0.6, -- a helper's rewards, as a share of what the quest's owner gets
 		assistRadius = 150, -- studs from the owner when it ends: being there counts as helping
 	},
+	--[[
+		Item drops for a quest that succeeds, by template type: { item, chance, min, max }. Seeded by
+		the quest id, so abandoning and retrying can't reroll them. A type that isn't listed uses
+		`default`; `false` drops nothing (first-hour chores keep their own rewards simple).
+	]]
+	loot = {
+		default = {
+			{ item = "healing_draught", chance = 0.4, min = 1, max = 2 },
+			{ item = "reservoir_tonic", chance = 0.25, min = 1, max = 1 },
+		},
+		chore = false,
+		training = false,
+		hunted = false,
+		atonement = false,
+		crisis = {
+			{ item = "healing_draught", chance = 0.5, min = 1, max = 2 },
+			{ item = "reservoir_tonic", chance = 0.4, min = 1, max = 2 },
+			{ item = "quartz", chance = 0.3, min = 1, max = 2 },
+		},
+		research = {
+			{ item = "blank_vellum", chance = 0.6, min = 1, max = 2 },
+			{ item = "reservoir_tonic", chance = 0.3, min = 1, max = 1 },
+		},
+		hunt = {
+			{ item = "wolf_hide", chance = 0.5, min = 1, max = 3 },
+			{ item = "healing_draught", chance = 0.3, min = 1, max = 1 },
+			{ item = "bone_dagger", chance = 0.08, min = 1, max = 1 },
+		},
+		heist = {
+			{ item = "lockpick", chance = 0.6, min = 2, max = 4 },
+			{ item = "copper_band", chance = 0.12, min = 1, max = 1 },
+		},
+	},
 	-- Pacing: tension 0..1 per player. Calm wants intensity <= 0.35, rising <= 0.65, peak any.
 	tension = {
 		decayPerMinute = 0.02,

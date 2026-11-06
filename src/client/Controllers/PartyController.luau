@@ -21,6 +21,8 @@ local Net = require(Shared.Net)
 local Controls = require(Shared.UI.Controls)
 local DuelRules = require(Shared.Social.Data.DuelRules)
 local Emotes = require(Shared.Social.Data.Emotes)
+local PartyRewards = require(Shared.Social.Data.PartyRewards)
+local ItemDatabase = require(Shared.Items.ItemDatabase)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
@@ -43,9 +45,10 @@ local duel: any = nil
 local emotes: any = nil
 local localPlayer = Players.LocalPlayer
 
-type View = { id: string?, leader: number?, members: { any }, invites: { any } }
+type View = { id: string?, leader: number?, lootMode: string?, members: { any }, invites: { any } }
 
 local state = Kit.value({ members = {}, invites = {} } :: View)
+local lootRolls = Kit.value({} :: { any }) -- open need-or-greed rolls
 local vitals = Kit.value({} :: { [number]: any })
 local peopleTick = Kit.value(0)
 
@@ -121,6 +124,38 @@ local function inviteCard(parent: Instance, invite: any, order: number)
 	end)
 end
 
+local function closeRoll(id: string)
+	local kept = {}
+	for _, roll in lootRolls:get() do
+		if roll.id ~= id then
+			table.insert(kept, roll)
+		end
+	end
+	lootRolls:set(kept)
+end
+
+-- A need-or-greed roll: what it is and three answers. No answer in time counts as passing.
+local function rollCard(parent: Instance, roll: any, order: number)
+	local card = C.panel({
+		BackgroundTransparency = Theme.glass,
+		Size = UDim2.fromScale(1, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		LayoutOrder = order,
+		Parent = parent,
+	})
+	C.padding(Theme.space.s).Parent = card
+	C.list("y", Theme.space.xs).Parent = card
+	local def = ItemDatabase.get(roll.item)
+	C.text("Roll for " .. (if def then def.name else tostring(roll.item)), "label", { LayoutOrder = 1, Parent = card })
+	local row = buttonRow(card, 2)
+	for i, answer in { { "need", "Need" }, { "greed", "Greed" }, { "pass", "Pass" } } do
+		smallButton(row, answer[2], if i == 1 then "primary" else "ghost", i, function()
+			Net.send("LootRollChoice", roll.id, answer[1])
+			closeRoll(roll.id)
+		end)
+	end
+end
+
 -- One member's name, bars and numbers, kept live from `vitals`.
 local function memberRow(scope: Kit.Scope, parent: Instance, member: any, leader: number?, order: number)
 	local row: Frame = Kit.create(nil, "Frame", {
@@ -185,7 +220,7 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 	})
 	C.list("y", Theme.space.s).Parent = holder
 
-	Kit.dynamic(scope, { state }, function(s)
+	Kit.dynamic(scope, { state, lootRolls }, function(s)
 		local view = state:get()
 		local inner: Frame = Kit.create(nil, "Frame", {
 			BackgroundTransparency = 1,
@@ -197,6 +232,9 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 		C.list("y", Theme.space.s).Parent = inner
 		for i, invite in view.invites do
 			inviteCard(inner, invite, i)
+		end
+		for i, roll in lootRolls:get() do
+			rollCard(inner, roll, 50 + i)
 		end
 		if #view.members > 0 then
 			local panel = C.panel({
@@ -263,6 +301,29 @@ local function partySection(s: Kit.Scope, parent: Instance, view: View)
 			smallButton(row, "Remove", "ghost", 2, function()
 				act("kick", member.u)
 			end)
+		end
+	end
+	-- Loot: the leader chooses, and everyone can see what's in force.
+	local current = PartyRewards.modes[view.lootMode or PartyRewards.default]
+	C.text("Loot: " .. current.name, "label", { LayoutOrder = 40, Parent = box })
+	C.text(current.text .. string.format(" Near a kill, everyone earns %d%% of a solo reward.", math.floor(PartyRewards.shareFor(#view.members) * 100 + 0.5)), "caption", { LayoutOrder = 41, Parent = box })
+	if amLeader then
+		local modes = buttonRow(box, 42)
+		for i, mode in PartyRewards.ordered do
+			local button = C.button(mode.name, function()
+				task.spawn(function()
+					local ok, result = Net.invoke("PartyLoot", mode.id)
+					if not ok or typeof(result) ~= "table" or not result.ok then
+						magic.events:Fire({ kind = "notify", text = REFUSALS[if typeof(result) == "table" then result.reason or "" else ""] or "That didn't work." })
+					end
+				end)
+			end, { kind = "ghost", selected = mode.id == current.id }, {
+				Size = UDim2.fromOffset(0, Theme.minTouch),
+				AutomaticSize = Enum.AutomaticSize.X,
+				LayoutOrder = i,
+			})
+			C.padding(0, Theme.space.m).Parent = button
+			button.Parent = modes
 		end
 	end
 	local row = buttonRow(box, 50)
@@ -494,8 +555,21 @@ end
 function PartyController.start(_self: any, _ctx: any)
 	Net.listen("PartyState", function(view: any)
 		if typeof(view) == "table" then
-			state:set({ id = view.id, leader = view.leader, members = view.members or {}, invites = view.invites or {} })
+			state:set({ id = view.id, leader = view.leader, lootMode = view.lootMode, members = view.members or {}, invites = view.invites or {} })
 			refreshMarkers()
+		end
+	end)
+	Net.listen("LootRoll", function(roll: any)
+		if typeof(roll) ~= "table" then
+			return
+		end
+		if roll.closed then
+			closeRoll(roll.id)
+		else
+			local list = table.clone(lootRolls:get())
+			table.insert(list, roll)
+			lootRolls:set(list)
+			C.sound("confirm")
 		end
 	end)
 	Net.listen("PartyVitals", function(rows: any)
