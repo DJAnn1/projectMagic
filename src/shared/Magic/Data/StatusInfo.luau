@@ -41,6 +41,7 @@ local StatusInfo: { [string]: Info } = {
 	gravity_heavy = { name = "Anchor Weight", harmful = false, description = "Slower, but you resist damage, shrug off pushes and your spells hit harder." },
 	gravity_light = { name = "Featherweight", harmful = false, description = "Faster, and you jump enormous distances." },
 	foreseeing = { name = "Future Sight", harmful = false, description = "You see where spells are aimed, and some hits miss you." },
+	surging = { name = "Surging", harmful = false, description = "You hit harder, resist damage, move faster and cast for less. Press K to end it with a blast." },
 }
 
 return table.freeze(StatusInfo)

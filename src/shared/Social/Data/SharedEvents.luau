@@ -97,6 +97,8 @@ local SharedEvents = {
 
 	failedShare = 0.35, -- a failed event pays this share of the XP and coins, and no items
 
+	relics = { "time_relic", "gravity_relic" }, -- your first gold finish guarantees one, chosen by seed
+
 	tierOrder = { "gold", "silver", "bronze" },
 	tierNames = { gold = "Gold", silver = "Silver", bronze = "Bronze" } :: { [string]: string },
 
@@ -109,6 +111,8 @@ local SharedEvents = {
 				{ item = "reservoir_tonic", chance = 0.6, min = 1, max = 2 },
 				{ item = "ember_essence", chance = 0.4, min = 1, max = 2 },
 				{ item = "copper_band", chance = 0.06, min = 1, max = 1 },
+				{ item = "time_relic", chance = 0.06, min = 1, max = 1 },
+				{ item = "gravity_relic", chance = 0.06, min = 1, max = 1 },
 			},
 		},
 		silver = {
@@ -117,6 +121,8 @@ local SharedEvents = {
 			items = {
 				{ item = "healing_draught", chance = 0.7, min = 1, max = 1 },
 				{ item = "quartz", chance = 0.4, min = 1, max = 2 },
+				{ item = "time_relic", chance = 0.02, min = 1, max = 1 },
+				{ item = "gravity_relic", chance = 0.02, min = 1, max = 1 },
 			},
 		},
 		bronze = {

@@ -363,6 +363,7 @@ export type ReservoirState = {
 	regenMult: number, -- innate (traits.regen)
 	riskMult: number, -- innate (traits.overdrawRisk)
 	infinite: boolean?, -- the admin cheat: nothing costs anything and it never runs low (session only, never saved)
+	costMult: number?, -- spells cost this share while it's set (Surge; session only, never saved)
 }
 
 export type Consequence = {

@@ -18,6 +18,7 @@
 		                               pay the reservoir (CastService:castFromItem)
 		repair     { amount }          the most worn equipped item regains durability
 		cleanse    { statuses }        removes those statuses (StatusEffects.cleanse)
+		borrow     { relic }           a minute of mythic magic (Services/BorrowedPowerService)
 ]]
 
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -27,6 +28,7 @@ local Damage = require(Server.Magic.Cast.Damage)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local ItemInstance = require(game:GetService("ReplicatedStorage").Shared.Items.ItemInstance)
 local StatCache = require(script.Parent.StatCache)
+local BorrowedPowerService = require(Server.Services.BorrowedPowerService)
 
 export type Context = {
 	player: Player,
@@ -132,6 +134,16 @@ handlers.spell = {
 	apply = function(ctx, effect)
 		local refusal = ctx.cast:castFromItem(ctx.player, effect.recipe, ctx.aim :: Vector3)
 		return refusal == nil, refusal
+	end,
+}
+
+handlers.borrow = {
+	check = function(ctx, _effect)
+		return if BorrowedPowerService:isActive(ctx.player) then "ALREADY_BORROWING" else nil
+	end,
+	apply = function(ctx, effect)
+		local reason = BorrowedPowerService:begin(ctx.player, effect.relic)
+		return reason == nil, reason
 	end,
 }
 

@@ -129,6 +129,7 @@ export type Cheats = {
 	noBacklash: boolean?, -- no overdraw consequences and no backfire
 	overpowerOnce: boolean?, -- the next cast ignores knowledge, tier and power caps
 	unboundOnce: boolean?, -- the next cast ignores aim, range and line of sight (castAs)
+	borrowOnce: number?, -- the next cast is borrowed power at this tier: free, no backlash, teaches nothing (castBorrowed)
 }
 
 local CastService = {
@@ -462,14 +463,21 @@ local function aftermath(
 		hits = outcome.hits,
 		harmful = stats.harmful,
 		forbidden = branchDef ~= nil and table.find(branchDef.tags or {}, "forbidden") ~= nil,
+		borrowed = (stats :: any).borrowed == true,
 	})
 
-	local gain = progression:awardPractice(
-		player,
-		stats,
-		{ effective = outcome.effective, challenge = p.challenge and outcome.effective }
-	)
-	discovery:recordCast(player, stats, outcome.effective)
+	-- Borrowed power teaches nothing: it isn't yours to learn from.
+	local borrowed = (stats :: any).borrowed == true
+	local gain = if borrowed
+		then nil
+		else progression:awardPractice(
+			player,
+			stats,
+			{ effective = outcome.effective, challenge = p.challenge and outcome.effective }
+		)
+	if not borrowed then
+		discovery:recordCast(player, stats, outcome.effective)
+	end
 	local entry = p.state.data.spellbook[stats.key]
 	if entry then
 		entry.casts += 1
@@ -901,6 +909,8 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 	-- Admin one-shots are consumed by this attempt, whether or not it succeeds.
 	local overpower, unbound = cheat.overpowerOnce == true, cheat.unboundOnce == true
 	cheat.overpowerOnce, cheat.unboundOnce = nil, nil
+	local borrowTier = cheat.borrowOnce
+	cheat.borrowOnce = nil
 	-- Items: extra modifier slots and form reach from foci (Items/StatCache; docs/Items.md §5).
 	state.caster.bonusModifierSlots = StatCache.modifierSlots(player)
 	state.caster.bonusFormTier = StatCache.formTier(player)
@@ -988,6 +998,11 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 	if not stats then
 		return refuse(player, key, statErrors[1] and statErrors[1].code or "INVALID_RECIPE")
 	end
+	if borrowTier then
+		-- Borrowed power (Services/BorrowedPowerService): as strong as the relic says, not all-knowing.
+		stats.masteryTier = borrowTier;
+		(stats :: any).borrowed = true
+	end
 	if stats.blockedBy then
 		return refuse(player, key, "ENVIRONMENT_BLOCKED", { detail = stats.blockedBy })
 	end
@@ -1035,7 +1050,7 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 		reservoir.burnoutUntil = 0
 		table.clear(reservoir.lockouts)
 	end
-	local spend = Reservoir.trySpend(reservoir, stats, t, rng)
+	local spend = Reservoir.trySpend(reservoir, stats, t, rng, borrowTier ~= nil)
 	if not spend.ok then
 		return refuse(player, key, spend.reason or "INSUFFICIENT_RESERVOIR")
 	end
@@ -1122,7 +1137,7 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 		challenge = danger,
 		heavy = heavy,
 		cooldownUntil = cooldownUntil,
-		noBacklash = cheat.noBacklash,
+		noBacklash = cheat.noBacklash or borrowTier ~= nil,
 		charge = charged,
 		channel = nil,
 	}
@@ -1322,6 +1337,14 @@ end
 function CastService.castFromItem(self: any, player: Player, recipe: any, aim: Vector3, target: Model?): string?
 	local c = self:cheats(player)
 	c.overpowerOnce = true
+	return onCastIntent(player, recipe, aim, target)
+end
+
+-- A relic's spell (Services/BorrowedPowerService): knowledge and tier waived, at `tier`, free, no
+-- backlash, and it teaches nothing. Aim, range, sight, cooldowns and budgets are all real.
+function CastService.castBorrowed(self: any, player: Player, recipe: any, aim: Vector3, target: Model?, tier: number): string?
+	local c = self:cheats(player)
+	c.overpowerOnce, c.borrowOnce = true, tier
 	return onCastIntent(player, recipe, aim, target)
 end
 

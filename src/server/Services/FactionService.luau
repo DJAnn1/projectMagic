@@ -226,7 +226,8 @@ local function onSpellResolved(payload: any)
 		FactionService:deed(player, "burned_land", point)
 	end
 	for _, domain in payload.domains do
-		if domain == "time" or domain == "gravity" or domain == "reality" then
+		-- Not borrowed power: a farmer who once held a relic isn't worth the Quiet Hand's attention.
+		if (domain == "time" or domain == "gravity" or domain == "reality") and not payload.borrowed then
 			if anyoneNear(point, player) then
 				reputation:addNotoriety(player, domain, Q.mythicNotoriety.perCast)
 				FactionService:deed(player, "mythic_cast", point, { always = true, only = "quiet_hand", magnitude = 0.1 })

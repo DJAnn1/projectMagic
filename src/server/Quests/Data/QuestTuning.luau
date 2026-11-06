@@ -49,6 +49,8 @@ return table.freeze({
 			{ item = "healing_draught", chance = 0.5, min = 1, max = 2 },
 			{ item = "reservoir_tonic", chance = 0.4, min = 1, max = 2 },
 			{ item = "quartz", chance = 0.3, min = 1, max = 2 },
+			{ item = "time_relic", chance = 0.01, min = 1, max = 1 },
+			{ item = "gravity_relic", chance = 0.01, min = 1, max = 1 },
 		},
 		research = {
 			{ item = "blank_vellum", chance = 0.6, min = 1, max = 2 },

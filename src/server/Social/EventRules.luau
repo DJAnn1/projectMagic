@@ -180,6 +180,14 @@ function EventRules.rollItems(tier: string, won: boolean, rng: Random): { { item
 	return out
 end
 
+-- Your first gold finish in a won event guarantees a relic, so most players get the moment at least once.
+function EventRules.firstRelic(tier: string, won: boolean, alreadyGiven: boolean, rng: Random): string?
+	if tier ~= "gold" or not won or alreadyGiven then
+		return nil
+	end
+	return S.relics[rng:NextInteger(1, #S.relics)]
+end
+
 -- ─── Claims: data.sharedEvents.claimed, in the session-locked save ──────────
 
 function EventRules.claimed(claims: { [string]: number }, key: string): boolean

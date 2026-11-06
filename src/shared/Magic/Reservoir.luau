@@ -122,7 +122,7 @@ end
 	consequences scaled by how deep the caster ends up. The caller (server cast pipeline)
 	applies them: HP damage, status effects, mutation rolls into the Progression system.
 ]]
-function Reservoir.trySpend(state: ReservoirState, stats: SpellStats, now: number, rng: Random): SpendResult
+function Reservoir.trySpend(state: ReservoirState, stats: SpellStats, now: number, rng: Random, free: boolean?): SpendResult
 	local result: SpendResult = {
 		ok = false,
 		reason = nil,
@@ -131,8 +131,8 @@ function Reservoir.trySpend(state: ReservoirState, stats: SpellStats, now: numbe
 		consequences = {},
 	}
 
-	-- The admin cheat: free, whatever it costs, even a spell that costs more than a full reservoir.
-	if state.infinite then
+	-- The admin cheat or borrowed power: free, whatever it costs, even past a full reservoir.
+	if state.infinite or free then
 		result.ok = true
 		return result
 	end
@@ -144,7 +144,7 @@ function Reservoir.trySpend(state: ReservoirState, stats: SpellStats, now: numbe
 		end
 	end
 
-	local cost = stats.costBreakdown.reservoir
+	local cost = stats.costBreakdown.reservoir * (state.costMult or 1)
 	local after = state.current - cost
 	if after < -R.overdrawLimit * state.max then
 		result.reason = "INSUFFICIENT_RESERVOIR"

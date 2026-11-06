@@ -387,6 +387,18 @@ item({
 	},
 })
 item({
+	id = "time_relic", name = "Stopped Clock", category = "consumable", glyph = "◷", color = rgb(200, 225, 255),
+	description = "Its hands don't move. Hold it and, for one minute, time answers to you: stop it, mark a moment to return to, hang your spells in the air. It works once.",
+	rarity = "legendary", stack = 3, weight = 0.2, value = 500, tags = { "relic" },
+	use = { effects = { { kind = "borrow", relic = "time" } }, cooldown = 5, group = "relic" },
+})
+item({
+	id = "gravity_relic", name = "Weightless Stone", category = "consumable", glyph = "◉", color = rgb(150, 120, 255),
+	description = "Heavier than it should be, then lighter. Hold it and, for one minute, down is your choice: fly, crush, drag the world toward you. It works once.",
+	rarity = "legendary", stack = 3, weight = 0.2, value = 500, tags = { "relic" },
+	use = { effects = { { kind = "borrow", relic = "gravity" } }, cooldown = 5, group = "relic" },
+})
+item({
 	id = "repair_kit", name = "Repair Kit", category = "consumable", glyph = "✚", color = rgb(150, 150, 160),
 	description = "Rivets, thread and wax. Restores the most worn piece of your equipment.",
 	stack = 10, weight = 0.5, value = 18, tags = { "kit" },

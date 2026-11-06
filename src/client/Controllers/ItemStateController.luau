@@ -61,6 +61,7 @@ local REASONS: { [string]: string } = {
 	QUEST_ITEM = "That belongs to a quest; you can't throw it away.",
 	COOLDOWN = "Not yet.",
 	NEEDS_AIM = "Aim it at something first.",
+	ALREADY_BORROWING = "You're already holding borrowed power.",
 	FULL_HEALTH = "You're already at full health.",
 	RESERVOIR_FULL = "Your reservoir is already full.",
 	NOTHING_TO_REPAIR = "Nothing you're wearing needs repair.",

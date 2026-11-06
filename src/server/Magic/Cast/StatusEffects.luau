@@ -77,6 +77,7 @@ local DEFS: { [string]: StatusDef } = {
 	gravity_heavy = { name = "Anchor Weight", walk = 0.8, jump = 0.6, damageDealt = true },
 	gravity_light = { name = "Featherweight", walk = 1.35, jump = 2.5 },
 	foreseeing = { name = "Future Sight" }, -- Cast/TimeRuntime
+	surging = { name = "Surging", walk = 1.25, damageDealt = true }, -- Services/SurgeService; resist comes with the apply
 }
 
 type Active = { expires: number, magnitude: number, source: number?, resist: { [string]: number }? }
@@ -336,7 +337,7 @@ end
 -- What a Self Timeline saves (Cast/TimeRuntime). Holds aren't part of your past: they're kept out.
 export type Snapshot = { id: string, remaining: number, magnitude: number, source: number?, resist: { [string]: number }? }
 
-local NOT_SNAPSHOTTED: { [string]: boolean } = { gravity_held = true, stasis = true, knockdown = true }
+local NOT_SNAPSHOTTED: { [string]: boolean } = { gravity_held = true, stasis = true, knockdown = true, surging = true }
 
 function StatusEffects.snapshot(humanoid: Humanoid): { Snapshot }
 	local out: { Snapshot } = {}

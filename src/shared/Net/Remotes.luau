@@ -95,6 +95,20 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 3 },
 		maxBytes = 48,
 	},
+	SurgeIntent = { -- transform with a full meter; while surging, the finisher (Services/SurgeService)
+		kind = "Event",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 2 },
+		maxBytes = 16,
+	},
+	BorrowedCast = { -- which of the relic's abilities, the aim point, a target (Services/BorrowedPowerService)
+		kind = "Event",
+		from = "Client",
+		args = { S.integer(1, 3), S.vector3(100000), S.optional(S.instance("Model", workspace)) },
+		rate = { capacity = 6, perSecond = 3 },
+		maxBytes = 128,
+	},
 	TimeIntent = { -- "recall": back to your mark; "release", aim?: marked targets snap back, hanging spells fly (Services/TimeService)
 		kind = "Event",
 		from = "Client",

@@ -775,6 +775,14 @@ local function endFlight(player: Player, text: string?)
 	end
 end
 
+-- A relic's minute is up: a flight it gave you ends with it. A flight of your own carries on.
+function GravityRuntime.endBorrowedFlight(player: Player)
+	local flying = flights[player]
+	if flying and (flying.ctx.stats :: any).borrowed then
+		endFlight(player, "The sky lets go of you.")
+	end
+end
+
 function GravityRuntime.isFlying(player: Player): boolean
 	return flights[player] ~= nil
 end
@@ -804,7 +812,7 @@ local function stepFlights(dt: number)
 		end
 		local reservoirs = flying.ctx.services.reservoirs
 		local state = reservoirs:get(player)
-		if state and not state.infinite then
+		if state and not state.infinite and not (flying.ctx.stats :: any).borrowed then
 			state.current = math.max(0, state.current - state.max * flying.flight.drainShare * elapsed)
 			reservoirs:push(player)
 			if state.current <= 0 then

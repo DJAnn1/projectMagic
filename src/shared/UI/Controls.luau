@@ -18,6 +18,7 @@
 		equip      the "equip" cast mode (Settings › castMode)    quick      the "quick" cast mode
 		attuned    holding a readied spell (equip mode)           unattuned  not holding one
 	flying     in the air on a Gravity spell (GravityClient)
+	borrowed   during a relic's minute of mythic magic (MomentsClient)
 		placing    placing furniture (blocks all other play input)
 		menu       a screen is open                                prompt     a ProximityPrompt is
 		admin      admins only (hidden from everyone else)                    in range (Roblox gives
@@ -60,6 +61,7 @@ Controls.contexts = {
 	attuned = "While a spell is readied",
 	unattuned = "With no spell readied",
 	flying = "While flying",
+	borrowed = "While holding a relic's power",
 	placing = "While placing furniture",
 	menu = "In menus",
 	prompt = "Near something you can use",
@@ -143,7 +145,16 @@ local list: { Action } = {
 	{ id = "time_recall", label = "Return to your mark", group = "casting", order = 8, keyboard = { "N" }, touch = "Recall button", contexts = { "always" }, owner = "TimeClient", note = "After a Self Timeline (a Time spell): back to that moment, with everything you had then." },
 	{ id = "time_release", label = "Release time", group = "casting", order = 9, keyboard = { "L" }, touch = "Release button", contexts = { "always" }, owner = "TimeClient", note = "People you've marked with a Target Timeline snap back, and spells you've hung in the air fly." },
 
+	{ id = "borrowed_1", label = "Borrowed power 1", group = "casting", order = 10, keyboard = { "Nine" }, touch = "Tap it on the panel", contexts = { "borrowed" }, owner = "MomentsClient", note = "For the minute a relic lasts. The panel says what each one does." },
+	{ id = "borrowed_2", label = "Borrowed power 2", group = "casting", order = 11, keyboard = { "Zero" }, touch = "Tap it on the panel", contexts = { "borrowed" }, owner = "MomentsClient" },
+	{ id = "borrowed_3", label = "Borrowed power 3", group = "casting", order = 12, keyboard = { "Minus" }, touch = "Tap it on the panel", contexts = { "borrowed" }, owner = "MomentsClient" },
+
 	-- ─── Combat ────────────────────────────────────────────────────────────────
+	{
+		id = "surge", label = "Surge", group = "combat", order = 0.5,
+		keyboard = { "K" }, touch = "Surge button", contexts = { "always" }, owner = "MomentsClient",
+		note = "Fighting fills the meter. When it's full, transform. Press again while surging to end it with a blast. Gamepad: the button by the meter.",
+	},
 	{
 		id = "weapon_attack", label = "Attack with your weapon", group = "combat", order = 1,
 		keyboard = { "MouseButton1" }, gamepad = { "ButtonR1" }, touch = "Cast button",
@@ -285,7 +296,7 @@ local DISPLAY: { [string]: string } = {
 	MouseButton1 = "Left mouse", MouseButton2 = "Right mouse", MouseButton3 = "Middle mouse", MouseWheel = "Mouse wheel",
 	Thumbstick1 = "Left stick", Thumbstick2 = "Right stick",
 	LeftAlt = "Left Alt", LeftShift = "Shift", RightShift = "Right Shift", LeftControl = "Left Ctrl", Escape = "Esc",
-	One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6", Seven = "7", Eight = "8", Nine = "9", Zero = "0",
+	One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6", Seven = "7", Eight = "8", Nine = "9", Zero = "0", Minus = "-",
 	ButtonA = "A", ButtonB = "B", ButtonX = "X", ButtonY = "Y", ButtonL1 = "L1", ButtonL2 = "L2", ButtonR1 = "R1", ButtonR2 = "R2",
 	ButtonL3 = "L3 (left stick click)", ButtonR3 = "R3 (right stick click)",
 	DPadLeft = "D-pad left", DPadRight = "D-pad right", DPadUp = "D-pad up", DPadDown = "D-pad down",

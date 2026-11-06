@@ -269,6 +269,12 @@ local function pay(active: Active, player: Player, score: EventRules.Score, top:
 			log:info("shared_event_no_room", { userId = player.UserId, item = entry.item })
 		end
 	end
+	-- Your first gold: a relic, for certain, marked only once it's really in your bags.
+	local relic = EventRules.firstRelic(tier, won, record.firstRelic == true, rng)
+	if relic and inventory:give(player, relic, 1) > 0 then
+		record.firstRelic = true
+		table.insert(given, { item = relic, n = 1 })
+	end
 	mine.xp, mine.coins, mine.items = xp, coins, given
 	log:info("shared_event_paid", { userId = player.UserId, id = active.id, tier = tier, points = mine.points, won = won })
 	return mine
