@@ -89,8 +89,9 @@ CombatAnimations.animations = {
 		speed = 1, approxLength = 0.3, markers = { { name = "ParryOpen", at = 0.15 } },
 	},
 	Block = {
-		-- Re-uploaded by the place owner (the old 128098131606169 wasn't usable by this place).
-		id = 111952812431898, priority = "Action", looped = true, fadeIn = 0.1, fadeOut = 0.15,
+		-- Re-uploaded by the place owner (2026-11-05). The older 128098131606169 and 111952812431898
+		-- weren't usable by this place.
+		id = 97111944327100, priority = "Action", looped = true, fadeIn = 0.1, fadeOut = 0.15,
 		speed = 1, approxLength = 1, markers = {},
 	},
 	BlockHit = {

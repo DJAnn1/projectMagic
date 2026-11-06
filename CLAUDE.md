@@ -61,7 +61,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 **Verified in play 2026-11-05:** the VFX work (Kenney textures, lightning, slashes, muzzle flashes, `fxpreview`), the domain-tinted colours, the FoundationBuilder crash fix (44 buildings built), the relaxed foundation check (0 failures in the spawn town), the quick wins (one-line boot summary, no red `lock_lost`).
 
-**Owner actions still pending:** re-upload the Block animation (111952812431898) under the place's creator (it still fails with "not owned"); audition the audio picks in `docs/Audio.md`.
+**Owner actions still pending:** audition the audio picks in `docs/Audio.md`. Block was re-uploaded as 97111944327100 (2026-11-05, in `CombatAnimations`): confirm `animation_unavailable clip=Block` is gone from the next log.
 
 **Open questions from this session (unanswered; defaults in use):**
 - Running stamina drain: free for now (`MovementTuning.run.staminaPerSecond = 0`). Dash numbers (2 charges, 16 studs, 2.5 s refill) not yet judged.

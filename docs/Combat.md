@@ -275,7 +275,7 @@ Keys can be a domain, a property or `all`. The applied value is the domain avera
 - Raising drops a charge. You can't cast while guarding.
 - Stowing the spell lowers the ward.
 - The ward is in front of the body: a slate plate for Earth, a glass film for Water, a pale shimmer for Air, and a hex force field in your Signature colours for everything else. Every client draws it from the `Guarding` attribute (`Controllers/GuardFxController`).
-- Clips: BlockStart, then the Block loop. Block is now 111952812431898 (re-uploaded). If a loop clip ever fails to load, the last BlockStart pose is held instead, on players and NPCs.
+- Clips: BlockStart, then the Block loop. Block is now 97111944327100 (re-uploaded 2026-11-05; 111952812431898 still failed on ownership). If a loop clip ever fails to load, the last BlockStart pose is held instead, on players and NPCs.
 
 **Block:** a hit from the front (within 70° of facing) loses 70% of its damage.
 - That share is taken from the guard meter (capacity 0.6 × MaxHealth) and, for players, from the reservoir (0.5 per point).
