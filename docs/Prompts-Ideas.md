@@ -10,8 +10,8 @@ authority, data-driven content, seeded determinism, the 30–60 player / 100–3
 | # | Idea | Kind | Why it sits here |
 |---|---|---|---|
 | 1 | Suggest improvements for the current game | design only | An audit; no code. **Done: docs/Improvements.md** |
-| 2 | Ideas to make the magic system more fun | design only | A ranked idea list grounded in the grammar |
-| 3 | Make the game more engaging (not linear) | design only | Ideas on top of quests / factions / the Director |
+| 2 | Ideas to make the magic system more fun | design only | A ranked idea list grounded in the grammar. **Done: docs/MagicIdeas.md** |
+| 3 | Make the game more engaging (not linear) | design only | Ideas on top of quests / factions / the Director. **Done: docs/EngagementIdeas.md** |
 | 4 | Controls panel | UI | One screen + one data module. **Built 2026-11-05** (UI.md §7 Controls) |
 | 5 | Spell-creation explanations | UI + data | Composer text and live previews; no new mechanics. **Built 2026-11-05** (UI.md §4.4) |
 | 6 | Run toggle, walk default, Alt toggle, dash | input + server | Input changes are small; the dash needs server validation. **Built 2026-11-05** (Combat.md §15; dash = R) |
