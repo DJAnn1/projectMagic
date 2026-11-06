@@ -64,7 +64,7 @@ Making the world feel like it exists whether or not the player is looking, and l
 | Children | Run around the plaza, jump and cheer, with tiny sparks from their own magic. Sit in lessons. |
 | Everyone else | Sit to eat, read, pray, point while teaching. |
 
-**Animations are placeholders.** Each is one slot in `Activities.Clips`. To replace one, change its id there.
+**Animations:** each is one slot in `Activities.Clips`; to replace one, change its id there. `hammer`, `dig`, `hold`, `point` and `sit` are the owner's own clips (2026-11-05). `wave`, `cheer`, `laugh` and `dance` are still Roblox's defaults. A clip that can't load gives one `[DailyLife] clip ... didn't load` warning.
 
 **One settlement for now:** the town the world spawn sits in. `flag ambient_all_towns true` turns it on everywhere. Barks, greetings and scenes already run everywhere.
 

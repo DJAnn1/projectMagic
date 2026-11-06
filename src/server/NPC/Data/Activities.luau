@@ -3,9 +3,9 @@
 	Activities: what an NPC visibly does once it reaches where its schedule sent it
 	(docs/LivingWorld.md §2). Pure data; NPC/DailyLife runs it.
 
-	CLIPS are the replaceable animation slots. Today they hold Roblox's default R6 animations as
-	placeholders. To replace one, change its id here and nothing else: a hammering animation goes in
-	`hammer`, and every smith and builder picks it up.
+	CLIPS are the replaceable animation slots. To replace one, change its id here and nothing else: a
+	hammering animation goes in `hammer`, and every smith and builder picks it up. An animation must
+	be owned by whoever owns the place (or shared with it), or it won't load: NPCLOD warns once.
 
 	PROPS are small parts welded to the right arm, each one a list of { size, offset, color, material }.
 
@@ -76,16 +76,18 @@ local Activities = {}
 
 Activities.Props = Props
 
--- R6 only: the project's rigs are R6 (CombatAnimations.rigType). Placeholders: Roblox's defaults.
+-- R6 only: the project's rigs are R6 (CombatAnimations.rigType).
 Activities.Clips = table.freeze({
-	hammer = "rbxassetid://129967390", -- placeholder: tool slash
-	dig = "rbxassetid://129967478", -- placeholder: tool lunge
-	hold = "rbxassetid://182393478", -- placeholder: holding a tool out
+	-- The owner's own clips (2026-11-05).
+	hammer = "rbxassetid://83054299922044",
+	dig = "rbxassetid://102462779862982",
+	hold = "rbxassetid://115233860888201",
+	point = "rbxassetid://75385791730022",
+	sit = "rbxassetid://123240149331173",
+	-- Still Roblox's defaults.
 	wave = "rbxassetid://128777973",
-	point = "rbxassetid://128853357",
 	cheer = "rbxassetid://129423030",
 	laugh = "rbxassetid://129423131",
-	sit = "rbxassetid://178130996",
 	dance = "rbxassetid://182435998",
 }) :: { [string]: string }
 

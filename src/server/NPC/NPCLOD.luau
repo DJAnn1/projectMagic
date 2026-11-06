@@ -683,6 +683,8 @@ ActionState.changed:Connect(followState)
 -- Loaded the first time a rig needs them, kept in rig.tracks under "a:<slot>" so every existing
 -- "stop all tracks" path covers them. One activity clip at a time.
 
+local activityChecked: { [string]: boolean } = {}
+
 function LOD.stopActivity(npc: any)
 	local rig: Rig? = npc.rig
 	if rig then
@@ -717,6 +719,16 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 		loaded.Priority = Enum.AnimationPriority.Action
 		rig.tracks[key] = loaded
 		track = loaded
+		-- A clip that can't load (usually not owned by the place's creator) has no length and plays
+		-- nothing, silently. Say so once per slot.
+		if not activityChecked[slot] then
+			activityChecked[slot] = true
+			task.delay(5, function()
+				if loaded.Length <= 0 then
+					warn(string.format("[DailyLife] clip '%s' (%s) didn't load: is it owned by the place's creator?", slot, animationId))
+				end
+			end)
+		end
 	end
 	if looped and track.IsPlaying then
 		return
