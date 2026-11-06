@@ -1310,6 +1310,20 @@ function WorldStateService.addPOI(_self: any, poi: POIPlacer.POI)
 	end
 end
 
+-- Takes a runtime POI away again (a Titan's bones, once they've faded). Not for settlements.
+function WorldStateService.removePOI(_self: any, id: string)
+	local p = placement :: POIPlacer.Placement
+	local poi = p.byId[id]
+	if not poi then
+		return
+	end
+	p.byId[id] = nil
+	local at = table.find(p.pois, poi)
+	if at then
+		table.remove(p.pois, at)
+	end
+end
+
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 function WorldStateService.setEventLookup(_self: any, lookup: (number, number) -> string?)

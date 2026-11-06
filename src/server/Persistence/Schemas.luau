@@ -102,6 +102,7 @@ Schemas.Player = {
 			notoriety = {}, -- mythic domain -> { v, t }
 			combosFound = {}, -- combo id -> os.time() first triggered (Services/ComboService; docs/Social.md §4)
 			sharedEvents = { claimed = {} }, -- event id -> os.time() paid: one reward per event, even across servers (Services/SharedEventService; reconcile fills old saves)
+			titans = { claimed = {}, visited = {} }, -- claimed: Titan id -> os.time() paid, even across servers. visited: fall id -> os.time() you read its bones, pruned to falls that still exist (Services/TitanService; reconcile fills old saves)
 			wildZones = { found = {}, attuned = {}, harvest = {}, heard = {} }, -- zone id -> os.time() you found it; -> os.time() you first touched its heart; -> day number of your last harvest; -> os.time() someone told you of it (Services/WildZoneService; reconcile fills old saves)
 			rifts = { claimed = {}, found = {} }, -- claimed: Rift id -> os.time() paid, one reward per Rift even across servers. found: answer key -> os.time() first used, a bounded set (Services/RiftService; reconcile fills old saves)
 			firstHour = {}, -- new players only: milestone -> seconds of play, casts, idle (FirstHourService; no schema bump)
@@ -342,6 +343,18 @@ Schemas.Housing = {
 	template = function()
 		return {
 			claims = {}, -- lotId -> { u = userId, t = unix, n = display name }
+		}
+	end,
+	migrations = {},
+} :: StoreConfig
+
+-- Where Titans fell, one record per world (Services/TitanService). Bounded by Titans.maxFalls.
+Schemas.TitanFalls = {
+	name = "TitanFalls",
+	version = 1,
+	template = function()
+		return {
+			falls = {}, -- oldest first: { id, kind, x, z, t, by, u, n } (Titans/TitanRules.Fall)
 		}
 	end,
 	migrations = {},

@@ -65,6 +65,7 @@ local poiStyles: { [string]: PoiStyle } = {
 	quiet_place = { glyph = "○", label = "A quiet place" },
 	dungeon = { glyph = "☗", label = "Dungeon" },
 	wild_zone = { glyph = "❖", label = "Wild zone" },
+	titan_fall = { glyph = "☠", label = "Titan's bones" },
 }
 
 local MapData = {

@@ -48,6 +48,7 @@ return table.freeze({
 	DuelEnded = "DuelEnded", -- { id, a, b, winner?, reason, rule } (Services/DuelService)
 	TargetHealed = "TargetHealed", -- { humanoid, model, amount, sourceUserId? } magic healed someone (EffectRunner)
 	SharedEventEnded = "SharedEventEnded", -- { id, type, result, place, players } (Services/SharedEventService)
+	TitanEnded = "TitanEnded", -- { id, kind, result, players } (Services/TitanService)
 	RiftEnded = "RiftEnded", -- { id, result, place, players, clever } (Services/RiftService)
 
 	-- Client

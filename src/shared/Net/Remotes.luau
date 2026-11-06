@@ -398,6 +398,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 3, perSecond = 0.5 },
 		maxBytes = 16,
 	},
+	RequestTitan = { -- -> the current Titan's state (Services/TitanService). Reading its bones is a server-side prompt, not a remote.
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.5 },
+		maxBytes = 16,
+	},
 	RequestRift = { -- -> the current Rift's state (Services/RiftService). Entering and leaving are server-side prompts, not remotes.
 		kind = "Function",
 		from = "Client",
@@ -487,6 +494,10 @@ local Remotes: { [string]: RemoteDef } = {
 	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, text, goalText, place, x, z, radius, warnEnds, endsAt, progress, goal, detail?, result?, mine? } or { phase = "none" }
 	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds, inZone }: your contribution, once a second while you're taking part
 	SharedEventCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "comet", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
+	TitanState = { kind = "Event", from = "Server" }, -- the Titan: { id, phase, kind, name, text, towns, x, z, warnEnds, walkedShare, health, weakLeft, weakTotal, stumbling, result?, mine? } or { phase = "none" }
+	TitanPos = { kind = "Unreliable", from = "Server" }, -- { x, z }: where it is, once a second
+	TitanScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, inZone }: your part, once a second while you're taking part
+	TitanCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
 	WildZoneState = { kind = "Event", from = "Server" }, -- { id = zone id, or false }: the wild zone you just walked into or out of (Services/WildZoneService)
 	RiftState = { kind = "Event", from = "Server" }, -- the Rift: { id, phase, twistName, twistText, place, x, z, closesAt, endsAt, pocketLength, roomIndex, roomCount, cleverRooms, roomName?, roomText?, roomHint?, progress?, bossName?, bossText?, bossHealth?, bossShield?, result?, mine? } or { phase = "none" }
 	RiftScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, inside }: your part, once a second during a run
