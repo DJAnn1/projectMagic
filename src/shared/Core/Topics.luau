@@ -46,6 +46,8 @@ return table.freeze({
 	PartyChanged = "PartyChanged", -- { partyId } someone joined or left (Services/PartyService)
 	ComboTriggered = "ComboTriggered", -- { combo, a, b, position, targets, total } (Services/ComboService)
 	DuelEnded = "DuelEnded", -- { id, a, b, winner?, reason, rule } (Services/DuelService)
+	TargetHealed = "TargetHealed", -- { humanoid, model, amount, sourceUserId? } magic healed someone (EffectRunner)
+	SharedEventEnded = "SharedEventEnded", -- { id, type, result, place, players } (Services/SharedEventService)
 
 	-- Client
 	ScreenChanged = "ScreenChanged", -- { screen: string? } full-screen UI opened (id) or closed (nil)

@@ -72,6 +72,14 @@ local Settings: { [string]: SettingDef } = {
 		options = { true, false },
 		labels = { "On", "Off" },
 	},
+	eventAlerts = {
+		order = 7.6,
+		label = "World event alerts",
+		description = "The countdown panel and marker for server-wide events, wherever you are. Off still shows the panel once you're inside an event's zone.",
+		default = true,
+		options = { true, false },
+		labels = { "On", "Off" },
+	},
 	lockOnMode = {
 		order = 8.5,
 		label = "Lock-on",

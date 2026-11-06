@@ -100,6 +100,7 @@ Schemas.Player = {
 			bounties = {}, -- settlementId -> { amount, faction, reason, t }
 			notoriety = {}, -- mythic domain -> { v, t }
 			combosFound = {}, -- combo id -> os.time() first triggered (Services/ComboService; docs/Social.md §4)
+			sharedEvents = { claimed = {} }, -- event id -> os.time() paid: one reward per event, even across servers (Services/SharedEventService; reconcile fills old saves)
 			firstHour = {}, -- new players only: milestone -> seconds of play, casts, idle (FirstHourService; no schema bump)
 			creatureHunt = { hour = 0, total = 0, byType = {} }, -- kills this hour per type (CreatureService's anti-grind) + lifetime total (loot seed); reconcile fills old saves
 			-- Items (docs/Items.md §6; Server/Items/Inventory). Records use short keys (ItemTypes.Record).

@@ -466,6 +466,7 @@ function EffectRunner.init(_self: any, ctx: any)
 		end
 	end
 	Damage.onHeal = function(humanoid: Humanoid, amount: number, source: number?, info: Damage.Info)
+		bus:publish(Topics.TargetHealed, { humanoid = humanoid, model = humanoid.Parent, amount = amount, sourceUserId = source })
 		local position = headPosition(humanoid)
 		if position then
 			EffectRunner:cue("heal", { amount = math.max(1, math.floor(amount + 0.5)), domain = info.domain, caster = source, victim = victimOf(humanoid) }, position, false)

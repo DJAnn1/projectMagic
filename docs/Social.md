@@ -6,7 +6,8 @@ The owner's brief (2026-11-05): make playing with others fun without breaking th
 |---|---|---|
 | **1** | Audit, parties with shared quest progress, the party UI, one two-player combo, emotes, consent-based duels | built 2026-11-05, not yet run |
 | 1b | Party sharing of creature XP and loot, quest XP and loot | built 2026-11-05, not yet run |
-| **2** | **Shared world events, cross-server news, markets, safe trading (owner asked for these next)** | **designed below, not written** |
+| **2a** | Shared world events | built 2026-11-06, not yet run |
+| **2b** | **Cross-server news, safe trading, markets (owner asked for these next)** | **designed below, not written** |
 | 3 | Guilds | later |
 | 4 | Social hubs, PvP modes | later |
 
@@ -93,21 +94,49 @@ Shared crises: party members within 150 studs of a rewarded member now share at 
 
 ---
 
+## Shared events (built 2026-11-06, not yet run)
+
+Data: `Shared/Social/Data/SharedEvents`, `Social/Data/EventEnemies`. Rules: `Social/EventRules`. Runtime: `Services/SharedEventService`. Client: `Controllers/SharedEventController`, `Fx/EventFx`. All numbers are first guesses from the damage formula; none has been played.
+
+- **Schedule:** `slot = floor(os.time() / 2400)`, one event every 40 minutes. Type and place come from `Seed.random(worldSeed, "shared_event", "schedule", slot)`, so every server runs the same event at the same time. Phases: 120 s warning, fight, ended (40 s recap). A server booting mid-event joins if at least 25% of the fight remains.
+- **Place:** a random town. Siege is on the town itself; the others are on dry ground 150–230 studs out.
+
+| Event | Fight | Win | Danger |
+|---|---|---|---|
+| Wild Elemental | 300 s | Kill the boss (1200 health; one of 4 elements, each with a weakness) | Slam: 22 damage, 14-stud radius, 2.2 s warning, faster below half health. Also a melee hit |
+| Magical Storm | 300 s | Break 3 nodes (350 health each) | Each node strikes a random player in the zone: 14 damage, 9-stud radius, 1.6 s warning |
+| Siege | 360 s | Stop 3 waves of raiders (6, 8, 10, plus up to 4 by players; 70 health) | They bite anyone within 22 studs on the way. 6 reaching the plaza loses the siege |
+| Fallen Comet | 270 s | Break 8 shards (140 health each) | The landing: 25 damage, 24-stud radius, 3 s warning. Shards then pulse at anyone within 16 studs |
+
+- **Enemies:** built with `CreatureRig`, carrying a `SharedEvent` attribute. They appear once a player is within 320 studs and the chunk is built, so an event nobody visits costs nothing and ends as "passed". At most 24 alive. Hitting one is never a crime.
+- **Attacks:** a cue draws the warning, and the server applies the damage after the delay to whoever is still inside. The cue never decides who is hit. Guards work on them.
+- **Scaling:** health = base × (1 + 0.85 × (players in the zone − 1)). It only goes up, by the difference, so damage already dealt stands.
+- **Contribution:** damage to this event's enemies; healing other players in the zone (`TargetHealed`, at most 40 points a second); 2 points a second in the zone if you acted in the last 30 s. Tiers: gold ≥ 40% of the top score, silver ≥ 10%, bronze above 25 points. Needs 30 s in the zone. Playing alone earns gold.
+- **Rewards:** gold 300 XP and 60 coins, silver 180 and 30, bronze 90 and 12, each with a seeded item roll. A failed event pays 35% of the XP and coins and no items. XP goes to your strongest branch through the study channel, so daily caps apply.
+- **Server hopping:** `data.sharedEvents.claimed[event id]` in the session-locked save is checked before paying and saved with the reward. Contribution never carries between servers.
+- **Screen:** a panel at the top centre (hidden during a duel), a ✦ world marker, your score once a second, and a recap. The **World event alerts** setting hides the panel and marker until you enter the zone.
+
+**Known limits:**
+- Leaving before the end pays nothing on that server.
+- An item that doesn't fit in your bags is lost, though the XP and coins still arrive.
+- Town guards and NPCs ignore raiders, because `NPCCombat` only targets players.
+- Raiders walk in straight lines and hop 12 studs forward after 5 s stuck, so they can pass through a wall.
+- A boss that falls out of the world counts as defeated, so the event can't hang.
+- Two players who can hurt each other could trade damage and heals to score healing points; the per-second cap limits this.
+
+**Admin:** `sharedevent start <type>` (in front of you, 10 s warning), `end` (no rewards), `win` (pays out), `status`, `schedule`. Flag: `shared_events_enabled`.
+
+**Budget:** one 4 Hz loop while a fight runs, a 1 Hz zone and score pass, one unreliable score message per participant per second, state messages only on change.
+
+---
+
 ## Still to build (design agreed 2026-11-05, nothing written yet)
 
-The remotes below are already declared in `Net/Remotes` with no handlers: `RequestSharedEvent`, `RequestWorldNews`, `TradeAction`, `MarketAction`, `SharedEventState`, `SharedEventScore`, `WorldNews`, `TradeState`, `MarketChanged`. Adjust them freely.
-
-### Shared events (`SharedEventService`, `Data/SharedEvents`, pure `Social/EventRules`, client `SharedEventController`)
-
-- **Schedule:** `slot = floor(os.time() / 2400)`; type and place from `Seed.random(worldSeed, "shared_event", "schedule", slot)`, so every server runs the same event at the same time. Phases: 120 s warning, fight, ended. A server booting mid-event joins if at least 25% of the time remains.
-- **Types:** Elemental (boss with telegraphed slam), Magical Storm (3 static nodes, telegraphed strikes), Siege (raider waves walk to the plaza), Comet (impact, then shards to break; no terrain edits). Enemies are built with `CreatureRig` from local defs, carry a `SharedEvent` attribute, and spawn only once a player is near and the chunk is built. At most 24 alive.
-- **Scaling:** enemy health grows with players in the zone, and only upward (raise MaxHealth and Health by the difference).
-- **Contribution:** damage to event enemies (`TargetDamaged`), healing others (needs a new `TargetHealed` topic from `Damage.onHeal` in EffectRunner), and presence only if you acted in the last 30 s. Tiers: gold ≥ 40% of the top score, silver ≥ 10%, bronze above a small minimum. Needs 30 s in the zone. A failed event pays 35%.
-- **Server hopping:** the claim is `data.sharedEvents.claimed[slot]` in the session-locked save, checked before paying. Add the field to `Schemas.Player`. Contribution never carries between servers.
-- **Countdown:** a HUD panel (top centre, hidden during a duel), a world marker, and your score once a second.
+The remotes below are already declared in `Net/Remotes` with no handlers: `RequestWorldNews`, `TradeAction`, `MarketAction`, `WorldNews`, `TradeState`, `MarketChanged`. Adjust them freely.
 
 ### Cross-server (`WorldNewsService`, `LeaderboardService`)
 
+- **Event wins:** `Topics.SharedEventEnded` is already published for this, with no subscriber yet.
 - **Announcements:** subscribe to `WorldEventRecorded`; an allowlist of kinds becomes anonymous text ("Someone has awakened Time magic"). Add a topic in `ProgressionService.syncInnate` to detect mythic awakenings.
 - **History:** add `WorldService.recordOnce(id, kind, data)` with a deterministic id (one win per event type per day), so servers don't flood the 200-entry chronicle.
 - **Leaderboard:** seasonal OrderedDataStore (in-memory in Studio), writes queued and throttled, an opt-out setting, and removal in `DataService.eraseUser`.
@@ -216,3 +245,4 @@ All of them also end on Yield, leaving the ring for 3 s, the 3-minute limit (hea
 - Should a party's members split creature kill XP and loot?
 - Should there be a way to invite someone from across the map, or is the list enough?
 - Should the combo's ring also show for partners who can't finish it, as a hint to bring a friend who can?
+- Shared events: is one every 40 minutes right? Are the rewards right against quest pay? Should guards fight raiders (needs `NPCCombat` to target non-players)? Should the event place favour towns with players in them, since it can land across the map?

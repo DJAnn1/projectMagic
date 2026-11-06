@@ -435,8 +435,9 @@ local Remotes: { [string]: RemoteDef } = {
 	DuelState = { kind = "Event", from = "Server" }, -- { phase, ... } (Services/DuelService): the two fighters only
 	EmoteCue = { kind = "Event", from = "Server" }, -- { u, id, on, hide? }: someone in range started or stopped an emote
 	LootRoll = { kind = "Event", from = "Server" }, -- { id, item, n, expires } a need-or-greed roll opened, or { id, closed = true }: party members
-	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, place, x, y, z, radius, warnEnds, endsAt, progress, goal } or { phase = "none" }
-	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds }: your contribution, once a second while you're taking part
+	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, text, goalText, place, x, z, radius, warnEnds, endsAt, progress, goal, detail?, result?, mine? } or { phase = "none" }
+	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds, inZone }: your contribution, once a second while you're taking part
+	SharedEventCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "comet", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
 	WorldNews = { kind = "Event", from = "Server" }, -- { text, t }: a rare feat somewhere in the world
 	TradeState = { kind = "Event", from = "Server" }, -- your trade window (Services/TradeService), or { stage = "none" }
 	MarketChanged = { kind = "Event", from = "Server" }, -- { mail = number }: refresh the Market screen; mail waiting for you
