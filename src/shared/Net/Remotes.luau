@@ -95,6 +95,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 3 },
 		maxBytes = 48,
 	},
+	RequestMap = { -- -> { cols, cell, cells, pois } what you've uncovered, or nil while the world generates (Services/MapService)
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.5 },
+		maxBytes = 16,
+	},
 	TravelIntent = { -- set off (true) or stop (false) (Services/TravelService checks and grants it)
 		kind = "Event",
 		from = "Client",
@@ -455,7 +462,7 @@ local Remotes: { [string]: RemoteDef } = {
 	ProgressionChanged = { kind = "Event", from = "Server" }, -- tier ups, unlocks, breakthroughs, discoveries
 	RegionInfo = { kind = "Event", from = "Server" }, -- biome, density, resonance, active events at your location
 	WorldEffect = { kind = "Event", from = "Server" }, -- cosmetic cues: camera shake, wave visuals, sky
-	PoiMarkers = { kind = "Event", from = "Server" }, -- visible POIs (never hidden/mythic ones)
+	MapReveal = { kind = "Event", from = "Server" }, -- { cells = { i, code, ... }, pois }: ground and places you've just uncovered (Services/MapService)
 	Notify = { kind = "Event", from = "Server" },
 	NpcSpeech = { kind = "Event", from = "Server" }, -- { npcId, text }: a speech bubble over an NPC (nearby players only)
 	JournalChanged = { kind = "Event", from = "Server" }, -- { kind, text, questId? }: a new journal entry (owner only)

@@ -50,6 +50,8 @@ type View = { id: string?, leader: number?, lootMode: string?, members: { any },
 local state = Kit.value({ members = {}, invites = {} } :: View)
 local lootRolls = Kit.value({} :: { any }) -- open need-or-greed rolls
 local vitals = Kit.value({} :: { [number]: any })
+PartyController.state = state -- MapController draws your party from these
+PartyController.vitals = vitals
 local peopleTick = Kit.value(0)
 
 local REFUSALS: { [string]: string } = {

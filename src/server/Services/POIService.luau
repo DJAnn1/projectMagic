@@ -13,7 +13,7 @@
 		            (an eclipse at the Stopped Clock; a starfall at the crater)
 
 	Dwell times shrink where magic is dense (density 2 = half the time).
-	Visible POIs are sent to clients as map markers; hidden ones never leave the server.
+	The map shows places you've uncovered (Services/MapService); hidden ones never leave the server.
 ]]
 
 local Players = game:GetService("Players")
@@ -21,7 +21,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
-local Topics = require(Shared.Core.Topics)
 local Registry = require(Shared.Magic.Registry)
 local Seed = require(Shared.Magic.Seed)
 local Server = ServerScriptService.Server
@@ -253,32 +252,12 @@ local function tick()
 	end
 end
 
-local function sendMarkers(player: Player)
-	local markers = {}
-	for _, poi in world:placement().pois do
-		if not poi.hidden then
-			table.insert(markers, {
-				id = poi.id,
-				type = poi.type,
-				x = math.floor(poi.x),
-				z = math.floor(poi.z),
-				name = if poi.settlement then poi.settlement.name else nil,
-			})
-		end
-	end
-	Net.fire("PoiMarkers", player, markers)
-end
-
 function POIService.init(_self: any, ctx: any)
 	log, flags = ctx.log, ctx.flags
 	world = ctx.get("WorldStateService")
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
 	events = ctx.get("EventDirector")
-	ctx.bus:subscribe(Topics.PlayerDataLoaded, function(payload)
-		world:awaitReady()
-		sendMarkers(payload.player)
-	end)
 end
 
 function POIService.start(_self: any, _ctx: any)

@@ -81,6 +81,7 @@ Schemas.Player = {
 				novelty = {}, -- "verb|property|form" -> 1, capped (Progression/Experiment); reconcile fills old saves
 				noveltyCount = 0,
 				reactions = {}, -- InteractionMatrix result -> unix, first time you triggered it
+				map = {}, -- the ground you've uncovered: a bitset, Shared/World/MapData; reconcile fills old saves
 			},
 			relationships = {}, -- npcId -> { affinity, trust, memories = { {t, kind} } }
 			reputation = {}, -- settlementId -> standing (crimes negative, deeds positive)

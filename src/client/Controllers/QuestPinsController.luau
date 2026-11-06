@@ -15,6 +15,8 @@
 	         town and distance; hidden once you're at the door. While the Journal's "Show the
 	         way" is on (HousingController.trackHome), the edge arrow points home instead of at
 	         the tracked quest, and switches itself off when you arrive.
+	waypoint a ✚ marker over your map waypoint (MapController.waypoint), with the edge arrow, cleared
+	         when you arrive.
 	Settings: Quest markers, Home marker (On/Off). Reduce motion stops the tracked marker's pulse.
 	Budget: at most 10 pins (server cap); one RenderStepped at 10 Hz for labels and the arrow.
 ]]
@@ -30,14 +32,17 @@ local UNTRACKED_RANGE = 900 -- studs: untracked pins vanish beyond this
 local REACHED = 8 -- studs: a place pin this close fades (you're there)
 local HOME_REACHED = 12 -- studs from your door: you're home (marker hides, "Show the way" ends)
 local EDGE_MARGIN = 56 -- pixels from the screen edge for the arrow
+local WAYPOINT_REACHED = 25 -- studs along the ground from your map waypoint: you've arrived
 
 local QuestPinsController = {
 	name = "QuestPinsController",
-	dependencies = { "MagicStateController", "HousingController" },
+	dependencies = { "MagicStateController", "HousingController", "MapController" },
 }
 
 local magic: any = nil
 local housing: any = nil
+local map: any = nil
+local waypointMarker: any = nil
 local localPlayer = Players.LocalPlayer
 
 type Marker = {
@@ -136,6 +141,23 @@ local function rebuildHome()
 	homeMarker = m
 end
 
+-- The ✚ over your map waypoint (MapController.waypoint). It takes priority for the edge arrow.
+local function rebuildWaypoint()
+	if waypointMarker then
+		waypointMarker.gui:Destroy()
+		waypointMarker.holder:Destroy()
+		waypointMarker = nil
+	end
+	local position = map.waypoint:get()
+	if typeof(position) ~= "Vector3" then
+		return
+	end
+	local m = makeMarker({ p = position + Vector3.new(0, 20, 0), text = "Waypoint", tracked = true, person = false })
+	m.glyph.Text = "✚"
+	m.gui.MaxDistance = math.huge
+	waypointMarker = m
+end
+
 local function rebuild(pins: { any })
 	clearMarkers()
 	if not markersOn() then
@@ -227,12 +249,28 @@ local function update()
 		end
 	end
 
-	-- The edge arrow: home while "Show the way" is on, else the tracked quest's nearest pin,
-	-- only when you can't see it.
+	-- The waypoint: its distance is along the ground, and arriving clears it.
+	local way = waypointMarker
+	local wayD = math.huge
+	if way then
+		local spot = way.holder.WorldPosition
+		wayD = Vector3.new(spot.X - here.X, 0, spot.Z - here.Z).Magnitude
+		way.label.Text = "Waypoint\n" .. distanceText(wayD)
+		if wayD <= WAYPOINT_REACHED then
+			map.waypoint:set(nil)
+			magic.events:Fire({ kind = "notify", text = "You've reached your waypoint." })
+			way = nil
+		end
+	end
+
+	-- The edge arrow: your waypoint, else home while "Show the way" is on, else the tracked quest's
+	-- nearest pin, only when you can't see it.
 	ensureArrow()
 	local a, t = arrow :: TextLabel, arrowText :: TextLabel
 	local target: Vector3
-	if home and housing.trackHome:get() then
+	if way then
+		target, nearestD = way.holder.WorldPosition, wayD
+	elseif home and housing.trackHome:get() then
 		target, nearestD = home.holder.WorldPosition, homeD
 	elseif nearestTracked and markersOn() then
 		target = (nearestTracked :: Marker).holder.WorldPosition
@@ -269,6 +307,7 @@ end
 function QuestPinsController.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
 	housing = ctx.get("HousingController")
+	map = ctx.get("MapController")
 end
 
 function QuestPinsController.start(_self: any, _ctx: any)
@@ -280,6 +319,7 @@ function QuestPinsController.start(_self: any, _ctx: any)
 	end)
 	housing.state:observe(rebuildHome)
 	rebuildHome()
+	map.waypoint:observe(rebuildWaypoint)
 	local acc = 0
 	RunService.RenderStepped:Connect(function(dt)
 		acc += dt
@@ -287,7 +327,7 @@ function QuestPinsController.start(_self: any, _ctx: any)
 			return
 		end
 		acc = 0
-		if #markers == 0 and not homeMarker and not (arrow and arrow.Visible) then
+		if #markers == 0 and not homeMarker and not waypointMarker and not (arrow and arrow.Visible) then
 			return
 		end
 		local ok = pcall(update)

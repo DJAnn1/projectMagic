@@ -33,6 +33,7 @@ return {
 	combos_enabled = { default = true, description = "Two party members' spells can combine into a combo (Services/ComboService)." },
 	emotes_enabled = { default = true, description = "Players can use emotes and flourishes (Services/EmoteService)." },
 	duels_enabled = { default = true, description = "Players can challenge each other to duels (Services/DuelService). Running duels finish." },
+	map_enabled = { default = true, description = "The map and uncovering it as you explore (Services/MapService)." },
 	travel_enabled = { default = true, description = "Domain Travel: fast movement in every domain's own style (Services/TravelService)." },
 	surge_enabled = { default = true, description = "Fighting fills a meter that lets you transform (Services/SurgeService)." },
 	borrowed_powers_enabled = { default = true, description = "Relics give a minute of mythic magic (Services/BorrowedPowerService). Off: using one does nothing, and it isn't consumed." },
