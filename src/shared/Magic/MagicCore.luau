@@ -223,6 +223,25 @@ end
 
 -- ─── Recipe normalization & validation ──────────────────────────────────────
 
+-- The cost multiplier for a domain's innate attacks (Data/Strikes `innateCost`). Only the exact
+-- Strike and its thrown form, at power 1 with no modifiers; a hand-built copy is the same spell, so
+-- it gets the same price. Everything else in the domain returns 1.
+local function innateCostFactor(recipe: Recipe, domainCost: number, costWeight: number): number
+	local strike = Registry.strikes[recipe.branch]
+	if
+		not strike
+		or not strike.innateCost
+		or recipe.power ~= 1
+		or #recipe.modifiers > 0
+		or recipe.property ~= strike.property
+		or not table.find(strike.verbs, recipe.verb)
+		or (recipe.form ~= "touch" and recipe.form ~= "projectile")
+	then
+		return 1
+	end
+	return math.min(1, strike.innateCost / (domainCost * costWeight))
+end
+
 function MagicCore.recipeKey(recipe: Recipe): string
 	return string.format(
 		"%d|%s|%s|%s|%s|%d|%s|%s",
@@ -615,6 +634,7 @@ function MagicCore.computeStats(raw: any, caster: CasterProfile, context: CastCo
 		* domainCost
 		* scarcity
 		* traits.cost
+		* innateCostFactor(recipe, domainCost, property.costWeight)
 
 	-- Specialization commitments, the creator's signature bonus, and environmental conditions.
 	local key = MagicCore.recipeKey(recipe)

@@ -58,6 +58,7 @@ export type StrikeDef = {
 	forms: { string }?,
 	native: string?,
 	share: number?,
+	innateCost: number?, -- rarity tax x costWeight for the power 1 Strike and its thrown form (Data/Strikes)
 	rider: StrikeRider?,
 	flavour: string,
 }

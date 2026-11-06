@@ -293,7 +293,7 @@ function FirstHourSim.report(minutes: number?)
 	local length = minutes or 60
 	local TIERS = { "Modest", "Gifted", "Prodigy" }
 	print(string.format("════════ First hour simulation (%d min; the player is a model, see FirstHourSim) ════════", length))
-	print("  target: first damage < 2m, first ranged < 10m, Novice < 30m, something new < 20m, no domain 25% slower than Energy")
+	print("  target: first damage < 2m, first ranged < 10m, Novice < 30m, something new < 20m, no non-Mythic domain 25% slower than Energy")
 	print("  domain/gift | damage ranged novice (no lesson) new recipe quest | casts/min idle kills")
 	local failures: { string } = {}
 	for _, gift in TIERS do
@@ -310,7 +310,8 @@ function FirstHourSim.report(minutes: number?)
 			for _, name in FirstHour.misses(row, length * 60) do
 				table.insert(failures, string.format("%s/%s missed %s (%s)", domainId, gift, name, FirstHour.format(row[name])))
 			end
-			if FirstHour.tooSlow(plain.novice, energy.novice) then
+			-- Mythic domains are exempt: being expensive is part of what they are (owner's call).
+			if Registry.domains[domainId].rarity ~= "Mythic" and FirstHour.tooSlow(plain.novice, energy.novice) then
 				table.insert(failures, string.format("%s/%s reaches Novice over 25%% slower than Energy (%s vs %s, no lesson)", domainId, gift, FirstHour.format(plain.novice), FirstHour.format(energy.novice)))
 			end
 		end

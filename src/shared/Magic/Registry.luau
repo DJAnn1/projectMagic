@@ -492,6 +492,9 @@ for _, domainId in sortedKeys(Domains) do
 	if not strike.native and not (strike.share and strike.share > 0 and strike.share <= 1) then
 		problem("strike '%s' needs a share in (0, 1] (or a native route)", strike.name)
 	end
+	if strike.innateCost and strike.innateCost <= 0 then
+		problem("strike '%s' has a non-positive innateCost", strike.name)
+	end
 end
 for id in Strikes do
 	if not Domains[id] then

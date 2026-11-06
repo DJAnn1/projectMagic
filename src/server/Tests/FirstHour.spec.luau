@@ -9,6 +9,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Registry = require(ReplicatedStorage.Shared.Magic.Registry)
+local MagicCore = require(ReplicatedStorage.Shared.Magic.MagicCore)
 local Server = ServerScriptService.Server
 local FirstHour = require(Server.Progression.FirstHour)
 local Progression = require(Server.Progression.Progression)
@@ -27,6 +28,39 @@ return function(t: any)
 				end
 				t.log(string.format("  %s: damage %s, ranged %s, %.1f casts/min", domainId, FirstHour.format(row.damage), FirstHour.format(row.ranged), row.castsPerMinute))
 			end
+		end)
+
+		t.it("discounts only Time's and Reality's power 1 attacks", function()
+			local function cost(domainId: string, verb: string, form: string, power: number, modifiers: { string }?): number
+				local caster: any = {
+					id = "spec_innate_" .. domainId,
+					affinities = { [domainId] = 0.5 },
+					awakened = { [domainId] = true },
+					mastery = { [domainId] = 60 }, -- comfortable at power 2: no overreach in the numbers
+					unlocked = { [domainId] = true },
+				}
+				local property = Registry.strikes[domainId].property
+				local stats = MagicCore.computeStats({ branch = domainId, property = property, verb = verb, form = form, power = power, modifiers = modifiers or {} }, caster)
+				if not stats then
+					error(string.format("%s %s %s P%d doesn't validate", domainId, verb, form, power))
+				end
+				return (stats :: any).cost
+			end
+			local growth = Registry.Tuning.costGrowth
+			-- Power 2 pays full price, so P2 / P1 shows the discount, whatever else goes into the cost.
+			for domainId, full in { time = 1.6 * 2.0, reality = 1.8 * 2.2 } do
+				local factor = 2.24 / full
+				for _, form in { "touch", "projectile" } do
+					t.expect(cost(domainId, "generate", form, 2) / cost(domainId, "generate", form, 1)).toBeNear(growth / factor, 0.05)
+				end
+				-- Another verb on the same property isn't the Strike.
+				t.expect(cost(domainId, "sense", "touch", 2) / cost(domainId, "sense", "touch", 1)).toBeNear(growth, 0.05)
+				-- A modifier takes it off the discount: compare with what the modifier alone would do.
+				local efficient = Registry.modifiers.efficient.costMult
+				t.expect(cost(domainId, "generate", "projectile", 1, { "efficient" }) / cost(domainId, "generate", "projectile", 1)).toBeNear(efficient / factor, 0.05)
+			end
+			-- A domain without the field is untouched.
+			t.expect(cost("energy", "generate", "projectile", 2) / cost("energy", "generate", "projectile", 1)).toBeNear(growth, 0.05)
 		end)
 
 		t.it("doesn't let the beginner lesson reach Novice by itself", function()

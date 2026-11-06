@@ -15,6 +15,11 @@
 	           The `strike` route skips native strikes; the data still names them for the UI.
 	share    : non-native only: damage as a share of the base hit (DamageModel.base). Exotic
 	           domains trade raw damage for their rider, never more than the energy baseline.
+	innateCost : optional. Exactly this Strike and its thrown form, at power 1 with no modifiers, cost
+	           as if the domain's rarity tax x the property's costWeight were this number (MagicCore,
+	           `innateCostFactor`). Only Time and Reality: Modest casters spent 50-65% of their first
+	           hour waiting on the reservoir. 2.24 is Gravity's own Strike (1.6 x 1.4). Every other
+	           spell in those domains keeps the full cost. docs/EarlyGamePlan.md §10.
 	rider    : non-native only: the small extra each hit carries (Cast/Effects/Strike)
 		status    StatusEffects id applied on hit
 		duration  seconds
@@ -83,12 +88,12 @@ local Strikes: { [string]: Types.StrikeDef } = {
 		flavour = "A sliver of space opens through the target, and closes.",
 	},
 	time = {
-		name = "Hasten Decay", rangedName = "Withering Mote", property = "tempo", verbs = { "generate" }, share = 0.55,
+		name = "Hasten Decay", rangedName = "Withering Mote", property = "tempo", verbs = { "generate" }, share = 0.55, innateCost = 2.24,
 		rider = { status = "rot", duration = 3, dotShare = 0.4, word = "ages (rot)" },
 		flavour = "A pulse of runaway time: years pass in one spot of flesh.",
 	},
 	reality = {
-		name = "Misfortune", rangedName = "Ill Omen", property = "probability", verbs = { "generate" }, share = 0.85,
+		name = "Misfortune", rangedName = "Ill Omen", property = "probability", verbs = { "generate" }, share = 0.85, innateCost = 2.24,
 		rider = { status = "jinxed", duration = 4, word = "jinxes (crits likelier)" },
 		flavour = "The odds turn against them, and so does the blow.",
 	},
