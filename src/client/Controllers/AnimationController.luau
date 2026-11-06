@@ -151,11 +151,12 @@ local function loadTracks(animator: Animator)
 		end
 		loaded[name] = entry
 	end
-	-- A clip the account can't use loads as a track that never gets a Length.
+	-- A clip that can't load never gets a Length, and neither does a clip with only one keyframe (or
+	-- all of them at time 0). Length alone can't tell these apart.
 	task.delay(LOAD_GRACE, function()
 		for name, entry in loaded do
 			if entry.track.Length <= 0 and not unavailable[name] then
-				markUnavailable(name, "track length still 0 (not owned by the place's creator?)")
+				markUnavailable(name, "track length still 0 (only one keyframe, or it couldn't load: check ownership)")
 			end
 		end
 	end)

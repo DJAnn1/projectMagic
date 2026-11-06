@@ -722,13 +722,13 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 		loaded.Priority = Enum.AnimationPriority.Action
 		rig.tracks[key] = loaded
 		track = loaded
-		-- A clip that can't load (usually not owned by the place's creator) has no length and plays
-		-- nothing, silently. Say so once per slot.
+		-- A clip with no length plays nothing, silently: it has only one keyframe, or it couldn't load.
+		-- Say so once per slot.
 		if not activityChecked[slot] then
 			activityChecked[slot] = true
 			task.delay(5, function()
 				if loaded.Length <= 0 then
-					warn(string.format("[DailyLife] clip '%s' (%s) didn't load: is it owned by the place's creator?", slot, animationId))
+					warn(string.format("[DailyLife] clip '%s' (%s) has no length: only one keyframe, or it couldn't load (check ownership)", slot, animationId))
 				end
 			end)
 		end

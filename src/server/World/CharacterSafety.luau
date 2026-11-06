@@ -168,11 +168,12 @@ function CharacterSafety.guardSpawns(getSpawn: () -> Vector3?)
 			local root = rootOf(player)
 			local spawnAt = getSpawn()
 			if root and spawnAt and inWater(root.Position) then
+				local from = root.Position -- before the move, or the log reports the destination
 				character:PivotTo(CFrame.new(spawnAt + Vector3.new(0, 3, 0)))
 				root.AssemblyLinearVelocity = Vector3.zero
 				rescued += 1
 				if world and world.logRescue then
-					world:logRescue(player, "spawned in water", root.Position, spawnAt)
+					world:logRescue(player, "spawned in water", from, spawnAt)
 				end
 				return
 			end
