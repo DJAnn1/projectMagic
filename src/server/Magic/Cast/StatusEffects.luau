@@ -68,6 +68,7 @@ local DEFS: { [string]: StatusDef } = {
 	lucky = { name = "Lucky", backfireMult = 0.5 },
 	time_slow = { name = "Slowed time", walk = 0.35, animSpeed = 0.35, client = true, harmful = true },
 	time_haste = { name = "Quickened time", walk = 1.5, animSpeed = 1.5, client = true },
+	zone_crawl = { name = "Crawling time", walk = 0.6, animSpeed = 0.6, client = true }, -- the Slow Wood (Services/WildZoneService)
 	knockdown = { name = "Knocked down", walk = 0, jump = 0, knockdown = true, client = true, harmful = true },
 	-- Domain strike riders (Shared/Magic/Data/Strikes).
 	dazed = { name = "Dazed", walk = 0.85, backfireMult = 1.5, client = true, harmful = true },

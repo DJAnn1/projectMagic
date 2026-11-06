@@ -54,6 +54,7 @@ export type Modifier = {
 	moisture: number?, -- additive
 	stormCharge: number?, -- additive
 	fuel: number?, -- additive
+	bias: { [string]: number }?, -- domain -> multiplier on top of the place's resonance (a wild zone's)
 	expiresAt: number,
 }
 
@@ -369,9 +370,15 @@ end
 -- Everything MagicCore needs about a place: density, resonance and environment facts.
 function WorldStateService.castContext(self: any, position: Vector3, radius: number?): Types.CastContext
 	local s = (gen :: WorldGen.WorldGen):sample(position.X, position.Z)
+	local ambientBias = (magic :: MagicMap.MagicMap):resonanceAt(position.X, position.Z, s)
+	for _, m in modifiersAt(position.X, position.Z) do
+		for domain, mult in (m.bias or {}) :: { [string]: number } do
+			ambientBias[domain] = (ambientBias[domain] or 1) * mult
+		end
+	end
 	return {
 		ambientDensity = self:densityAt(position.X, position.Z),
-		ambientBias = (magic :: MagicMap.MagicMap):resonanceAt(position.X, position.Z, s),
+		ambientBias = ambientBias,
 		environment = self:environmentAt(position, radius or 32),
 	}
 end

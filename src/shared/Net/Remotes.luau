@@ -487,6 +487,7 @@ local Remotes: { [string]: RemoteDef } = {
 	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, text, goalText, place, x, z, radius, warnEnds, endsAt, progress, goal, detail?, result?, mine? } or { phase = "none" }
 	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds, inZone }: your contribution, once a second while you're taking part
 	SharedEventCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "comet", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
+	WildZoneState = { kind = "Event", from = "Server" }, -- { id = zone id, or false }: the wild zone you just walked into or out of (Services/WildZoneService)
 	RiftState = { kind = "Event", from = "Server" }, -- the Rift: { id, phase, twistName, twistText, place, x, z, closesAt, endsAt, pocketLength, roomIndex, roomCount, cleverRooms, roomName?, roomText?, roomHint?, progress?, bossName?, bossText?, bossHealth?, bossShield?, result?, mine? } or { phase = "none" }
 	RiftScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, inside }: your part, once a second during a run
 	RiftCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "solved", ... }: cosmetic, people inside only

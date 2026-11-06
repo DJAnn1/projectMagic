@@ -34,6 +34,7 @@ local StatusInfo: { [string]: Info } = {
 	lucky = { name = "Lucky", harmful = false, description = "Your spells backfire less often." },
 	time_slow = { name = "Slowed time", harmful = true, description = "Time around you crawls." },
 	time_haste = { name = "Quickened time", harmful = false, description = "Time around you races." },
+	zone_crawl = { name = "Crawling time", harmful = false, description = "Time crawls in this place, for everything in it." },
 	knockdown = { name = "Knocked down", harmful = true, description = "You're on the ground." },
 	dazed = { name = "Dazed", harmful = true, description = "Your head is ringing: slower, and your spells backfire more." },
 	jinxed = { name = "Jinxed", harmful = true, description = "Luck has turned on you: hits on you crit more often." },

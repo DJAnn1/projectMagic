@@ -64,6 +64,7 @@ local poiStyles: { [string]: PoiStyle } = {
 	sunken_shrine = { glyph = "✧", label = "Sunken shrine" },
 	quiet_place = { glyph = "○", label = "A quiet place" },
 	dungeon = { glyph = "☗", label = "Dungeon" },
+	wild_zone = { glyph = "❖", label = "Wild zone" },
 }
 
 local MapData = {
@@ -192,7 +193,7 @@ function MapData.knownPois(pois: { any }, bits: { [string]: number }): { KnownPo
 				type = poi.type,
 				x = math.floor(poi.x),
 				z = math.floor(poi.z),
-				name = if poi.settlement then poi.settlement.name else nil,
+				name = if poi.settlement then poi.settlement.name else poi.name,
 			})
 		end
 	end

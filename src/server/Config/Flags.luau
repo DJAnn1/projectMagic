@@ -40,6 +40,7 @@ return {
 	time_powers_enabled = { default = true, description = "Timelines, Timestop, Stored Moment, Borrowed Wound, Future Sight and Time Loop (Effects/TimePower). Off refuses new casts; what's running finishes." },
 	gravity_powers_enabled = { default = true, description = "Flight, Crushing Grip, wells, Lift and Slam, shields, Mass Shift and Singularity (Effects/GravityPower). Off refuses new casts; plain gravity fields still work." },
 	shared_events_enabled = { default = true, description = "Server-wide scheduled events (Services/SharedEventService). Off cancels a running one with no rewards." },
+	wild_zones_enabled = { default = true, description = "Permanent regions with broken rules (Services/WildZoneService). Off lifts every rule at once and removes their landmarks." },
 	rifts_enabled = { default = true, description = "Seeded dungeons that open in the world (Services/RiftService). Off cancels a running one with no rewards and puts everyone back." },
 	quests_enabled = { default = true, description = "Quest Director: situations, offers, quest progress and outcomes (Services/QuestDirector)." },
 	combat_anim_debug = { default = false, replicate = true, description = "Show each nearby character's and NPC's action state over its head (client labels; every client sees them, so Studio use)." },
