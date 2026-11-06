@@ -1,6 +1,6 @@
 # Time powers
 
-The owner's brief (2026-11-06): "Time is supposed to be overpowered so don't hold back on the abilities." Timelines of yourself and others, timestop, and more, scaling with skill. "Have self timeline restore everything, and let it save you from death at grandmaster." Built 2026-11-06, not yet run. Every number is a first guess.
+The owner's brief (2026-11-06): "Time is supposed to be overpowered so don't hold back on the abilities." Timelines of yourself and others, timestop, and more, scaling with skill. "Have self timeline restore everything, and let it save you from death at grandmaster." Built 2026-11-06. First run the same day: Self Timeline's recall and Timestop ran with no errors in the log; how they look hasn't been reported, and the other powers haven't been seen in a log. Every number is a first guess.
 
 Data: `Shared/Magic/Data/TimeTuning`. Rules: `Shared/Magic/TimeRules`. Routes: `Data/EffectLibrary`. Resolver: `Cast/Effects/TimePower`. Runtime: `Cast/TimeRuntime`, stepped by `Services/TimeService`. Client: `Controllers/TimeClient`, `Fx/TimeFx`. Specs: `Tests/Time.spec`. Flag: `time_powers_enabled`.
 
@@ -13,7 +13,7 @@ These are ordinary recipes from the grammar. Tiers are mastery in the spell's br
 | **Self Timeline** | rewind, sequence, store, aura | Mark this moment; **N** returns you to it, with an afterimage while it lasts | Mark lasts 6 to 45 s, recall cooldown 60 to 6 s |
 | **Last Moment** | automatic, with a live Self Timeline | A killing blow recalls you instead | Grandmaster up. Once per 180 s (tier 7), 90 s (tier 8) |
 | **Target Timeline** | rewind, sequence, bind, touch or beam | Mark someone; **L** snaps them back to that spot, stunned and hurt | 1 to 6 people, stun 0.5 to 3 s, mark 6 to 45 s |
-| **Stored Moment** | causality, sequence, bind, aura | Your projectiles hang in the air; **L** sends them all | 2 to 8 held, 4 to 20 s |
+| **Stored Moment** | rewind, sequence, bind, aura | Your projectiles hang in the air; **L** sends them all | 2 to 8 held, 4 to 20 s |
 | **Timestop** | stasis, tempo, reduce or bind, zone, burst, aura or ritual, power 7+ | Everyone you can harm in the zone freezes, and every projectile in it hangs, yours too | 0.5 to 5 s, radius 20 to 90 studs, cooldown 120 to 40 s |
 | **Borrowed Wound** | causality, sequence, amplify, touch or beam | Hits on them wait, then all land together, harder | 3 to 8 s, 1.1× to 2.2× |
 | **Deferred Pain** | causality, sequence, reduce, aura | Hits on you wait, and you pay less of them | 3 to 8 s, 0.9× to 0.25× |
@@ -87,7 +87,7 @@ testmage 7 time
 cheat all
 cast rewind sequence store aura 5
 cast rewind sequence bind beam 5
-cast causality sequence bind aura 5
+cast rewind sequence bind aura 5
 cast stasis tempo reduce zone 7
 cast causality sequence amplify beam 5
 cast causality sequence reduce aura 5

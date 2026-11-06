@@ -87,15 +87,21 @@ return function(t: any)
 			end
 		end)
 		it("are valid grammar and reach the effect they claim", function()
+			-- Every problem at once: stopping at the first hides the ones listed after it.
+			local problems: { string } = {}
 			for _, e in SpellExamples do
 				local ok, errors, normalized = MagicCore.validateRecipe(e.recipe)
 				if not ok or not normalized then
-					error(string.format("example %s is invalid: %s", e.name, errors[1] and errors[1].message or "?"))
+					table.insert(problems, string.format("example %s is invalid: %s", e.name, errors[1] and errors[1].message or "?"))
+				else
+					local got = CastService.routeFor(normalized).id
+					if got ~= e.effect then
+						table.insert(problems, string.format("example %s routes to %s, expected %s", e.name, got, e.effect))
+					end
 				end
-				local got = CastService.routeFor(normalized).id
-				if got ~= e.effect then
-					error(string.format("example %s routes to %s, expected %s", e.name, got, e.effect))
-				end
+			end
+			if #problems > 0 then
+				error(table.concat(problems, "\n"))
 			end
 		end)
 		it("covers the five worked walkthroughs", function()

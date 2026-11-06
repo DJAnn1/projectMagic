@@ -55,7 +55,7 @@ local routes: { Route } = {
 	{ id = "self_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "store" }, forms = { "aura" }, params = { power = "self_timeline" } },
 	{ id = "target_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { power = "target_timeline" } },
 	{ id = "time_loop", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "redirect" }, forms = { "touch", "beam" }, params = { power = "loop" } },
-	{ id = "stored_moment", effect = "TimePower", branches = { "causality" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "stored" } },
+	{ id = "stored_moment", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "stored" } },
 	{ id = "borrowed_wound", effect = "TimePower", branches = { "causality" }, properties = { "sequence" }, verbs = { "amplify", "reduce" }, forms = { "touch", "beam", "aura" }, params = { power = "wound" } },
 	{ id = "future_sight", effect = "TimePower", branches = { "precognition" }, properties = { "foresight" }, verbs = { "amplify" }, forms = { "aura", "touch" }, params = { power = "sight" } },
 	{ id = "timestop", effect = "TimePower", branches = { "stasis" }, properties = { "tempo" }, verbs = { "reduce", "bind" }, forms = { "zone", "burst", "aura", "ritual" }, minPower = 7, params = { power = "timestop" }, heavy = true },

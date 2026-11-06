@@ -190,7 +190,7 @@ local SpellExamples: { Example } = {
 		recipe = { branch = "rewind", property = "sequence", verb = "bind", form = "beam", power = 5 },
 		description = "Mark someone where they stand. L drags them back, stunned, into whatever you've left there." },
 	{ name = "Stored Moment", domain = "time", effect = "stored_moment",
-		recipe = { branch = "causality", property = "sequence", verb = "bind", form = "aura", power = 5 },
+		recipe = { branch = "rewind", property = "sequence", verb = "bind", form = "aura", power = 5 },
 		description = "Your projectiles hang in the air. L sends them all at once." },
 	{ name = "Timestop", domain = "time", effect = "timestop",
 		recipe = { branch = "stasis", property = "tempo", verb = "reduce", form = "zone", power = 7 },
