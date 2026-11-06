@@ -1,6 +1,6 @@
 # projectMagic: status and handoff
 
-An open-world Roblox magic sandbox. There's no linear story: everyone (players and NPCs) has innate magic that is procedurally generated, trained and mastered over time. It's written in Luau and synced to Studio with Rojo (`default.project.json`). Last updated **2026-11-05**.
+An open-world Roblox magic sandbox. There's no linear story: everyone (players and NPCs) has innate magic that is procedurally generated, trained and mastered over time. It's written in Luau and synced to Studio with Rojo (`default.project.json`). Last updated **2026-11-06**.
 
 ## How the owner works with Claude
 
@@ -25,6 +25,51 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Before coding, say the plan** (asked 2026-11-05: "Tell me what you're doing before you code"): a short plan in the reply, then build.
 - **Syntax check:** selene parses every file: `~/AppData/Roaming/Code/User/globalStorage/kampfkarren.selene-vscode/selene.exe --display-style quiet <files>` (0 parse errors = syntax OK). Use it after edits, since VS Code diagnostics may be empty for unanalysed files.
 - **Client → server intents use `Net.send`** (`Net.fire` is server → client only; using it on the client broke running and dashing once).
+
+## Build queue (saved 2026-11-06, the owner's "to make later" list)
+
+**Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
+
+**1. Check first (built, not yet confirmed in a log)**
+- The map: expected boot line `specs 623/623`. Also check where a click lands, whether a fully explored map hitches on opening (`maprevealall`), and whether uncovered ground survives a rejoin (`docs/Map.md`).
+- A shared event played to the end: payout, tiers, and the guaranteed first relic (`sharedevent start elemental`, 30+ s in the zone).
+- Not reported yet: whether the relic panel hides after 60 s, plain `borrowed time` without `me`, how Surge looks, Timestop freezing flames and animations on a second client, craters, flight feel.
+
+**2. Next up**
+- **Rifts:** seeded dungeons that open in the world, 5–10 minutes, each with a twist such as "fire spreads twice as fast". Creative spell use solves rooms, and bosses drop the best loot. The main repeatable loop at high power, and the largest piece so far, so build in stages, starting with one playable Rift. It must reward creative solutions, or it becomes a combat grind.
+
+**3. Small follow-ups to what's built**
+- **Map:** a minimap on the HUD (recommended), towns visible from the start (one line, owner to decide), rumours and quests marking the map, drag to pan, drawing roads.
+- **Surge:** a stronger look per domain (flame wings, a stone shell, hair and eye glow), and its own sound.
+- **Domain Travel** (owner: "passable"): a riding pose per style, boards for the 8 styles without one, sound, and a fix for riding indoors, where a roof reads as ground. Decide whether Earth and Life should stop at water (it may clash with "don't restrict the player") and whether riding should cost reservoir, since low levels run dry in about 33 s.
+- **Time:** sounds, which need a library pick. Timestop doesn't stop tsunamis or quakes already running.
+- **Gravity:** Inversion's wall-walking, and the "vector an area" ritual (`docs/Gravity.md`).
+- **Town crimes:** later hits from grips, loops, finishers and Meteor Landing aren't judged as cast crimes, and neither are Time's spells.
+- **Fixes if they show up in play:** `foundation_failed` on `House_12` and `HouseLarge_07` in settlement_2, and the spawn rescue from near the world origin.
+
+**4. Pitched and not yet picked (the 2026-11-06 ideas round)**
+- **Wild Zones:** permanent seeded regions with broken rules (a floating valley, a forest where time crawls, a burning lake). M.
+- **Titans:** a huge boss crosses the island, damaging what it passes, and leaves a permanent landmark where it falls. M–L. Needs limits on what every server keeps, as craters have.
+- **The Apex:** a mythic player opts in to be hunted by the whole server. M. Must stay opt-in.
+- **Tournaments:** bracket duels at a town arena once 4+ sign up, with spectators and no fixed schedule. M.
+- **Echoes:** faint ghosts replay legendary moments where they happened, on every server. M. Needs the same limits as Titans.
+- **Familiars:** a small creature generated from your innate magic, which grows and fights. M–L.
+
+**5. Paused: multiplayer (design in `docs/Social.md`, "Still to build")**
+- Cross-server news and leaderboard, then direct trade, then markets (stalls, auctions, commissions). The remotes are declared with no handlers. M is now the map and K is Surge, so markets and trade need other keys. Should relics be tradable? (Recommended yes.)
+- Later stages: guilds, social hubs, PvP modes, and party extras (mute and report tools, the fake-player load test, more combos).
+
+**6. Waiting from older briefs**
+- **Living world stage 2** (`docs/LivingWorld.md`): settlement growth, rumours, vignettes, world history, wonder events.
+- **NPC movement stage 2** (`docs/NPCMovement.md`): LOD transition rework, network ownership and physics, anchor validation, soak test.
+- **Earlier top-5 lists, not picked:** `docs/EngagementIdeas.md` (people noticed that, overheard rumours, goals you set yourself, a rival who remembers) and `docs/MagicIdeas.md`.
+
+**Decisions waiting on the owner**
+- **Open PvP:** `pvp_enabled` is on. Timestop, Crushing Grip and relics make griefing much easier, and Timestop freezes people regardless of the flag. Recommended: at least a safe spawn plaza.
+- **Craters:** holes in towns (they're scorch marks there now, by Claude's call)? Should craters outside towns ever heal?
+- **Self Timeline:** is a 6 s recall cooldown at Transcendent right?
+- **Timestop and duels:** fighters in someone else's duel stay exempt, by Claude's call.
+- **Relics:** is one guaranteed by your first gold finish too generous?
 
 ## Where we left off (session 2026-11-05)
 
