@@ -90,7 +90,7 @@ export type TypeDef = {
 
 local CATEGORY_ORDER = {
 	"Teleport", "Movement", "Magic", "Profile", "Spells", "World", "Terrain", "Overlays",
-	"NPCs", "Population", "Quests & factions", "Items", "Spellbook", "Server",
+	"NPCs", "Population", "Quests & factions", "Social", "Items", "Spellbook", "Server",
 }
 local MAX_ARGS = 16
 local MAX_ARG_BYTES = 200

@@ -397,7 +397,7 @@ Design doc: `docs/NPC.md`. Code: `src/server/NPC/` (NPCFactory, NPCBrain + Utili
 
 - **Bootstrap modules** (`Services/*`, `Controllers/*`) declare `dependencies`. `ctx.get` only works for declared ones. `init` must not yield; anything that yields goes in `start`.
 - **Remotes:** every remote is declared in `src/shared/Net/Remotes.luau` and used only through `Net`. The one exception is the Admin Panel's per-admin pair in PlayerGui (a shared remote would be visible to every client).
-- **Admin commands:** one `admin:Register({ name, category, description, args = {typed schema}, handler })` per command; services register their own, cross-system tools live in `Server/Admin/Commands/*`. Never parse raw strings in a handler: add an argument type (`RegisterType`) instead.
+- **Admin commands:** one `admin:Register({ name, category, description, args = {typed schema}, handler })` per command (a new category must be added to `CATEGORY_ORDER` in AdminService, or the service fails at boot); services register their own, cross-system tools live in `Server/Admin/Commands/*`. Never parse raw strings in a handler: add an argument type (`RegisterType`) instead.
 - **Bus topics** are declared in `Core/Topics.luau`.
 - **Heavy work** goes through `Scheduler.spawn` + `Scheduler.checkpoint()`. Jobs must never yield any other way.
 - **Ids are permanent.** Renames go through `Data/Aliases`. Bump the version constants (`RECIPE_VERSION`, `PROFILE_VERSION`, `GENERATOR_VERSION`, schema `version`) when behaviour changes for existing data.

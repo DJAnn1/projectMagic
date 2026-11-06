@@ -92,6 +92,7 @@ Adding a command takes one `Register` call; the panel builds its card, inputs an
 | **NPCs** | `npc`, `npcinspect`, `npcday`, `npctalk`, `npcawaken`, `npcspawn [occupation] [seed] [at] [spec]`, `npcdelete`, `npckill`, `npcheal`, `npcfreeze`, `npctier <0/1/2/auto>`, `npcneed`, `npctrait`, `npcmastery`, `npcrel`, `npcbond teacher/apprentice/none`, `npcdo <action/home/flee/duel/teachme>`, `npcgossip`, `npcambition`, `npcresists`, `npcfight [npc] [player]`, `npccourage` |
 | **Population** | `npcs`, `npclod`, `npclist [settlement] [occupation] [domain] [minMastery]`, `population <mult>`, `npcrebuild`, `simdays <days>` |
 | **Quests & factions** | `quests`, `situations`, `questgen <template>`, `questcomplete <quest> [outcome]`, `questfail`, `questreset`, `queststage <quest> <stage>`, `questsituation <quest>`, `hunters [domain]`, `faction <faction> <value>`, `standings`, `infamy`, `bounty <settlement> <amount>`, `notoriety`, `npcfactions`, `reveal <secret faction>`, `rep <settlement> <value>` (docs/Quests.md) |
+| **Social** | `parties`, `testparty`, `partyleave [player]`, `combos`, `combotest <combo> [power]`, `emote <id> [player]`, `duels`, `duelforce <a> <b> [rule]`, `duelend [player]` (docs/Social.md) |
 | **Server** | `help [command]`, `perf`, `flags`, `flag`, `log`, `players`, `save`, `auditlog` |
 
 ### What a few of them actually do
