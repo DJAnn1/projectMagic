@@ -280,11 +280,12 @@ end
 
 --[[
 	Clears terrain out of a building's interior: the room volume inside the walls, extended DOWN
-	to the floor slab's bottom. The room box starts 0.15 studs above the floor top, and a
-	part-filled voxel below it renders its surface up to ~1.3 studs higher (smooth terrain), so on
-	sloped lots terrain showed through floors (foundation_failed in Deepwatch, 2026-11-05). The
-	slab is a Part, so the terrain inside it is never needed. Returns false for buildings without
-	an interior (stalls, wells).
+	past the floor slab's bottom by one whole voxel. Terrain voxels are 4 studs and the slab is 1.2,
+	so a voxel straddling the box's bottom edge is only part-cleared, and smooth terrain renders that
+	remainder up through the floor (foundation_failed in settlement_2, 0.7-1.25 above the floor top,
+	even with the clear ending at the slab's bottom, 2026-11-05). This leaves a hollow of up to 4
+	studs under the floor, inside the walls, where nobody can see or reach it. The slab is a Part, so
+	that terrain is never needed. Returns false for buildings without an interior (stalls, wells).
 ]]
 local function clearInterior(model: Model): boolean
 	local cf = model:GetAttribute("InteriorCFrame")
@@ -295,7 +296,7 @@ local function clearInterior(model: Model): boolean
 	local floor = model:FindFirstChild("Floor")
 	if floor and floor:IsA("BasePart") then
 		local top = cf.Position.Y + size.Y / 2
-		local bottom = floor.Position.Y - floor.Size.Y / 2 + 0.05
+		local bottom = floor.Position.Y - floor.Size.Y / 2 - 4 -- one voxel below the slab
 		if bottom < cf.Position.Y - size.Y / 2 then
 			local height = top - bottom
 			cf = CFrame.new(cf.Position.X, bottom + height / 2, cf.Position.Z) * cf.Rotation
