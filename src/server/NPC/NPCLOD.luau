@@ -656,8 +656,10 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 	local playing = track
 	local token = (holdTokens[playing] or 0) + 1
 	holdTokens[playing] = token
-	if hold then
-		-- Sit down once, then stay: freeze just before the end, or the clip would stop and fade out.
+	if hold or not looped then
+		-- Ended by hand, because Looped set here may not reach clients: they use the setting the
+		-- animation was published with, so a clip published looping would repeat forever.
+		-- A pose freezes on its last frame. A one-shot stops.
 		task.spawn(function()
 			local waited = 0
 			while playing.Length <= 0 and waited < 3 do
@@ -667,9 +669,13 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 			if playing.Length <= 0 then
 				return
 			end
-			task.wait(math.max(0, playing.Length - playing.TimePosition - 0.05))
+			task.wait(math.max(0, playing.Length - playing.TimePosition - (if hold then 0.05 else 0.2)))
 			if holdTokens[playing] == token and playing.IsPlaying then
-				playing:AdjustSpeed(0)
+				if hold then
+					playing:AdjustSpeed(0)
+				else
+					playing:Stop(0.2)
+				end
 			end
 		end)
 	end

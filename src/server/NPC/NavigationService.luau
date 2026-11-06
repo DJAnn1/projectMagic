@@ -66,6 +66,9 @@ local T = table.freeze({
 	direct = 24, -- a clear straight walk up to this far needs no path
 	directMaxRise = 4,
 	waypointSpacing = 4,
+	smoothReach = 8, -- how many points ahead a smoothed route may skip
+	smoothChecks = 40, -- straight-line checks per route
+	goodSpacing = 8, -- remembered safe spots are at least this far apart
 	reachWaypoint = 2.4,
 	reachGoal = 1.8,
 	maxPathRatio = 4, -- a path over 4 x the straight distance + maxPathExtra is rejected
@@ -137,6 +140,7 @@ type Nav = {
 	nextDoor: number,
 	nextGoalCheck: number,
 	nextGood: number,
+	jumpedAt: number?,
 	face: Vector3?,
 	history: { string },
 	lastStuck: string?,
@@ -234,6 +238,7 @@ local function navOf(npc: any): Nav
 			nextDoor = 0,
 			nextGoalCheck = 0,
 			nextGood = 0,
+			jumpedAt = nil,
 			face = nil,
 			history = {},
 			lastStuck = nil,
@@ -261,8 +266,9 @@ local function npcFolder(): { Instance }
 	return if folder then { folder } else {}
 end
 
--- Nothing solid on a straight, level-ish walk between two ground points.
-local function clearWalk(from: Vector3, to: Vector3): boolean
+-- Nothing solid on a straight, level-ish walk between two ground points. `radius`: how wide a body
+-- has to fit (default a narrow one, for a short direct walk).
+local function clearWalk(from: Vector3, to: Vector3, radius: number?): boolean
 	if math.abs(to.Y - from.Y) > T.directMaxRise then
 		return false
 	end
@@ -272,7 +278,7 @@ local function clearWalk(from: Vector3, to: Vector3): boolean
 	for _, height in { -1.5, 0.8 } do
 		local start = from + Vector3.new(0, height, 0)
 		local finish = Vector3.new(to.X, start.Y, to.Z)
-		if (finish - start).Magnitude >= 0.5 and workspace:Spherecast(start, 0.9, finish - start, params) then
+		if (finish - start).Magnitude >= 0.5 and workspace:Spherecast(start, radius or 0.9, finish - start, params) then
 			return false
 		end
 	end
@@ -413,6 +419,7 @@ end
 local function startWalking(nav: Nav, waypoints: { Waypoint }, route: Route?)
 	nav.waypoints, nav.route = waypoints, route
 	nav.index = 1
+	nav.jumpedAt = nil
 	nav.status = "walking"
 	nav.halted = false
 	nav.issued = nil
@@ -449,6 +456,45 @@ local function crossesLockedDoor(npc: any, waypoints: { Waypoint }): boolean
 		end
 	end
 	return false
+end
+
+--[[
+	A path comes back as a point every few studs, zig-zagging on the coarse navmesh. Followed literally
+	the NPC keeps correcting its heading, which reads as a wobble. So: from each point, jump to the
+	furthest one ahead with a clear straight walk. Jump points are always kept. Bounded, and it only
+	runs once per computed route, since routes are cached.
+]]
+local function smoothed(waypoints: { Waypoint }, radius: number): { Waypoint }
+	if #waypoints <= 2 then
+		return waypoints
+	end
+	local out: { Waypoint } = { waypoints[1] }
+	local i = 1
+	local checks = 0
+	while i < #waypoints do
+		local furthest = i + 1
+		local last = math.min(#waypoints, i + T.smoothReach)
+		-- Never past a jump: it has to happen where the path says.
+		for k = i + 1, last do
+			if waypoints[k].jump then
+				last = k
+				break
+			end
+		end
+		for j = last, i + 2, -1 do
+			if checks >= T.smoothChecks then
+				break
+			end
+			checks += 1
+			if clearWalk(waypoints[i].p + Vector3.new(0, 3, 0), waypoints[j].p, radius) then
+				furthest = j
+				break
+			end
+		end
+		table.insert(out, waypoints[furthest])
+		i = furthest
+	end
+	return out
 end
 
 local function nextAttempt(nav: Nav, why: string)
@@ -543,6 +589,7 @@ local function compute(job: any)
 		nextAttempt(nav, "path crosses a locked door")
 		return
 	end
+	waypoints = smoothed(waypoints, job.agent.radius)
 	local route: Route = { key = routeKey(job.agent, job.from, job.target), waypoints = waypoints, length = length, at = os.clock(), path = path, connection = nil, dead = false }
 	route.connection = path.Blocked:Connect(function(index: number)
 		stats.blocked += 1
@@ -789,9 +836,17 @@ local function recover(nav: Nav, reason: string): boolean
 	if anyoneSees(from) then
 		return false
 	end
-	local spot: Vector3? = npc.lastGoodPosition
-	local ground = spot and verifiedGround(spot)
-	if not ground or anyoneSees(ground) then
+	-- The older remembered spot first: the newer one is often right where they're stuck. A spot this
+	-- close wouldn't change anything, so it doesn't count as a recovery.
+	local ground: Vector3? = nil
+	for _, spot in { npc.olderGoodPosition, npc.lastGoodPosition } :: { Vector3? } do
+		local candidate = spot and verifiedGround(spot)
+		if candidate and (candidate - from).Magnitude >= T.goodSpacing / 2 and not anyoneSees(candidate) then
+			ground = candidate
+			break
+		end
+	end
+	if not ground then
 		return false
 	end
 	rig.model:PivotTo(CFrame.new(ground + Vector3.new(0, agentOf(rig).height / 2 + 0.5, 0)))
@@ -918,7 +973,12 @@ local function safetyCheck(nav: Nav, root: BasePart, humanoid: Humanoid, clock: 
 	end
 	local floor = humanoid.FloorMaterial
 	if floor ~= Enum.Material.Air and floor ~= Enum.Material.Water then
-		npc.lastGoodPosition = position
+		-- Two spots a real distance apart, or both would soon be wherever they're stuck.
+		local good: Vector3? = npc.lastGoodPosition
+		if not good or (position - good).Magnitude >= T.goodSpacing then
+			npc.olderGoodPosition = good
+			npc.lastGoodPosition = position
+		end
 	end
 end
 
@@ -997,7 +1057,9 @@ function Navigation.Step(npc: any, clock: number)
 		nav.deadline = clock + flat / math.max(speed, 1) * 2.5 + T.waypointGrace
 	end
 	openDoorsAhead(nav, position, wp.p, clock)
-	if wp.jump and flat < 4 then
+	-- Once per waypoint: set on every step, this was a hop every time they landed.
+	if wp.jump and flat < 4 and nav.jumpedAt ~= nav.index then
+		nav.jumpedAt = nav.index
 		humanoid.Jump = true
 	end
 	if nav.issued ~= wp.p or clock >= nav.nextIssue then

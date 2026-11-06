@@ -88,6 +88,12 @@ return function(t: any)
 			t.expect(NPCAnimator.clipSpeed(100)).toBe(1.5)
 		end)
 
+		t.it("only retimes the walk cycle for a real change, so the legs don't stutter", function()
+			t.expect(NPCAnimator.shouldRetime(nil, 0.8)).toBe(true)
+			t.expect(NPCAnimator.shouldRetime(0.8, 0.85)).toBe(false)
+			t.expect(NPCAnimator.shouldRetime(0.8, 1.1)).toBe(true)
+		end)
+
 		t.it("times speech by the length of the words", function()
 			t.expect(Conversation.speechSeconds("Hi.")).toBe(1)
 			t.expect(Conversation.speechSeconds(string.rep("x", 54))).toBe(3)

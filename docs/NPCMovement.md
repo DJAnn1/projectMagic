@@ -108,6 +108,16 @@ An NPC can open an unlocked door, or a locked one if the lot is its home or work
 | Step cost | T0 rigs only (40 at most), 10 Hz |
 | Head animation | 5 Hz, only for NPCs in a conversation |
 
+### After the first test (2026-11-05)
+
+| Report | Cause | Fix |
+|---|---|---|
+| Janky walking | The walk cycle's speed was retimed at 10 Hz from a noisy velocity, and each change replicates. Raw waypoints every 4 studs kept correcting the heading. A jump waypoint set `Jump` on every step, so NPCs hopped. | Retime at most once a second, for a real change. Routes are smoothed once when computed. One jump per waypoint. |
+| `point` and `hold` looped | Most likely `AnimationTrack.Looped` set on the server doesn't reach clients, so they use how the clip was published. | One-shots are stopped by hand at their end. `hold` now plays once and freezes, like `sit`. |
+| `npc_recovered` to the same spot | `lastGoodPosition` updated while stuck, so "safe" meant "here". | Two remembered spots at least 8 studs apart. A spot closer than 4 studs isn't a recovery: it reports `Failed`. |
+
+**Confirmed by the log:** the spawn-in-water rescue is a character that loads before the spawn exists, at the world origin (`fromX=2 fromY=4 fromZ=0`, ocean floor at -31). An NPC also fell through to `Y=-31` (`settlement_1#36`) and was recovered: unbuilt ground under a rig, for the LOD stage.
+
 ---
 
 ## 3. Not built yet

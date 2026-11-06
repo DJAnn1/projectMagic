@@ -30,6 +30,8 @@ local LOD = require(script.Parent.NPCLOD)
 local START_MOVING, STOP_MOVING = 1.5, 0.6 -- studs per second
 local RUN_FROM = 13
 local WALK_CLIP_SPEED = 13 -- the walk clip's feet match about this speed
+local CLIP_RETIME = 1 -- seconds between changes to the walk cycle's speed
+local CLIP_RETIME_CHANGE = 0.2 -- and only a change this big
 local NECK_EVERY = 0.2 -- procedural head updates: each one is a replicated joint write
 local NECK_TURN = math.rad(55)
 local NECK_TILT = math.rad(25)
@@ -48,6 +50,11 @@ end
 
 function NPCAnimator.clipSpeed(speed: number): number
 	return math.clamp(speed / WALK_CLIP_SPEED, 0.5, 1.5)
+end
+
+-- Is the walk cycle's speed far enough off to be worth sending?
+function NPCAnimator.shouldRetime(current: number?, wanted: number): boolean
+	return current == nil or math.abs(current - wanted) >= CLIP_RETIME_CHANGE
 end
 
 -- ─── Rig ────────────────────────────────────────────────────────────────────
@@ -107,7 +114,7 @@ end
 
 -- ─── Locomotion ─────────────────────────────────────────────────────────────
 
-local function locomotion(npc: any, rig: any)
+local function locomotion(npc: any, rig: any, clock: number)
 	local velocity = rig.root.AssemblyLinearVelocity
 	local speed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 	local moving = NPCAnimator.nextMoving(npc.animMoving == true, speed)
@@ -118,8 +125,15 @@ local function locomotion(npc: any, rig: any)
 		if walk then
 			if not walk.IsPlaying then
 				walk:Play(0.2)
+				npc.animClipSpeed, npc.animClipAt = nil, 0
 			end
-			walk:AdjustSpeed(NPCAnimator.clipSpeed(speed))
+			-- Rarely, and only for a real change: each AdjustSpeed replicates, and clients re-sync the
+			-- clip when they get one. Sent at 10 Hz from a noisy velocity, the legs visibly stutter.
+			local wanted = NPCAnimator.clipSpeed(speed)
+			if NPCAnimator.shouldRetime(npc.animClipSpeed, wanted) and clock >= (npc.animClipAt or 0) then
+				npc.animClipSpeed, npc.animClipAt = wanted, clock + CLIP_RETIME
+				walk:AdjustSpeed(wanted)
+			end
 		end
 		if idle and idle.IsPlaying then
 			idle:Stop(0.2)
@@ -144,7 +158,7 @@ function NPCAnimator.Step(npc: any, clock: number)
 		return
 	end
 	-- Locomotion always runs: a talking NPC still sliding to a stop keeps its feet honest.
-	locomotion(npc, rig)
+	locomotion(npc, rig, clock)
 	local talk = npc.talk
 	if not talk then
 		if npc.neckRest then

@@ -143,7 +143,7 @@ Activities.districtBuildings = table.freeze({
 
 -- Clips that get into a pose and stay there: where an activity says `looped`, these play once and
 -- freeze on their last frame instead of starting over.
-Activities.holdAtEnd = table.freeze({ sit = true }) :: { [string]: boolean }
+Activities.holdAtEnd = table.freeze({ sit = true, hold = true }) :: { [string]: boolean }
 
 function Activities.lookup(occupation: string, action: string): Activity?
 	local own = Activities.byOccupation[occupation]
