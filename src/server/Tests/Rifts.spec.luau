@@ -424,6 +424,70 @@ return function(t: any)
 		end)
 	end)
 
+	describe("Rift tuning", function()
+		local function castsToFill(room: R.Room, tagsPerCast: { { string } }, power: number): number
+			local progress, uses, casts = 0, {} :: { [string]: number }, 0
+			while progress < 1 and casts < 200 do
+				casts += 1
+				local approach, gain = RiftRules.classify(room, cast(tagsPerCast[(casts - 1) % #tagsPerCast + 1], power))
+				if approach then
+					local used = uses[approach.id] or 0
+					gain *= RiftRules.repeatFactor(used)
+					uses[approach.id] = used + 1
+				end
+				progress += gain
+			end
+			return casts
+		end
+
+		it("no spell, however strong, fills a room in two casts", function()
+			expect(castsToFill(R.rooms.engine, { { "lightning" }, { "fire" } }, 60) >= 3).toBe(true)
+		end)
+		it("mixing answers is faster than repeating one, at any power", function()
+			for _, power in { 1, 3, 8 } do
+				local mixed = castsToFill(R.rooms.engine, { { "lightning" }, { "fire" }, { "force" }, { "time" }, { "stone" } }, power)
+				local same = castsToFill(R.rooms.engine, { { "lightning" } }, power)
+				expect(mixed < same).toBe(true)
+			end
+		end)
+		it("a low-level player with one answer still gets through in reasonable time", function()
+			expect(castsToFill(R.rooms.engine, { { "lightning" } }, 1) <= 12).toBe(true)
+		end)
+		it("plain attacks stay possible, and slower than any clever answer", function()
+			local plain = castsToFill(R.rooms.engine, { { "x" } }, 1)
+			expect(plain <= 30).toBe(true)
+			expect(plain > castsToFill(R.rooms.engine, { { "lightning" } }, 1)).toBe(true)
+		end)
+		it("a repeated answer is worth less, down to a floor", function()
+			expect(RiftRules.repeatFactor(0)).toBe(1)
+			expect(RiftRules.repeatFactor(1) < 1).toBe(true)
+			expect(RiftRules.repeatFactor(50)).toBe(R.repeatFloor)
+		end)
+		it("an eye or lamp takes two clever casts, at any power", function()
+			for _, power in { 1, 2, 8, 60 } do
+				local _, gain = RiftRules.classify(R.rooms.gallery, cast({ "light" }, power))
+				local each = gain * R.targetScale
+				expect(each < 1).toBe(true)
+				expect(each * 2 >= 1).toBe(true)
+			end
+		end)
+		it("a reaction still shuts an eye outright", function()
+			expect(R.reactionGain * R.targetScale >= 1).toBe(true)
+		end)
+		it("enemies don't change at power 3 or below", function()
+			for _, power in { 1, 2, 3 } do
+				expect(RiftRules.powerHealth(power)).toBe(1)
+				expect(RiftRules.powerDamage(power)).toBe(1)
+			end
+		end)
+		it("enemies scale up with power, within their caps", function()
+			expect(RiftRules.powerHealth(8) > RiftRules.powerHealth(5)).toBe(true)
+			expect(RiftRules.powerHealth(8)).toBeNear(R.powerHealthCap, 0.001)
+			expect(RiftRules.powerHealth(60)).toBe(R.powerHealthCap)
+			expect(RiftRules.powerDamage(60)).toBe(R.powerDamageCap)
+		end)
+	end)
+
 	describe("Rift wiring", function()
 		it("declares its remotes and topic", function()
 			local remotes = (Remotes :: any).remotes or Remotes

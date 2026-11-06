@@ -152,8 +152,23 @@ end
 
 -- ─── Solving ────────────────────────────────────────────────────────────────
 
+-- Flat on purpose: a strong spell helps a little, but what solves a room quickly is the right answer.
 local function powerFactor(power: number): number
-	return math.clamp(0.6 + 0.2 * power, 0.8, 2)
+	return math.clamp(0.7 + 0.1 * power, 0.8, 1.2)
+end
+
+-- What the same answer is worth the (uses + 1)th time in one room.
+function RiftRules.repeatFactor(uses: number): number
+	return math.max(R.repeatFloor, R.repeatShare ^ math.max(0, uses))
+end
+
+-- How much tougher enemies are, for the strongest spell cast inside. 1 at power 3 or below.
+function RiftRules.powerHealth(power: number): number
+	return math.clamp(1 + R.powerHealthPerLevel * (power - 3), 1, R.powerHealthCap)
+end
+
+function RiftRules.powerDamage(power: number): number
+	return math.clamp(1 + R.powerDamagePerLevel * (power - 3), 1, R.powerDamageCap)
 end
 
 --[[

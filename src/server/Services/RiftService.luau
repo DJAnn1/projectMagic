@@ -87,6 +87,7 @@ type EnemyState = {
 	nextBite: number,
 	nextMove: number,
 	room: RoomState?, -- an eye: which room's progress it counts towards
+	fill: number, -- an eye: clever casts add up to shutting it
 	shut: boolean, -- an eye closed by a clever cast, not broken
 	shutBy: string?, -- the approach's label
 }
@@ -105,7 +106,9 @@ type RoomState = {
 	def: R.Room,
 	parts: RiftBuilder.RoomParts,
 	total: number, -- planks, eyes or lamps; 1 for rooms that fill a meter
-	lampFill: { [BasePart]: number }, -- lamps: plain casts add up
+	lampFill: { [BasePart]: number }, -- lamps: casts add up
+	uses: { [string]: number }, -- approach id -> times used here, so repeats are worth less
+	hinted: { [string]: boolean }, -- "<hint>:<userId>": each hint is said once per room
 	lit: number,
 	nextWave: number, -- vigil
 	progress: number, -- 0..1
@@ -142,6 +145,9 @@ type Run = {
 	reviveAt: number?, -- the Twins
 	reviveSpec: RiftEnemies.Enemy?,
 	answersNew: { [number]: number }, -- userId -> answers found for the first time this run
+	peakPower: number, -- the strongest spell cast inside (borrowed power doesn't count)
+	powerDirty: boolean, -- it just rose: raise everything's health
+	startedAt: number,
 	scores: { [number]: EventRules.Score },
 	peak: number,
 	rng: Random,
@@ -516,7 +522,7 @@ local function finish(run: Run, result: string)
 		Net.fire("RiftState", player, view)
 	end
 	run.lastSent = ""
-	log:info("rift_ended", { id = run.plan.id, twist = run.twist.id, result = result, players = paid, peak = run.peak, clever = run.cleverRooms, rooms = run.roomIndex - 1 })
+	log:info("rift_ended", { id = run.plan.id, twist = run.twist.id, boss = run.plan.boss, result = result, players = paid, peak = run.peak, clever = run.cleverRooms, rooms = run.roomIndex - 1, power = run.peakPower, seconds = if run.startedAt > 0 then os.time() - run.startedAt else 0 })
 	bus:publish(Topics.RiftEnded, { id = run.plan.id, result = result, place = run.plan.townName, players = paid, clever = run.cleverRooms })
 	task.delay(if result == "won" then R.recapSeconds else R.failPullSeconds, function()
 		teardown(run)
@@ -524,6 +530,15 @@ local function finish(run: Run, result: string)
 end
 
 -- ─── Enemies ────────────────────────────────────────────────────────────────
+
+-- What an enemy's health should be right now: its base, the twist, the strongest spell seen, who's inside.
+local function healthOf(run: Run, spec: RiftEnemies.Enemy): number
+	return EventRules.healthFor(spec.def.health * (run.twist.enemyHealth or 1) * RiftRules.powerHealth(run.peakPower), run.peak)
+end
+
+local function damageOf(run: Run, base: number): number
+	return base * (run.twist.enemyDamage or 1) * RiftRules.powerDamage(run.peakPower)
+end
 
 local function spawnEnemy(run: Run, spec: RiftEnemies.Enemy, at: CFrame, room: RoomState?): EnemyState?
 	local interior = run.interior
@@ -533,7 +548,7 @@ local function spawnEnemy(run: Run, spec: RiftEnemies.Enemy, at: CFrame, room: R
 	local def = spec.def
 	local model, humanoid, root = CreatureRig.build(def, at)
 	model:SetAttribute("RiftEnemy", run.plan.id)
-	local health = EventRules.healthFor(def.health * (run.twist.enemyHealth or 1), run.peak)
+	local health = healthOf(run, spec)
 	humanoid.MaxHealth = health
 	humanoid.Health = health
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
@@ -557,6 +572,7 @@ local function spawnEnemy(run: Run, spec: RiftEnemies.Enemy, at: CFrame, room: R
 		nextBite = 0,
 		nextMove = 0,
 		room = room,
+		fill = 0,
 		shut = false,
 		shutBy = nil,
 	}
@@ -619,6 +635,7 @@ local function raisePylons(run: Run)
 	for _, boss in run.bosses do
 		boss.humanoid:SetAttribute("HealthFloor", SHIELD_FLOOR)
 	end
+	log:info("rift_shield", { id = run.plan.id, up = true })
 end
 
 local function dropShield(run: Run, now: number)
@@ -627,6 +644,7 @@ local function dropShield(run: Run, now: number)
 	for _, boss in run.bosses do
 		boss.humanoid:SetAttribute("HealthFloor", nil)
 	end
+	log:info("rift_shield", { id = run.plan.id, up = false, seconds = os.time() - run.startedAt })
 	tellInside(run, "The Stormheart's shield is down. It won't stay down.")
 end
 
@@ -770,6 +788,25 @@ local function applyWork(run: Run, room: RoomState, approach: R.Approach?, gain:
 		end
 	end
 
+	-- Said once per room per person, so nobody casts for a minute wondering why nothing's happening.
+	local function hint(key: string, text: string)
+		local player = if userId then Players:GetPlayerByUserId(userId) else nil
+		local mark = key .. ":" .. tostring(userId)
+		if player and not room.hinted[mark] then
+			room.hinted[mark] = true
+			Net.fire("Notify", player, text)
+			log:info("rift_hint", { id = run.plan.id, room = room.def.id, hint = key, userId = userId })
+		end
+	end
+
+	if not approach and kind ~= "vigil" then
+		hint("plain", if kind == "eyes"
+			then "That only hurts it. What else can your magic do to something that's watching you?"
+			else "That barely moved it. It'll work in the end, but what else can your magic do here?")
+	elseif not approach then
+		hint("plain", "That does nothing to the ring. Stand in it, or try something other than a plain attack.")
+	end
+
 	if kind == "eyes" then
 		-- Only a clever answer near an eye does anything special. Plain hits just hurt it.
 		if not approach then
@@ -785,14 +822,22 @@ local function applyWork(run: Run, room: RoomState, approach: R.Approach?, gain:
 				end
 			end
 		end
-		if best then
+		if not best then
+			hint("far", "That was the right idea, but it landed too far away. Aim right at an eye.")
+			return
+		end
+		local share = math.min(gain * R.targetScale, 1 - best.fill)
+		best.fill += share
+		if score then
+			EventRules.addDamage(score, share * R.cleverPoints / room.total, now)
+		end
+		found(approach)
+		if best.fill >= 0.999 then
 			best.shut = true
 			best.shutBy = approach.label
 			best.humanoid.Health = 0
-			if score then
-				EventRules.addDamage(score, R.cleverPoints / room.total, now)
-			end
-			found(approach)
+		else
+			hint("flicker", "The eye flickers. It's working: once more.")
 		end
 		return
 	end
@@ -809,15 +854,22 @@ local function applyWork(run: Run, room: RoomState, approach: R.Approach?, gain:
 			end
 		end
 		if not best then
+			hint("far", "That landed too far from a dead lamp. Aim right at one.")
 			return
 		end
 		if approach then
 			room.label = approach.label
+			local share = gain * R.targetScale
 			if score then
-				EventRules.addDamage(score, R.cleverPoints / room.total, now)
+				EventRules.addDamage(score, math.min(share, 1) * R.cleverPoints / room.total, now)
 			end
 			found(approach)
-			lightLamp(run, room, best, true)
+			room.lampFill[best] = (room.lampFill[best] or 0) + share
+			if room.lampFill[best] >= 1 then
+				lightLamp(run, room, best, true)
+			else
+				hint("flicker", "The lamp stirs. It's working: once more.")
+			end
 		else
 			if score then
 				EventRules.addDamage(score, gain * R.brutePoints, now)
@@ -896,9 +948,17 @@ local function workOn(run: Run, room: RoomState, payload: any, point: Vector3, u
 		backfired = payload.backfired,
 	}
 	local approach, gain = RiftRules.classify(room.def, cast, run.twist)
-	if gain > 0 then
-		applyWork(run, room, approach, gain, point, userId, payload.branch)
+	if gain <= 0 then
+		return
 	end
+	-- Eyes and lamps are each a new target, so only rooms worked on as a whole wear an answer out.
+	local kind = room.def.kind
+	if approach and kind ~= "eyes" and kind ~= "lamps" then
+		local uses = room.uses[approach.id] or 0
+		gain *= RiftRules.repeatFactor(uses)
+		room.uses[approach.id] = uses + 1
+	end
+	applyWork(run, room, approach, gain, point, userId, payload.branch)
 end
 
 -- ─── Attacks ────────────────────────────────────────────────────────────────
@@ -909,7 +969,7 @@ local function telegraph(run: Run, position: Vector3, attack: RiftEnemies.Attack
 		at = os.clock() + attack.delay,
 		position = at,
 		radius = attack.radius,
-		damage = attack.damage * (run.twist.enemyDamage or 1),
+		damage = damageOf(run, attack.damage),
 		style = attack.style,
 		domain = domain,
 		level = level,
@@ -922,7 +982,7 @@ local function telegraph(run: Run, position: Vector3, attack: RiftEnemies.Attack
 			at = os.clock() + attack.delay + echo,
 			position = at,
 			radius = attack.radius,
-			damage = attack.damage * (run.twist.enemyDamage or 1),
+			damage = damageOf(run, attack.damage),
 			style = attack.style,
 			domain = domain,
 			level = level,
@@ -1030,7 +1090,7 @@ local function stepEnemy(run: Run, enemy: EnemyState, players: { PlayerView }, n
 	local b = enemy.spec.def.bite
 	if b and distance <= b.reach and now >= enemy.nextBite then
 		enemy.nextBite = now + b.cooldown
-		Damage.apply(target.humanoid, b.damage * (run.twist.enemyDamage or 1), nil, "rift_bite", {
+		Damage.apply(target.humanoid, damageOf(run, b.damage), nil, "rift_bite", {
 			domain = enemy.spec.def.domain,
 			from = position,
 			property = b.property,
@@ -1260,6 +1320,8 @@ local function newRoomState(def: R.Room, parts: RiftBuilder.RoomParts): RoomStat
 		parts = parts,
 		total = math.max(1, total),
 		lampFill = {},
+		uses = {},
+		hinted = {},
 		lit = 0,
 		nextWave = 0,
 		progress = 0,
@@ -1302,6 +1364,7 @@ local function startRun(run: Run)
 		end)
 	end
 	local started = os.time()
+	run.startedAt = started
 	run.phase = "running"
 	run.endsAt = if run.forced then started + RiftRules.runLength(run.twist) else RiftRules.runEnds(run.plan.slot, started, run.twist)
 	if run.twist.fireSpread then
@@ -1399,11 +1462,11 @@ local function secondTick(run: Run)
 	end
 	local players = insidePlayers(run)
 	local count = #players
-	if count > run.peak then
-		run.peak = count
+	if count > run.peak or run.powerDirty then
+		run.peak = math.max(run.peak, count)
+		run.powerDirty = false
 		for _, enemy in run.enemies do
-			local base = enemy.spec.def.health * (run.twist.enemyHealth or 1)
-			local maxHealth, health = EventRules.raise(enemy.humanoid.MaxHealth, enemy.humanoid.Health, EventRules.healthFor(base, count))
+			local maxHealth, health = EventRules.raise(enemy.humanoid.MaxHealth, enemy.humanoid.Health, healthOf(run, enemy.spec))
 			enemy.humanoid.MaxHealth = maxHealth
 			enemy.humanoid.Health = health
 		end
@@ -1468,6 +1531,9 @@ local function begin(plan: RiftRules.Plan, forced: boolean, closesAt: number): R
 		reviveAt = nil,
 		reviveSpec = nil,
 		answersNew = {},
+		peakPower = 1,
+		powerDirty = false,
+		startedAt = 0,
 		scores = {},
 		peak = 1,
 		rng = Seed.random(worldService:getSeed(), plan.id, "rift_run"),
@@ -1517,6 +1583,13 @@ local function onResolved(payload: any)
 		return
 	end
 	EventRules.noteAction(scoreFor(run, userId), os.clock())
+	-- The strongest spell seen sets how tough everything here is. A relic's minute isn't your own power.
+	local power: number = payload.power or 1
+	if not payload.borrowed and power > run.peakPower then
+		run.peakPower = power
+		run.powerDirty = true
+		log:info("rift_power", { id = run.plan.id, power = power })
+	end
 	local room = currentRoom(run)
 	if not room then
 		return

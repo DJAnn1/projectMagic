@@ -17,7 +17,8 @@ Seeded dungeons that open in the world. Each run takes up to 10 minutes and has 
 This is the design's main risk: without it, Rifts become a combat grind.
 
 - A cast that lands in the current room is sorted by `RiftRules.classify`, using its interaction tags (`InteractionMatrix.tagsFor`), the same tags quests use.
-- **A clever answer** makes about 0.34 of a room's progress per cast at power 2. **Anything else** makes about 0.06, so it's roughly six times slower but never a dead end. This respects "I don't want to restrict anything for the player".
+- **A clever answer** makes about 0.27 of a room's progress per cast at power 2. **Anything else** makes about 0.05, so it's roughly five times slower but never a dead end. This respects "I don't want to restrict anything for the player".
+- **Using the same answer again in a room is worth less:** 70% of the last time, down to 35%. Mixing answers is the fast way through, and that's what makes creativity beat raw power. Eyes and lamps are each a new target, so they don't wear out.
 - **A plain domain strike is never clever**, whatever its tags: it's the attack you'd use on anything.
 - **`Tests/Rifts.spec` enforces that every room has an approach for all 12 domains.** The whole point is that your magic, whatever it is, has an answer.
 - A room counts as solved cleverly if at least half the work on it was clever. Each clever room adds 20% XP and raises the boss's gift: rare by default, epic at 2 clever rooms, and a 35% chance of legendary at 3 clever rooms with gold.
@@ -31,11 +32,34 @@ This is the design's main risk: without it, Rifts become a combat grind.
 |---|---|---|
 | The Thornwall | barrier | Real burnable planks. Fire spells light them through FireSim and the flames spread for real, including onto you. Other approaches remove pieces directly. |
 | The Drop | chasm | A bridge appears as you earn it. Getting across any other way (a blink, flight) solves it too, and counts as clever. Falling costs 10% of your health and puts you back at the room's start. |
-| The Watching Gallery | eyes | Three turrets. A clever cast within 14 studs shuts an eye instantly. Or break them, slowly. |
+| The Watching Gallery | eyes | Three turrets. Two clever casts within 14 studs shut an eye; a reaction shuts it outright. Or break them, slowly. |
 | The Cold Engine | coils | Fill the meter while the coils discharge at you. |
 | The Frostgate | barrier | A wall of ice, with no real fire: pieces are only ever removed. |
-| The Long Dark | lamps | Four dead lamps in a dim hall. A clever cast within 14 studs lights one; plain casts take about four each. Shades strike at you, more slowly with each lamp lit. |
+| The Long Dark | lamps | Four dead lamps in a dim hall. Two clever casts within 14 studs light one; plain casts take about five each. Shades strike at you, more slowly with each lamp lit. |
 | The Vigil | vigil | Hold the ring for 45 s while waves come (two people halve it; more add nothing). Clever casts into the room shorten the wait. Plain casts don't help. |
+
+## Tuning (2026-11-06)
+
+From two high-level runs. One was at tier 8 with `cheat all` (no cooldowns), so its times aren't real: 75 s overall, a 25 s Stormheart. Its cast counts are: the Engine took 2 casts. The other run, without cheats, took the Warden 1 min 51 s at tier 8. **No low-level run has been seen, so that end barely moved, and the time targets below are worked out, not measured.**
+
+| Casts to fill a room | Power 1 | Power 3 | Power 8 |
+|---|---|---|---|
+| One answer, repeated | 9 | 7 | 5 |
+| Two answers, alternating | 6 | 4 | 4 |
+| Five different answers | 5 | 4 | 3 |
+| Plain attacks | 21 | 17 | 14 |
+
+**Enemies scale to the strongest spell actually cast inside,** so a tier 8 mage gets a real fight:
+
+| Strongest spell | Enemy health | Enemy damage |
+|---|---|---|
+| Power 3 or below | ×1 | ×1 |
+| Power 5 | ×1.6 | ×1.24 |
+| Power 8 | ×2.5 | ×1.6 |
+
+Health is raised live and keeps the damage already dealt, so holding back until the boss gains nothing. Borrowed relics don't count. A low-level player in a party with a tier 8 mage fights the tier 8 version, which is a known cost. Rewards don't scale with power.
+
+Not tuned, because nothing has measured them: reactions (0.6 of a room), every twist, and the Vigil's length.
 
 ## Bosses
 

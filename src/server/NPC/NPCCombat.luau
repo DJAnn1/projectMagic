@@ -340,8 +340,8 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 	ActionState.set(rig.model, "charging", { duration = hold + 0.5, domain = stats.domains[1] })
 	task.delay(hold, function()
 		local alive = rig.model.Parent ~= nil and rig.humanoid.Health > 0 and npc.rig == rig
-		if not alive or ActionState.get(rig.model) ~= "charging" or not targetRoot.Parent then
-			return -- knocked down, despawned, or the target is gone
+		if not alive or ActionState.get(rig.model) ~= "charging" or not targetRoot.Parent or npc.combat ~= c then
+			return -- knocked down, despawned, the target is gone, or the NPC stopped fighting mid-charge
 		end
 		local applied = Charge.apply(stats, index, hold)
 		launchBolt(npc, rig, recipe, stats, applied, targetModel, targetRoot)

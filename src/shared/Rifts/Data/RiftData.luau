@@ -13,11 +13,12 @@
 	            (Magic/Cast/InteractionMatrix.tagsFor) is listed. A spell whose property has no tag is
 	            tagged with its domain, so every domain's id is listed in every room, and Tests/Rifts.spec
 	            enforces that: no room may shut a domain out. Anything else still chips away (`bruteGain`),
-	            so nobody is ever stuck, but a clever answer is about six times faster and pays better.
+	            so nobody is ever stuck, but a clever answer is about five times faster and pays better.
 	IDS         `roomIds` and `twistIds` are draw orders. Reordering them reshuffles future Rifts (harmless:
 	            claims are by slot).
 
-	TUNING STATUS  Every number is a first guess. None has been played.
+	TUNING STATUS  Room and boss numbers were tuned once, from high-level runs only. The low-level end, the
+	               twists and reactions are still first guesses.
 ]]
 
 local rgb = Color3.fromRGB
@@ -313,12 +314,24 @@ local RiftData = {
 	barrierColumns = 6,
 	barrierRows = 3,
 
-	cleverGain = 0.34, -- a room's progress per clever cast at power 2: about three casts
-	bruteGain = 0.06, -- per plain cast: about fifteen
-	eyeRadius = 14, -- a clever cast this close to an eye shuts it
+	-- TUNED 2026-11-06 from two high-level runs, one with cheats. A power 7+ cast used to be worth 0.68 of a
+	-- room, so the Engine took 2 casts. No low-level run has been seen yet, so those barely moved.
+	cleverGain = 0.3, -- of a room per clever cast, x the power factor (0.8 at power 1, 1.2 from power 5): 3 to 5 casts
+	bruteGain = 0.06, -- per plain cast: about 14 to 21
+	repeatShare = 0.7, -- each time the same answer is used again in a room, it's worth this share of the last...
+	repeatFloor = 0.35, -- ...but never less than this: one spell takes about 5 casts, a mix of answers 3
+	targetScale = 2.2, -- an eye or lamp fills by this x a clever cast's gain: two casts each, at any power
+	eyeRadius = 14, -- a clever cast this close to an eye works on it
 	burnPieces = 5, -- how many pieces of a barricade one fire spell lights
 	cleverPoints = 500, -- contribution per whole room's worth of clever progress
 	brutePoints = 200,
+	-- Enemies scale to the strongest spell cast inside, so a tier 8 mage gets a real fight. At power 3 or
+	-- below nothing changes. Health is raised live, so holding back until the boss gains nothing.
+	powerHealthPerLevel = 0.3, -- +this share of health per power above 3...
+	powerHealthCap = 2.5, -- ...up to this multiple
+	powerDamagePerLevel = 0.12,
+	powerDamageCap = 1.6,
+
 	exposedShare = 0.03, -- a status on the boss bites this share of its max health...
 	exposedCooldown = 12, -- ...once per this many seconds, per kind of status
 
