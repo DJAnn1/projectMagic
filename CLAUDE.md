@@ -31,7 +31,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 **Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
 
 **1. Check first (built, not yet confirmed in a log)**
-- The map: expected boot line `specs 623/623`. Also check where a click lands, whether a fully explored map hitches on opening (`maprevealall`), and whether uncovered ground survives a rejoin (`docs/Map.md`).
+- The progress reset's specs and the map: expected boot line `specs 635/635` (`Tests/ProgressReset.spec` adds 12 to the map's 623).
+- The map: check where a click lands, whether a fully explored map hitches on opening (`maprevealall`), and whether uncovered ground survives a rejoin (`docs/Map.md`).
 - A shared event played to the end: payout, tiers, and the guaranteed first relic (`sharedevent start elemental`, 30+ s in the zone).
 - Not reported yet: whether the relic panel hides after 60 s, plain `borrowed time` without `me`, how Surge looks, Timestop freezing flames and animations on a second client, craters, flight feel.
 
@@ -151,6 +152,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **XP curve stays at `xpScale = 2.3`** for now. The journey sim showed it's slower than the doc's "Expert in ~26 h"; the owner chose to leave it.
 - **R6 rigs everywhere (2026-11-03).** The owner's combat animations are R6, so players (Game Settings › Avatar › Avatar Type = R6), NPC rigs and test dummies are R6. `CombatAnimations.rigType` is the one switch; code that touches body parts handles both rigs.
 - **PvP is on for all players (2026-11-03):** `pvp_enabled` defaults to true (`Config/Flags.luau`). The per-hit cap (`pvpMaxShare`, 60% of MaxHealth) still applies.
+- **Resetting everyone's progress (built 2026-11-06, not yet run):** `resetallprogress RESET`, owner only, from a live server after publishing and restarting servers. Nothing is deleted, and `restoreprogress <n> RESTORE` undoes it (docs/Backend.md, "Resetting progress"). Anything new stored per player must use `WorldService:progressKey()` and be added to `DataService.eraseUser`, and the same goes for markets, trade and leaderboards when they're built.
 - **Life is Uncommon.** Mythic domains are Time, Gravity and Reality.
 - **Time and Gravity are meant to be overpowered (2026-11-06):** "don't hold back on the abilities." Limits only where they keep the server honest or stop someone being frozen forever.
 - **"Brush with Death" has a hard trigger:** health ≤ 5%, an enemy ≥ 1.5× stronger, and 10 s survived without healing. It's enforced through `requires`/`facts`.
@@ -333,7 +335,7 @@ Full reference: `docs/AdminPanel.md`. `help` lists everything and `help <command
 - **Buildings:** `house claim` (free nearest vacant house), `lamps on`, `lights`, `buildingcheck` (teleports into the nearest house + checklist), `buildingcheck smithy`, `buildingaudit`, `door unlock`, `flag buildings_lock_doors false`.
 - **Items:** `kit me caster`, `give me oak_staff 1 legendary`, `give me ember_orb 1 epic ember_touched,of_haste`, `itemstats`, `itemroll ember_orb 5000`, `wear me chest 200`, `repairall`, `invlog`.
 - **Fast test setup:** `unlockall 8` or `setmastery earth/metallurgy Grandmaster`, `cheat all`, `testspells`, `tp shrine`, `timescale 20`, `overlay ley`, `npclist`.
-- **Studio only:** `testmage`, `testspells`. **Owner only:** `reseed`, `regenworld` (typed `RESEED`).
+- **Studio only:** `testmage`, `testspells`. **Owner only:** `reseed`, `regenworld` (typed `RESEED`), `resetallprogress` (typed `RESET`), `restoreprogress` (typed `RESTORE`).
 - **Spellbook** (local to the panel): `book`, `learn …`, `rename <n>`, `forget <n>`.
 
 ## NPC simulation system (written 2026-11-02, not yet run in Studio)

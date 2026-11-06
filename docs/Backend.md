@@ -230,6 +230,30 @@ After the migration, *reconcile* fills `settings` and `stats.casts` from the v2 
 
 ---
 
+### Resetting progress
+
+Everyone can be started fresh after big updates, and it can be undone. Code: `Persistence/ProgressKeys`, `WorldService.resetProgress` and `restoreProgress`, commands in `Admin/Commands/World`. Specs: `Tests/ProgressReset.spec`.
+
+**How it works:** the world record holds `playerGeneration`. Player saves, house claims and world-first discoveries are stored under `progressKey()`, which prefixes `p<generation>_` from generation 1 on. A reset moves to a new generation, so everyone's next load finds nothing and they start fresh. Generation 0 has no prefix, so saves from before this existed keep their exact keys. **Nothing is deleted.** Generation numbers are never reused.
+
+**To run it for real:**
+
+1. Publish the place, then restart all servers (Creator Dashboard). Old servers run old code, which doesn't know about generations and would keep using the old saves.
+2. Join the live game as the owner, press F2, and run `resetallprogress RESET`. Studio uses the mock store, so running it there never touches live saves.
+3. Every server closes within seconds and everyone rejoins fresh. A server that misses the message notices within a minute. `progressgeneration` shows where you are.
+
+**To undo:** `restoreprogress <generation> RESTORE`. `0` is the original. Progress made since stays in its own generation, and can be restored too.
+
+| Reset | Not reset |
+|---|---|
+| Mastery, spells, items, coins, quests, reputation, housing, the explored map, and everything else in the player save | The world: terrain edits, craters, settlement state (use `regenworld RESEED`) |
+| Who owns which house | NPC town records, including what NPCs remember about players (also `regenworld`) |
+| World-first discoveries | |
+
+**A reset doesn't reroll innate magic.** A profile is generated from the world seed and the user id, so each player gets the same starting magic back, without any awakenings they'd earned. A new seed (`reseed random RESEED`) rerolls it, but it also replaces the whole world.
+
+**Erasure requests:** old saves stay stored, so `DataService.eraseUser(userId, highestGeneration)` clears every generation. Pass `WorldService:getHighestProgressGeneration()`. Anything stored per player in future should use `progressKey()` and be added there.
+
 ## 4. Multi-server design
 
 | Option | How it works | Pros | Cons |

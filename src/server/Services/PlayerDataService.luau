@@ -54,7 +54,7 @@ local states: { [Player]: PlayerState } = {}
 local loadedSignals: { [Player]: { thread } } = {}
 
 local function keyFor(player: Player): string
-	return "player_" .. player.UserId
+	return world:progressKey("player_" .. player.UserId) -- yields until the world record is loaded
 end
 
 local function wakeWaiters(player: Player)

@@ -81,7 +81,8 @@ local function notify(player: Player, text: string)
 end
 
 local function storeKey(): string
-	return worldService:scopedKey("housing")
+	-- Both: a new world, or a progress reset, frees every house.
+	return worldService:progressKey(worldService:scopedKey("housing"))
 end
 
 local function housingOf(player: Player): any?

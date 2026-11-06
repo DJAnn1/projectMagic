@@ -40,6 +40,7 @@ local Retry = require(Persistence.Retry)
 local Codec = require(Persistence.Codec)
 local MockDataStore = require(Persistence.MockDataStore)
 local Schemas = require(Persistence.Schemas)
+local ProgressKeys = require(Persistence.ProgressKeys)
 
 type StoreConfig = Schemas.StoreConfig
 
@@ -454,11 +455,16 @@ end
 --[[
 	Deletes everything stored for a user, for right-to-erasure requests. Add a call for every
 	store keyed by this user. The player must not be in this server; kick them first.
+	`highestGeneration` is WorldService:getHighestProgressGeneration(): a progress reset keeps old saves
+	under their old keys, so an erasure has to clear every generation, or copies are left behind.
 ]]
-function DataService.eraseUser(self: any, userId: number): boolean
+function DataService.eraseUser(self: any, userId: number, highestGeneration: number): boolean
 	local players = self:openStore(Schemas.Player)
-	local ok = players:erase("player_" .. userId)
-	log:warn("user_erased", { userId = userId, ok = ok })
+	local ok = true
+	for _, key in ProgressKeys.allKeys("player_" .. userId, highestGeneration) do
+		ok = players:erase(key) and ok
+	end
+	log:warn("user_erased", { userId = userId, ok = ok, generations = highestGeneration + 1 })
 	return ok
 end
 

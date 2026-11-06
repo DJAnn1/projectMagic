@@ -320,6 +320,8 @@ Schemas.World = {
 			createdAt = 0,
 			epoch = 0, -- unix time of world day 0 (drives offline NPC simulation)
 			generation = 0, -- +1 per admin reseed; world-keyed stores use WorldService:scopedKey
+			playerGeneration = 0, -- which generation of player progress is in use (WorldService:progressKey)
+			playerGenerationMax = 0, -- the highest there's ever been: numbers are never reused
 			chronicle = {}, -- compressed; capped list of { id, kind, t, data } global events
 			flags = {}, -- world-wide facts, e.g. { firstMythicTime = 1793600000 }
 		}

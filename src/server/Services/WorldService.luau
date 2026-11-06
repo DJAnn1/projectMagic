@@ -15,6 +15,10 @@
 	closes (MessagingService) so players rejoin the new world. Player saves are not touched:
 	reputation and NPC relationships keyed by settlement/NPC ids will point at the new world's
 	places of the same ids.
+
+	RESET PROGRESS (owner-only admin commands): `playerGeneration` is the same idea for players. Saves, house
+	claims and world-first discoveries are stored under progressKey(), so moving to a new generation starts
+	everyone fresh, with nothing deleted. The world itself isn't touched: regenworld does that.
 ]]
 
 local MessagingService = game:GetService("MessagingService")
@@ -24,6 +28,7 @@ local Signal = require(Shared.Core.Signal)
 local Topics = require(Shared.Core.Topics)
 local Schemas = require(script.Parent.Parent.Persistence.Schemas)
 local Retry = require(script.Parent.Parent.Persistence.Retry)
+local ProgressKeys = require(script.Parent.Parent.Persistence.ProgressKeys)
 
 local WORLD_KEY = "world_main"
 local CHRONICLE_CAP = 200
@@ -31,6 +36,8 @@ local MESSAGE_TOPIC = "WorldEvents"
 local MAX_MESSAGE_CHARS = 900 -- MessagingService limit is 1 KB per message
 local RESEED_TOPIC = "WorldReseeded"
 local CLOSED_MESSAGE = "The world has been regenerated. Please rejoin."
+local PROGRESS_MESSAGE = "The game has had a big update, and everyone's progress has been reset. Please rejoin to start fresh."
+local PROGRESS_WATCH_SECONDS = 60 -- how often a server checks it hasn't missed a reset
 
 local WorldService = {
 	name = "WorldService",
@@ -78,7 +85,7 @@ local function loadOrCreate(): any?
 end
 
 -- Kicks everyone and refuses new joins: this server's world is stale (a reseed happened).
-local function closeServer(reason: string)
+local function closeServer(reason: string, message: string?)
 	if closed then
 		return
 	end
@@ -86,10 +93,10 @@ local function closeServer(reason: string)
 	log:warn("server_closing", { reason = reason })
 	local Players = game:GetService("Players")
 	Players.PlayerAdded:Connect(function(player)
-		player:Kick(CLOSED_MESSAGE)
+		player:Kick(message or CLOSED_MESSAGE)
 	end)
 	for _, player in Players:GetPlayers() do
-		player:Kick(CLOSED_MESSAGE)
+		player:Kick(message or CLOSED_MESSAGE)
 	end
 end
 
@@ -102,8 +109,21 @@ function WorldService.start(_self: any, _ctx: any)
 			task.wait(10)
 		end
 	end
-	log:info("world_ready", { epoch = world.epoch, chronicle = #world.chronicle })
+	log:info("world_ready", { epoch = world.epoch, chronicle = #world.chronicle, progress = world.playerGeneration or 0 })
 	ready:Fire()
+
+	-- A server that missed the message about a reset mustn't go on loading old saves.
+	if not dataService:isMock() then
+		task.spawn(function()
+			while not closed do
+				task.wait(PROGRESS_WATCH_SECONDS)
+				local latest = store:read(WORLD_KEY)
+				if latest and not reseeding and (latest.playerGeneration or 0) ~= (world.playerGeneration or 0) then
+					closeServer("progress changed elsewhere", PROGRESS_MESSAGE)
+				end
+			end
+		end)
+	end
 
 	if flags.get("world_messaging") and not dataService:isMock() then
 		local ok, err = pcall(function()
@@ -117,7 +137,11 @@ function WorldService.start(_self: any, _ctx: any)
 			MessagingService:SubscribeAsync(RESEED_TOPIC, function(message)
 				local data = message.Data
 				if typeof(data) == "table" and data.origin ~= game.JobId then
-					closeServer("reseeded on " .. tostring(data.origin))
+					if data.kind == "progress" then
+						closeServer("progress changed on " .. tostring(data.origin), PROGRESS_MESSAGE)
+					else
+						closeServer("reseeded on " .. tostring(data.origin))
+					end
 				end
 			end)
 		end)
@@ -195,6 +219,86 @@ function WorldService.reseed(self: any, newSeed: number, byUserId: number, owner
 	task.delay(3, closeServer, "reseeded here")
 	return true, string.format("world reseeded to %d (generation %d). Every server is closing; rejoin to play the new world.%s",
 		newSeed, updated.generation, if dataService:isMock() then " (Studio mock store: it forgets this when Play stops. Set world_studio_seed in Config/Flags to keep a Studio seed.)" else "")
+end
+
+-- ─── Resetting player progress (docs/Backend.md, "Resetting progress") ───────
+
+-- The generation of player progress in use (yields until loaded). 0 is the original.
+function WorldService.getProgressGeneration(_self: any): number
+	if not world then
+		ready:Wait()
+	end
+	return world.playerGeneration or 0
+end
+
+-- The highest generation there has ever been (yields until loaded).
+function WorldService.getHighestProgressGeneration(_self: any): number
+	if not world then
+		ready:Wait()
+	end
+	return world.playerGenerationMax or world.playerGeneration or 0
+end
+
+-- A storage key for anything that belongs to players' progress: their saves, house claims and
+-- world-first discoveries. Yields until loaded.
+function WorldService.progressKey(self: any, key: string): string
+	return ProgressKeys.key(key, self:getProgressGeneration())
+end
+
+-- Writes a generation to the world record, tells every server, and closes this one. Returns (ok, message).
+local function moveProgress(self: any, generation: number, highest: number, byUserId: number, what: string): (boolean, string)
+	reseeding = true
+	local updated, err = store:update(WORLD_KEY, function(w)
+		w.playerGeneration = generation
+		w.playerGenerationMax = math.max(highest, w.playerGenerationMax or 0)
+		return w
+	end)
+	if not updated then
+		reseeding = false
+		return false, "world record update failed: " .. tostring(err)
+	end
+	world = updated
+	log:warn("progress_" .. what, { generation = generation, by = byUserId })
+	self:recordEvent("progress_" .. what, { generation = generation, by = byUserId })
+	if not dataService:isMock() then
+		Retry.call(function()
+			MessagingService:PublishAsync(RESEED_TOPIC, { origin = game.JobId, kind = "progress" })
+		end, { attempts = 3, label = "publish progress " .. what })
+	end
+	task.delay(3, closeServer, "progress " .. what, PROGRESS_MESSAGE)
+	return true, string.format("Progress is now generation %d. Every server is closing; players rejoin on it.%s", generation,
+		if dataService:isMock() then " (Studio mock store: this is forgotten when Play stops. Live saves aren't touched from Studio.)" else "")
+end
+
+--[[
+	OWNER-ONLY (checked by the admin command, and again here). Every player starts fresh on their next
+	join. Nothing is deleted: restoreProgress can put this generation back. Yields.
+]]
+function WorldService.resetProgress(self: any, byUserId: number, ownerUserId: number): (boolean, string)
+	if byUserId ~= ownerUserId then
+		return false, "owner only"
+	end
+	if reseeding or closed then
+		return false, "this server is already closing"
+	end
+	local generation = ProgressKeys.nextGeneration(self:getHighestProgressGeneration())
+	return moveProgress(self, generation, generation, byUserId, "reset")
+end
+
+-- OWNER-ONLY. Puts an earlier generation of progress back. Yields.
+function WorldService.restoreProgress(self: any, generation: number, byUserId: number, ownerUserId: number): (boolean, string)
+	if byUserId ~= ownerUserId then
+		return false, "owner only"
+	end
+	if reseeding or closed then
+		return false, "this server is already closing"
+	end
+	local highest = self:getHighestProgressGeneration()
+	local reason = ProgressKeys.canRestore(generation, self:getProgressGeneration(), highest)
+	if reason then
+		return false, reason
+	end
+	return moveProgress(self, generation, highest, byUserId, "restored")
 end
 
 -- World day since the epoch (one real day per world day by default).

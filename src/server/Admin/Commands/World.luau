@@ -81,6 +81,38 @@ return function(admin: any, deps: any)
 	})
 
 	admin:Register({
+		name = "resetallprogress", category = "Server", ownerOnly = true,
+		description = "OWNER ONLY. Every player starts fresh: saves, house claims and world firsts (every server closes; everyone rejoins). Nothing is deleted, so restoreprogress can undo it. Live saves only change from a live server.",
+		args = { { name = "confirm", type = "enum", options = { "RESET" }, hint = "type RESET" } },
+		handler = function(ctx)
+			local _, message = worldService:resetProgress(ctx.player.UserId, AdminConfig.OwnerUserId)
+			return message
+		end,
+	})
+
+	admin:Register({
+		name = "restoreprogress", category = "Server", ownerOnly = true,
+		description = "OWNER ONLY. Put an earlier generation of player progress back (every server closes). Generation 0 is the original. Progress made since is kept in its own generation.",
+		args = {
+			{ name = "generation", type = "integer", min = 0 },
+			{ name = "confirm", type = "enum", options = { "RESTORE" }, hint = "type RESTORE" },
+		},
+		handler = function(ctx, a)
+			local _, message = worldService:restoreProgress(a.generation, ctx.player.UserId, AdminConfig.OwnerUserId)
+			return message
+		end,
+	})
+
+	admin:Register({
+		name = "progressgeneration", category = "Server",
+		description = "Which generation of player progress is in use, and the highest there's been",
+		args = {},
+		handler = function()
+			return string.format("in use: %d · highest: %d", worldService:getProgressGeneration(), worldService:getHighestProgressGeneration())
+		end,
+	})
+
+	admin:Register({
 		name = "regenchunk", aliases = { "regenregion" }, category = "World",
 		description = "Reset chunks to their generated state (radius 0 = just this chunk); deletes their saved edits for everyone",
 		args = {

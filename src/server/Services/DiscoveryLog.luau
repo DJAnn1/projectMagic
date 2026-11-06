@@ -68,7 +68,8 @@ local function tryWorldFirst(player: Player, stats: Types.SpellStats)
 	end
 	local userId = player.UserId
 	local now = os.time()
-	local record, reason = store:update(hashKey, function(r)
+	-- A progress reset opens world firsts up again.
+	local record, reason = store:update(world:progressKey(hashKey), function(r)
 		if r.by ~= 0 then
 			return nil -- someone got here first
 		end
