@@ -44,6 +44,7 @@ local PvpRules = require(Cast.PvpRules)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
 local WorldConfig = require(Cast.Parent.Parent.World.WorldConfig)
+local TerrainDeform = require(Cast.Parent.Parent.World.TerrainDeform)
 
 local HELD_ATTRIBUTE = "GravityHeld"
 
@@ -95,6 +96,8 @@ local orbits: { [number]: Orbit } = {} -- by caster
 local bends: { [number]: Bend } = {} -- by caster
 local flights: { [Player]: Flying } = {}
 local meteors: { Meteor } = {}
+local craterCells: { [string]: number } = {} -- "x,z" cell -> when another crater may land there
+local nextCrater = 0
 local nextId = 0
 
 local function now(): number
@@ -225,6 +228,18 @@ local function moveHeld(hold: Hold, position: Vector3)
 	end
 end
 
+-- Who has this body, if anyone (Cast/TimeRuntime: a recall outranks a hold).
+function GravityRuntime.holdOf(humanoid: Humanoid): Hold?
+	return holds[humanoid]
+end
+
+function GravityRuntime.releaseFor(humanoid: Humanoid)
+	local hold = holds[humanoid]
+	if hold then
+		GravityRuntime.release(hold)
+	end
+end
+
 -- Pushes a character: players on their own client, everyone else here.
 local function launch(hit: Hit, velocity: Vector3)
 	local player = Players:GetPlayerFromCharacter(hit.model)
@@ -311,7 +326,8 @@ end
 local function stepGrips(t: number)
 	for _, grip in table.clone(grips) do
 		local ctx, hit = grip.ctx, grip.hold.hit
-		if t >= grip.expires or not alive(hit) or not refresh(ctx) or not Targeting.canHarm(ctx.player, hit.model) or (hit.root.Position - ctx.origin).Magnitude > grip.maxRange then
+		-- The hold can go from under it too: a recall takes the victim out of your grip.
+		if t >= grip.expires or holds[hit.humanoid] ~= grip.hold or not alive(hit) or not refresh(ctx) or not Targeting.canHarm(ctx.player, hit.model) or (hit.root.Position - ctx.origin).Magnitude > grip.maxRange then
 			endGrip(grip)
 		else
 			if t >= grip.nextSight then
@@ -523,7 +539,7 @@ local function singularityTick(s: Singularity)
 	local ctx = s.ctx
 	for _, hold in s.holds do
 		local hit = hold.hit
-		if alive(hit) and Targeting.canHarm(ctx.player, hit.model) then
+		if holds[hit.humanoid] == hold and alive(hit) and Targeting.canHarm(ctx.player, hit.model) then
 			DamageModel.hit(ctx, hit, G.singularity.tickShare, "crushing", { noFalloff = true, noCrit = true })
 		end
 	end
@@ -559,8 +575,9 @@ local function detonate(s: Singularity)
 	local canCredit = refresh(ctx)
 	for _, hold in s.holds do
 		local hit = hold.hit
+		local stillHeld = holds[hit.humanoid] == hold -- a recall may have taken them out of it
 		GravityRuntime.release(hold)
-		if alive(hit) then
+		if stillHeld and alive(hit) then
 			if canCredit and Targeting.canHarm(ctx.player, hit.model) then
 				DamageModel.hit(ctx, hit, share, "crushing", { noFalloff = true })
 			end
@@ -574,6 +591,7 @@ local function detonate(s: Singularity)
 	giveBackArea(ctx.player.UserId)
 	fx("end", { id = s.id }, s.center)
 	fx("detonate", { radius = s.radius }, s.center, true)
+	GravityRuntime.crater(s.center, Rules.singularityCrater(s.radius), ctx.player.UserId)
 end
 
 local function stepSingularities(dt: number, t: number)
@@ -587,7 +605,7 @@ local function stepSingularities(dt: number, t: number)
 		else
 			local rate = math.min(1, S.pullRate * dt)
 			for _, hold in s.holds do
-				if alive(hold.hit) then
+				if holds[hold.hit.humanoid] == hold and alive(hold.hit) then
 					moveHeld(hold, hold.hit.root.Position:Lerp(s.center, rate))
 				end
 			end
@@ -825,6 +843,7 @@ local function stepMeteors(dt: number)
 			meteor.model:SetAttribute(HELD_ATTRIBUTE, nil)
 			local radius = Rules.meteorRadius(meteor.height)
 			fx("slam", { radius = radius, heavy = true }, meteor.ground, true)
+			GravityRuntime.crater(meteor.ground, Rules.meteorCrater(meteor.height), ctx.player.UserId)
 			if refresh(ctx) then
 				local share = Rules.meteorShare(meteor.height)
 				for _, hit in Targeting.inRadius(meteor.ground, radius, M.maxTargets, { [ctx.character] = true }) do
@@ -841,6 +860,49 @@ local function stepMeteors(dt: number)
 			end
 		end
 	end
+end
+
+-- ─── Craters ────────────────────────────────────────────────────────────────
+
+--[[
+	A hole in the world, kept by every server (TerrainDeform.commit). Only carving and natural ground,
+	like a quake's rupture. Inside a town it's a scorch mark, not a hole: a permanent pit under streets
+	and foundations couldn't be mended. Near-repeats are skipped, so one spot can't fill the save.
+]]
+function GravityRuntime.crater(position: Vector3, radius: number, userId: number)
+	if not world then
+		return
+	end
+	local y = TerrainDeform.surfaceAt(world, position.X, position.Z)
+	local x, z = position.X, position.Z
+	if y < WorldConfig.SEA_LEVEL + G.crater.minAboveSea then
+		return -- under the sea, or so low it would flood
+	end
+	local cell = string.format("%d,%d", x // G.crater.cell, z // G.crater.cell)
+	local t = now()
+	if (craterCells[cell] or 0) > t or t < nextCrater then
+		return
+	end
+	craterCells[cell] = t + G.crater.cellSeconds
+	nextCrater = t + G.crater.minGap
+	local inTown = world:settlementAt(x, z) ~= nil
+	local ops = if inTown then TerrainDeform.scorchOps(world, Vector3.new(x, y, z)) else Rules.craterOps(x, y, z, radius)
+	if not inTown then
+		-- The bowl first: when the budget runs short, only the rim goes.
+		local granted = EffectBudget.takeTerrainOps(#ops)
+		while #ops > granted do
+			table.remove(ops)
+		end
+	end
+	if #ops == 0 then
+		return
+	end
+	task.spawn(function()
+		local ok, err = pcall(TerrainDeform.commit, world, "crater", ops)
+		if not ok then
+			log:warn("crater_failed", { err = err, userId = userId })
+		end
+	end)
 end
 
 -- ─── Dispel ─────────────────────────────────────────────────────────────────

@@ -613,7 +613,7 @@ local function stepEnemies(active: Active, center: Vector3, players: { PlayerVie
 			else
 				enemy.model:Destroy()
 			end
-		elseif not enemy.humanoid:GetAttribute("KnockedDown") then
+		elseif not enemy.humanoid:GetAttribute("KnockedDown") and not enemy.model:GetAttribute("GravityHeld") then
 			if enemy.spec.static then
 				stepStatic(active, enemy, players, now)
 			elseif enemy.spec == EventEnemies.raider then

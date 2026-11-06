@@ -46,6 +46,7 @@ local InteractionMatrix = require(Cast.InteractionMatrix)
 local Targeting = require(Cast.Targeting)
 local HitReactions = require(Cast.HitReactions)
 local GravityRuntime = require(Cast.GravityRuntime)
+local TimeRuntime = require(Cast.TimeRuntime)
 local TerrainDeform = require(Server.World.TerrainDeform)
 
 type Active = {
@@ -323,6 +324,7 @@ function EffectRunner.dispelArea(_self: any, position: Vector3, radius: number, 
 	end
 	count += TerrainDeform.meltAt(position, radius)
 	count += GravityRuntime.dispel(position, radius, owner)
+	count += TimeRuntime.dispel(position, radius, owner)
 	return count
 end
 

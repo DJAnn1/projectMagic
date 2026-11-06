@@ -269,6 +269,8 @@ All three mythic Domains share these rules:
 
 ### 6.1 Time
 
+The runtime is built: see `docs/Time.md`. On the owner's decision (2026-11-06, "don't hold back"), it goes past some limits below: Self Timeline restores everything for up to 45 s, not 3 s, and restores health and reservoir, and it can save you from death at Grandmaster.
+
 | Mastery | Effects (branch) |
 |---|---|
 | Early | Slow one target to 0.8× speed for 3 s; sense where an object was 5 s ago (chronokinesis, causality) |

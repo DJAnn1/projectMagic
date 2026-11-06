@@ -59,7 +59,7 @@ export type Flight = {
 	property: string?, -- for guards: unblockable categories never parry
 	piercing: boolean?,
 	onReflect: ((oldId: number, at: Vector3, velocity: Vector3) -> ())?, -- set by the caster's side
-	onBend: ((oldId: number, at: Vector3, velocity: Vector3) -> ())?, -- set by the caster's side: re-draw a curved flight
+	onBend: ((oldId: number, at: Vector3, velocity: Vector3, hangSeconds: number?) -> ())?, -- set by the caster's side: re-draw a curved or hanging flight
 	bent: boolean?, -- Bend Path has already had its say on this flight
 }
 
@@ -86,6 +86,7 @@ type Live = {
 	excluded: { Instance },
 	params: RaycastParams,
 	reflectedBy: Model?,
+	hanging: boolean?, -- Time holds it in the air until Delivery.release
 }
 
 local Delivery = {}
@@ -98,6 +99,12 @@ local Delivery = {}
 		nil                 nothing
 ]]
 Delivery.interceptor = nil :: ((position: Vector3, velocity: Vector3, flight: Flight) -> (string?, any))?
+
+--[[
+	Set by Cast/TimeRuntime. Called once per step for each flight: a number means "hang here for up to
+	this many seconds", until Delivery.release. A hanging flight doesn't age or check anything.
+]]
+Delivery.hanger = nil :: ((position: Vector3, flight: Flight, age: number) -> number?)?
 
 local live: { Live } = {}
 local nextId = 0
@@ -160,7 +167,27 @@ end
 
 local function step(entry: Live, dt: number)
 	local f = entry.flight
+	if entry.hanging then
+		return
+	end
 	entry.age += dt
+
+	local hanger = Delivery.hanger
+	if hanger then
+		local seconds = hanger(entry.position, f, entry.age)
+		if seconds then
+			entry.hanging = true
+			local oldId = f.id
+			nextId += 1
+			f.id = nextId
+			local hook = f.onBend
+			if hook then
+				-- Barely moving, not zero: the client's flight draws its direction from this.
+				task.spawn(hook, oldId, entry.position, Vector3.new(0, 0.01, 0), seconds)
+			end
+			return
+		end
+	end
 
 	local interceptor = Delivery.interceptor
 	if interceptor then
@@ -286,6 +313,33 @@ end
 
 function Delivery.capacity(): boolean
 	return #live < P.maxActive
+end
+
+--[[
+	Lets a hanging flight go. With `aim` it flies at that point, at the speed it had; without, it carries
+	on as it was. With `homing`, it steers at that part, as the Homing modifier does.
+]]
+function Delivery.release(flight: Flight, aim: Vector3?, homing: BasePart?)
+	for _, entry in live do
+		if entry.flight == flight and entry.hanging then
+			entry.hanging = false
+			if aim and (aim - entry.position).Magnitude > 0.5 then
+				entry.velocity = (aim - entry.position).Unit * entry.velocity.Magnitude
+			end
+			if homing then
+				flight.homing = homing
+				flight.turnRate = math.max(flight.turnRate, math.rad(240))
+			end
+			local oldId = flight.id
+			nextId += 1
+			flight.id = nextId
+			local hook = flight.onBend
+			if hook then
+				task.spawn(hook, oldId, entry.position, entry.velocity)
+			end
+			return
+		end
+	end
 end
 
 -- A fresh projectile id for flights built outside plan() (weapon arrows: Services/WeaponService).

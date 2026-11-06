@@ -72,6 +72,7 @@ local REASONS: { [string]: string } = {
 	DEAD = "You can't cast now.",
 	NOTHING_STORED = "You have no stored charge of that to release.",
 	WORLD_STRAINED = "The world is already straining under great magic. Wait a moment.",
+	TIMESTOP_COOLDOWN = "Time won't stop for you again yet.",
 	TOO_WEAK = "Paying that with your life would kill you.",
 	BRANCH_LOCKED = "You haven't learned that branch.",
 	POWER_OVER_CAP = "That's more power than you can reach yet.",

@@ -50,6 +50,16 @@ local routes: { Route } = {
 	{ id = "earthquake", effect = "Earthquake", branches = { "seismic" }, properties = { "seismicity" }, verbs = { "generate", "release" }, minPower = 5, recordsWorld = true, heavy = true },
 	{ id = "tsunami", effect = "Tsunami", branches = { "tidal" }, properties = { "flow" }, verbs = { "redirect", "generate" }, forms = { "ritual" }, minPower = 8, recordsWorld = true, heavy = true },
 
+	-- ─── Time's powers (Effects/TimePower, docs/Time.md) ────────────────────
+	-- Before `store`, which would swallow Self Timeline, and `time_field`. Each is narrow: its own branch.
+	{ id = "self_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "store" }, forms = { "aura" }, params = { power = "self_timeline" } },
+	{ id = "target_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { power = "target_timeline" } },
+	{ id = "time_loop", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "redirect" }, forms = { "touch", "beam" }, params = { power = "loop" } },
+	{ id = "stored_moment", effect = "TimePower", branches = { "causality" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "stored" } },
+	{ id = "borrowed_wound", effect = "TimePower", branches = { "causality" }, properties = { "sequence" }, verbs = { "amplify", "reduce" }, forms = { "touch", "beam", "aura" }, params = { power = "wound" } },
+	{ id = "future_sight", effect = "TimePower", branches = { "precognition" }, properties = { "foresight" }, verbs = { "amplify" }, forms = { "aura", "touch" }, params = { power = "sight" } },
+	{ id = "timestop", effect = "TimePower", branches = { "stasis" }, properties = { "tempo" }, verbs = { "reduce", "bind" }, forms = { "zone", "burst", "aura", "ritual" }, minPower = 7, params = { power = "timestop" }, heavy = true },
+
 	-- ─── Perception and charges ─────────────────────────────────────────────
 	{ id = "sense", effect = "Sense", verbs = { "sense" } },
 	{ id = "store", effect = "Store", verbs = { "store" } },

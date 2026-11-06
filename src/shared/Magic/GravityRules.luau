@@ -94,6 +94,41 @@ function GravityRules.fieldMult(mode: string, tier: number): number?
 	return nil
 end
 
+local function clampCrater(radius: number): number
+	return math.clamp(radius, G.crater.minRadius, G.crater.maxRadius)
+end
+
+function GravityRules.meteorCrater(height: number): number
+	return clampCrater(G.crater.meteorRadius + G.crater.meteorPerStud * math.max(0, height))
+end
+
+function GravityRules.singularityCrater(radius: number): number
+	return clampCrater(radius * G.crater.singularityShare)
+end
+
+-- A bowl with a scorched floor and a rim of thrown-up ground, as saved terrain ops. Bowl first.
+function GravityRules.craterOps(x: number, y: number, z: number, radius: number): { any }
+	local c = G.crater
+	local ops: { any } = {
+		-- A ball of air whose bottom sits depthShare x radius under the surface.
+		{ k = "ball", m = "Air", x = x, y = y + radius * (1 - c.depthShare), z = z, r = radius },
+		{ k = "replace", f = "Grass", m = "Ground", x = x, y = y, z = z, sx = radius * 2.4, sy = radius, sz = radius * 2.4 },
+		{ k = "replace", f = "LeafyGrass", m = "Ground", x = x, y = y, z = z, sx = radius * 2.4, sy = radius, sz = radius * 2.4 },
+	}
+	for i = 1, c.rimBalls do
+		local angle = (i / c.rimBalls) * 2 * math.pi
+		table.insert(ops, {
+			k = "ball",
+			m = "Ground",
+			x = x + math.cos(angle) * radius,
+			y = y,
+			z = z + math.sin(angle) * radius,
+			r = radius * c.rimSize,
+		})
+	end
+	return ops
+end
+
 function GravityRules.seconds(base: number, perTier: number, tier: number): number
 	return base + perTier * math.max(1, tier)
 end

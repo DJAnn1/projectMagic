@@ -95,6 +95,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 3 },
 		maxBytes = 48,
 	},
+	TimeIntent = { -- "recall": back to your mark; "release", aim?: marked targets snap back, hanging spells fly (Services/TimeService)
+		kind = "Event",
+		from = "Client",
+		args = { S.literal("recall", "release"), S.optional(S.vector3(100000)) },
+		rate = { capacity = 4, perSecond = 2 },
+		maxBytes = 64,
+	},
 	FlightIntent = { -- come down: "land" ends flight; "dive" is Meteor Landing (Services/GravityService checks both)
 		kind = "Event",
 		from = "Client",

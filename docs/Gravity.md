@@ -72,7 +72,7 @@ Couldn't be checked without running it:
 Known gaps:
 - **Crimes:** settlement law only sees the first hit of a power (the one on the resolving thread). Later hits and Meteor Landing reach `FactionService` through `TargetDamaged` but aren't judged as cast crimes.
 - **Lift through ceilings:** a lifted target passes through a roof, then lands on top of it.
-- **No terrain changes:** Meteor Landing and Singularity leave no craters. Collapse's "fold a landscape" is still to come.
+- **Craters:** Meteor Landing and Singularity leave permanent ones outside towns and scorch marks inside (`docs/Time.md`, "Craters"). Collapse's "fold a landscape" is still to come.
 - **Discovery:** nothing in the game tells a player these recipes exist except the Composer's own grammar and `SpellExamples`.
 - **Not built:** wall-walking (Inversion's character "down"). `docs/InnateProfiles.md` §6.2's Pinnacle "vector an area" ritual.
 

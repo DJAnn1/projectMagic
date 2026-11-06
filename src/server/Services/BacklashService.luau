@@ -28,6 +28,7 @@ local Registry = require(Shared.Magic.Registry)
 local Server = script.Parent.Parent
 local T = require(Server.Magic.Data.CastTuning)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
+local Damage = require(Server.Magic.Cast.Damage)
 
 type RiskEffect = {
 	status: string?,
@@ -131,7 +132,7 @@ function BacklashService.overdraw(_self: any, player: Player, humanoid: Humanoid
 	for _, c in consequences do
 		if c.kind == "Backlash" then
 			-- Internal damage: the caster's own channels, so wards don't help.
-			humanoid:TakeDamage(c.amount)
+			Damage.internal(humanoid, c.amount)
 		elseif c.kind == "Burnout" or c.kind == "Lockout" then
 			severe = true
 		elseif c.kind == "Mutation" then

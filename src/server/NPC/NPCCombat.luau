@@ -426,6 +426,7 @@ function NPCCombat.step(npc: any, dt: number): boolean
 	local flinchUntil = humanoid:GetAttribute("FlinchUntil")
 	if
 		humanoid:GetAttribute("KnockedDown")
+		or (root.Parent ~= nil and (root.Parent :: Instance):GetAttribute("GravityHeld")) -- held or frozen (Cast/GravityRuntime): no bolts either
 		or (typeof(flinchUntil) == "number" and flinchUntil > workspace:GetServerTimeNow())
 	then
 		Navigation.Halt(npc)

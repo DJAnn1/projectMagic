@@ -40,6 +40,7 @@ local StatusInfo: { [string]: Info } = {
 	gravity_held = { name = "Held", harmful = true, description = "Gravity has you: you can't move, cast or fight until it lets go." },
 	gravity_heavy = { name = "Anchor Weight", harmful = false, description = "Slower, but you resist damage, shrug off pushes and your spells hit harder." },
 	gravity_light = { name = "Featherweight", harmful = false, description = "Faster, and you jump enormous distances." },
+	foreseeing = { name = "Future Sight", harmful = false, description = "You see where spells are aimed, and some hits miss you." },
 }
 
 return table.freeze(StatusInfo)

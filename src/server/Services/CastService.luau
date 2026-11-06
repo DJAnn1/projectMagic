@@ -602,15 +602,17 @@ local function strike(
 			})
 		end
 		-- Bend Path curved it (Cast/GravityRuntime): clients redraw the flight on its new line.
-		flight.onBend = function(oldId: number, at: Vector3, velocity: Vector3)
+		-- Time hangs it in the air too (`hangSeconds`): a flight that doesn't move, no gravity, until released.
+		flight.onBend = function(oldId: number, at: Vector3, velocity: Vector3, hangSeconds: number?)
 			cue(player, stats, at, at, "resolve", false, false, { projectileId = oldId, expired = true })
 			cue(player, stats, at, at + velocity, "launch", p.heavy, false, {
 				projectileId = flight.id,
 				velocity = velocity,
-				gravity = flight.gravity,
+				gravity = if hangSeconds then 0 else flight.gravity,
 				hitRadius = flight.radius,
+				homing = if flight.homing then flight.homing.Parent else nil,
 				turnRate = flight.turnRate,
-				lifetime = flight.lifetime,
+				lifetime = hangSeconds or flight.lifetime,
 			})
 		end
 		local impact = Delivery.fly(flight, { ctx.character })
@@ -1281,6 +1283,15 @@ end
 -- ─── Admin API (Server/Admin/Commands/Magic) ────────────────────────────────
 
 -- The player's cheat switches (created on first use).
+-- A Self Timeline saves and restores spell cooldowns (Cast/TimeRuntime).
+function CastService.cooldownsOf(_self: any, player: Player): { [string]: number }
+	return casterStateOf(player).cooldowns
+end
+
+function CastService.setCooldowns(_self: any, player: Player, cooldowns: { [string]: number })
+	casterStateOf(player).cooldowns = cooldowns
+end
+
 function CastService.cheats(_self: any, player: Player): Cheats
 	local c = cheats[player]
 	if not c then

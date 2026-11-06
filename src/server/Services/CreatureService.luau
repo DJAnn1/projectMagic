@@ -505,8 +505,8 @@ local function stepCreature(creature: Creature, players: { PlayerView }, now: nu
 	end
 
 	-- Knocked down or flinching: no moving (bites wait too). Slows just lower WalkSpeed.
-	if humanoid:GetAttribute("KnockedDown") then
-		return
+	if humanoid:GetAttribute("KnockedDown") or creature.model:GetAttribute("GravityHeld") then
+		return -- held or frozen too (Cast/GravityRuntime): no moving, no biting
 	end
 
 	if action == "return" then

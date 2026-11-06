@@ -263,6 +263,18 @@ end
 
 -- ─── Admin ──────────────────────────────────────────────────────────────────
 
+-- A Self Timeline saves and restores your dash charges (Cast/TimeRuntime).
+function MovementService.chargesOf(_self: any, player: Player): number?
+	local s = states[player]
+	return if s then s.charges else nil
+end
+
+function MovementService.setCharges(_self: any, player: Player, charges: number)
+	local s = stateOf(player)
+	s.charges = math.clamp(charges, 0, T.dash.charges)
+	publishCharges(player, s)
+end
+
 local function registerAdmin(admin: any)
 	admin:Register({
 		name = "movement", category = "Movement", description = "Running and dash state (wants/running, charges, the dash a readied spell gives)",

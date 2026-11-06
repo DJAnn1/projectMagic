@@ -140,6 +140,9 @@ local list: { Action } = {
 		note = "Press to lock, press again to let go (Settings › Lock-on can make it hold-to-lock). Gamepad: click the right stick.",
 	},
 
+	{ id = "time_recall", label = "Return to your mark", group = "casting", order = 8, keyboard = { "N" }, touch = "Recall button", contexts = { "always" }, owner = "TimeClient", note = "After a Self Timeline (a Time spell): back to that moment, with everything you had then." },
+	{ id = "time_release", label = "Release time", group = "casting", order = 9, keyboard = { "L" }, touch = "Release button", contexts = { "always" }, owner = "TimeClient", note = "People you've marked with a Target Timeline snap back, and spells you've hung in the air fly." },
+
 	-- ─── Combat ────────────────────────────────────────────────────────────────
 	{
 		id = "weapon_attack", label = "Attack with your weapon", group = "combat", order = 1,

@@ -17,6 +17,7 @@
 		                 (+ knockdown: our character falls for the duration, then gets up)
 		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
 		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
+		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		event, event_end world events (no visuals yet)
 	Everything visual is pooled and LOD-scaled inside SpellFx; a failing handler is logged, never
 	allowed to break the listener.
@@ -33,6 +34,7 @@ local WeaponFx = require(script.Parent.Parent.Fx.WeaponFx)
 local DashFx = require(script.Parent.Parent.Fx.DashFx)
 local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
+local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
@@ -114,6 +116,8 @@ local function handle(effect: { [string]: any })
 		if typeof(effect.role) == "string" then
 			Audio.play(effect.role, { vary = false })
 		end
+	elseif kind == "time" then
+		TimeFx.cue(effect)
 	elseif kind == "gravity" then
 		GravityFx.cue(effect)
 	elseif kind == "gravity_pull" then

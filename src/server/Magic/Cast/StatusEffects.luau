@@ -76,6 +76,7 @@ local DEFS: { [string]: StatusDef } = {
 	gravity_held = { name = "Held", walk = 0, jump = 0, noCast = true, harmful = true },
 	gravity_heavy = { name = "Anchor Weight", walk = 0.8, jump = 0.6, damageDealt = true },
 	gravity_light = { name = "Featherweight", walk = 1.35, jump = 2.5 },
+	foreseeing = { name = "Future Sight" }, -- Cast/TimeRuntime
 }
 
 type Active = { expires: number, magnitude: number, source: number?, resist: { [string]: number }? }
@@ -330,6 +331,36 @@ function StatusEffects.damageTakenMult(humanoid: Humanoid): number
 		mult *= DEFS[id].damageTaken or 1
 	end
 	return mult
+end
+
+-- What a Self Timeline saves (Cast/TimeRuntime). Holds aren't part of your past: they're kept out.
+export type Snapshot = { id: string, remaining: number, magnitude: number, source: number?, resist: { [string]: number }? }
+
+local NOT_SNAPSHOTTED: { [string]: boolean } = { gravity_held = true, stasis = true, knockdown = true }
+
+function StatusEffects.snapshot(humanoid: Humanoid): { Snapshot }
+	local out: { Snapshot } = {}
+	local t = now()
+	for id, s in (active[humanoid] or {}) :: { [string]: Active } do
+		if not NOT_SNAPSHOTTED[id] and s.expires > t then
+			table.insert(out, {
+				id = id,
+				remaining = s.expires - t,
+				magnitude = s.magnitude,
+				source = s.source,
+				resist = if s.resist then table.clone(s.resist) else nil,
+			})
+		end
+	end
+	return out
+end
+
+-- Replaces your statuses with a snapshot: what you caught since is gone, what you had is back.
+function StatusEffects.restore(humanoid: Humanoid, snapshot: { Snapshot })
+	StatusEffects.dispel(humanoid)
+	for _, s in snapshot do
+		StatusEffects.apply(humanoid, s.id, { duration = s.remaining, magnitude = s.magnitude, source = s.source, resist = s.resist })
+	end
 end
 
 -- How much harder this humanoid's own spells hit (Anchor Weight; DamageModel).

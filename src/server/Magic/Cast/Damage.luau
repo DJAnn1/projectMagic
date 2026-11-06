@@ -43,6 +43,7 @@ export type Info = {
 	attacker: Model?,
 	blocked: boolean?, -- set by apply: a guard turned part of it away
 	branch: string?, -- the spell's branch: who learns from this hit (CreatureService's kill XP)
+	undeferred: boolean?, -- a Borrowed Wound finally landing: it can't be held back again
 }
 
 -- `practice`: the target is a practice dummy (PracticeTarget) or a wild creature (Creature), not a
@@ -53,6 +54,9 @@ local Damage = {}
 
 Damage.onDamage = nil :: ((Humanoid, number, string, number?, Info) -> ())?
 Damage.onHeal = nil :: ((Humanoid, number, number?, Info) -> ())?
+-- Set by Cast/TimeRuntime: gets what's about to land and returns what does (a mark saving you from
+-- death, a Borrowed Wound holding it back, Future Sight dodging it). `kind` "internal" is overdraw.
+Damage.interceptor = nil :: ((Humanoid, number, number?, string, Info?) -> number)?
 
 local recorders: { [thread]: { RecordEntry } } = {}
 
@@ -111,6 +115,13 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 			return 0
 		end
 	end
+	local interceptor = Damage.interceptor
+	if interceptor then
+		remaining = interceptor(humanoid, remaining, sourceUserId, kind, info)
+		if remaining <= 0 then
+			return 0
+		end
+	end
 	local before = humanoid.Health
 	humanoid:TakeDamage(remaining)
 	local dealt = before - humanoid.Health
@@ -143,6 +154,15 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 		hook(humanoid, dealt, kind, sourceUserId, hitInfo)
 	end
 	return dealt
+end
+
+-- Damage that skips apply on purpose (overdraw backlash goes straight to the body) can still be saved.
+function Damage.internal(humanoid: Humanoid, amount: number)
+	local interceptor = Damage.interceptor
+	local remaining = if interceptor then interceptor(humanoid, amount, nil, "internal", nil) else amount
+	if remaining > 0 then
+		humanoid:TakeDamage(remaining)
+	end
 end
 
 function Damage.heal(humanoid: Humanoid, amount: number, sourceUserId: number?, info: Info?): number

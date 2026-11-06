@@ -119,6 +119,21 @@ return table.freeze({
 		damage = { 0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5 }, -- heavy: your spells hit this much harder
 	},
 
+	crater = {
+		meteorRadius = 6, -- studs, plus meteorPerStud per stud fallen, at most maxRadius
+		meteorPerStud = 0.05,
+		singularityShare = 0.35, -- of the singularity's radius
+		minRadius = 6,
+		maxRadius = 26,
+		depthShare = 0.45, -- how deep the bowl is, as a share of its radius
+		rimBalls = 8, -- mounds of thrown-up ground around the edge
+		rimSize = 0.22, -- each, as a share of the radius
+		minAboveSea = 3, -- studs: lower than this and no crater (it would flood)
+		cell = 24, -- studs: repeats in one cell are skipped ...
+		cellSeconds = 600, -- ... for this long, so one spot can't fill the world's saved edits
+		minGap = 3, -- seconds between any two craters on a server
+	},
+
 	field = {
 		heavy = { 2.2, 2.4, 2.7, 3, 3.5, 4, 5, 6 }, -- multiples of normal gravity
 		invert = { -0.8, -0.8, -0.9, -1, -1.1, -1.2, -1.4, -1.6 }, -- the pull upward, still capped by the field's ceiling

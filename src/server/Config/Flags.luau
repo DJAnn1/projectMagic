@@ -33,6 +33,7 @@ return {
 	combos_enabled = { default = true, description = "Two party members' spells can combine into a combo (Services/ComboService)." },
 	emotes_enabled = { default = true, description = "Players can use emotes and flourishes (Services/EmoteService)." },
 	duels_enabled = { default = true, description = "Players can challenge each other to duels (Services/DuelService). Running duels finish." },
+	time_powers_enabled = { default = true, description = "Timelines, Timestop, Stored Moment, Borrowed Wound, Future Sight and Time Loop (Effects/TimePower). Off refuses new casts; what's running finishes." },
 	gravity_powers_enabled = { default = true, description = "Flight, Crushing Grip, wells, Lift and Slam, shields, Mass Shift and Singularity (Effects/GravityPower). Off refuses new casts; plain gravity fields still work." },
 	shared_events_enabled = { default = true, description = "Server-wide scheduled events (Services/SharedEventService). Off cancels a running one with no rewards." },
 	quests_enabled = { default = true, description = "Quest Director: situations, offers, quest progress and outcomes (Services/QuestDirector)." },
