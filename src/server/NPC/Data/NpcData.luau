@@ -116,7 +116,7 @@ NpcData.occupations = {
 		work = { branch = "water", property = "flow", verb = "sense", form = "touch", power = 1 }, wealth = 0.05, cultures = { tidecall = 4, frostfolk = 2 }, minAge = 12, maxAge = 75 },
 	weathercaller = { name = "Weathercaller", district = "temple", schedule = "day", domains = { air = 3 }, branches = { "weathercraft", "aeromancy" },
 		work = { branch = "air", property = "flow", verb = "generate", form = "burst", power = 1 }, wealth = 0.05, cultures = { skywarden = 4 }, minAge = 18, maxAge = 80, relief = { "tempest", "wildfire" } },
-	guard = { name = "Guard", district = "guardpost", schedule = "shift", domains = { energy = 1.5, earth = 1 }, branches = { "kinetic", "warding" },
+	guard = { name = "Guard", district = "guardpost", schedule = "shift", rota = { "shift", "shift_late", "shift_night" }, domains = { energy = 1.5, earth = 1 }, branches = { "kinetic", "warding" },
 		work = { branch = "energy", property = "momentum", verb = "generate", form = "touch", power = 1 }, wealth = 0.05, minAge = 18, maxAge = 55, relief = { "monster_migration" } },
 	scholar = { name = "Scholar", district = "library", schedule = "scholar", domains = { mind = 2, spirit = 1.5, space = 1 }, branches = { "perceptics", "mnemonics" },
 		work = { branch = "mind", property = "perception", verb = "sense", form = "touch", power = 1 }, wealth = 0.04, cultures = { loreseat = 5 }, minAge = 16, maxAge = 95 },

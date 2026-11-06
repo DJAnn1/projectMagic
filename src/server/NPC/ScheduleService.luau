@@ -98,8 +98,12 @@ function ScheduleService.blockAt(npc: any, hour: number, danger: boolean): strin
 	if danger then
 		return "danger"
 	end
-	local template = NeedsActions.schedules[NpcData.occupations[npc.occupation].schedule] or NeedsActions.schedules.day
-	local h = math.floor(hour - (npc.scheduleShift or 0)) % 24
+	-- An occupation can rotate its people across schedules (guards' three watches), by seed.
+	local def = NpcData.occupations[npc.occupation]
+	local rota: { string }? = def.rota
+	local name = if rota then rota[npc.seed % #rota + 1] else def.schedule
+	local template = NeedsActions.schedules[name] or NeedsActions.schedules.day
+	local h =math.floor(hour - (npc.scheduleShift or 0)) % 24
 	return template[h + 1]
 end
 

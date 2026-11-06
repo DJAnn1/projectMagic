@@ -78,6 +78,7 @@ type Rig = {
 	prompt: ProximityPrompt,
 	label: TextLabel,
 	look: NpcLooks.Look?, -- what the current wearer has on (re-applied once accessories load)
+	prop: Instance?, -- what they're carrying (LOD.setProp)
 }
 
 local pool: { Rig } = {}
@@ -265,6 +266,10 @@ local function release(rig: Rig)
 		track:Stop(0)
 	end
 	rig.prompt.Enabled = false
+	if rig.prop then
+		rig.prop:Destroy()
+		rig.prop = nil
+	end
 	rig.model:SetAttribute("NpcId", nil)
 	rig.model.Parent = nil
 	table.insert(pool, rig)
@@ -673,6 +678,104 @@ local function followState(model: Model, state: string, previous: string, info: 
 end
 
 ActionState.changed:Connect(followState)
+
+-- ─── Daily life: activity clips and carried props (NPC/DailyLife) ───────────
+-- Loaded the first time a rig needs them, kept in rig.tracks under "a:<slot>" so every existing
+-- "stop all tracks" path covers them. One activity clip at a time.
+
+function LOD.stopActivity(npc: any)
+	local rig: Rig? = npc.rig
+	if rig then
+		for name, track in rig.tracks do
+			if string.sub(name, 1, 2) == "a:" and track.IsPlaying then
+				track:Stop(0.2)
+			end
+		end
+	end
+end
+
+function LOD.playActivity(npc: any, slot: string, animationId: string, looped: boolean)
+	local rig: Rig? = npc.rig
+	if not rig or rig.root.Anchored then
+		return
+	end
+	local key = "a:" .. slot
+	local track = rig.tracks[key]
+	if not track then
+		local animator = rig.humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			return
+		end
+		local animation = Instance.new("Animation")
+		animation.AnimationId = animationId
+		local ok, loaded = pcall(function()
+			return animator:LoadAnimation(animation)
+		end)
+		if not ok or not loaded then
+			return
+		end
+		loaded.Priority = Enum.AnimationPriority.Action
+		rig.tracks[key] = loaded
+		track = loaded
+	end
+	if looped and track.IsPlaying then
+		return
+	end
+	if not looped and not takeClip() then
+		return
+	end
+	for name, other in rig.tracks do
+		if string.sub(name, 1, 2) == "a:" and name ~= key and other.IsPlaying then
+			other:Stop(0.2)
+		end
+	end
+	track.Looped = looped
+	track:Play(0.2)
+end
+
+-- Welds a prop (Data/Activities.Props) to the right arm, or with nil removes the current one.
+function LOD.setProp(npc: any, parts: { any }?)
+	local rig: Rig? = npc.rig
+	if not rig then
+		return
+	end
+	if rig.prop then
+		rig.prop:Destroy()
+		rig.prop = nil
+	end
+	if not parts then
+		return
+	end
+	local arm = rig.model:FindFirstChild("Right Arm") or rig.model:FindFirstChild("RightHand")
+	if not arm or not arm:IsA("BasePart") then
+		return
+	end
+	local holder = Instance.new("Folder")
+	holder.Name = "CarriedProp"
+	for _, def in parts do
+		local part = Instance.new("Part")
+		part.Name = "Prop"
+		part.Size = def.size
+		part.Color = def.color
+		part.Material = def.material
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Massless = true
+		part.CastShadow = false
+		part.TopSurface = Enum.SurfaceType.Smooth
+		part.BottomSurface = Enum.SurfaceType.Smooth
+		part:SetAttribute("Flammability", 0)
+		part.CFrame = arm.CFrame * CFrame.new(def.offset)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = arm
+		weld.Part1 = part
+		weld.Parent = part
+		part.Parent = holder
+	end
+	holder.Parent = rig.model
+	rig.prop = holder
+end
 
 function LOD.counts(settlements: { any }): (number, number, number)
 	local a, b, c = 0, 0, 0

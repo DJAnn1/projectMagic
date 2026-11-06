@@ -95,7 +95,6 @@ local dens: { DenState } = {}
 local alive: { Creature } = {}
 local byModel: { [Model]: Creature } = {}
 local folder: Folder? = nil
-local adminDens = 0
 local terrainParams: RaycastParams? = nil
 
 -- ─── Helpers ────────────────────────────────────────────────────────────────
@@ -522,6 +521,58 @@ local function onDamaged(payload: any)
 	end
 end
 
+-- ─── Groups: creatures brought in by something else (admin, SceneDirector) ──
+
+local groupCount = 0
+
+-- A temporary den at a point, full now: no respawns, outside the budget, gone when it sleeps.
+function CreatureService.spawnGroup(_self: any, typeId: string, count: number, at: Vector3): any?
+	if not Creatures.defs[typeId] then
+		return nil
+	end
+	groupCount += 1
+	local den: DenState = {
+		id = "group:" .. groupCount,
+		type = typeId,
+		settlementId = "group",
+		x = at.X,
+		z = at.Z,
+		slots = {},
+		awake = true,
+		temporary = true,
+		center = groundAt(at.X, at.Z) or at,
+		nest = nil,
+	}
+	for i = 1, count do
+		local slot: Slot = { creature = nil, respawnAt = math.huge, generation = 0 }
+		den.slots[i] = slot
+		spawnMember(den, i, slot)
+		slot.respawnAt = math.huge -- even if the ground refused this one: no retries
+	end
+	table.insert(dens, den)
+	return den
+end
+
+function CreatureService.groupAlive(_self: any, den: any): number
+	local living = 0
+	for _, slot in den.slots do
+		if slot.creature then
+			living += 1
+		end
+	end
+	return living
+end
+
+function CreatureService.inGroup(_self: any, den: any, model: Model): boolean
+	local creature = byModel[model]
+	return creature ~= nil and creature.den == den
+end
+
+-- Removes what's left of a group.
+function CreatureService.clearGroup(_self: any, den: any)
+	sleepDen(den)
+end
+
 -- ─── Admin ──────────────────────────────────────────────────────────────────
 
 local function registerAdmin(admin: any)
@@ -552,31 +603,8 @@ local function registerAdmin(admin: any)
 			if not at then
 				return "no character"
 			end
-			adminDens += 1
-			local count = math.floor(a.count)
-			local den: DenState = {
-				id = "admin:" .. adminDens,
-				type = a.type,
-				settlementId = "admin",
-				x = at.X,
-				z = at.Z,
-				slots = {},
-				awake = true,
-				temporary = true,
-				center = groundAt(at.X, at.Z) or at,
-				nest = nil,
-			}
-			local spawned = 0
-			for i = 1, count do
-				local slot: Slot = { creature = nil, respawnAt = math.huge, generation = 0 }
-				den.slots[i] = slot
-				if spawnMember(den, i, slot) then
-					spawned += 1
-				else
-					slot.respawnAt = math.huge
-				end
-			end
-			table.insert(dens, den)
+			local den = CreatureService:spawnGroup(a.type, math.floor(a.count), at)
+			local spawned = if den then CreatureService:groupAlive(den) else 0
 			return string.format("spawned %d %s (budget doesn't apply to this command)", spawned, a.type)
 		end,
 	})

@@ -87,6 +87,9 @@ NeedsActions.schedules = {
 	night = plan({ { 0, 5, "work" }, { 5, 6, "meal" }, { 6, 14, "sleep" }, { 14, 15, "meal" }, { 15, 18, "free" }, { 18, 19, "meal" }, { 19, 24, "work" } }),
 	evening = plan({ { 0, 2, "work" }, { 2, 10, "sleep" }, { 10, 11, "meal" }, { 11, 15, "free" }, { 15, 16, "meal" }, { 16, 24, "work" } }),
 	shift = plan({ { 0, 6, "sleep" }, { 6, 7, "meal" }, { 7, 15, "work" }, { 15, 16, "meal" }, { 16, 22, "free" }, { 22, 24, "sleep" } }),
+	-- The guards' other two watches (NpcData guard.rota): 15:00-23:00 and 23:00-07:00.
+	shift_late = plan({ { 0, 7, "sleep" }, { 7, 8, "meal" }, { 8, 14, "free" }, { 14, 15, "meal" }, { 15, 23, "work" }, { 23, 24, "sleep" } }),
+	shift_night = plan({ { 0, 7, "work" }, { 7, 8, "meal" }, { 8, 15, "sleep" }, { 15, 16, "meal" }, { 16, 23, "free" }, { 23, 24, "work" } }),
 	priest = plan({ { 0, 5, "sleep" }, { 5, 7, "worship" }, { 7, 8, "meal" }, { 8, 12, "work" }, { 12, 13, "meal" }, { 13, 15, "study" }, { 15, 17, "work" }, { 17, 18, "worship" }, { 18, 19, "meal" }, { 19, 21, "free" }, { 21, 24, "sleep" } }),
 	scholar = plan({ { 0, 7, "sleep" }, { 7, 8, "meal" }, { 8, 12, "study" }, { 12, 13, "meal" }, { 13, 17, "work" }, { 17, 18, "meal" }, { 18, 22, "free" }, { 22, 24, "sleep" } }),
 	child = plan({ { 0, 7, "sleep" }, { 7, 8, "meal" }, { 8, 12, "school" }, { 12, 13, "meal" }, { 13, 15, "school" }, { 15, 18, "free" }, { 18, 19, "meal" }, { 19, 20, "free" }, { 20, 24, "sleep" } }),

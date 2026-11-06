@@ -137,6 +137,8 @@ local progression: any = nil
 local events: any = nil
 local runner: any = nil
 local talkHook: ((Player, any, string) -> (string?, boolean))? = nil -- QuestDirector (setTalkHook)
+local ambientHook: ((any, number, number) -> ())? = nil -- AmbientLifeService (setAmbientHooks)
+local placeHook: ((any, string) -> Vector3?)? = nil
 local store: any = nil
 local dataService: any = nil
 local settlementSvc: any = nil
@@ -385,6 +387,9 @@ local function route(npc: any)
 	elseif not rogue and def.district == "work" then
 		target = workPosition(npc)
 	end
+	if not target and not rogue and placeHook then
+		target = placeHook(npc, district) -- AmbientLifeService: the real building for this district
+	end
 	LOD.setDestination(npc, target or spotFor(npc, district))
 end
 
@@ -512,7 +517,9 @@ local function liveExtras(npc: any, now: number, clock: number)
 	if npc.knockedOut or not npc.rig then
 		return
 	end
-	if clock >= (npc.nextBark or 0) and #playersNear(npc.position, BARK_RADIUS) > 0 then
+	if ambientHook and flags.get("ambient_life_enabled") == true then
+		ambientHook(npc, now, clock) -- AmbientLifeService: activity, barks, greetings
+	elseif clock >= (npc.nextBark or 0) and #playersNear(npc.position, BARK_RADIUS) > 0 then
 		npc.nextBark = clock + 45 + (npc.seed % 45)
 		say(npc, "ambient", nil, nil)
 	end
@@ -1637,6 +1644,56 @@ function NPCService.questBond(_self: any, npc: any, player: Player, delta: numbe
 		town.dirty = true
 	end
 	savePlayerRelation(player, npc)
+end
+
+-- AmbientLifeService's way in: once a second for each T0 NPC, and where a district really is.
+function NPCService.setAmbientHooks(_self: any, ambient: (any, number, number) -> (), place: (any, string) -> Vector3?)
+	ambientHook, placeHook = ambient, place
+end
+
+-- Players within `radius` of a point, from the positions the last LOD pass took.
+function NPCService.hearers(_self: any, position: Vector3, radius: number): { Player }
+	return playersNear(position, radius)
+end
+
+-- A line of text over an NPC's head, to whoever's close enough. Text comes from our own data, so it
+-- needs no filter; player-made text must never come through here.
+function NPCService.speak(_self: any, npc: any, text: string, radius: number)
+	local hearers = playersNear(npc.position, radius)
+	if #hearers > 0 then
+		Net.fireList("NpcSpeech", hearers, { npcId = npc.id, text = text })
+	end
+end
+
+-- Sends an NPC back to wherever its current action belongs.
+function NPCService.reroute(_self: any, npc: any)
+	route(npc)
+end
+
+-- A cosmetic spell from an NPC, in its Signature. Nothing is cast: no damage, cost or XP.
+function NPCService.cueCast(_self: any, npc: any, spell: { domain: string, property: string, verb: string, form: string, power: number }, point: Vector3)
+	local rig = npc.rig
+	if not rig then
+		return
+	end
+	LOD.playCast(npc)
+	local _, _, tier = NPCMagicLife.best(npc)
+	runner:cue("spell", {
+		stage = "resolve",
+		domain = spell.domain,
+		property = spell.property,
+		verb = spell.verb,
+		form = spell.form,
+		power = spell.power,
+		masteryTier = tier or 1,
+		origin = rig.root.Position,
+		point = point,
+		radius = 2,
+		castTime = 0.3,
+		backfire = false,
+		signature = npc.signatureJson,
+		npcId = npc.id,
+	}, point, false)
 end
 
 function NPCService.towns(_self: any): { Town }
