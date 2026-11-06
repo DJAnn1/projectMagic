@@ -18,6 +18,7 @@
 		equip      the "equip" cast mode (Settings › castMode)    quick      the "quick" cast mode
 		attuned    holding a readied spell (equip mode)           unattuned  not holding one
 	flying     in the air on a Gravity spell (GravityClient)
+	traveling  riding with Domain Travel (TravelClient)
 	borrowed   during a relic's minute of mythic magic (MomentsClient)
 		placing    placing furniture (blocks all other play input)
 		menu       a screen is open                                prompt     a ProximityPrompt is
@@ -61,6 +62,7 @@ Controls.contexts = {
 	attuned = "While a spell is readied",
 	unattuned = "With no spell readied",
 	flying = "While flying",
+	traveling = "During Domain Travel",
 	borrowed = "While holding a relic's power",
 	placing = "While placing furniture",
 	menu = "In menus",
@@ -73,12 +75,17 @@ local list: { Action } = {
 	{ id = "move", label = "Move", group = "movement", order = 1, keyboard = { "W", "A", "S", "D" }, gamepad = { "Thumbstick1" }, touch = "Thumbstick (left side of the screen)", contexts = { "always" }, owner = "Roblox" },
 	{ id = "jump", label = "Jump", group = "movement", order = 2, keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Jump button", contexts = { "always" }, owner = "Roblox", shares = { "fly_up" } },
 	{
-		id = "fly_up", label = "Climb", group = "movement", order = 4.1,
-		keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Up button", contexts = { "flying" }, owner = "GravityClient", shares = { "jump" },
-		note = "Flying (a Gravity spell): you go where the camera looks, so looking down and pushing forward also descends.",
+		id = "travel", label = "Domain Travel", group = "movement", order = 3.7,
+		keyboard = { "Y" }, touch = "Travel button", contexts = { "always" }, owner = "TravelClient", shares = { "fly_land" },
+		note = "Ride in your magic's own style: your readied spell's domain, or your best one. Press again to stop. Costs reservoir, and a big hit knocks you off. Gamepad: the on-screen button.",
 	},
-	{ id = "fly_down", label = "Sink", group = "movement", order = 4.2, keyboard = { "LeftShift" }, touch = "Down button", contexts = { "flying" }, owner = "GravityClient" },
-	{ id = "fly_land", label = "Land", group = "movement", order = 4.3, keyboard = { "Y" }, touch = "Land button", contexts = { "flying" }, owner = "GravityClient", note = "Touching down with nothing held also lands you." },
+	{
+		id = "fly_up", label = "Climb", group = "movement", order = 4.1,
+		keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Up button", contexts = { "flying", "traveling" }, owner = "GravityClient", shares = { "jump" },
+		note = "Flying (a Gravity spell): you go where the camera looks, so looking down and pushing forward also descends. Domain Travel: how high depends on the style.",
+	},
+	{ id = "fly_down", label = "Sink", group = "movement", order = 4.2, keyboard = { "LeftShift" }, touch = "Down button", contexts = { "flying", "traveling" }, owner = "GravityClient" },
+	{ id = "fly_land", label = "Land", group = "movement", order = 4.3, keyboard = { "Y" }, touch = "Land button", contexts = { "flying" }, owner = "GravityClient", shares = { "travel" }, note = "Touching down with nothing held also lands you." },
 	{ id = "fly_dive", label = "Meteor dive", group = "movement", order = 4.4, keyboard = { "U" }, touch = "Dive button", contexts = { "flying" }, owner = "GravityClient", note = "From Master up: fall on your enemies from high above. The higher you start, the harder it hits." },
 	{
 		id = "camera", label = "Turn the camera", group = "movement", order = 3,
