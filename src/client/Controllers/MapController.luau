@@ -35,13 +35,14 @@ local FOG = Color3.fromRGB(20, 18, 28)
 
 local MapController = {
 	name = "MapController",
-	dependencies = { "InterfaceController", "MagicStateController", "HousingController", "SharedEventController", "PartyController" },
+	dependencies = { "InterfaceController", "MagicStateController", "HousingController", "SharedEventController", "RiftController", "PartyController" },
 }
 
 local interface: any = nil
 local magic: any = nil
 local housing: any = nil
 local events: any = nil
+local rifts: any = nil
 local party: any = nil
 local localPlayer = Players.LocalPlayer
 
@@ -199,6 +200,11 @@ local function drawPins(layer: Frame)
 	if typeof(event.x) == "number" and typeof(event.z) == "number" and (event.phase == "warning" or event.phase == "fight") then
 		local u, v = MapData.toMap(event.x, event.z)
 		pinLabel(layer, u, v, "✦", tostring(event.name), Theme.color.warn, 4)
+	end
+	local rift = rifts.view:get()
+	if typeof(rift.x) == "number" and typeof(rift.z) == "number" and (rift.phase == "open" or rift.phase == "running") then
+		local u, v = MapData.toMap(rift.x, rift.z)
+		pinLabel(layer, u, v, "✧", tostring(rift.twistName) .. " Rift", Theme.color.accent, 4)
 	end
 	for _, member in (party.state:get().members or {}) :: { any } do
 		local vital = party.vitals:get()[member.u]
@@ -402,6 +408,7 @@ function MapController.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
 	housing = ctx.get("HousingController")
 	events = ctx.get("SharedEventController")
+	rifts = ctx.get("RiftController")
 	party = ctx.get("PartyController")
 	interface:registerScreen({
 		id = "Map",

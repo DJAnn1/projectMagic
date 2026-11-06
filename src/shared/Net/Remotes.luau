@@ -398,6 +398,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 3, perSecond = 0.5 },
 		maxBytes = 16,
 	},
+	RequestRift = { -- -> the current Rift's state (Services/RiftService). Entering and leaving are server-side prompts, not remotes.
+		kind = "Function",
+		from = "Client",
+		args = {},
+		rate = { capacity = 3, perSecond = 0.5 },
+		maxBytes = 16,
+	},
 	RequestWorldNews = { -- -> { news = { { text, t } }, board = { { rank, name, points, me } }, season, mine } (Services/WorldNewsService)
 		kind = "Function",
 		from = "Client",
@@ -480,6 +487,9 @@ local Remotes: { [string]: RemoteDef } = {
 	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, text, goalText, place, x, z, radius, warnEnds, endsAt, progress, goal, detail?, result?, mine? } or { phase = "none" }
 	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds, inZone }: your contribution, once a second while you're taking part
 	SharedEventCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "comet", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
+	RiftState = { kind = "Event", from = "Server" }, -- the Rift: { id, phase, twistName, twistText, place, x, z, closesAt, endsAt, pocketLength, roomIndex, roomCount, cleverRooms, roomName?, roomText?, roomHint?, progress?, bossHealth?, bossWeakness?, result?, mine? } or { phase = "none" }
+	RiftScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, inside }: your part, once a second during a run
+	RiftCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "solved", ... }: cosmetic, people inside only
 	WorldNews = { kind = "Event", from = "Server" }, -- { text, t }: a rare feat somewhere in the world
 	TradeState = { kind = "Event", from = "Server" }, -- your trade window (Services/TradeService), or { stage = "none" }
 	MarketChanged = { kind = "Event", from = "Server" }, -- { mail = number }: refresh the Market screen; mail waiting for you

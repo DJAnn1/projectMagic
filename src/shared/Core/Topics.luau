@@ -48,6 +48,7 @@ return table.freeze({
 	DuelEnded = "DuelEnded", -- { id, a, b, winner?, reason, rule } (Services/DuelService)
 	TargetHealed = "TargetHealed", -- { humanoid, model, amount, sourceUserId? } magic healed someone (EffectRunner)
 	SharedEventEnded = "SharedEventEnded", -- { id, type, result, place, players } (Services/SharedEventService)
+	RiftEnded = "RiftEnded", -- { id, result, place, players, clever } (Services/RiftService)
 
 	-- Client
 	ScreenChanged = "ScreenChanged", -- { screen: string? } full-screen UI opened (id) or closed (nil)

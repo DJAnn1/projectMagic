@@ -36,8 +36,10 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - A shared event played to the end: payout, tiers, and the guaranteed first relic (`sharedevent start elemental`, 30+ s in the zone).
 - Not reported yet: whether the relic panel hides after 60 s, plain `borrowed time` without `me`, how Surge looks, Timestop freezing flames and animations on a second client, craters, flight feel.
 
+- **Rifts stage 1 (`docs/Rifts.md`), built 2026-11-06, not yet run:** expected boot line `specs 673/673` (38 new in `Tests/Rifts.spec`). Test with `rift open`, walk in or `rift enter`, then `rift status`. Check a room can really be solved by casting, fire on the Thornwall, the Drop, the Warden, the payout, and where the panel sits on the HUD.
+
 **2. Next up**
-- **Rifts:** seeded dungeons that open in the world, 5–10 minutes, each with a twist such as "fire spreads twice as fast". Creative spell use solves rooms, and bosses drop the best loot. The main repeatable loop at high power, and the largest piece so far, so build in stages, starting with one playable Rift. It must reward creative solutions, or it becomes a combat grind.
+- **Rifts stage 2, once stage 1 has been played:** more rooms and twists, reactions as answers, a journal entry for clever solutions, boss variety (`docs/Rifts.md`). Tune from play first; every number is a guess.
 
 **3. Small follow-ups to what's built**
 - **Map:** a minimap on the HUD (recommended), towns visible from the start (one line, owner to decide), rumours and quests marking the map, drag to pan, drawing roads.
@@ -66,7 +68,6 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Earlier top-5 lists, not picked:** `docs/EngagementIdeas.md` (people noticed that, overheard rumours, goals you set yourself, a rival who remembers) and `docs/MagicIdeas.md`.
 
 **Decisions waiting on the owner**
-- **Open PvP:** `pvp_enabled` is on. Timestop, Crushing Grip and relics make griefing much easier, and Timestop freezes people regardless of the flag. Recommended: at least a safe spawn plaza.
 - **Craters:** holes in towns (they're scorch marks there now, by Claude's call)? Should craters outside towns ever heal?
 - **Self Timeline:** is a 6 s recall cooldown at Transcendent right?
 - **Timestop and duels:** fighters in someone else's duel stay exempt, by Claude's call.
@@ -137,7 +138,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Practice yard on markers / in the Journal? A first-hit reward on a dummy (plan item 7)?
 - Roblox's default camera zooms with I/O, so I opens the inventory AND zooms: disable I/O zoom?
 - Lighting haze (Atmosphere density 0.28) OK? Should fire that spreads after a spell count as a crime?
-- Should more forms open at Sensing (Burst, Beam)? It's a data change in `Data/MasteryTiers`. Should the spawn plaza be no-PvP now that everyone can attack at range from minute one? Thrown Strike in slot 2 instead of 3?
+- Should more forms open at Sensing (Burst, Beam)? It's a data change in `Data/MasteryTiers`. Thrown Strike in slot 2 instead of 3?
 - Beginner quests: permanent map pins for the practice yard and the mentor? Should finishing "Lamps at Dusk" actually light the lamps (today it's flavour)? Beginner rewards: add coins or a starter item (only the lost pet pays 10)?
 - Creatures: should some wander into town so guards fight them and farmers pay for it (needs NPCCombat to target non-players)? Should fighting one drop loot on the ground instead of straight to the bag? Sprites and rats attack on sight: too rough for minute one near the spawn town? Should the spawn town's dens be guaranteed gentle types?
 - Parked VFX questions are listed under "Open design questions" below.
@@ -151,7 +152,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Admin panel decisions:** it replaced the old F2 console; commands for systems that don't exist yet (now only weather and building prefabs) are listed greyed out, not faked.
 - **XP curve stays at `xpScale = 2.3`** for now. The journey sim showed it's slower than the doc's "Expert in ~26 h"; the owner chose to leave it.
 - **R6 rigs everywhere (2026-11-03).** The owner's combat animations are R6, so players (Game Settings › Avatar › Avatar Type = R6), NPC rigs and test dummies are R6. `CombatAnimations.rigType` is the one switch; code that touches body parts handles both rigs.
-- **PvP is on for all players (2026-11-03):** `pvp_enabled` defaults to true (`Config/Flags.luau`). The per-hit cap (`pvpMaxShare`, 60% of MaxHealth) still applies.
+- **PvP is on for all players (2026-11-03):** `pvp_enabled` defaults to true (`Config/Flags.luau`). The per-hit cap (`pvpMaxShare`, 60% of MaxHealth) still applies. **No safe zones anywhere (2026-11-06):** not the spawn plaza, not inside Rifts. Don't re-ask.
 - **Resetting everyone's progress (built 2026-11-06, not yet run):** `resetallprogress RESET`, owner only, from a live server after publishing and restarting servers. Nothing is deleted, and `restoreprogress <n> RESTORE` undoes it (docs/Backend.md, "Resetting progress"). Anything new stored per player must use `WorldService:progressKey()` and be added to `DataService.eraseUser`, and the same goes for markets, trade and leaderboards when they're built.
 - **Life is Uncommon.** Mythic domains are Time, Gravity and Reality.
 - **Time and Gravity are meant to be overpowered (2026-11-06):** "don't hold back on the abilities." Limits only where they keep the server honest or stop someone being frozen forever.

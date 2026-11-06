@@ -407,6 +407,8 @@ function WorldStateService.edit(_self: any, cause: string, ops: { TerrainBuilder
 		op.t = now
 		op.x, op.y, op.z = math.floor(op.x + 0.5), math.floor(op.y + 0.5), math.floor(op.z + 0.5)
 		TerrainBuilder.applyOp(op)
+		-- chunksForOp clips to the island, so an op out in a Rift's pocket records nothing here: what's
+		-- done in a Rift stays out of every server's saved terrain.
 		for _, key in chunksForOp(op) do
 			pendingOps[key] = pendingOps[key] or {}
 			table.insert(pendingOps[key], op)
