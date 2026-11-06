@@ -22,6 +22,7 @@ local Registry = require(Shared.Magic.Registry)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local Remotes = require(Shared.Net.Remotes)
 local Topics = require(Shared.Core.Topics)
+local TravelTuning = require(Shared.Magic.Data.TravelTuning)
 
 local TOWNS: { RiftRules.Town } = {
 	{ id = "a", name = "Alder", x = 0, z = 0 },
@@ -133,6 +134,15 @@ return function(t: any)
 		end)
 		it("a door fits inside a wall", function()
 			expect(R.doorWidth < R.width and R.doorHeight < R.height).toBe(true)
+		end)
+		it("is low enough that no Travel style reads as flying too high, even at the ceiling", function()
+			-- Off the island, height counts from sea level. At y = 120 every ride ended in under a second.
+			local ceiling = R.pocket.y + R.height - WorldConfig.SEA_LEVEL
+			for domain, style in TravelTuning.styles do
+				if ceiling > style.hover + style.lift + TravelTuning.heightMargin then
+					error(string.format("%s's ride would end at the ceiling: %d studs up", domain, ceiling))
+				end
+			end
 		end)
 		it("the drop can't be jumped", function()
 			expect(R.chasmEnd - R.chasmStart > 30).toBe(true)

@@ -175,7 +175,9 @@ local RiftData = {
 
 	-- The pocket: off the island's 4,096 studs, so no chunk is ever built here, no town judges you and
 	-- nothing cast inside can touch the real world.
-	pocket = { x = 6000, y = 120, z = 0 },
+	-- Low on purpose: off the island, Travel and Flight measure your height from sea level, so a higher
+	-- pocket reads as flying too high and ends your ride (Tests/Rifts.spec holds this down).
+	pocket = { x = 6000, y = 60, z = 0 },
 	hallLength = 30,
 	roomLength = 72,
 	arenaLength = 96,

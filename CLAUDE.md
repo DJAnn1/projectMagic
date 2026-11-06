@@ -31,12 +31,12 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 **Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
 
 **1. Check first (built, not yet confirmed in a log)**
-- The progress reset's specs and the map: expected boot line `specs 635/635` (`Tests/ProgressReset.spec` adds 12 to the map's 623).
+- The progress reset's specs and the map's specs passed (they're inside the confirmed `specs 673/673`); neither feature's in-play behaviour has been seen.
 - The map: check where a click lands, whether a fully explored map hitches on opening (`maprevealall`), and whether uncovered ground survives a rejoin (`docs/Map.md`).
 - A shared event played to the end: payout, tiers, and the guaranteed first relic (`sharedevent start elemental`, 30+ s in the zone).
 - Not reported yet: whether the relic panel hides after 60 s, plain `borrowed time` without `me`, how Surge looks, Timestop freezing flames and animations on a second client, craters, flight feel.
 
-- **Rifts stage 1 (`docs/Rifts.md`), built 2026-11-06, not yet run:** expected boot line `specs 673/673` (38 new in `Tests/Rifts.spec`). Test with `rift open`, walk in or `rift enter`, then `rift status`. Check a room can really be solved by casting, fire on the Thornwall, the Drop, the Warden, the payout, and where the panel sits on the HUD.
+- **Rifts stage 1 (`docs/Rifts.md`): `specs 673/673` and one full run confirmed 2026-11-06** (rooms, Warden, gold payout with epic gear, the schedule opening a Rift by itself). The owner sent the log without comment, so looks and feel are unreported. Fixed after it, not yet re-run: the pocket moved from y = 120 to y = 60, because Travel read it as flying too high and ended every ride (`travel_violation height=76`). Expected boot line `specs 674/674` and no `travel_violation` inside a Rift. To check: the Gallery at low level (the run sat there about 90 s at tier 1, solved 32 s after `testmage`; `rift_eye_gone` now logs each eye), a Rift run at one level throughout, and the panel's position. One `dash_overshoot` (blink, allowed 5, moved 21) is log-only; watch for more. Also new: `foundation_failed` on House_09 and HouseLarge_07 fixed itself later (`foundation_fixed`), so those are at least sometimes a timing issue; House_12 didn't in this log.
 
 **2. Next up**
 - **Rifts stage 2, once stage 1 has been played:** more rooms and twists, reactions as answers, a journal entry for clever solutions, boss variety (`docs/Rifts.md`). Tune from play first; every number is a guess.

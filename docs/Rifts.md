@@ -1,6 +1,6 @@
 # Rifts
 
-Seeded dungeons that open in the world. Each run takes up to 10 minutes and has one twist. Creative spell use solves the rooms, and a boss at the end drops the best loot. From the ideas round on 2026-11-06, approved with "build rifts". Stage 1 of a staged build, written 2026-11-06, **not yet run**.
+Seeded dungeons that open in the world. Each run takes up to 10 minutes and has one twist. Creative spell use solves the rooms, and a boss at the end drops the best loot. From the ideas round on 2026-11-06, approved with "build rifts". Stage 1 of a staged build, written 2026-11-06. **One full run seen in a log the same day:** `specs 673/673`, Thornwall, Gallery and Drop all solved cleverly, the Warden killed, a gold payout with an epic `iron_sword`, 5 min 24 s start to finish. The scheduled Rift also opened by itself once that run had cleared. The owner sent the log without comment, so how it looks and feels is unreported.
 
 ## What a run is
 
@@ -81,7 +81,9 @@ Touched: `Net/Remotes`, `Core/Topics`, `Config/Flags` (`rifts_enabled`), `Persis
 - **World-scale spells inside a Rift are unverified.** Quakes and tsunamis read generated height, which is sea floor out there. They should do little, but a quake's stress and magic pressure land on the island's nearest edge region, because region lookups clamp.
 - **Full bags lose loot.** The recap says so, but there's no mail yet, the same as shared events.
 - **Fire needs the `burningParts` budget.** If the server is out, a fire spell removes planks directly instead.
-- **Nothing here has been played.** Every number is a first guess, and the panel's position (top right, 120 down) hasn't been seen against the rest of the HUD.
+- **The numbers are barely tested.** The one run used a mix of tier 1 and a jump to tier 8 (`testmage`), so it says little about balance. The panel's position (top right, 120 down) hasn't been reported on.
+- **Fixed after the first run:** the pocket sat at y = 120, and off the island Travel and Flight measure height from sea level, so every ride ended in under a second (`travel_violation height=76`). It's now at y = 60, and a spec keeps it there. Not yet re-run.
+- **One `dash_overshoot` in that run** (blink, allowed 5, moved 21). It only logs, and has no effect on play. A dash during a ride may explain it, unconfirmed. Watch whether it recurs.
 
 ## Stage 2 and later
 

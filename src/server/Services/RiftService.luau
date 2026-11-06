@@ -536,7 +536,7 @@ local function solve(run: Run, room: RoomState, label: string?, clever: boolean)
 		piece:Destroy()
 	end
 	table.clear(room.parts.pieces)
-	log:info("rift_room_solved", { id = run.plan.id, room = room.def.id, clever = clever, label = label })
+	log:info("rift_room_solved", { id = run.plan.id, room = room.def.id, clever = clever, label = label, cleverWork = math.floor(room.cleverGain * 100) / 100, bruteWork = math.floor(room.bruteGain * 100) / 100, seconds = run.endsAt - os.time() })
 	if clever and label then
 		tellInside(run, string.format("%s: %s. The way opens.", room.def.name, label))
 		cue(run, { kind = "solved", clever = true, label = label })
@@ -743,6 +743,7 @@ local function eyeGone(run: Run, enemy: EnemyState)
 	if not room or room.solved then
 		return
 	end
+	log:info("rift_eye_gone", { id = run.plan.id, shut = enemy.shut, by = enemy.shutBy })
 	local share = 1 / room.total
 	if enemy.shut then
 		room.cleverGain += share
