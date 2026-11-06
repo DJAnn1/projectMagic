@@ -1268,7 +1268,7 @@ end
 
 -- CharacterSafety reports rescues here (so they show in the log with the other world events).
 function WorldStateService.logRescue(_self: any, player: Player, reason: string, from: Vector3, to: Vector3)
-	log:info("character_rescued", { userId = player.UserId, reason = reason, fromY = math.floor(from.Y), toY = math.floor(to.Y) })
+	log:info("character_rescued", { userId = player.UserId, reason = reason, fromX = math.floor(from.X), fromY = math.floor(from.Y), fromZ = math.floor(from.Z), toY = math.floor(to.Y), ground = math.floor((gen :: WorldGen.WorldGen):height(from.X, from.Z)) })
 end
 
 -- Adds a POI at runtime (admin spawn). POIService reads placement.pois live, so it works at

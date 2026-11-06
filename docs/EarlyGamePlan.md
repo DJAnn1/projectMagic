@@ -129,3 +129,19 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Not modelled:** reactions, weapons, other quests, travel beyond `walkToNext`, overdrawing the reservoir.
 - **Next:** the plan's eight items are built. Read the numbers, then decide what to tune.
 
+### First results (2026-11-05, `firsthoursim 60`; a model player, so best-case times)
+
+| Measure | Result | Target |
+|---|---|---|
+| First damage | 0.8–1.0 min, every row | < 2 min: met |
+| First ranged | 0.8–1.4 min, every row | < 10 min: met |
+| Something new | 0.4–0.8 min, every row | < 20 min: met |
+| Novice with the lesson | 2.8–3.1 min, every row | < 30 min: met, but the lesson alone does it |
+| Novice without it, common domains | 11–13 min | < 30 min: met, but flattered by non-stop hunting (about 160 kills an hour) |
+| Novice without it, Time and Reality | 17–29 min | met, but all 6 rows are over 25% slower than Energy (with Void and Space below, 8 rows miss) |
+
+- **The lesson:** every domain reaches Novice within seconds of it (`study.mentor.xp` 650, at the smallest tier gap the quest allows). A higher-tier mentor pays more. That XP value was meant for a mid-game mentor with a 20-hour cooldown.
+- **Why Time and Reality lag:** the domain's rarity tax multiplies the property's `costWeight`: Time is 1.6 x 2.0 = 3.2 times Energy's cost. Modest Reality waits on its reservoir 65% of the hour, and Modest Time 50%. Gravity's Strike, on a cheaper property, doesn't suffer this.
+- **Void and Space** only just miss, and only at one gift each (15.7 min against a limit of 15.25; 15.2 against 15.0), which is within noise.
+- **Not changed yet:** these are the owner's calls. See the open questions in CLAUDE.md.
+
