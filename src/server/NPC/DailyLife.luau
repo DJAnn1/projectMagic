@@ -70,7 +70,7 @@ function DailyLife.step(npc: any, clock: number, env: any)
 		DailyLife.clear(npc)
 		life = { key = key, n = 0, nextClip = 0, nextMove = 0, stop = 0, center = nil, moving = false }
 		npc.life = life
-		LOD.setProp(npc, if def.prop then Activities.Props[def.prop] else nil)
+		LOD.setProp(npc, if def.prop then Activities.Props[def.prop] else nil, if def.clip then Activities.clipHand[def.clip] else nil)
 	end
 	if Navigation.IsPaused(npc) then
 		return -- a pause for a greeting: whatever they were doing carries on after

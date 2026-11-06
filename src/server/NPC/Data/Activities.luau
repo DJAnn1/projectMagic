@@ -7,7 +7,8 @@
 	hammering animation goes in `hammer`, and every smith and builder picks it up. An animation must
 	be owned by whoever owns the place (or shared with it), or it won't load: NPCLOD warns once.
 
-	PROPS are small parts welded to the right arm, each one a list of { size, offset, color, material }.
+	PROPS are small parts welded to an arm (the right, unless clipHand says otherwise), each one a list
+	of { size, offset, color, material }.
 
 	AN ACTIVITY
 		clip        a slot from Clips
@@ -144,6 +145,9 @@ Activities.districtBuildings = table.freeze({
 -- Clips that get into a pose and stay there: where an activity says `looped`, these play once and
 -- freeze on their last frame instead of starting over.
 Activities.holdAtEnd = table.freeze({ sit = true, hold = true }) :: { [string]: boolean }
+
+-- Which hand a clip works with, where it isn't the right: the prop goes there for that activity.
+Activities.clipHand = table.freeze({ hold = "left" }) :: { [string]: string }
 
 function Activities.lookup(occupation: string, action: string): Activity?
 	local own = Activities.byOccupation[occupation]

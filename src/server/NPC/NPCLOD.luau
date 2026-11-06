@@ -681,8 +681,9 @@ function LOD.playActivity(npc: any, slot: string, animationId: string, looped: b
 	end
 end
 
--- Welds a prop (Data/Activities.Props) to the right arm, or with nil removes the current one.
-function LOD.setProp(npc: any, parts: { any }?)
+-- Welds a prop (Data/Activities.Props) to an arm, the right unless hand is "left". Nil removes the
+-- current one.
+function LOD.setProp(npc: any, parts: { any }?, hand: string?)
 	local rig: Rig? = npc.rig
 	if not rig then
 		return
@@ -694,7 +695,9 @@ function LOD.setProp(npc: any, parts: { any }?)
 	if not parts then
 		return
 	end
-	local arm = rig.model:FindFirstChild("Right Arm") or rig.model:FindFirstChild("RightHand")
+	local arm = if hand == "left"
+		then rig.model:FindFirstChild("Left Arm") or rig.model:FindFirstChild("LeftHand")
+		else rig.model:FindFirstChild("Right Arm") or rig.model:FindFirstChild("RightHand")
 	if not arm or not arm:IsA("BasePart") then
 		return
 	end
