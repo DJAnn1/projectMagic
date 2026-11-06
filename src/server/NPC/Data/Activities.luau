@@ -101,7 +101,7 @@ Activities.byOccupation = {
 	miner = { work = { clip = "dig", every = { 2, 3.5 }, prop = "pickaxe" } },
 	farmer = { work = { clip = "dig", every = { 2.5, 4.5 }, prop = "hoe", roam = 12, roamEvery = { 12, 24 } } },
 	fisher = { work = { clip = "hold", looped = true, prop = "rod" } },
-	lamplighter = { work = { prop = "lantern", patrol = "lamps", pause = 4, clip = "wave", every = { 3, 5 }, spark = true } },
+	lamplighter = { work = { prop = "lantern", patrol = "lamps", pause = 4, clip = "point", every = { 3, 5 }, spark = true } },
 	guard = { work = { prop = "spear", patrol = "guard", pause = 7 } },
 	merchant = { work = { clip = "point", every = { 8, 16 } } },
 	herbalist = { work = { clip = "hold", looped = true, prop = "basket", roam = 6, roamEvery = { 16, 30 } } },

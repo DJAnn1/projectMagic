@@ -539,7 +539,7 @@ local function liveExtras(npc: any, now: number, clock: number)
 		local day = math.floor(now)
 		local spell = NPCMagicLife.workCast(npc, day, WorldClock.weekdayOf(day))
 		if spell then
-			LOD.playCast(npc)
+			LOD.playCast(npc, spell.domains[1])
 			local root: BasePart = npc.rig.root
 			local point = root.Position + root.CFrame.LookVector * 3
 			runner:cue("spell", {
@@ -1699,7 +1699,7 @@ function NPCService.cueCast(_self: any, npc: any, spell: { domain: string, prope
 	if not rig then
 		return
 	end
-	LOD.playCast(npc)
+	LOD.playCast(npc, spell.domain)
 	local _, _, tier = NPCMagicLife.best(npc)
 	runner:cue("spell", {
 		stage = "resolve",

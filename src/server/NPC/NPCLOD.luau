@@ -53,12 +53,10 @@ local AMBIENT = {
 	R6 = {
 		idle = "rbxassetid://180435571",
 		walk = "rbxassetid://180426354",
-		cast = "rbxassetid://128777973", -- the default wave
 	},
 	R15 = {
 		idle = "rbxassetid://507766388",
 		walk = "rbxassetid://507777826",
-		cast = "rbxassetid://507770239",
 	},
 }
 local ANIMATIONS = AMBIENT[CombatAnimations.rigType]
@@ -119,10 +117,8 @@ local function buildRig(): Rig?
 			return (animator :: Animator):LoadAnimation(animation)
 		end)
 		if ok2 and track then
-			track.Looped = name ~= "cast"
-			track.Priority = if name == "walk" then Enum.AnimationPriority.Movement
-				elseif name == "idle" then Enum.AnimationPriority.Idle
-				else Enum.AnimationPriority.Action
+			track.Looped = true
+			track.Priority = if name == "walk" then Enum.AnimationPriority.Movement else Enum.AnimationPriority.Idle
 			tracks[name] = track
 		end
 	end
@@ -483,13 +479,6 @@ function LOD.teleport(npc: any, groundAt: (Vector3) -> Vector3)
 	end
 end
 
-function LOD.playCast(npc: any)
-	local rig: Rig? = npc.rig
-	if rig and rig.tracks.cast then
-		rig.tracks.cast:Play(0.1)
-	end
-end
-
 -- ─── Combat animations (ActionState) ────────────────────────────────────────
 -- An NPC rig's clips follow its action state, like a player's client does (docs/Combat.md §11).
 -- Only T0 rigs (unanchored, parented) animate, and at most COMBAT_CLIPS_PER_SECOND clip starts
@@ -518,6 +507,14 @@ local function playClip(rig: Rig, name: string, duration: number?, domain: strin
 	local def = CombatAnimations.animations[name]
 	track:Play(def.fadeIn, ActionRules.weightFor(domain), ActionRules.playbackSpeed(name, track.Length, duration, domain))
 	return track
+end
+
+-- A cosmetic cast (work magic, sparks, scenes): the same CastSpell clip as a cast in a fight.
+function LOD.playCast(npc: any, domain: string?)
+	local rig: Rig? = npc.rig
+	if rig and not rig.root.Anchored then
+		playClip(rig, "CastSpell", nil, domain)
+	end
 end
 
 local function followState(model: Model, state: string, previous: string, info: ActionState.Info)
@@ -562,10 +559,6 @@ local function followState(model: Model, state: string, previous: string, info: 
 				track:AdjustSpeed(0)
 			end
 		end)
-	end
-	-- No CastSpell clip (failed to load, or over budget): the old ambient cast gesture instead.
-	if not entry and state == "casting" and rig.tracks.cast then
-		rig.tracks.cast:Play(0.1)
 	end
 	if loopClip then
 		local wait = if entry
