@@ -140,6 +140,7 @@ local progression: any = nil
 local events: any = nil
 local runner: any = nil
 local talkHook: ((Player, any, string) -> (string?, boolean))? = nil -- QuestDirector (setTalkHook)
+local rumorHook: ((Player, any) -> string?)? = nil -- WildZoneService (setRumorHook)
 local ambientHook: ((any, number, number) -> ())? = nil -- AmbientLifeService (setAmbientHooks)
 local placeHook: ((any, string) -> Vector3?)? = nil
 local store: any = nil
@@ -1436,6 +1437,13 @@ local function onTalk(player: Player, npcId: string, topic: string): any
 	end
 	bus:publish(Topics.NpcTalked, { player = player, npcId = npc.id, topic = topic })
 	local text = if topic == "quest" and questText then questText else DialogueEngine.line(npc, if topic == "quest" then "greet" else topic, ctx, turn)
+	-- Asking for rumours may turn up something bigger than gossip.
+	if topic == "rumor" and rumorHook then
+		local ok, rumor = pcall(rumorHook :: any, player, npc)
+		if ok and typeof(rumor) == "string" then
+			text = rumor
+		end
+	end
 	local studied: any = nil
 	if teach and teach.canTeach and (ctx.rel == "acquaintance" or ctx.rel == "friend" or ctx.rel == "close") then
 		local gain, err = progression:awardStudy(player, branch :: string, "mentor", npc.id, { mentorTier = teach.mentorTier })
@@ -1653,6 +1661,11 @@ end
 -- QuestDirector's hook into conversations: (text?, offersQuest) for a player talking to an NPC.
 function NPCService.setTalkHook(_self: any, fn: (Player, any, string) -> (string?, boolean))
 	talkHook = fn
+end
+
+-- WildZoneService's hook into the "rumor" topic: what this person says instead of gossip, or nil.
+function NPCService.setRumorHook(_self: any, fn: (Player, any) -> string?)
+	rumorHook = fn
 end
 
 -- A quest's ending, remembered: relationship change plus a memory the NPC may gossip about.

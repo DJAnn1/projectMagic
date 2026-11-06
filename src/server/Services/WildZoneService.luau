@@ -5,6 +5,13 @@
 
 	PLACEMENT  Once, from the world seed, so every zone is in the same place on every server. Each also
 	           becomes a place on the map (WorldStateService.addPOI).
+	TERRAIN    Generated ops applied as each chunk builds (WorldStateService.addGeneratedOps), so they're
+	           never saved. The first chunk to ask triggers the plan, so a zone near the spawn is shaped
+	           even if its chunks build before this service's own thread has run.
+	EVERYTHING ELSE  Creatures obey a zone's gravity, crawl and healing. Loose objects hop when the Moor
+	           lets go. Only what's near an awake zone is touched.
+	RUMOURS    Asking a townsperson for rumours may name a zone you don't know (NPCService.setRumorHook):
+	           a journal line, and its spot uncovered on your map (MapService.revealArea).
 	MAGIC      Each zone is a modifier that never runs out, so casts, reservoirs and environment facts all
 	           read it the way they read a weather event, with no zone-specific code.
 	PEOPLE     Four times a second, for each player: which zone are they in, and what does it do?
@@ -14,13 +21,14 @@
 	           means no parts and nearly no cost: six distance checks per player.
 	HEART      A server-side prompt. Touching it pays once ever per zone (data.wildZones.attuned), and its
 	           harvest once per real day (data.wildZones.harvest), in the session-locked save, so hopping
-	           servers doesn't reset either.
+	           servers doesn't reset either. Bags too full for any of it: the day isn't spent.
 	PVP        On, as everywhere (owner, 2026-11-06).
 	INTENTS    None. WildZoneState only tells you where you are.
 
 	Flag: wild_zones_enabled. Admin: wildzone list | goto <zone> | where | reset.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -33,6 +41,8 @@ local Server = script.Parent.Parent
 local Rules = require(Server.World.WildZoneRules)
 local WildZoneBuilder = require(Server.World.WildZoneBuilder)
 local WorldConfig = require(Server.World.WorldConfig)
+local WorldGen = require(Server.World.WorldGen)
+local Targeting = require(Server.Magic.Cast.Targeting)
 local Creatures = require(Server.Creatures.Data.Creatures)
 local Damage = require(Server.Magic.Cast.Damage)
 local FireSim = require(Server.Magic.Cast.FireSim)
@@ -44,11 +54,14 @@ local STEP_SECONDS = 0.25
 local FORCE_NAME = "WildZoneForce"
 local BOOST_EVERY = 20 -- seconds between refreshing a zone's fire boost
 local BURN_DPS = 6
+local LOOSE_CAP = 30 -- loose objects the Moor throws up at once
 
 local WildZoneService = {
 	name = "WildZoneService",
-	dependencies = { "AdminService", "CreatureService", "InventoryService", "JournalService", "PlayerDataService", "ProgressionService", "ReservoirService", "WorldService", "WorldStateService" },
+	dependencies = { "AdminService", "CreatureService", "InventoryService", "JournalService", "MapService", "NPCService", "PlayerDataService", "ProgressionService", "ReservoirService", "WorldService", "WorldStateService" },
 }
+
+local RUMOR_REVEAL = 96 -- studs of map uncovered around a zone you've heard about
 
 type ZoneState = {
 	placed: Rules.Placed,
@@ -56,6 +69,7 @@ type ZoneState = {
 	group: any?, -- CreatureService's temporary den
 	groupAt: number, -- os.clock(): when guards may come back
 	nextBoost: number,
+	tideOn: boolean, -- for noticing the moment the ground lets go
 }
 
 type Lift = { root: BasePart, force: VectorForce, attachment: Attachment }
@@ -70,6 +84,11 @@ local journal: any = nil
 local playerData: any = nil
 local progression: any = nil
 local reservoirs: any = nil
+local map: any = nil
+
+local planned = false
+local opsByChunk: { [string]: { any } } = {}
+local creatureLifts: { [BasePart]: Lift } = {}
 
 local zones: { ZoneState } = {}
 local placed: { Rules.Placed } = {}
@@ -94,6 +113,7 @@ local function recordOf(state: any): any
 	record.found = record.found or {}
 	record.attuned = record.attuned or {}
 	record.harvest = record.harvest or {}
+	record.heard = record.heard or {}
 	return record
 end
 
@@ -129,17 +149,27 @@ local function touchHeart(zone: ZoneState, player: Player)
 
 	local day = Rules.dayOf(os.time())
 	if Rules.canHarvest(record.harvest, id, day) then
-		record.harvest[id] = day
+		-- The same roll however often you try today, so emptying your bags can't re-roll it.
 		local rng = Seed.random(worldService:getSeed(), "player:" .. player.UserId, "wild_zone:" .. id, day)
+		local gave, missed = 0, 0
 		for _, entry in Rules.rollHarvest(def, rng) do
 			local added = inventory:give(player, entry.item, entry.n)
 			if added > 0 then
+				gave += 1
 				table.insert(said, string.format("%s x%d", entry.item, added))
 			else
+				missed += 1
 				log:info("wild_zone_no_room", { userId = player.UserId, item = entry.item })
 			end
 		end
-		log:info("wild_zone_harvest", { userId = player.UserId, zone = id, day = day })
+		-- Nothing fit: the day isn't spent, so a full bag doesn't cost you the harvest.
+		if gave > 0 then
+			record.harvest[id] = day
+			log:info("wild_zone_harvest", { userId = player.UserId, zone = id, day = day, missed = missed })
+		elseif missed > 0 then
+			Net.fire("Notify", player, string.format("Your bags are too full for what %s has for you. Make room and come back.", def.name))
+			return
+		end
 	end
 
 	if #said > 0 then
@@ -214,19 +244,127 @@ local function wakeTick()
 				zone.nextBoost = now + BOOST_EVERY
 				FireSim.boost(Vector3.new(p.x, heightAt(p.x, p.z), p.z), p.def.radius, spread, BOOST_EVERY + 2)
 			end
-			-- Time crawls for what lives here as well.
-			if p.def.crawl then
-				local folder = workspace:FindFirstChild("Creatures")
-				if folder then
-					for _, model in folder:GetChildren() do
-						local humanoid = model:FindFirstChildOfClass("Humanoid")
-						local root = model:FindFirstChild("HumanoidRootPart")
-						if humanoid and root and root:IsA("BasePart") and Vector3.new(root.Position.X - p.x, 0, root.Position.Z - p.z).Magnitude <= p.def.radius then
-							StatusEffects.apply(humanoid, "zone_crawl", { duration = 1.5 })
-						end
+		end
+	end
+end
+
+-- ─── Forces ─────────────────────────────────────────────────────────────────
+
+local function newLift(root: BasePart): Lift
+	local attachment = Instance.new("Attachment")
+	attachment.Name = FORCE_NAME
+	attachment.Parent = root
+	local force = Instance.new("VectorForce")
+	force.Name = FORCE_NAME
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.ApplyAtCenterOfMass = true
+	force.Attachment0 = attachment
+	force.Parent = root
+	return { root = root, force = force, attachment = attachment }
+end
+
+local function endLift(lift: Lift)
+	lift.force:Destroy()
+	lift.attachment:Destroy()
+end
+
+-- Net acceleration = mult x g downward: add (1 - mult) x g upward against normal gravity.
+local function pull(lift: Lift, mult: number)
+	lift.force.Force = Vector3.new(0, lift.root.AssemblyMass * workspace.Gravity * (1 - mult), 0)
+end
+
+-- ─── Creatures and loose objects ────────────────────────────────────────────
+
+-- What the zone does to whatever lives in it. A creature is server-owned, so the server can knock it
+-- loose itself. Budget: the awake zones' creatures only, and creatures_max_alive caps those.
+local function stepCreatures(zone: ZoneState, t: number, letGo: boolean, present: { [BasePart]: boolean })
+	local folder = workspace:FindFirstChild("Creatures")
+	if not folder then
+		return
+	end
+	local p = zone.placed
+	local def = p.def
+	for _, model in folder:GetChildren() do
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		local root = model:FindFirstChild("HumanoidRootPart")
+		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and not root.Anchored then
+			local at = root.Position
+			if Vector3.new(at.X - p.x, 0, at.Z - p.z).Magnitude <= def.radius and not TimeZones.stopped(at) then
+				if def.crawl then
+					StatusEffects.apply(humanoid, "zone_crawl", { duration = 0.75 })
+				end
+				local heal = def.healShare
+				if heal and humanoid.Health < humanoid.MaxHealth then
+					Damage.heal(humanoid, humanoid.MaxHealth * heal * STEP_SECONDS, nil)
+				end
+				local height = at.Y - math.max(heightAt(at.X, at.Z), WorldConfig.SEA_LEVEL)
+				local mult = if model:GetAttribute("GravityHeld") then nil else Rules.gravityAt(def, t, height)
+				if mult then
+					present[root] = true
+					local lift = creatureLifts[root]
+					if not lift then
+						lift = newLift(root)
+						creatureLifts[root] = lift
 					end
+					pull(lift, mult)
+				end
+				if letGo and def.tide then
+					humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+					root.AssemblyLinearVelocity += Vector3.new(0, def.tide.kick, 0)
 				end
 			end
+		end
+	end
+end
+
+-- The moment the Moor lets go, whatever isn't nailed down hops too. Capped, and rare: it's every 15 s.
+local function liftLooseObjects(zone: ZoneState)
+	local p = zone.placed
+	local tide = p.def.tide
+	if not tide then
+		return
+	end
+	local params = OverlapParams.new()
+	params.MaxParts = LOOSE_CAP * 4
+	local center = Vector3.new(p.x, heightAt(p.x, p.z), p.z)
+	local seen: { [BasePart]: boolean } = {}
+	local moved = 0
+	for _, part in workspace:GetPartBoundsInRadius(center, p.def.radius, params) do
+		if moved >= LOOSE_CAP then
+			break
+		end
+		if not part.Anchored and not Targeting.characterOf(part) and not CollectionService:HasTag(part, "NoMagicEdit") then
+			local root = part.AssemblyRootPart
+			if root and not seen[root] then
+				seen[root] = true
+				local ok, owner = pcall(root.GetNetworkOwner, root)
+				if ok and owner == nil then
+					root.AssemblyLinearVelocity += Vector3.new(0, tide.kick, 0)
+					moved += 1
+				end
+			end
+		end
+	end
+end
+
+local function stepZones(t: number)
+	local present: { [BasePart]: boolean } = {}
+	for _, zone in zones do
+		if zone.model then
+			local tide = zone.placed.def.tide
+			local on = tide ~= nil and t % tide.every < tide.lasts
+			local letGo = on and not zone.tideOn
+			zone.tideOn = on
+			stepCreatures(zone, t, letGo, present)
+			if letGo then
+				liftLooseObjects(zone)
+			end
+		end
+	end
+	for root, lift in creatureLifts do
+		if not present[root] or not root.Parent then
+			creatureLifts[root] = nil
+			endLift(lift)
 		end
 	end
 end
@@ -237,8 +375,7 @@ local function clearLift(person: PlayerState)
 	local lift = person.lift
 	if lift then
 		person.lift = nil
-		lift.force:Destroy()
-		lift.attachment:Destroy()
+		endLift(lift)
 	end
 end
 
@@ -249,20 +386,10 @@ local function setLift(person: PlayerState, root: BasePart, mult: number)
 		lift = nil
 	end
 	if not lift then
-		local attachment = Instance.new("Attachment")
-		attachment.Name = FORCE_NAME
-		attachment.Parent = root
-		local force = Instance.new("VectorForce")
-		force.Name = FORCE_NAME
-		force.RelativeTo = Enum.ActuatorRelativeTo.World
-		force.ApplyAtCenterOfMass = true
-		force.Attachment0 = attachment
-		force.Parent = root
-		lift = { root = root, force = force, attachment = attachment }
+		lift = newLift(root)
 		person.lift = lift
 	end
-	-- Net acceleration = mult x g downward: add (1 - mult) x g upward against normal gravity.
-	(lift :: Lift).force.Force = Vector3.new(0, root.AssemblyMass * workspace.Gravity * (1 - mult), 0)
+	pull(lift :: Lift, mult)
 end
 
 local function enterZone(player: Player, person: PlayerState, zone: ZoneState?)
@@ -361,6 +488,10 @@ local function setLive(on: boolean)
 		end
 	end
 	if not on then
+		for root, lift in creatureLifts do
+			creatureLifts[root] = nil
+			endLift(lift)
+		end
 		for player, person in people do
 			clearLift(person)
 			if person.zone then
@@ -398,7 +529,7 @@ local function registerAdmin(admin: any)
 				if not state then
 					return "not ready"
 				end
-				state.data.wildZones = { found = {}, attuned = {}, harvest = {} }
+				state.data.wildZones = { found = {}, attuned = {}, harvest = {}, heard = {} }
 				return "forgotten"
 			elseif a.action == "where" then
 				local root = Util.rootOf(ctx.player)
@@ -421,9 +552,13 @@ end
 
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
+-- The plan and each zone's terrain. Yields nowhere: a chunk's build may be the first to ask.
 local function planWorld()
-	world:awaitReady()
 	local placement = world:placement()
+	if planned or not placement then
+		return -- not ready yet: a chunk can't build before it is, but don't mark an empty plan as done
+	end
+	planned = true
 	local cells: { Rules.Cell } = {}
 	for _, cell in world:index().cells do
 		table.insert(cells, { x = cell.x, z = cell.z, biome = cell.sample.biome, ocean = cell.ocean, slope = cell.slope, coastDistance = cell.coastDistance })
@@ -435,9 +570,21 @@ local function planWorld()
 	end
 	placed = Rules.plan(worldService:getSeed(), cells, towns, pois)
 	for _, p in placed do
-		local zone: ZoneState = { placed = p, model = nil, group = nil, groupAt = 0, nextBoost = 0 }
+		local zone: ZoneState = { placed = p, model = nil, group = nil, groupAt = 0, nextBoost = 0, tideOn = false }
 		table.insert(zones, zone)
 		byPlaced[p] = zone
+		local ops = Rules.terrainOps(p, worldService:getSeed(), heightAt, WorldConfig.SEA_LEVEL)
+		for _, op in ops do
+			for _, key in Rules.chunksOf(op, WorldGen.chunkOf) do
+				local list = opsByChunk[key]
+				if not list then
+					list = {}
+					opsByChunk[key] = list
+				end
+				table.insert(list, op)
+			end
+		end
+		log:info("wild_zone_terrain", { zone = p.id, ops = #ops })
 		world:addPOI({
 			id = "wild_zone_" .. p.id,
 			type = "wild_zone",
@@ -465,7 +612,36 @@ function WildZoneService.init(_self: any, ctx: any)
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
 	reservoirs = ctx.get("ReservoirService")
+	map = ctx.get("MapService")
 	registerAdmin(ctx.get("AdminService"))
+	world:addGeneratedOps(function(cx: number, cz: number): { any }
+		if not enabled() then
+			return {}
+		end
+		planWorld()
+		return opsByChunk[cx .. "," .. cz] or {}
+	end)
+	-- Someone asked a townsperson for rumours: they may know of a zone you don't.
+	ctx.get("NPCService"):setRumorHook(function(player: Player, npc: any): string?
+		local state = playerData:get(player)
+		if not state or not enabled() or not planned then
+			return nil
+		end
+		local record = recordOf(state)
+		local at: Vector3 = npc.position
+		local roll = Seed.random(worldService:getSeed(), "player:" .. player.UserId, "wild_rumor:" .. tostring(npc.id)):NextNumber()
+		local zone = Rules.rumorFor(placed, record.found, record.heard, at.X, at.Z, roll)
+		if not zone then
+			return nil
+		end
+		record.heard[zone.id] = os.time()
+		local text = string.format(zone.def.rumor, Rules.bearing(at.X, at.Z, zone.x, zone.z))
+		journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text))
+		map:revealArea(player, zone.x, zone.z, RUMOR_REVEAL)
+		Net.fire("Notify", player, string.format("Marked on your map: %s.", zone.def.name))
+		log:info("wild_zone_rumor", { userId = player.UserId, zone = zone.id, npc = npc.id })
+		return text
+	end)
 end
 
 function WildZoneService.start(_self: any, _ctx: any)
@@ -473,6 +649,7 @@ function WildZoneService.start(_self: any, _ctx: any)
 		people[player] = nil
 	end)
 	task.spawn(function()
+		world:awaitReady()
 		planWorld()
 		local acc = 0
 		local function step()
@@ -485,6 +662,7 @@ function WildZoneService.start(_self: any, _ctx: any)
 			for _, player in Players:GetPlayers() do
 				stepPlayer(player, STEP_SECONDS, t)
 			end
+			stepZones(t)
 			acc += STEP_SECONDS
 			if acc >= 1 then
 				acc = 0

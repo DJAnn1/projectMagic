@@ -8,11 +8,19 @@
 		tint   A faint colour over the world while you're inside, so you can feel the border. It's a
 		       local ColorCorrectionEffect. Reduce spell effects leaves it off.
 
+		letting go  On the Moor. A Humanoid standing on the ground pins itself there far harder than the
+		       server's force can lift it, so at the moment the ground lets go, this client (which owns
+		       your physics) knocks you into freefall with a small push. The server then holds you
+		       weightless for the rest of it. Skipped while you fly, ride or are held. The same clock
+		       on both sides, so nothing needs sending. A client that cheats this only moves itself,
+		       as with any character movement: Backend.md §8's movement checks are still to come.
+
 	The zone's name and rule are words, so colour is never the only cue. There are no intents to send.
-	Budget: one Kit.dynamic, and a 5 Hz label only on the zones with a tide.
+	Budget: one Kit.dynamic, a 5 Hz label only on the zones with a tide, one cheap check a frame in one.
 ]]
 
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -37,6 +45,7 @@ local WildZoneController = {
 
 local magic: any = nil
 local tint: ColorCorrectionEffect? = nil
+local localPlayer = Players.LocalPlayer
 
 WildZoneController.zone = Kit.value(nil :: string?)
 
@@ -123,8 +132,40 @@ function WildZoneController.init(_self: any, ctx: any)
 	ctx.get("InterfaceController"):registerLayer({ id = "WildZone", build = buildLayer })
 end
 
+-- The moment the ground lets go: knock yourself loose, or the server's force can't move you.
+local function letGo(def: W.Zone)
+	local tide = def.tide :: W.Tide
+	local character = localPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not character or not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") or root.Anchored then
+		return
+	end
+	if character:GetAttribute("GravityFlight") or character:GetAttribute("TravelStyle") or character:GetAttribute("GravityHeld") then
+		return
+	end
+	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	local v = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, tide.kick), v.Z)
+end
+
 function WildZoneController.start(_self: any, _ctx: any)
 	Net.listen("WildZoneState", setZone)
+	local wasOn = false
+	RunService.Heartbeat:Connect(function()
+		local id = WildZoneController.zone:get()
+		local def = if id then W.zones[id] else nil
+		local tide = def and def.tide
+		if not def or not tide then
+			wasOn = false
+			return
+		end
+		local on = workspace:GetServerTimeNow() % tide.every < tide.lasts
+		if on and not wasOn then
+			letGo(def)
+		end
+		wasOn = on
+	end)
 end
 
 return WildZoneController

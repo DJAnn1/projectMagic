@@ -142,6 +142,150 @@ function WildZoneRules.modifierOf(zone: Placed): { [string]: any }
 	}
 end
 
+-- ─── The ground ─────────────────────────────────────────────────────────────
+
+--[[
+	The terrain ops that shape a zone: never saved, the same on every server, applied as each chunk builds.
+	They only add to the ground or recolour it, so the generator's height is always safe to stand things
+	on. Marked `c` so they run with the generated layer, before the saved edits, which must stay on top.
+]]
+function WildZoneRules.terrainOps(zone: Placed, worldSeed: number, heightAt: (number, number) -> number, seaLevel: number): { any }
+	local def = zone.def
+	local shape = def.terrain
+	local ops: { any } = {}
+	local count = 0
+	local function add(op: { [string]: any })
+		count += 1
+		op.i = string.format("wz:%s:%d", zone.id, count)
+		op.c = true
+		op.t = 0
+		table.insert(ops, op)
+	end
+	local rng = Seed.random(worldSeed, "wild_zone:" .. zone.id, "terrain")
+
+	-- A seeded spot in the zone, far enough from the heart for this radius.
+	local function spot(radius: number): (number?, number?, number?)
+		for _ = 1, 8 do
+			local angle = rng:NextNumber() * 2 * math.pi
+			local distance = def.radius * (0.15 + rng:NextNumber() * 0.8)
+			if distance >= radius + W.heartClear then
+				local x, z = zone.x + math.cos(angle) * distance, zone.z + math.sin(angle) * distance
+				return x, heightAt(x, z), z
+			end
+		end
+		return nil, nil, nil
+	end
+
+	local paint = shape.paint
+	if paint then
+		local cell = W.paintCell
+		local reach = math.ceil(def.radius / cell)
+		local x0, z0 = math.floor(zone.x / cell) * cell, math.floor(zone.z / cell) * cell
+		for dz = -reach, reach do
+			for dx = -reach, reach do
+				local cx, cz = x0 + (dx + 0.5) * cell, z0 + (dz + 0.5) * cell
+				if (cx - zone.x) ^ 2 + (cz - zone.z) ^ 2 <= def.radius * def.radius then
+					local h = heightAt(cx, cz)
+					if h >= seaLevel then
+						for _, from in W.paintFrom do
+							if from ~= paint then
+								add({ k = "replace", m = paint, f = from, x = cx, y = math.floor(h / 4) * 4, z = cz, sx = cell, sy = W.paintDepth, sz = cell })
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local mounds = shape.mounds
+	if mounds then
+		for _ = 1, mounds.count do
+			local radius = mounds.min + rng:NextNumber() * (mounds.max - mounds.min)
+			local x, h, z = spot(radius)
+			if x and h and z and h >= seaLevel then
+				local r = radius
+				local y = h - radius * 0.3
+				for _ = 1, mounds.stack do
+					add({ k = "ball", m = mounds.material, x = x, y = y, z = z, r = r })
+					y += r * 0.9
+					r *= 0.75
+				end
+			end
+		end
+	end
+
+	local function island(x: number, y: number, z: number, radius: number)
+		add({ k = "ball", m = "Grass", x = x, y = y, z = z, r = radius })
+		add({ k = "ball", m = "Rock", x = x, y = y - radius * 0.45, z = z, r = radius * 0.92 })
+	end
+	local islands = shape.islands
+	if islands then
+		for _ = 1, islands.count do
+			local radius = islands.min + rng:NextNumber() * (islands.max - islands.min)
+			local x, h, z = spot(radius)
+			if x and h and z then
+				local ground = math.max(h, seaLevel)
+				island(x, ground + islands.lowest + radius + rng:NextNumber() * (islands.highest - islands.lowest), z, radius)
+			end
+		end
+	end
+	if shape.heartIsland then
+		-- Its top just under the heart, so there's something to stand on when you get there.
+		local ground = math.max(heightAt(zone.x, zone.z), seaLevel)
+		island(zone.x, ground + (def.heartLift or 0) - 8, zone.z, 10)
+	end
+	return ops
+end
+
+-- Which chunks an op must run in: a ball can reach several, and each rewrites what its neighbour's build
+-- cleared, so the result is the same whichever chunk builds first.
+function WildZoneRules.chunksOf(op: { [string]: any }, chunkOf: (number, number) -> (number, number)): { string }
+	local out: { string } = {}
+	local reach = if op.k == "ball" then op.r else 0
+	local x0, z0 = chunkOf(op.x - reach, op.z - reach)
+	local x1, z1 = chunkOf(op.x + reach, op.z + reach)
+	for cz = z0, z1 do
+		for cx = x0, x1 do
+			table.insert(out, cx .. "," .. cz)
+		end
+	end
+	return out
+end
+
+-- ─── Rumours ────────────────────────────────────────────────────────────────
+
+local BEARINGS = { "east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east" }
+
+function WildZoneRules.bearing(fromX: number, fromZ: number, toX: number, toZ: number): string
+	-- North is -Z, as in POIPlacer.
+	local angle = math.atan2(-(toZ - fromZ), toX - fromX)
+	local index = math.floor(((angle + math.pi * 2) % (math.pi * 2)) / (math.pi / 4) + 0.5) % 8
+	return BEARINGS[index + 1]
+end
+
+--[[
+	The zone this person could tell you about: the nearest you've neither found nor heard of. `roll` is
+	a seeded number for this person and this player, so asking again doesn't change the answer: someone
+	either knows, or doesn't, and you find out by asking someone else.
+]]
+function WildZoneRules.rumorFor(placed: { Placed }, known: { [string]: any }, heard: { [string]: any }, x: number, z: number, roll: number): Placed?
+	if roll >= W.rumorChance then
+		return nil
+	end
+	local best: Placed? = nil
+	local bestDistance = math.huge
+	for _, zone in placed do
+		if not known[zone.id] and not heard[zone.id] then
+			local d = (zone.x - x) ^ 2 + (zone.z - z) ^ 2
+			if d < bestDistance then
+				best, bestDistance = zone, d
+			end
+		end
+	end
+	return best
+end
+
 -- ─── The heart ──────────────────────────────────────────────────────────────
 
 function WildZoneRules.dayOf(now: number): number

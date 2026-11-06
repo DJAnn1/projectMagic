@@ -69,8 +69,8 @@ local function vale(ctx: Ctx, ground: number)
 		local at = Vector3.new(ctx.zone.x + math.cos(angle) * reach, ground + lift * (i / steps) - 3, ctx.zone.z + math.sin(angle) * reach)
 		part(ctx, "Stone", Vector3.new(14, 2.5, 14), CFrame.new(at), rgb(120, 125, 140), M.Slate, true)
 	end
-	-- And loose stones hanging over the whole valley.
-	for _ = 1, 14 do
+	-- And loose stones among the terrain's islands (WildZoneRules.terrainOps).
+	for _ = 1, 6 do
 		local x, y, z = spot(ctx, 0.3, 0.95)
 		local size = 4 + ctx.rng:NextNumber() * 12
 		local spin = CFrame.Angles(ctx.rng:NextNumber(), ctx.rng:NextNumber() * 6, ctx.rng:NextNumber())

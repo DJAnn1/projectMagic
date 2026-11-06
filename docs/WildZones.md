@@ -1,6 +1,11 @@
 # Wild Zones
 
-Permanent regions where the world's rules are broken. From the ideas round on 2026-11-06, chosen with "Build on wild zones for now". Stage 1, written 2026-11-06, **not yet run**.
+Permanent regions where the world's rules are broken. From the ideas round on 2026-11-06, chosen with "Build on wild zones for now".
+
+- **Stage 1 confirmed 2026-11-06:** `specs 731/731`, six zones placed. The owner played the Vale, Hollow, Moor and Shore and said everything but the Moor seemed good. The Riot woke but wasn't entered, and the Slow Wood wasn't visited.
+- **Stage 2 and the Moor fix, written 2026-11-06, not yet run:** real terrain, creatures and loose objects obeying the rules, rumours, and full bags no longer spending a harvest.
+
+**Why the Moor did nothing:** its rule was a net lift of 10% of gravity, but a Humanoid standing on the ground pins itself there far harder than that. This is my reading of the code, not something measured; the Vale working points the same way, since low gravity shows up when you jump. Now the client knocks you into freefall with a small push at that moment, and the server holds you weightless for 2.5 s: about 40 studs up, then you fall.
 
 ## The zones
 
@@ -14,6 +19,29 @@ Each is placed once from the world seed, so it's in the same place on every serv
 | The Tilting Moor | Every 15 s the ground lets go for 2.5 s and you float up. | Space ×1.3, Gravity ×1.3, storm charge | Glass beetles |
 | The Hushed Hollow | Magic density ×0.1: spells are thin and your reservoir barely fills. Bring a weapon. | Void ×1.5 | Gloom rats |
 | The Verdant Riot | You heal 1.5% a second. Fire burns and spreads three times as fast. | Life ×1.5, Energy ×1.1, more fuel | Mud crawlers |
+
+## The ground
+
+Terrain ops applied as each chunk builds, the same on every server and never saved, so a player's craters and edits still land on top. They only add or recolour, never lower the ground, so the generator's height stays safe to stand landmarks on.
+
+| Zone | Ground | Features |
+|---|---|---|
+| The Drifting Vale | Unchanged | 7 floating rock islands with grass tops, and one holding up the heart |
+| The Slow Wood | Ground | Leafy hummocks |
+| The Burning Shore | Cracked lava | Basalt stacks |
+| The Tilting Moor | Slate | Slate tors |
+| The Hushed Hollow | Salt | Limestone stacks |
+| The Verdant Riot | Leafy grass, the most flammable ground `FireSim` knows | Grassy mounds |
+
+Paint is done in 32-stud squares, so a zone's edge is blocky up close. Each zone is at most about 350 ops, spread across the chunks it covers.
+
+## Rumours
+
+Ask a townsperson for rumours and they may tell you about the nearest zone you neither know nor have heard of, with a direction. It writes a journal entry and uncovers that spot on your map. Whether a person knows is seeded per person and per player (half do), so asking again changes nothing: you find out by asking someone else.
+
+## Everything obeys
+
+Creatures in a zone feel its gravity, crawl and healing. When the Moor lets go, creatures float up with you, and up to 30 loose objects hop. NPCs and shared-event enemies aren't affected.
 
 ## Why go
 
@@ -38,7 +66,7 @@ Touched: `WorldStateService` (a modifier can now carry `bias`, read in `castCont
 
 - **Magic** goes through modifiers, the same ones weather events use, so casts, reservoirs and environment facts all read a zone with no zone-specific code. These never expire.
 - **Gravity** is a `VectorForce` on your character, as `Cast/FieldEffects` does. It stands aside while you fly, ride or are held, because those control your height themselves.
-- **The tide** runs on the synced server clock, so the client's countdown lands on the same moment as the server's force. It stops lifting you at 45 studs and leaves you weightless. There's no fall damage in the open world, so coming down doesn't hurt.
+- **The tide** runs on the synced server clock, so the client's countdown and push land on the same moment as the server's force. There's no fall damage in the open world, so coming down doesn't hurt.
 - **A Timestop** pauses a zone's rules on anyone inside it.
 - **Cost:** landmarks are 15–30 parts a zone and exist only within 200 studs of the edge. Guards appear only within creature wake range. With nobody near, a zone costs a distance check per player, four times a second.
 - **No client intents.** The heart is a server-side prompt, and `WildZoneState` only tells you where you are.
@@ -50,14 +78,15 @@ Touched: `WorldStateService` (a modifier can now carry `bias`, read in `castCont
 
 ## Known gaps
 
-- **Nothing has been played.** Every number is a first guess.
-- **The ground isn't reshaped.** A zone is rules and landmarks on ordinary terrain. A valley that truly floats is stage 2.
-- **Only players feel gravity.** Creatures and loose props in the Vale and Moor stay on the ground.
+- **Every number is still a first guess.**
+- **The Vale's islands can end a ride.** Travel measures height from the generated ground, so riding across a high island reads as flying too high. Flight has more room. Walking and jumping are fine.
+- **The flag doesn't undo terrain already built.** `wild_zones_enabled` off lifts the rules and stops new chunks being shaped; built chunks stay as they are until the server restarts.
+- **Moving a zone moves its terrain.** It's generated, not saved, so changing the zone list or a zone's radius reshapes it everywhere with no migration needed. Players' saved edits stay where they were.
 - **The Composer's `≈` previews don't know a zone's bias,** so a preview can read differently from what the cast does. The server's number is the real one.
-- **Full bags lose a harvest,** and the day is still spent. There's no mail yet.
+- **Partly full bags lose what doesn't fit.** If nothing fits, the day isn't spent. If something does, the rest is lost. There's no mail yet.
 - **Zones can overlap a Rift portal or a shared event.** Harmless, but the rules still apply there.
 - **The Slow Wood stacks with other slows and hastes,** since it's an ordinary status.
 
-## Stage 2 and later
+## Stage 3 and later
 
-Reshaping the terrain in each zone; rules for creatures and loose objects; more zones, or a share of them chosen per world; quests and rumours pointing at zones; a zone's rule changing with weather or time of day.
+Quests pointing at zones (they need their own situations and templates); more zones, or a share of them chosen per world; a zone's rule changing with weather or time of day; lowering the ground as well as raising it, for real bowls and sinkholes.

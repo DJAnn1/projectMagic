@@ -91,6 +91,7 @@ local isReady = false
 local built: { [string]: boolean } = {}
 local building: { [string]: boolean } = {}
 local generatedOps: ((number, number) -> { TerrainBuilder.TerrainOp })? = nil -- SettlementService
+local moreGeneratedOps: { (number, number) -> { TerrainBuilder.TerrainOp } } = {} -- WildZoneService
 local groundPass: ((number, number) -> { TerrainBuilder.Painter })? = nil -- SettlementService (SettlementGround)
 local appliedOps: { [string]: { [string]: boolean } } = {} -- chunkKey -> op ids applied
 local pendingOps: { [string]: { TerrainBuilder.TerrainOp } } = {} -- chunkKey -> unflushed ops
@@ -733,6 +734,17 @@ local function buildChunk(cx: number, cz: number)
 				log:error("generated_ops_failed", { chunk = key, err = tostring(generated) })
 			end
 		end
+		for _, more in moreGeneratedOps do
+			local ok, generated = pcall(more, cx, cz)
+			if ok then
+				if #generated > 0 then
+					ops = table.clone(ops) -- never add to a list its owner may be keeping
+					table.move(generated, 1, #generated, #ops + 1, ops)
+				end
+			else
+				log:error("generated_ops_failed", { chunk = key, err = tostring(generated) })
+			end
+		end
 		for _, op in loadOps(key) do
 			table.insert(ops, op)
 		end
@@ -1195,6 +1207,12 @@ end
 -- Call from a service's init, before chunks start building. The ops are never saved.
 function WorldStateService.setGeneratedOps(_self: any, provider: (number, number) -> { TerrainBuilder.TerrainOp })
 	generatedOps = provider
+end
+
+-- Another generated layer, applied after the settlements' (WildZoneService). Mark its ops `c`. The
+-- provider runs on the chunk's own thread, before its build job, once the world is ready.
+function WorldStateService.addGeneratedOps(_self: any, provider: (number, number) -> { TerrainBuilder.TerrainOp })
+	table.insert(moreGeneratedOps, provider)
 end
 
 -- Ground painters for a chunk (SettlementService); they run after the generated ops, before edits.

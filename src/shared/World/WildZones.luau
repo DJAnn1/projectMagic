@@ -21,7 +21,22 @@
 
 local rgb = Color3.fromRGB
 
-export type Tide = { every: number, lasts: number, mult: number, ceiling: number }
+-- kick: studs/s upward when the ground lets go. A standing Humanoid pins itself to the floor far harder
+-- than any gentle lift, so the client knocks you loose first (Controllers/WildZoneController).
+export type Tide = { every: number, lasts: number, mult: number, kick: number, ceiling: number }
+
+--[[
+	What the ground looks like. Only ever ADDS to it, so the generator's height stays true underfoot.
+		paint     every surface here becomes this material
+		mounds    rock or earth rising out of the ground: stack > 1 piles them into a tor
+		islands   rock hanging in the air, grass on top; heartIsland holds the zone's heart up
+]]
+export type Terrain = {
+	paint: string?,
+	mounds: { count: number, min: number, max: number, material: string, stack: number }?,
+	islands: { count: number, min: number, max: number, lowest: number, highest: number }?,
+	heartIsland: boolean?,
+}
 export type Harvest = { item: string, chance: number, min: number, max: number }
 
 export type Zone = {
@@ -29,6 +44,8 @@ export type Zone = {
 	name: string,
 	rule: string, -- one line: what's different here
 	arrive: string, -- what you notice when you walk in
+	rumor: string, -- what a townsperson says about it; %s is the direction
+	terrain: Terrain,
 	color: Color3,
 	tint: Color3, -- how the world looks while you're inside
 	radius: number,
@@ -62,6 +79,11 @@ local zones: { [string]: Zone } = {
 		name = "The Drifting Vale",
 		rule = "Gravity has mostly given up here. Jump, and take your time coming down.",
 		arrive = "Your stomach lifts. The stones above you aren't falling.",
+		rumor = "Go far enough %s and you'll find a valley where the hills have come loose. They just hang there. I wouldn't walk under them.",
+		terrain = {
+			islands = { count = 7, min = 7, max = 14, lowest = 26, highest = 60 },
+			heartIsland = true,
+		},
 		color = rgb(150, 190, 255),
 		tint = rgb(226, 236, 255),
 		radius = 130,
@@ -82,6 +104,11 @@ local zones: { [string]: Zone } = {
 		name = "The Slow Wood",
 		rule = "Time crawls. You move slowly, but your magic has all the time in the world to refill.",
 		arrive = "The leaves in front of you have stopped falling.",
+		rumor = "There's a wood %s of here where the leaves stopped falling. A man went in for firewood. He says he was gone an hour. It was three days.",
+		terrain = {
+			paint = "Ground",
+			mounds = { count = 8, min = 5, max = 9, material = "LeafyGrass", stack = 1 },
+		},
 		color = rgb(190, 225, 170),
 		tint = rgb(232, 240, 214),
 		radius = 120,
@@ -102,6 +129,11 @@ local zones: { [string]: Zone } = {
 		name = "The Burning Shore",
 		rule = "The water is on fire. Stay out of it, unless you like burning.",
 		arrive = "The sea is burning, and nobody seems to be surprised but you.",
+		rumor = "Fishermen won't go %s any more. The water's on fire out there, and I don't mean the sunset.",
+		terrain = {
+			paint = "CrackedLava",
+			mounds = { count = 6, min = 4, max = 7, material = "Basalt", stack = 3 },
+		},
 		color = rgb(255, 130, 60),
 		tint = rgb(255, 226, 200),
 		radius = 120,
@@ -124,11 +156,16 @@ local zones: { [string]: Zone } = {
 		name = "The Tilting Moor",
 		rule = "Every few seconds the ground lets go of you. Don't be under anything when it does.",
 		arrive = "The stones here have all fallen upward at least once.",
+		rumor = "Don't cross the moor %s of here. The ground lets go of you. You'd think that'd be the good part, and then it remembers.",
+		terrain = {
+			paint = "Slate",
+			mounds = { count = 9, min = 5, max = 9, material = "Slate", stack = 4 },
+		},
 		color = rgb(190, 170, 230),
 		tint = rgb(232, 226, 245),
 		radius = 125,
 		biomes = { "tundra", "ruinlands", "grasslands" },
-		tide = { every = 15, lasts = 2.5, mult = -0.1, ceiling = 45 },
+		tide = { every = 15, lasts = 2.5, mult = 0, kick = 16, ceiling = 45 }, -- drift up about 40 studs, then fall
 		stormCharge = 0.2,
 		bias = { space = 1.3, gravity = 1.3 },
 		decor = "moor",
@@ -145,6 +182,11 @@ local zones: { [string]: Zone } = {
 		name = "The Hushed Hollow",
 		rule = "Magic nearly fails here. Spells come out thin, and your reservoir barely fills. Bring a weapon.",
 		arrive = "It's very quiet. You reach for your magic, and there's hardly anything there.",
+		rumor = "There's a hollow %s of here where magic just stops. Mages come back from it pale. The ones who come back.",
+		terrain = {
+			paint = "Salt",
+			mounds = { count = 6, min = 4, max = 8, material = "Limestone", stack = 3 },
+		},
 		color = rgb(120, 120, 140),
 		tint = rgb(205, 205, 215),
 		radius = 110,
@@ -164,6 +206,11 @@ local zones: { [string]: Zone } = {
 		name = "The Verdant Riot",
 		rule = "Everything grows here, including you: you heal as you stand. Fire loves it just as much.",
 		arrive = "Something is growing up your leg. It's oddly pleasant.",
+		rumor = "Old wounds close if you sleep out %s of here, where everything grows too fast. Just don't light a pipe. It all goes up at once.",
+		terrain = {
+			paint = "LeafyGrass", -- FireSim's most flammable ground, so fire really does run wild here
+			mounds = { count = 10, min = 7, max = 14, material = "LeafyGrass", stack = 1 },
+		},
 		color = rgb(110, 220, 120),
 		tint = rgb(222, 245, 216),
 		radius = 125,
@@ -198,6 +245,14 @@ local WildZones = {
 
 	attuneXp = 200, -- the first time you ever touch a zone's heart. Once per zone, ever
 	harvestSeconds = 86400, -- one harvest per zone per real day
+
+	paintCell = 32, -- studs: repainted in squares of this, each inside one chunk
+	paintFrom = { "Grass", "LeafyGrass", "Ground", "Sand", "Rock", "Mud", "Snow" }, -- what can be repainted
+	paintDepth = 48, -- studs of height each square reaches
+	heartClear = 14, -- no mound comes this close to the heart
+	maxOpsPerZone = 500,
+
+	rumorChance = 0.5, -- each townsperson either knows or doesn't: seeded per person, per player
 }
 
 return WildZones

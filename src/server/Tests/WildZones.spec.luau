@@ -11,6 +11,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Server = ServerScriptService.Server
 local Rules = require(Server.World.WildZoneRules)
 local Biomes = require(Server.World.Biomes)
+local WorldConfig = require(Server.World.WorldConfig)
+local WorldGen = require(Server.World.WorldGen)
 local Creatures = require(Server.Creatures.Data.Creatures)
 local Flags = require(Server.Config.Flags)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
@@ -220,10 +222,17 @@ return function(t: any)
 			local tide = W.zones.moor.tide :: W.Tide
 			expect(Rules.gravityAt(W.zones.moor, tide.every * 4 + 0.1, tide.ceiling + 1)).toBe(0)
 		end)
-		it("a tide can't lift you further than its ceiling even if it runs the whole time", function()
+		it("a tide really lifts you: it pushes, and then holds you weightless", function()
+			-- A gentle lift alone did nothing: a standing Humanoid pins itself to the floor.
 			local tide = W.zones.moor.tide :: W.Tide
-			local rise = 0.5 * math.abs(tide.mult) * workspace.Gravity * tide.lasts ^ 2
-			expect(rise < tide.ceiling * 2).toBe(true)
+			expect(tide.kick > 0).toBe(true)
+			expect(tide.mult <= 0).toBe(true)
+		end)
+		it("a tide lifts you far enough to feel, and no further than its ceiling", function()
+			local tide = W.zones.moor.tide :: W.Tide
+			local rise = tide.kick * tide.lasts + 0.5 * math.abs(tide.mult) * workspace.Gravity * tide.lasts ^ 2
+			expect(rise >= 20).toBe(true)
+			expect(rise <= tide.ceiling).toBe(true)
 		end)
 		it("counts down to the next tide, and says 0 while it's on", function()
 			local tide = W.zones.moor.tide :: W.Tide
@@ -245,6 +254,153 @@ return function(t: any)
 			local bias = W.zones.shore.bias :: { [string]: number }
 			expect(bias.energy > 1).toBe(true)
 			expect(bias.water < 1).toBe(true)
+		end)
+	end)
+
+	describe("Wild zone terrain", function()
+		local FLAT = 100
+		local SEA = 48
+		local function flat(_x: number, _z: number): number
+			return FLAT
+		end
+		local function zoneOf(id: string): Rules.Placed
+			return { id = id, def = W.zones[id], x = 128, z = -256, biome = "grasslands" }
+		end
+
+		it("every zone shapes its ground, within its budget", function()
+			for _, id in W.ids do
+				local ops = Rules.terrainOps(zoneOf(id), 1337, flat, SEA)
+				if #ops == 0 or #ops > W.maxOpsPerZone then
+					error(string.format("%s has %d terrain ops", id, #ops))
+				end
+			end
+		end)
+		it("every op is the same on every server, and has a unique id", function()
+			for _, id in W.ids do
+				local a = Rules.terrainOps(zoneOf(id), 1337, flat, SEA)
+				local b = Rules.terrainOps(zoneOf(id), 1337, flat, SEA)
+				expect(a).toEqual(b)
+				local seen: { [string]: boolean } = {}
+				for _, op in a do
+					expect(seen[op.i]).toBe(nil)
+					seen[op.i] = true
+				end
+			end
+		end)
+		it("every op is marked as generated, so saved edits stay on top of it", function()
+			for _, id in W.ids do
+				for _, op in Rules.terrainOps(zoneOf(id), 1337, flat, SEA) do
+					expect(op.c).toBe(true)
+				end
+			end
+		end)
+		it("uses only real terrain materials", function()
+			for _, id in W.ids do
+				for _, op in Rules.terrainOps(zoneOf(id), 1337, flat, SEA) do
+					expect((Enum.Material :: any)[op.m] ~= nil).toBe(true)
+					if op.f then
+						expect((Enum.Material :: any)[op.f] ~= nil).toBe(true)
+					end
+				end
+			end
+		end)
+		it("stays inside the zone", function()
+			for _, id in W.ids do
+				local zone = zoneOf(id)
+				for _, op in Rules.terrainOps(zone, 1337, flat, SEA) do
+					local reach = if op.k == "ball" then op.r else W.paintCell
+					expect(math.sqrt((op.x - zone.x) ^ 2 + (op.z - zone.z) ^ 2) <= zone.def.radius + reach).toBe(true)
+				end
+			end
+		end)
+		it("paint squares line up with chunks, so each belongs to exactly one", function()
+			for _, op in Rules.terrainOps(zoneOf("riot"), 1337, flat, SEA) do
+				if op.k == "replace" then
+					expect(#Rules.chunksOf(op, WorldGen.chunkOf)).toBe(1)
+					expect(math.abs((op.x - W.paintCell / 2) % W.paintCell) < 0.001).toBe(true)
+				end
+			end
+			expect((WorldConfig.CHUNK_SIZE % W.paintCell)).toBe(0)
+		end)
+		it("a ball runs in every chunk it reaches", function()
+			local size = WorldConfig.CHUNK_SIZE
+			local chunks = Rules.chunksOf({ k = "ball", x = size, z = 0, r = 20 }, WorldGen.chunkOf)
+			expect(#chunks >= 2).toBe(true)
+		end)
+		it("no mound buries the heart", function()
+			for _, id in W.ids do
+				local zone = zoneOf(id)
+				for _, op in Rules.terrainOps(zone, 1337, flat, SEA) do
+					if op.k == "ball" and id ~= "vale" then
+						expect(math.sqrt((op.x - zone.x) ^ 2 + (op.z - zone.z) ^ 2) - op.r >= W.heartClear - 0.01).toBe(true)
+					end
+				end
+			end
+		end)
+		it("the Vale's islands hang clear of the ground, and one holds up the heart", function()
+			local zone = zoneOf("vale")
+			local underHeart = false
+			for _, op in Rules.terrainOps(zone, 1337, flat, SEA) do
+				if op.k == "ball" then
+					expect(op.y - op.r > FLAT).toBe(true)
+				end
+				if op.m == "Grass" and op.x == zone.x and op.z == zone.z then
+					underHeart = true
+					local heartAt = FLAT + (zone.def.heartLift :: number) + 5
+					expect(op.y + op.r <= heartAt).toBe(true)
+				end
+			end
+			expect(underHeart).toBe(true)
+		end)
+		it("the Riot's ground burns best of all", function()
+			expect(W.zones.riot.terrain.paint).toBe("LeafyGrass")
+		end)
+		it("never paints over the sea", function()
+			local function under(_x: number, _z: number): number
+				return SEA - 5
+			end
+			for _, op in Rules.terrainOps(zoneOf("shore"), 1337, under, SEA) do
+				expect(op.k ~= "replace").toBe(true)
+			end
+		end)
+	end)
+
+	describe("Wild zone rumours", function()
+		local zones = Rules.plan(1337, island(), TOWNS, {})
+
+		it("every zone has a rumour with a place for the direction", function()
+			for id, zone in W.zones do
+				local ok = select(2, string.gsub(zone.rumor, "%%s", "")) == 1
+				if not ok then
+					error(id .. "'s rumour needs exactly one %s")
+				end
+			end
+		end)
+		it("tells you of the nearest zone you don't know", function()
+			local zone = zones[1]
+			local told = Rules.rumorFor(zones, {}, {}, zone.x + 1, zone.z, 0)
+			expect(told).toBe(zone)
+		end)
+		it("never repeats what you've found or already heard", function()
+			local found: { [string]: number } = {}
+			local heard: { [string]: number } = {}
+			for i, zone in zones do
+				if i % 2 == 0 then
+					found[zone.id] = 1
+				else
+					heard[zone.id] = 1
+				end
+			end
+			expect(Rules.rumorFor(zones, found, heard, 0, 0, 0)).toBe(nil)
+		end)
+		it("not everyone knows", function()
+			expect(Rules.rumorFor(zones, {}, {}, 0, 0, 0.99)).toBe(nil)
+		end)
+		it("points the right way", function()
+			expect(Rules.bearing(0, 0, 100, 0)).toBe("east")
+			expect(Rules.bearing(0, 0, 0, -100)).toBe("north")
+			expect(Rules.bearing(0, 0, -100, 0)).toBe("west")
+			expect(Rules.bearing(0, 0, 0, 100)).toBe("south")
 		end)
 	end)
 

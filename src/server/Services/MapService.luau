@@ -84,6 +84,15 @@ local function sendFresh(player: Player, bits: { [string]: number }, fresh: { nu
 	Net.fire("MapReveal", player, { cells = cells, pois = pois })
 end
 
+-- Uncovers ground you haven't walked: something told you what's there (a rumour: Services/WildZoneService).
+function MapService.revealArea(_self: any, player: Player, x: number, z: number, radius: number)
+	local state = playerData:get(player)
+	if state and grid then
+		local bits = bitsOf(state)
+		sendFresh(player, bits, MapData.revealAround(bits, x, z, radius))
+	end
+end
+
 local function tick()
 	if FeatureFlags.get("map_enabled") ~= true or not grid then
 		return
