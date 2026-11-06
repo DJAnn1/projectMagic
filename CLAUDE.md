@@ -38,8 +38,10 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 - **Rifts stage 1 (`docs/Rifts.md`): `specs 673/673` and one full run confirmed 2026-11-06** (rooms, Warden, gold payout with epic gear, the schedule opening a Rift by itself). The owner sent the log without comment, so looks and feel are unreported. Fixed after it, not yet re-run: the pocket moved from y = 120 to y = 60, because Travel read it as flying too high and ended every ride (`travel_violation height=76`). Expected boot line `specs 674/674` and no `travel_violation` inside a Rift. To check: the Gallery at low level (the run sat there about 90 s at tier 1, solved 32 s after `testmage`; `rift_eye_gone` now logs each eye), a Rift run at one level throughout, and the panel's position. One `dash_overshoot` (blink, allowed 5, moved 21) is log-only; watch for more. Also new: `foundation_failed` on House_09 and HouseLarge_07 fixed itself later (`foundation_fixed`), so those are at least sometimes a timing issue; House_12 didn't in this log.
 
+- **Rifts stage 2 (`docs/Rifts.md`), built 2026-11-06, not yet run:** 7 rooms, 8 twists, 3 bosses, reactions as answers, first-time answers pay XP and a journal line (`data.rifts.found`). Expected boot line `specs 690/690` (16 new). Test with `rift open any stormheart vigil`, `rift open any twins longdark`, `rift open echo any frostgate`. Look for `rift_answer_found`, `rift_reaction`, `rift_boss_woken` in the log.
+
 **2. Next up**
-- **Rifts stage 2, once stage 1 has been played:** more rooms and twists, reactions as answers, a journal entry for clever solutions, boss variety (`docs/Rifts.md`). Tune from play first; every number is a guess.
+- **Tune Rifts from a low-level run:** still not reported, and every number is a guess. Rifts stage 3 ideas are in `docs/Rifts.md`, but nothing there is chosen. Otherwise, section 4 below is next to pick from.
 
 **3. Small follow-ups to what's built**
 - **Map:** a minimap on the HUD (recommended), towns visible from the start (one line, owner to decide), rumours and quests marking the map, drag to pan, drawing roads.

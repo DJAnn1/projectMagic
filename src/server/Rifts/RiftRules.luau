@@ -26,7 +26,9 @@ export type Plan = {
 	id: string, -- also the claim key
 	twist: string,
 	rooms: { string },
+	boss: string,
 	bossWeakness: string,
+	bossWeakness2: string, -- the Twins' other one: never the same as the first
 	townName: string,
 	x: number,
 	z: number,
@@ -60,9 +62,14 @@ function RiftRules.window(slot: number): Window
 	return { startsAt = startsAt, closesAt = startsAt + R.openSeconds, lastEnd = startsAt + R.slotSeconds - R.closeMargin }
 end
 
+-- How long a run's clock is under this twist.
+function RiftRules.runLength(twist: R.Twist?): number
+	return math.floor(R.runSeconds * (if twist then twist.clockShare or 1 else 1))
+end
+
 -- When a run that began at `startedAt` must end: the full clock, unless the next Rift is due first.
-function RiftRules.runEnds(slot: number, startedAt: number): number
-	return math.min(startedAt + R.runSeconds, RiftRules.window(slot).lastEnd)
+function RiftRules.runEnds(slot: number, startedAt: number, twist: R.Twist?): number
+	return math.min(startedAt + RiftRules.runLength(twist), RiftRules.window(slot).lastEnd)
 end
 
 --[[
@@ -83,7 +90,10 @@ function RiftRules.plan(worldSeed: number, slot: number, towns: { Town }, isDry:
 	for i = 1, math.min(R.roomCount, #pool) do
 		rooms[i] = pool[i]
 	end
-	local weakness = WEAKNESSES[rng:NextInteger(1, #WEAKNESSES)]
+	local weakIndex = rng:NextInteger(1, #WEAKNESSES)
+	local weakness = WEAKNESSES[weakIndex]
+	local weakness2 = WEAKNESSES[(weakIndex + rng:NextInteger(0, #WEAKNESSES - 2)) % #WEAKNESSES + 1]
+	local boss = R.bossIds[rng:NextInteger(1, #R.bossIds)]
 	local town = towns[rng:NextInteger(1, #towns)]
 	local x, z = town.x, town.z
 	for _ = 1, R.placeTries do
@@ -100,7 +110,9 @@ function RiftRules.plan(worldSeed: number, slot: number, towns: { Town }, isDry:
 		id = "rift_" .. slot,
 		twist = twist,
 		rooms = rooms,
+		boss = boss,
 		bossWeakness = weakness,
+		bossWeakness2 = weakness2,
 		townName = town.name,
 		x = x,
 		z = z,
@@ -179,11 +191,46 @@ end
 
 -- ─── Rewards ────────────────────────────────────────────────────────────────
 
-function RiftRules.payout(tier: string, won: boolean, cleverRooms: number): (number, number)
+function RiftRules.payout(tier: string, won: boolean, cleverRooms: number, twist: R.Twist?): (number, number)
 	local reward = R.rewards[tier]
-	local share = if won then 1 else R.failedShare
+	local share = (if won then 1 else R.failedShare) * (if twist then twist.rewardShare or 1 else 1)
 	local bonus = 1 + R.cleverXp * math.max(0, cleverRooms)
 	return math.floor(reward.xp * share * bonus), math.floor(reward.coins * share)
+end
+
+-- What finding an answer counts as: the same room solved the same way is one answer, ever.
+function RiftRules.answerKey(roomId: string, approach: R.Approach): string
+	return approach.key or (roomId .. ":" .. approach.id)
+end
+
+-- How many ordinary answers exist in all. Reactions are a bonus on top, so the panel doesn't count them.
+function RiftRules.answerCount(): number
+	local total = 0
+	for _, room in R.rooms do
+		total += #room.approaches
+	end
+	return total
+end
+
+-- How many of those you've found, from data.rifts.found.
+function RiftRules.answersFound(found: { [string]: number }): number
+	local count = 0
+	for key in found do
+		if string.sub(key, 1, 9) ~= "reaction:" then
+			count += 1
+		end
+	end
+	return count
+end
+
+-- A reaction, worded as an answer: it's worth more than a cast, and has its own place in the journal.
+function RiftRules.reactionApproach(result: string, description: string): R.Approach
+	return {
+		id = result,
+		label = (string.gsub(description, "%.$", "")),
+		tags = {},
+		key = "reaction:" .. result,
+	}
 end
 
 -- A run that ran out of time pays no items.

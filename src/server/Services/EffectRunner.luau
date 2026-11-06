@@ -292,7 +292,7 @@ function EffectRunner.addPresence(_self: any, tags: { string }, position: Vector
 						metrics.reactions += 1
 						log:debug("reaction", { result = reaction.result })
 						EffectRunner:cue("reaction", { result = reaction.result, radius = math.min(presence.radius, other.radius) }, (presence.position + other.position) / 2, false)
-						bus:publish(Topics.MagicReaction, { result = reaction.result, description = reaction.description, owner = owner, branch = branch })
+						bus:publish(Topics.MagicReaction, { result = reaction.result, description = reaction.description, owner = owner, branch = branch, position = (presence.position + other.position) / 2, radius = math.min(presence.radius, other.radius) })
 					end
 				end
 			end

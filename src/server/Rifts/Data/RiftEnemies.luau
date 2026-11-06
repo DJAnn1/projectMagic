@@ -126,6 +126,91 @@ local RiftEnemies = {
 		}),
 	} :: Enemy,
 
+	stormheart = {
+		static = true,
+		attack = { radius = 11, damage = 18, delay = 1.8, cooldown = 4.5, style = "bolt" },
+		def = def({
+			id = "rift_stormheart",
+			name = "The Stormheart",
+			domain = "energy",
+			level = 6,
+			health = 1100,
+			walk = 0,
+			hipHeight = 3,
+			hitbox = Vector3.new(8, 10, 8),
+			resist = {},
+			body = {
+				{ name = "Head", shape = "Ball", size = Vector3.new(7, 7, 7), offset = Vector3.new(0, 1, 0), color = rgb(190, 225, 255), material = M.Neon },
+				{ name = "Body", shape = "Block", size = Vector3.new(6, 2, 6), offset = Vector3.new(0, -4, 0), color = rgb(40, 44, 70), material = M.Metal },
+			},
+			emit = { color = rgb(170, 210, 255), rate = 20 },
+		}),
+	} :: Enemy,
+
+	pylon = {
+		static = true,
+		def = def({
+			id = "rift_pylon",
+			name = "Pylon",
+			domain = "energy",
+			level = 4,
+			health = 170,
+			walk = 0,
+			hipHeight = 1,
+			hitbox = Vector3.new(4, 9, 4),
+			resist = {},
+			body = {
+				{ name = "Head", shape = "Ball", size = Vector3.new(2.4, 2.4, 2.4), offset = Vector3.new(0, 4, 0), color = rgb(200, 230, 255), material = M.Neon },
+				{ name = "Body", shape = "Block", size = Vector3.new(2.6, 7, 2.6), offset = Vector3.new(0, -0.6, 0), color = rgb(60, 66, 96), material = M.Metal },
+			},
+			emit = { color = rgb(170, 210, 255), rate = 8 },
+		}),
+	} :: Enemy,
+
+	twinEmber = {
+		static = false,
+		attack = { radius = 10, damage = 16, delay = 1.7, cooldown = 7, style = "slam" },
+		def = def({
+			id = "rift_twin_ember",
+			name = "The Ember Twin",
+			domain = "void",
+			level = 5,
+			health = 800,
+			walk = 13,
+			hipHeight = 3,
+			hitbox = Vector3.new(5, 8, 5),
+			bite = { damage = 10, cooldown = 2.2, reach = 8, property = "momentum" },
+			resist = {},
+			body = {
+				{ name = "Head", shape = "Ball", size = Vector3.new(3, 3, 3), offset = Vector3.new(0, 3.4, 0), color = rgb(255, 170, 90), material = M.Neon },
+				{ name = "Body", shape = "Block", size = Vector3.new(4.4, 5, 3), offset = Vector3.new(0, 0, 0), color = rgb(70, 36, 30), material = M.Slate },
+			},
+			emit = { color = rgb(255, 150, 80), rate = 10 },
+		}),
+	} :: Enemy,
+
+	twinAsh = {
+		static = false,
+		attack = { radius = 10, damage = 16, delay = 1.7, cooldown = 7, style = "slam" },
+		def = def({
+			id = "rift_twin_ash",
+			name = "The Ash Twin",
+			domain = "void",
+			level = 5,
+			health = 800,
+			walk = 13,
+			hipHeight = 3,
+			hitbox = Vector3.new(5, 8, 5),
+			bite = { damage = 10, cooldown = 2.2, reach = 8, property = "momentum" },
+			resist = {},
+			body = {
+				{ name = "Head", shape = "Ball", size = Vector3.new(3, 3, 3), offset = Vector3.new(0, 3.4, 0), color = rgb(190, 200, 220), material = M.Neon },
+				{ name = "Body", shape = "Block", size = Vector3.new(4.4, 5, 3), offset = Vector3.new(0, 0, 0), color = rgb(44, 46, 58), material = M.Slate },
+			},
+			emit = { color = rgb(190, 200, 220), rate = 10 },
+		}),
+	} :: Enemy,
+
 	wardenHurtAt = 0.5, -- below this share of health it attacks faster and calls for help
 	wardenHurtCooldown = 0.65,
 	wardenHelp = 3, -- riftlings it calls

@@ -20,8 +20,17 @@
 	                     solves it too.
 	            eyes     hanging turrets. A clever cast near one shuts it; or just break it.
 	            coils    fill the meter, under discharge.
-	BOSS      A status of any kind bites it (exposedShare), so controlling it pays as well as hitting it.
-	          It's weak to one seeded domain. Below half health it speeds up and calls for help.
+	            lamps    a clever cast near one lights it; plain casts add up. Each lamp slows the shades.
+	            vigil    someone holds the ring while waves come; clever casts shorten the wait.
+	          A magic reaction landing in the room is the strongest answer of all (onReaction).
+	          Everything goes through applyWork. The first time you ever use an answer pays XP and a
+	          journal line (noteAnswer): rewarding what's new, instead of punishing what's repeated.
+	BOSS      One of three, by seed. A status of any kind bites it (exposedShare), it's weak to a seeded
+	          domain, and a reaction beside it bites hard. Below half health it attacks faster.
+	            warden      chases you, and calls for help when hurt.
+	            stormheart  rooted and unhurtable while its pylons stand (HealthFloor). They come back. A
+	                        reaction beside it breaks the shield at once.
+	            twins       two of them. Kill one and the other revives it unless you finish both in time.
 	PVP       Stays on inside: the owner chose no safe zones (2026-11-06).
 	SCORING   Same tiers as shared events (Social/EventRules). Clever progress is worth more points.
 	PAYING    data.rifts.claimed[plan id], in the session-locked save, is checked before paying and written
@@ -63,10 +72,13 @@ local EYE_RANGE = 80
 
 local RiftService = {
 	name = "RiftService",
-	dependencies = { "AdminService", "EffectRunner", "InventoryService", "PlayerDataService", "ProgressionService", "WorldService", "WorldStateService" },
+	dependencies = { "AdminService", "EffectRunner", "InventoryService", "JournalService", "PlayerDataService", "ProgressionService", "ReservoirService", "WorldService", "WorldStateService" },
 }
 
+local SHIELD_FLOOR = 1e9 -- Cast/Damage holds health at this floor, so while it's set nothing hurts at all
+
 type EnemyState = {
+	role: string?, -- "boss" | "pylon", or nil for everything else
 	spec: RiftEnemies.Enemy,
 	model: Model,
 	humanoid: Humanoid,
@@ -92,7 +104,10 @@ type Telegraph = {
 type RoomState = {
 	def: R.Room,
 	parts: RiftBuilder.RoomParts,
-	total: number, -- planks, or eyes; 1 for rooms that fill a meter
+	total: number, -- planks, eyes or lamps; 1 for rooms that fill a meter
+	lampFill: { [BasePart]: number }, -- lamps: plain casts add up
+	lit: number,
+	nextWave: number, -- vigil
 	progress: number, -- 0..1
 	cleverGain: number,
 	bruteGain: number,
@@ -119,9 +134,14 @@ type Run = {
 	cleverRooms: number,
 	enemies: { EnemyState },
 	telegraphs: { Telegraph },
-	boss: EnemyState?,
+	bosses: { EnemyState }, -- everything left that must die: one, or the Twins
 	bossHurt: boolean,
 	exposedAt: { [string]: number },
+	shieldUp: boolean, -- the Stormheart
+	exposedUntil: number?, -- the Stormheart: when its pylons come back
+	reviveAt: number?, -- the Twins
+	reviveSpec: RiftEnemies.Enemy?,
+	answersNew: { [number]: number }, -- userId -> answers found for the first time this run
 	scores: { [number]: EventRules.Score },
 	peak: number,
 	rng: Random,
@@ -139,6 +159,8 @@ local worldService: any = nil
 local inventory: any = nil
 local playerData: any = nil
 local progression: any = nil
+local journal: any = nil
+local reservoirs: any = nil
 
 local current: Run? = nil
 local handledSlot = -1
@@ -207,6 +229,27 @@ local function currentRoom(run: Run): RoomState?
 	return run.rooms[run.roomIndex]
 end
 
+-- The health left across whatever must still die, 0..100, or nil before the boss wakes.
+local function bossShare(run: Run): number?
+	if #run.bosses == 0 then
+		return nil
+	end
+	local health, maxHealth = 0, 0
+	for _, boss in run.bosses do
+		health += boss.humanoid.Health
+		maxHealth += boss.humanoid.MaxHealth
+	end
+	return math.floor(health / math.max(maxHealth, 1) * 100)
+end
+
+local function bossText(run: Run): string
+	local text = R.bosses[run.plan.boss].text
+	if run.plan.boss == "twins" then
+		return string.format(text, run.plan.bossWeakness, run.plan.bossWeakness2)
+	end
+	return string.format(text, run.plan.bossWeakness)
+end
+
 local function viewOf(run: Run?): { [string]: any }
 	if not run then
 		return { phase = "none" }
@@ -233,22 +276,24 @@ local function viewOf(run: Run?): { [string]: any }
 		view.roomText = room.def.text
 		view.roomHint = room.def.hint
 		view.progress = math.floor(room.progress * 100)
-	elseif run.boss then
-		view.bossHealth = math.floor(run.boss.humanoid.Health / run.boss.humanoid.MaxHealth * 100)
-		view.bossWeakness = run.plan.bossWeakness
+	elseif #run.bosses > 0 then
+		view.bossName = R.bosses[run.plan.boss].name
+		view.bossText = bossText(run)
+		view.bossHealth = bossShare(run)
+		view.bossShield = run.shieldUp
 	end
 	return view
 end
 
 local function signature(run: Run): string
 	local room = currentRoom(run)
-	local boss = run.boss
 	return string.format(
-		"%s|%d|%d|%d",
+		"%s|%d|%d|%d|%s",
 		run.phase,
 		run.roomIndex,
 		if room then math.floor(room.progress * 100) else -1,
-		if boss then math.floor(boss.humanoid.Health / boss.humanoid.MaxHealth * 100) else -1
+		bossShare(run) or -1,
+		tostring(run.shieldUp)
 	)
 end
 
@@ -317,6 +362,44 @@ local function bestBranch(state: any): string?
 	return best
 end
 
+local function recordOf(state: any): any
+	local record = state.data.rifts
+	if not record then
+		record = { claimed = {}, found = {} }
+		state.data.rifts = record
+	end
+	if not record.found then
+		record.found = {}
+	end
+	return record
+end
+
+--[[
+	The first time you ever solve something this way: XP, a journal line and a word on screen. Once per
+	answer, forever, so it can't be farmed, and the set of answers is finite, so the save can't grow far.
+	Repeating an answer costs nothing: it still solves the room. It just isn't news.
+]]
+local function noteAnswer(run: Run, userId: number, room: R.Room?, approach: R.Approach, branch: string?)
+	local player = Players:GetPlayerByUserId(userId)
+	local state = player and playerData:get(player)
+	if not player or not state then
+		return
+	end
+	local record = recordOf(state)
+	local key = RiftRules.answerKey(if room then room.id else "boss", approach)
+	if record.found[key] then
+		return
+	end
+	record.found[key] = os.time()
+	run.answersNew[userId] = (run.answersNew[userId] or 0) + 1
+	EventRules.addDamage(scoreFor(run, userId), R.noveltyPoints, os.clock())
+	progression:awardQuest(player, branch or bestBranch(state), R.noveltyXp)
+	local where = if room then room.name else R.bosses[run.plan.boss].name
+	journal:log(player, "discovery", string.format("%s: %s. Nobody told you that would work.", where, approach.label))
+	Net.fire("Notify", player, string.format("A new answer: %s", approach.label))
+	log:info("rift_answer_found", { userId = userId, key = key })
+end
+
 local function pay(run: Run, player: Player, score: EventRules.Score, top: number, won: boolean): { [string]: any }
 	local mine: { [string]: any } = { points = math.floor(score.points) }
 	local state = playerData:get(player)
@@ -326,11 +409,7 @@ local function pay(run: Run, player: Player, score: EventRules.Score, top: numbe
 		return mine
 	end
 	mine.tier = tier
-	local record = state.data.rifts
-	if not record then
-		record = { claimed = {} }
-		state.data.rifts = record
-	end
+	local record = recordOf(state)
 	local now = os.time()
 	if EventRules.claimed(record.claimed, run.plan.id) then
 		mine.reason = "already"
@@ -339,7 +418,7 @@ local function pay(run: Run, player: Player, score: EventRules.Score, top: numbe
 	EventRules.claim(record.claimed, run.plan.id, now)
 	EventRules.pruneClaims(record.claimed, now)
 
-	local xp, coins = RiftRules.payout(tier, won, run.cleverRooms)
+	local xp, coins = RiftRules.payout(tier, won, run.cleverRooms, run.twist)
 	progression:awardQuest(player, bestBranch(state), xp)
 	if coins > 0 then
 		inventory:addCurrency(player, coins, "rift:" .. run.twist.id)
@@ -364,6 +443,12 @@ local function pay(run: Run, player: Player, score: EventRules.Score, top: numbe
 		end
 	end
 	mine.xp, mine.coins, mine.items, mine.noRoom = xp, coins, given, noRoom
+	mine.answersNew = run.answersNew[player.UserId] or 0
+	mine.answers = RiftRules.answersFound(record.found)
+	mine.answersTotal = RiftRules.answerCount()
+	if won then
+		journal:log(player, "discovery", string.format("You closed a %s Rift near %s, and %d of its rooms gave way to something cleverer than force.", run.twist.name, run.plan.townName, run.cleverRooms))
+	end
 	log:info("rift_paid", { userId = player.UserId, id = run.plan.id, tier = tier, points = mine.points, won = won, clever = run.cleverRooms, gear = gear, rarity = rarity, noRoom = noRoom })
 	return mine
 end
@@ -407,7 +492,8 @@ local function finish(run: Run, result: string)
 	end
 	table.clear(run.enemies)
 	table.clear(run.telegraphs)
-	run.boss = nil
+	table.clear(run.bosses)
+	run.reviveAt = nil
 	if run.portal then
 		run.portal:Destroy()
 		run.portal = nil
@@ -462,6 +548,7 @@ local function spawnEnemy(run: Run, spec: RiftEnemies.Enemy, at: CFrame, room: R
 	end
 	local now = os.clock()
 	local enemy: EnemyState = {
+		role = nil,
 		spec = spec,
 		model = model,
 		humanoid = humanoid,
@@ -498,6 +585,49 @@ local function wakeRoom(run: Run, room: RoomState)
 		spawnEnemy(run, RiftEnemies.eye, CFrame.lookAt(at, look), room)
 	end
 	room.nextPulse = os.clock() + 4
+	room.nextWave = os.clock() + R.vigilWaveSeconds
+end
+
+local function spawnBoss(run: Run, spec: RiftEnemies.Enemy, spot: Vector3, weakness: string): EnemyState?
+	local enemy = spawnEnemy(run, spec, standing(spec, spot))
+	if enemy then
+		enemy.role = "boss"
+		enemy.humanoid:SetAttribute("Resist_" .. weakness, -0.3)
+		table.insert(run.bosses, enemy)
+	end
+	return enemy
+end
+
+-- The Stormheart: while any pylon stands, nothing touches it.
+local function raisePylons(run: Run)
+	local interior = run.interior
+	if not interior then
+		return
+	end
+	local center = interior.arena.spots[1]
+	local start = run.rng:NextNumber() * 2 * math.pi
+	for i = 1, R.pylons do
+		local angle = start + (i / R.pylons) * 2 * math.pi
+		local spot = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * R.pylonRing
+		local pylon = spawnEnemy(run, RiftEnemies.pylon, standing(RiftEnemies.pylon, spot))
+		if pylon then
+			pylon.role = "pylon"
+		end
+	end
+	run.shieldUp = true
+	run.exposedUntil = nil
+	for _, boss in run.bosses do
+		boss.humanoid:SetAttribute("HealthFloor", SHIELD_FLOOR)
+	end
+end
+
+local function dropShield(run: Run, now: number)
+	run.shieldUp = false
+	run.exposedUntil = now + R.stormExposedSeconds
+	for _, boss in run.bosses do
+		boss.humanoid:SetAttribute("HealthFloor", nil)
+	end
+	tellInside(run, "The Stormheart's shield is down. It won't stay down.")
 end
 
 local function wakeBoss(run: Run)
@@ -506,13 +636,19 @@ local function wakeBoss(run: Run)
 		return
 	end
 	local spot = interior.arena.spots[1]
-	local enemy = spawnEnemy(run, RiftEnemies.warden, standing(RiftEnemies.warden, spot))
-	if enemy then
-		enemy.humanoid:SetAttribute("Resist_" .. run.plan.bossWeakness, -0.3)
-		run.boss = enemy
+	local id = run.plan.boss
+	if id == "stormheart" then
+		spawnBoss(run, RiftEnemies.stormheart, spot, run.plan.bossWeakness)
+		raisePylons(run)
+	elseif id == "twins" then
+		spawnBoss(run, RiftEnemies.twinEmber, spot + Vector3.new(0, 0, 12), run.plan.bossWeakness)
+		spawnBoss(run, RiftEnemies.twinAsh, spot + Vector3.new(0, 0, -12), run.plan.bossWeakness2)
+	else
+		spawnBoss(run, RiftEnemies.warden, spot, run.plan.bossWeakness)
 	end
 	spawnRiftlings(run, { spot + Vector3.new(-10, 0, 14), spot + Vector3.new(-10, 0, -14) }, run.twist.extraEnemies or 0)
-	tellInside(run, string.format("The Warden stirs. It flinches from %s, and from anything that stops it.", run.plan.bossWeakness))
+	tellInside(run, string.format("%s stirs. %s", R.bosses[id].name, bossText(run)))
+	log:info("rift_boss_woken", { id = run.plan.id, boss = id, weak = run.plan.bossWeakness })
 end
 
 -- ─── Solving rooms ──────────────────────────────────────────────────────────
@@ -592,24 +728,50 @@ local function showProgress(run: Run, room: RoomState)
 	end
 end
 
--- One cast's work on the room you're in.
-local function workOn(run: Run, room: RoomState, payload: any, point: Vector3, userId: number)
-	local kind = room.def.kind
-	local cast: RiftRules.Cast = {
-		tags = payload.tags or {},
-		route = payload.route,
-		power = payload.power or 1,
-		backfired = payload.backfired,
-	}
-	local approach, gain = RiftRules.classify(room.def, cast, run.twist)
-	if gain <= 0 then
-		return
+-- A lamp catches. `clever` says whether it was an answer or just persistence.
+local function lightLamp(run: Run, room: RoomState, lamp: BasePart, clever: boolean)
+	lamp.Material = Enum.Material.Neon
+	lamp.Color = run.twist.color
+	local point = Instance.new("PointLight")
+	point.Color = run.twist.color
+	point.Range = R.lampLightRange
+	point.Brightness = 2
+	point.Shadows = false
+	point.Parent = lamp
+	room.lampFill[lamp] = nil
+	room.lit += 1
+	local share = 1 / room.total
+	if clever then
+		room.cleverGain += share
+	else
+		room.bruteGain += share
 	end
+	room.progress = room.lit / room.total
+	if room.lit >= room.total then
+		solve(run, room, room.label, RiftRules.solvedCleverly(room.cleverGain, room.bruteGain))
+	else
+		tellInside(run, string.format("A lamp catches. %d still dark.", room.total - room.lit))
+	end
+end
+
+--[[
+	Work on a room, from a cast or a reaction. `approach` is nil for brute force. `userId` is nil for a
+	reaction nobody owns. This is the one place a room advances, so every answer pays and shows the same.
+]]
+local function applyWork(run: Run, room: RoomState, approach: R.Approach?, gain: number, point: Vector3, userId: number?, branch: string?)
+	local kind = room.def.kind
 	local now = os.clock()
-	local score = scoreFor(run, userId)
+	local score = if userId then scoreFor(run, userId) else nil
+
+	-- Answers only count as found when they do something: an eye or lamp in reach, or a room's meter.
+	local function found(clever: R.Approach)
+		if userId then
+			noteAnswer(run, userId, room.def, clever, branch)
+		end
+	end
 
 	if kind == "eyes" then
-		-- Only a clever cast near an eye does anything special. Plain hits just hurt it.
+		-- Only a clever answer near an eye does anything special. Plain hits just hurt it.
 		if not approach then
 			return
 		end
@@ -627,23 +789,72 @@ local function workOn(run: Run, room: RoomState, payload: any, point: Vector3, u
 			best.shut = true
 			best.shutBy = approach.label
 			best.humanoid.Health = 0
-			EventRules.addDamage(score, R.cleverPoints / room.total, now)
+			if score then
+				EventRules.addDamage(score, R.cleverPoints / room.total, now)
+			end
+			found(approach)
 		end
 		return
+	end
+
+	if kind == "lamps" then
+		local best: BasePart? = nil
+		local bestDistance = R.lampRadius
+		for _, lamp in room.parts.lamps do
+			if lamp.Material ~= Enum.Material.Neon then
+				local d = (lamp.Position - point).Magnitude
+				if d <= bestDistance then
+					best, bestDistance = lamp, d
+				end
+			end
+		end
+		if not best then
+			return
+		end
+		if approach then
+			room.label = approach.label
+			if score then
+				EventRules.addDamage(score, R.cleverPoints / room.total, now)
+			end
+			found(approach)
+			lightLamp(run, room, best, true)
+		else
+			if score then
+				EventRules.addDamage(score, gain * R.brutePoints, now)
+			end
+			room.lampFill[best] = (room.lampFill[best] or 0) + gain * R.lampBruteScale
+			if room.lampFill[best] >= 1 then
+				lightLamp(run, room, best, false)
+			end
+		end
+		return
+	end
+
+	if kind == "vigil" then
+		-- Holding the ring is the plain way (stepRoom). Plain casts add nothing to it.
+		if not approach then
+			return
+		end
+		gain *= R.vigilCastShare
 	end
 
 	if approach then
 		room.label = approach.label
 		room.cleverGain += gain
-		EventRules.addDamage(score, gain * R.cleverPoints, now)
+		if score then
+			EventRules.addDamage(score, gain * R.cleverPoints, now)
+		end
+		found(approach)
 	else
 		room.bruteGain += gain
-		EventRules.addDamage(score, gain * R.brutePoints, now)
+		if score then
+			EventRules.addDamage(score, gain * R.brutePoints, now)
+		end
 	end
 
 	if kind == "barrier" then
 		local lit = 0
-		if approach and approach.burns then
+		if approach and approach.burns and userId then
 			-- Real fire: burned-out planks are noticed in stepRoom. If the budget refuses, fall through.
 			for _, piece in nearestPieces(room, point, R.burnPieces) do
 				if piece:GetAttribute("Burning") or FireSim.ignitePart(piece, 0.9, userId) then
@@ -668,11 +879,25 @@ local function workOn(run: Run, room: RoomState, payload: any, point: Vector3, u
 		return
 	end
 
-	-- A meter: the chasm's bridge, the engine's coils.
+	-- A meter: the chasm's bridge, the engine's coils, the vigil's ring.
 	room.progress = math.min(1, room.progress + gain)
 	showProgress(run, room)
 	if room.progress >= 1 then
 		solve(run, room, room.label, RiftRules.solvedCleverly(room.cleverGain, room.bruteGain))
+	end
+end
+
+-- One cast's work on the room you're in.
+local function workOn(run: Run, room: RoomState, payload: any, point: Vector3, userId: number)
+	local cast: RiftRules.Cast = {
+		tags = payload.tags or {},
+		route = payload.route,
+		power = payload.power or 1,
+		backfired = payload.backfired,
+	}
+	local approach, gain = RiftRules.classify(room.def, cast, run.twist)
+	if gain > 0 then
+		applyWork(run, room, approach, gain, point, userId, payload.branch)
 	end
 end
 
@@ -690,6 +915,20 @@ local function telegraph(run: Run, position: Vector3, attack: RiftEnemies.Attack
 		level = level,
 	})
 	cue(run, { kind = "telegraph", style = attack.style, x = at.X, y = at.Y, z = at.Z, radius = attack.radius, duration = attack.delay })
+	-- The Echo twist: the same blow, in the same place, a moment later.
+	local echo = run.twist.echoSeconds
+	if echo then
+		table.insert(run.telegraphs, {
+			at = os.clock() + attack.delay + echo,
+			position = at,
+			radius = attack.radius,
+			damage = attack.damage * (run.twist.enemyDamage or 1),
+			style = attack.style,
+			domain = domain,
+			level = level,
+		})
+		cue(run, { kind = "telegraph", style = attack.style, x = at.X, y = at.Y, z = at.Z, radius = attack.radius, duration = attack.delay + echo })
+	end
 end
 
 local function landTelegraphs(run: Run, players: { PlayerView }, now: number)
@@ -760,6 +999,8 @@ local function eyeGone(run: Run, enemy: EnemyState)
 	room.progress = 1 - left / room.total
 	if left == 0 then
 		solve(run, room, room.label, RiftRules.solvedCleverly(room.cleverGain, room.bruteGain))
+	else
+		tellInside(run, string.format("%s %d still watching.", if enemy.shut then "An eye closes." else "An eye breaks.", left))
 	end
 end
 
@@ -767,11 +1008,12 @@ local function stepEnemy(run: Run, enemy: EnemyState, players: { PlayerView }, n
 	local position = enemy.root.Position
 	local attack = enemy.spec.attack
 	if enemy.spec.static then
-		-- An eye strikes at someone in range, in its room.
+		-- An eye strikes at someone in range, in its room. The Stormheart reaches the whole arena.
 		if attack and now >= enemy.nextAttack then
-			local target = nearest(position, players, EYE_RANGE)
+			local isBoss = enemy.role == "boss"
+			local target = nearest(position, players, if isBoss then math.huge else EYE_RANGE)
 			if target then
-				enemy.nextAttack = now + attack.cooldown
+				enemy.nextAttack = now + attack.cooldown * (if isBoss and run.bossHurt then RiftEnemies.wardenHurtCooldown else 1)
 				telegraph(run, target.position, attack, enemy.spec.def.domain, enemy.spec.def.level)
 			end
 		end
@@ -798,9 +1040,53 @@ local function stepEnemy(run: Run, enemy: EnemyState, players: { PlayerView }, n
 		})
 	end
 	if attack and now >= enemy.nextAttack then
-		local hurt = enemy == run.boss and run.bossHurt
+		local hurt = enemy.role == "boss" and run.bossHurt
 		enemy.nextAttack = now + attack.cooldown * (if hurt then RiftEnemies.wardenHurtCooldown else 1)
 		telegraph(run, target.position, attack, enemy.spec.def.domain, enemy.spec.def.level)
+	end
+end
+
+-- What the boss does beyond fighting: shields, revivals, calling for help.
+local function stepBoss(run: Run, now: number)
+	local id = run.plan.boss
+	if id == "stormheart" then
+		if run.shieldUp then
+			local standingPylons = 0
+			for _, enemy in run.enemies do
+				if enemy.role == "pylon" and enemy.humanoid.Health > 0 then
+					standingPylons += 1
+				end
+			end
+			if standingPylons == 0 and #run.bosses > 0 then
+				dropShield(run, now)
+			end
+		elseif run.exposedUntil and now >= run.exposedUntil and #run.bosses > 0 then
+			raisePylons(run)
+			tellInside(run, "The pylons rise again.")
+		end
+	elseif id == "twins" then
+		local reviveAt, spec = run.reviveAt, run.reviveSpec
+		local other = run.bosses[1]
+		if reviveAt and spec and other and now >= reviveAt then
+			run.reviveAt, run.reviveSpec = nil, nil
+			local spot = Vector3.new(other.root.Position.X, R.pocket.y, other.root.Position.Z + 8)
+			local weakness = if spec == RiftEnemies.twinEmber then run.plan.bossWeakness else run.plan.bossWeakness2
+			local back = spawnBoss(run, spec, spot, weakness)
+			if back then
+				back.humanoid.Health = back.humanoid.MaxHealth * R.twinReviveShare
+			end
+			tellInside(run, string.format("%s drags %s back.", other.spec.def.name, spec.def.name))
+		end
+	end
+	local share = bossShare(run)
+	if share and not run.bossHurt and share < RiftEnemies.wardenHurtAt * 100 then
+		run.bossHurt = true
+		if id == "warden" then
+			local boss = run.bosses[1]
+			local spot = boss.root.Position
+			spawnRiftlings(run, { Vector3.new(spot.X, R.pocket.y, spot.Z + 10), Vector3.new(spot.X, R.pocket.y, spot.Z - 10) }, RiftEnemies.wardenHelp)
+			tellInside(run, "The Warden howls, and the walls answer.")
+		end
 	end
 end
 
@@ -815,10 +1101,16 @@ local function stepEnemies(run: Run, players: { PlayerView }, now: number)
 			else
 				fadeOut(enemy)
 			end
-			if enemy == run.boss then
-				run.boss = nil
-				finish(run, "won")
-				return
+			local bossIndex = table.find(run.bosses, enemy)
+			if bossIndex then
+				table.remove(run.bosses, bossIndex)
+				if #run.bosses == 0 then
+					finish(run, "won")
+					return
+				end
+				-- A Twin down: the other starts bringing it back.
+				run.reviveAt, run.reviveSpec = now + R.twinReviveSeconds, enemy.spec
+				tellInside(run, string.format("%s falls. %d seconds to finish the other.", enemy.spec.def.name, R.twinReviveSeconds))
 			end
 			eyeGone(run, enemy)
 			if run.phase ~= "running" then
@@ -828,19 +1120,13 @@ local function stepEnemies(run: Run, players: { PlayerView }, now: number)
 			stepEnemy(run, enemy, players, now)
 		end
 	end
-	local boss = run.boss
-	if boss and not run.bossHurt and boss.humanoid.Health < boss.humanoid.MaxHealth * RiftEnemies.wardenHurtAt then
-		run.bossHurt = true
-		local spot = boss.root.Position
-		spawnRiftlings(run, { Vector3.new(spot.X, R.pocket.y, spot.Z + 10), Vector3.new(spot.X, R.pocket.y, spot.Z - 10) }, RiftEnemies.wardenHelp)
-		tellInside(run, "The Warden howls, and the walls answer.")
-	end
+	stepBoss(run, now)
 end
 
 -- What a room does on its own: planks burned out, someone across the drop, coils spitting.
 local function stepRoom(run: Run, room: RoomState, players: { PlayerView }, now: number)
 	local kind = room.def.kind
-	if kind == "barrier" then
+	if kind == "barrier" and room.def.burnable then
 		local changed = false
 		for i = #room.parts.pieces, 1, -1 do
 			local piece = room.parts.pieces[i]
@@ -864,14 +1150,48 @@ local function stepRoom(run: Run, room: RoomState, players: { PlayerView }, now:
 			for _, view in players do
 				if view.position.X >= far + 1 and view.position.X <= room.parts.section.startX + room.parts.section.length and view.position.Y >= R.pocket.y - 2 then
 					-- Getting across without finishing the bridge is an answer in itself.
-					solve(run, room, if room.progress < 1 then "Got across without a bridge" else room.label, true)
+					local label = room.label
+					if room.progress < 1 then
+						for _, approach in room.def.approaches do
+							if approach.id == "across" then
+								label = approach.label
+								noteAnswer(run, view.player.UserId, room.def, approach, nil)
+							end
+						end
+					end
+					solve(run, room, label, true)
 					return
 				end
 			end
 		end
-	elseif kind == "coils" and now >= room.nextPulse then
+	elseif kind == "vigil" then
+		-- Holding the ring is the plain way through. It fills whatever else is happening.
+		local holding = 0
+		local center = room.parts.center
+		for _, view in players do
+			if Vector3.new(view.position.X - center.X, 0, view.position.Z - center.Z).Magnitude <= R.vigilRadius and view.position.Y <= center.Y + 12 then
+				holding += 1
+				local score = scoreFor(run, view.player.UserId)
+				EventRules.addDamage(score, STEP_SECONDS / R.vigilSeconds * R.brutePoints, now)
+			end
+		end
+		if holding > 0 then
+			local gain = STEP_SECONDS / R.vigilSeconds * math.min(holding, R.vigilPlayerCap)
+			room.bruteGain += gain
+			room.progress = math.min(1, room.progress + gain)
+			if room.progress >= 1 then
+				solve(run, room, room.label, RiftRules.solvedCleverly(room.cleverGain, room.bruteGain))
+				return
+			end
+			if now >= room.nextWave and #run.enemies < R.maxEnemies then
+				room.nextWave = now + R.vigilWaveSeconds
+				spawnRiftlings(run, room.parts.spots, RiftEnemies.roomEnemies)
+			end
+		end
+	elseif (kind == "coils" or kind == "lamps") and now >= room.nextPulse then
+		-- The coils spit; the Long Dark's shades strike. Every lamp you light slows them.
 		local pulse = RiftEnemies.coilPulse
-		room.nextPulse = now + pulse.cooldown
+		room.nextPulse = now + pulse.cooldown * (1 + room.lit)
 		local inRoom: { PlayerView } = {}
 		local s = room.parts.section
 		for _, view in players do
@@ -932,11 +1252,16 @@ local function newRoomState(def: R.Room, parts: RiftBuilder.RoomParts): RoomStat
 		total = #parts.pieces
 	elseif def.kind == "eyes" then
 		total = #parts.eyes
+	elseif def.kind == "lamps" then
+		total = #parts.lamps
 	end
 	return {
 		def = def,
 		parts = parts,
 		total = math.max(1, total),
+		lampFill = {},
+		lit = 0,
+		nextWave = 0,
 		progress = 0,
 		cleverGain = 0,
 		bruteGain = 0,
@@ -950,14 +1275,16 @@ end
 
 -- The first step inside: the pocket is built, the clock starts.
 local function startRun(run: Run)
-	local interior = RiftBuilder.buildInterior(run.plan, run.twist.color)
+	local interior = RiftBuilder.buildInterior(run.plan, run.twist.color, run.twist.lightShare or 1)
 	run.interior = interior
 	run.length = interior.length
 	for i, parts in interior.rooms do
 		local room = newRoomState(R.rooms[run.plan.rooms[i]], parts)
 		run.rooms[i] = room
-		for _, piece in parts.pieces do
-			ThermalSim.ensure(piece)
+		if room.def.burnable then
+			for _, piece in parts.pieces do
+				ThermalSim.ensure(piece)
+			end
 		end
 	end
 	for _, gate in interior.exits do
@@ -976,13 +1303,13 @@ local function startRun(run: Run)
 	end
 	local started = os.time()
 	run.phase = "running"
-	run.endsAt = if run.forced then started + R.runSeconds else RiftRules.runEnds(run.plan.slot, started)
+	run.endsAt = if run.forced then started + RiftRules.runLength(run.twist) else RiftRules.runEnds(run.plan.slot, started, run.twist)
 	if run.twist.fireSpread then
 		local middle = Vector3.new(R.pocket.x + run.length / 2, R.pocket.y, R.pocket.z)
 		FireSim.boost(middle, run.length, run.twist.fireSpread, run.endsAt - started + 5)
 	end
 	wakeRoom(run, run.rooms[1])
-	log:info("rift_started", { id = run.plan.id, twist = run.twist.id, rooms = table.concat(run.plan.rooms, ","), weak = run.plan.bossWeakness })
+	log:info("rift_started", { id = run.plan.id, twist = run.twist.id, rooms = table.concat(run.plan.rooms, ","), boss = run.plan.boss, weak = run.plan.bossWeakness })
 end
 
 local function enter(run: Run, player: Player)
@@ -1085,6 +1412,17 @@ local function secondTick(run: Run)
 	for _, view in players do
 		here[view.player.UserId] = true
 	end
+	-- The Overflow twist: magic pours out of the walls.
+	local pour = run.twist.reservoirPerSecond
+	if pour then
+		for _, view in players do
+			local reservoir = reservoirs:get(view.player)
+			if reservoir and reservoir.current < reservoir.max then
+				reservoir.current = math.min(reservoir.max, reservoir.current + reservoir.max * pour)
+				reservoirs:push(view.player)
+			end
+		end
+	end
 	local top = 0
 	for _, score in run.scores do
 		top = math.max(top, score.points)
@@ -1122,9 +1460,14 @@ local function begin(plan: RiftRules.Plan, forced: boolean, closesAt: number): R
 		cleverRooms = 0,
 		enemies = {},
 		telegraphs = {},
-		boss = nil,
+		bosses = {},
 		bossHurt = false,
 		exposedAt = {},
+		shieldUp = false,
+		exposedUntil = nil,
+		reviveAt = nil,
+		reviveSpec = nil,
+		answersNew = {},
 		scores = {},
 		peak = 1,
 		rng = Seed.random(worldService:getSeed(), plan.id, "rift_run"),
@@ -1198,9 +1541,17 @@ end
 -- Any status on the boss bites: controlling it pays as well as hitting it.
 local function onStatus(payload: any)
 	local run = running()
-	local boss = run and run.boss
 	local source: number? = payload.sourceUserId
-	if not run or not boss or not source or payload.model ~= boss.model then
+	if not run or not source then
+		return
+	end
+	local boss: EnemyState? = nil
+	for _, candidate in run.bosses do
+		if candidate.model == payload.model then
+			boss = candidate
+		end
+	end
+	if not boss then
 		return
 	end
 	local status = tostring(payload.status)
@@ -1212,16 +1563,70 @@ local function onStatus(payload: any)
 	Damage.apply(boss.humanoid, boss.humanoid.MaxHealth * R.exposedShare, source, "rift_exposed", { domain = "void", form = "touch", power = 1 })
 end
 
+--[[
+	Two spells meeting (Cast/InteractionMatrix): the most creative thing the game can recognise, so it's
+	worth more than a cast. In a room it's a strong answer. Next to a boss it bites, and it breaks the
+	Stormheart's shield outright. The reaction's own cooldown (per 16-stud cell) limits how often it pays.
+]]
+local function onReaction(payload: any)
+	local run = running()
+	local position: Vector3? = payload.position
+	if not run or typeof(position) ~= "Vector3" or not RiftRules.inPocket(position, run.length) then
+		return
+	end
+	local owner: number? = payload.owner
+	local approach = RiftRules.reactionApproach(tostring(payload.result), tostring(payload.description))
+	log:info("rift_reaction", { id = run.plan.id, result = payload.result, owner = owner })
+	local room = currentRoom(run)
+	if room then
+		local s = room.parts.section
+		if position.X >= s.startX and position.X <= s.startX + s.length then
+			applyWork(run, room, approach, R.reactionGain, position, owner, payload.branch)
+		end
+		return
+	end
+	local reach = (payload.radius or 0) + R.reactionReach
+	local struck = false
+	for _, boss in table.clone(run.bosses) do
+		if (boss.root.Position - position).Magnitude <= reach then
+			if run.shieldUp then
+				for _, enemy in run.enemies do
+					if enemy.role == "pylon" then
+						enemy.humanoid.Health = 0
+					end
+				end
+				dropShield(run, os.clock())
+			end
+			Damage.apply(boss.humanoid, boss.humanoid.MaxHealth * R.reactionBite, owner, "rift_reaction", { domain = "void", form = "burst", power = 1 })
+			struck = true
+		end
+	end
+	if struck and owner then
+		noteAnswer(run, owner, nil, approach, payload.branch)
+		tellInside(run, approach.label .. ".")
+	end
+end
+
 -- ─── Admin ──────────────────────────────────────────────────────────────────
+
+local function withAny(ids: { string }): { string }
+	local options = { "any" }
+	for _, id in ids do
+		table.insert(options, id)
+	end
+	return options
+end
 
 local function registerAdmin(admin: any)
 	admin:Register({
 		name = "rift",
 		category = "World",
-		description = "Rifts: open one in front of you, step straight inside, solve the current room, win (pays out), close (no rewards), status, or the schedule",
+		description = "Rifts: open one in front of you (any or a chosen twist, boss and first room), step straight inside, solve the current room, win (pays out), close (no rewards), status, or the schedule",
 		args = {
 			{ name = "action", type = "enum", options = { "open", "enter", "solve", "win", "close", "status", "schedule" } },
-			{ name = "twist", type = "enum", options = table.clone(R.twistIds), optional = true },
+			{ name = "twist", type = "enum", options = withAny(R.twistIds), optional = true },
+			{ name = "boss", type = "enum", options = withAny(R.bossIds), optional = true },
+			{ name = "room", type = "enum", options = withAny(R.roomIds), optional = true },
 		},
 		handler = function(ctx: any, a: any)
 			if a.action == "schedule" then
@@ -1255,9 +1660,22 @@ local function registerAdmin(admin: any)
 				plan.id = "rift_a" .. time
 				plan.x, plan.z = at.X, at.Z
 				plan.townName = "here"
-				plan.twist = a.twist or plan.twist
+				if a.twist and a.twist ~= "any" then
+					plan.twist = a.twist
+				end
+				if a.boss and a.boss ~= "any" then
+					plan.boss = a.boss
+				end
+				if a.room and a.room ~= "any" and plan.rooms[1] ~= a.room then
+					-- Your room first. If it was already drawn further along, those two swap, so none repeats.
+					local index = table.find(plan.rooms, a.room)
+					if index then
+						plan.rooms[index] = plan.rooms[1]
+					end
+					plan.rooms[1] = a.room
+				end
 				begin(plan, true, time + R.openSeconds)
-				return string.format("%s Rift opened here: %s", plan.twist, table.concat(plan.rooms, ", "))
+				return string.format("%s Rift opened here: %s, then %s", plan.twist, table.concat(plan.rooms, ", "), plan.boss)
 			end
 			if not run then
 				return "no Rift open"
@@ -1297,6 +1715,8 @@ function RiftService.init(_self: any, ctx: any)
 	inventory = ctx.get("InventoryService")
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
+	journal = ctx.get("JournalService")
+	reservoirs = ctx.get("ReservoirService")
 	registerAdmin(ctx.get("AdminService"))
 	Net.handle("RequestRift", function(_player: Player)
 		return viewOf(current)
@@ -1304,6 +1724,7 @@ function RiftService.init(_self: any, ctx: any)
 	bus:subscribe(Topics.SpellResolved, onResolved)
 	bus:subscribe(Topics.TargetDamaged, onDamaged)
 	bus:subscribe(Topics.StatusApplied, onStatus)
+	bus:subscribe(Topics.MagicReaction, onReaction)
 end
 
 function RiftService.start(_self: any, _ctx: any)

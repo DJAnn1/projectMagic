@@ -106,8 +106,8 @@ local function renderRun(s: Kit.Scope, card: Instance, view: { [string]: any })
 		bar.LayoutOrder = 7
 		bar.Parent = card
 	elseif view.bossHealth then
-		C.text("The Rift Warden", "label", { LayoutOrder = 4, Parent = card })
-		C.text(string.format("It flinches from %s, and any status you land on it hurts it.", title(view.bossWeakness)), "body", { LayoutOrder = 5, Parent = card })
+		C.text(tostring(view.bossName) .. (if view.bossShield then " · shielded" else ""), "label", { LayoutOrder = 4, Parent = card })
+		C.text(tostring(view.bossText), "body", { LayoutOrder = 5, Parent = card })
 		local bar = C.bar(nil, math.clamp((view.bossHealth or 0) / 100, 0, 1), Theme.color.warn, 8)
 		bar.LayoutOrder = 7
 		bar.Parent = card
@@ -153,6 +153,10 @@ local function renderRecap(card: Instance, view: { [string]: any })
 		else
 			C.text(string.format("%s, with %d points. Rooms solved cleverly: %d", R.tierNames[mine.tier] or "?", mine.points or 0, view.cleverRooms or 0), "label", { LayoutOrder = 2, Parent = card })
 			C.text(rewardLine(mine), "body", { LayoutOrder = 3, Parent = card })
+			if typeof(mine.answers) == "number" then
+				local fresh = if (mine.answersNew or 0) > 0 then string.format("%d new this time. ", mine.answersNew) else ""
+				C.text(string.format("%sAnswers found: %d of %d", fresh, mine.answers, mine.answersTotal or 0), "caption", { LayoutOrder = 4, Parent = card })
+			end
 			if mine.noRoom then
 				C.text("Your bags were full, so something was left behind.", "body", { LayoutOrder = 4, Parent = card })
 			end

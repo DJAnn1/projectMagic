@@ -35,6 +35,8 @@ export type RoomParts = {
 	pieces: { BasePart }, -- barrier: what's left of it
 	bridge: { BasePart }, -- chasm: planks, unseen and not solid until earned
 	coils: { BasePart }, -- coils: dark until woken
+	lamps: { BasePart }, -- lamps: dead until lit
+	ring: BasePart?, -- vigil: stand here
 	eyes: { Vector3 }, -- eyes: where they hang
 	spots: { Vector3 }, -- where its enemies appear
 	farEdge: number?, -- chasm: world X past which you've crossed
@@ -72,11 +74,11 @@ local function structural(parent: Instance, name: string, size: Vector3, cframe:
 	return part
 end
 
-local function light(parent: BasePart, color: Color3, range: number)
+local function light(parent: BasePart, color: Color3, range: number, share: number?)
 	local point = Instance.new("PointLight")
 	point.Color = color
 	point.Range = range
-	point.Brightness = 1.6
+	point.Brightness = 1.6 * (share or 1)
 	point.Shadows = false
 	point.Parent = parent
 end
@@ -99,7 +101,7 @@ local function endWall(parent: Instance, x: number, floorY: number, z: number, w
 end
 
 -- One section's shell: floor, ceiling, side walls, lights, and the far wall (the arena's has no gap).
-local function shell(parent: Instance, section: RiftRules.Section, accent: Color3, withFloor: boolean, sealedEnd: boolean, withDoor: boolean): BasePart?
+local function shell(parent: Instance, section: RiftRules.Section, accent: Color3, withFloor: boolean, sealedEnd: boolean, withDoor: boolean, lightShare: number): BasePart?
 	local p = R.pocket
 	local length, w, h = section.length, R.width, R.height
 	local cx = section.startX + length / 2
@@ -112,7 +114,8 @@ local function shell(parent: Instance, section: RiftRules.Section, accent: Color
 		local strip = structural(parent, "Glow", Vector3.new(length, 0.6, 0.4), CFrame.new(cx, p.y + h - 2, p.z + sign * (w / 2 - 0.3)), accent, M.Neon)
 		strip.CanCollide = false
 		strip.CanQuery = false
-		light(strip, accent, 42)
+		strip.Transparency = if lightShare < 0.5 then 0.85 else 0 -- neon glows whatever the light says
+		light(strip, accent, 42, lightShare)
 	end
 	local endX = section.startX + length
 	if sealedEnd then
@@ -132,6 +135,8 @@ local function newRoomParts(section: RiftRules.Section): RoomParts
 		pieces = {},
 		bridge = {},
 		coils = {},
+		lamps = {},
+		ring = nil,
 		eyes = {},
 		spots = {},
 		farEdge = nil,
@@ -140,7 +145,7 @@ end
 
 -- Where enemies appear, as a share of the room's length. They have to be on your side of the obstacle:
 -- behind a barricade they'd never reach you, and over the drop they'd just fall in.
-local SPOT_ALONG: { [string]: number } = { barrier = 0.3, chasm = 0.14, eyes = 0.7, coils = 0.8 }
+local SPOT_ALONG: { [string]: number } = { barrier = 0.3, chasm = 0.14, eyes = 0.7, coils = 0.8, lamps = 0.85, vigil = 0.85 }
 
 local function addSpots(parts: RoomParts, kind: string, count: number)
 	local s = parts.section
@@ -150,8 +155,9 @@ local function addSpots(parts: RoomParts, kind: string, count: number)
 	end
 end
 
--- A barricade of real, burnable planks across the room, with a few dry crates to spread the fire.
-local function fillBarrier(parent: Instance, parts: RoomParts)
+-- A wall of pieces across the room. Wood is real and burns, with dry crates to spread it. Anything else
+-- (the Frostgate's ice) is only ever removed.
+local function fillBarrier(parent: Instance, parts: RoomParts, def: R.Room)
 	local s = parts.section
 	local x = s.startX + s.length * 0.55
 	local columns, rows = R.barrierColumns, R.barrierRows
@@ -160,15 +166,23 @@ local function fillBarrier(parent: Instance, parts: RoomParts)
 		for column = 1, columns do
 			local z = R.pocket.z - R.width / 2 + (column - 0.5) * pieceW
 			local y = R.pocket.y + (row - 0.5) * pieceH
-			local piece = block(parent, "Thornwall", Vector3.new(5, pieceH, pieceW), CFrame.new(x + (column % 2) * 1.2, y, z), rgb(84, 60, 38), M.WoodPlanks)
-			-- Set so one burning plank just catches its neighbours: fuel lasts ~6 s, at about 20 °C a second
-			-- from a neighbour. The Wildfire twist's boost does the same work in half the time.
-			piece:SetAttribute("Flammability", 0.9)
-			piece:SetAttribute("Fuel", 12)
-			piece:SetAttribute("IgnitionPoint", 120)
-			piece:SetAttribute("HeatCapacity", 3)
+			local piece = block(parent, def.id, Vector3.new(5, pieceH, pieceW), CFrame.new(x + (column % 2) * 1.2, y, z), def.pieceColor or rgb(84, 60, 38), def.pieceMaterial or M.WoodPlanks)
+			if def.burnable then
+				-- Set so one burning plank just catches its neighbours: fuel lasts ~6 s, at about 20 °C a second
+				-- from a neighbour. The Wildfire twist's boost does the same work in half the time.
+				piece:SetAttribute("Flammability", 0.9)
+				piece:SetAttribute("Fuel", 12)
+				piece:SetAttribute("IgnitionPoint", 120)
+				piece:SetAttribute("HeatCapacity", 3)
+			else
+				piece:SetAttribute("Flammability", 0)
+				CollectionService:AddTag(piece, "NoMagicEdit")
+			end
 			table.insert(parts.pieces, piece)
 		end
+	end
+	if not def.burnable then
+		return
 	end
 	for _, offset in { Vector2.new(-8, -18), Vector2.new(-5, 16), Vector2.new(-11, 6) } do
 		local crate = block(parent, "DryCrate", Vector3.new(4, 4, 4), CFrame.new(x + offset.X, R.pocket.y + 2, R.pocket.z + offset.Y), rgb(120, 92, 56), M.Wood)
@@ -235,7 +249,31 @@ local function fillCoils(parent: Instance, parts: RoomParts)
 	end
 end
 
-function RiftBuilder.buildInterior(plan: RiftRules.Plan, accent: Color3): Interior
+-- Four posts, two either side. Their heads are what you light (RiftService adds the PointLight).
+local function fillLamps(parent: Instance, parts: RoomParts)
+	local s = parts.section
+	for _, along in { 0.3, 0.7 } do
+		for _, sign in { -1, 1 } do
+			local at = Vector3.new(s.startX + s.length * along, R.pocket.y, R.pocket.z + sign * 18)
+			structural(parent, "LampPost", Vector3.new(1.4, 8, 1.4), CFrame.new(at + Vector3.new(0, 4, 0)), rgb(50, 46, 44), M.Metal)
+			local head = structural(parent, "LampHead", Vector3.new(3, 3, 3), CFrame.new(at + Vector3.new(0, 9.5, 0)), rgb(36, 34, 40), M.Glass)
+			table.insert(parts.lamps, head)
+		end
+	end
+end
+
+-- The ring on the floor. A cylinder's axis is its X, so it's turned to lie flat.
+local function fillVigil(parent: Instance, parts: RoomParts, accent: Color3)
+	local diameter = R.vigilRadius * 2
+	local ring = structural(parent, "VigilRing", Vector3.new(0.3, diameter, diameter), CFrame.new(parts.center + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.pi / 2), accent, M.Neon)
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Transparency = 0.55
+	ring.CanCollide = false
+	ring.CanQuery = false
+	parts.ring = ring
+end
+
+function RiftBuilder.buildInterior(plan: RiftRules.Plan, accent: Color3, lightShare: number): Interior
 	local folder = Instance.new("Folder")
 	folder.Name = "Rift_" .. plan.id
 	local sections = RiftRules.layout(plan.rooms)
@@ -251,14 +289,14 @@ function RiftBuilder.buildInterior(plan: RiftRules.Plan, accent: Color3): Interi
 	for _, section in sections do
 		local parts = newRoomParts(section)
 		if section.kind == "hall" then
-			shell(folder, section, accent, true, false, false) -- an open gap: only rooms have locked doors
+			shell(folder, section, accent, true, false, false, lightShare) -- an open gap: only rooms have locked doors
 			local gateway = structural(folder, "LeaveGate", Vector3.new(1, 12, 8), CFrame.new(section.startX + 1.5, p.y + 6, p.z), accent, M.Neon)
 			gateway.CanCollide = false
 			table.insert(exits, gateway)
 			parts.entrance = CFrame.lookAt(Vector3.new(section.startX + 12, p.y + 4, p.z), Vector3.new(section.startX + 24, p.y + 4, p.z))
 			hall = parts
 		elseif section.kind == "arena" then
-			shell(folder, section, accent, true, true, false)
+			shell(folder, section, accent, true, true, false, lightShare)
 			local gate = structural(folder, "LeaveGate", Vector3.new(1, 12, 8), CFrame.new(section.startX + section.length - 2, p.y + 6, p.z), accent, M.Neon)
 			gate.CanCollide = false
 			table.insert(exits, gate)
@@ -266,13 +304,19 @@ function RiftBuilder.buildInterior(plan: RiftRules.Plan, accent: Color3): Interi
 			arena = parts
 		else
 			local def = R.rooms[section.roomId :: string]
-			parts.door = shell(folder, section, accent, def.kind ~= "chasm", false, true)
+			-- The Long Dark is dark whatever the twist says: its lamps are the point.
+			local roomLight = if def.kind == "lamps" then math.min(lightShare, 0.08) else lightShare
+			parts.door = shell(folder, section, accent, def.kind ~= "chasm", false, true, roomLight)
 			if def.kind == "barrier" then
-				fillBarrier(folder, parts)
+				fillBarrier(folder, parts, def)
 			elseif def.kind == "chasm" then
 				fillChasm(folder, parts, accent)
 			elseif def.kind == "eyes" then
 				fillEyes(parts)
+			elseif def.kind == "lamps" then
+				fillLamps(folder, parts)
+			elseif def.kind == "vigil" then
+				fillVigil(folder, parts, accent)
 			else
 				fillCoils(folder, parts)
 			end

@@ -178,7 +178,7 @@ return function(t: any)
 				expect(R.rooms[id] ~= nil).toBe(true)
 			end
 			for _, room in R.rooms do
-				expect(table.find({ "barrier", "chasm", "eyes", "coils" }, room.kind) ~= nil).toBe(true)
+				expect(table.find({ "barrier", "chasm", "eyes", "coils", "lamps", "vigil" }, room.kind) ~= nil).toBe(true)
 			end
 		end)
 		it("every twist in the draw order exists and has words", function()
@@ -291,6 +291,136 @@ return function(t: any)
 		it("a Rift pays better than a shared event's gold", function()
 			local SharedEvents = require(Shared.Social.Data.SharedEvents)
 			expect(R.rewards.gold.xp > SharedEvents.rewards.gold.xp).toBe(true)
+		end)
+	end)
+
+	describe("Rift stage 2", function()
+		it("a plan names a real boss, and two different weaknesses", function()
+			for slot = 1, 60 do
+				local plan = RiftRules.plan(1337, slot, TOWNS, always)
+				expect(R.bosses[plan.boss] ~= nil).toBe(true)
+				expect(plan.bossWeakness ~= plan.bossWeakness2).toBe(true)
+				expect(Registry.domains[plan.bossWeakness2] ~= nil).toBe(true)
+			end
+		end)
+		it("every boss, room and twist can come up", function()
+			local seen: { [string]: boolean } = {}
+			for slot = 1, 600 do
+				local plan = RiftRules.plan(1337, slot, TOWNS, always)
+				seen[plan.boss] = true
+				seen[plan.twist] = true
+				for _, id in plan.rooms do
+					seen[id] = true
+				end
+			end
+			for _, list in { R.bossIds, R.twistIds, R.roomIds } do
+				for _, id in list do
+					if not seen[id] then
+						error(id .. " never came up in 600 slots")
+					end
+				end
+			end
+		end)
+		it("every boss's words take the right number of weaknesses", function()
+			expect(select(2, string.gsub(R.bosses.warden.text, "%%s", ""))).toBe(1)
+			expect(select(2, string.gsub(R.bosses.stormheart.text, "%%s", ""))).toBe(1)
+			expect(select(2, string.gsub(R.bosses.twins.text, "%%s", ""))).toBe(2)
+		end)
+		it("the new bosses build detached", function()
+			for _, spec in { RiftEnemies.stormheart, RiftEnemies.pylon, RiftEnemies.twinEmber, RiftEnemies.twinAsh } do
+				local model = CreatureRig.build(spec.def, CFrame.new())
+				expect(model.Parent).toBe(nil)
+				model:Destroy()
+			end
+		end)
+		it("a shield really stops every hit, and lifting it lets them through", function()
+			local Damage = require(Server.Magic.Cast.Damage)
+			local model = CreatureRig.build(RiftEnemies.stormheart.def, CFrame.new())
+			local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+			model.Parent = game:GetService("ServerStorage")
+			humanoid:SetAttribute("HealthFloor", 1e9)
+			expect(Damage.apply(humanoid, 50, nil, "spec")).toBe(0)
+			expect(humanoid.Health).toBe(humanoid.MaxHealth)
+			humanoid:SetAttribute("HealthFloor", nil)
+			expect(Damage.apply(humanoid, 50, nil, "spec") > 0).toBe(true)
+			model:Destroy()
+		end)
+		it("Short Fuse shortens the clock and pays for it", function()
+			local fuse = R.twists.shortfuse
+			expect(RiftRules.runLength(fuse) < RiftRules.runLength(nil)).toBe(true)
+			expect(RiftRules.runLength(fuse) >= 300).toBe(true)
+			local w = RiftRules.window(10)
+			expect(RiftRules.runEnds(10, w.startsAt, fuse)).toBe(w.startsAt + RiftRules.runLength(fuse))
+			local plain = RiftRules.payout("gold", true, 0)
+			local paid = RiftRules.payout("gold", true, 0, fuse)
+			expect(paid > plain).toBe(true)
+		end)
+		it("every twist actually does something", function()
+			local effects = { "fireSpread", "enemyHealth", "enemyDamage", "bruteGain", "cleverGain", "extraEnemies", "lightShare", "echoSeconds", "clockShare", "rewardShare", "reservoirPerSecond" }
+			for id, twist in R.twists do
+				local any = false
+				for _, field in effects do
+					any = any or (twist :: any)[field] ~= nil
+				end
+				if not any then
+					error(id .. " has no effect")
+				end
+			end
+		end)
+		it("a reaction is worth more than one clever cast", function()
+			local _, clever = RiftRules.classify(R.rooms.engine, cast({ "lightning" }))
+			expect(R.reactionGain > clever).toBe(true)
+		end)
+		it("a reaction is worded as an answer and kept apart from the count", function()
+			local approach = RiftRules.reactionApproach("steam", "Scalding steam: burns, and blinds the area briefly.")
+			expect(approach.label).toBe("Scalding steam: burns, and blinds the area briefly")
+			expect(RiftRules.answerKey("gallery", approach)).toBe("reaction:steam")
+			expect(RiftRules.answersFound({ ["reaction:steam"] = 1, ["chasm:ice"] = 1 })).toBe(1)
+		end)
+		it("the same answer in a room is one key, and different rooms are different keys", function()
+			local burn = R.rooms.thornwall.approaches[1]
+			expect(RiftRules.answerKey("thornwall", burn)).toBe("thornwall:burn")
+			expect(RiftRules.answerKey("thornwall", burn)).toBe(RiftRules.answerKey("thornwall", burn))
+			expect(RiftRules.answerKey("chasm", burn) ~= RiftRules.answerKey("thornwall", burn)).toBe(true)
+		end)
+		it("the answers are a small, finite set, so the save stays small and the XP can't be farmed", function()
+			local total = RiftRules.answerCount()
+			expect(total > 30 and total < 100).toBe(true)
+			expect(total * R.noveltyXp < 10000).toBe(true)
+		end)
+		it("crossing the Drop unaided is a real answer that no spell can claim by its tags", function()
+			local across = nil
+			for _, approach in R.rooms.chasm.approaches do
+				if approach.id == "across" then
+					across = approach
+				end
+			end
+			expect(across ~= nil).toBe(true)
+			expect(#(across :: any).tags).toBe(0)
+			local matched = RiftRules.classify(R.rooms.chasm, cast({ "made_up_tag" }))
+			expect(matched).toBe(nil)
+		end)
+		it("only wood burns: the Frostgate has no fire shortcut", function()
+			expect(R.rooms.thornwall.burnable).toBe(true)
+			expect(R.rooms.frostgate.burnable).toBe(nil)
+			for _, approach in R.rooms.frostgate.approaches do
+				expect(approach.burns).toBe(nil)
+			end
+		end)
+		it("the Vigil can be held alone in under a minute, and casts can shorten it", function()
+			expect(R.vigilSeconds <= 60).toBe(true)
+			expect(R.vigilCastShare > 0 and R.vigilCastShare <= 1).toBe(true)
+		end)
+		it("a lamp takes plain casts several tries, and never just one", function()
+			local _, brute = RiftRules.classify(R.rooms.longdark, cast({ "x" }))
+			local _, huge = RiftRules.classify(R.rooms.longdark, cast({ "x" }, 60))
+			expect(brute * R.lampBruteScale < 1).toBe(true)
+			expect(huge * R.lampBruteScale < 1).toBe(true)
+		end)
+		it("the Twins' revival is long enough to answer, and the pylons fit in the arena", function()
+			expect(R.twinReviveSeconds >= 10).toBe(true)
+			expect(R.pylonRing < R.width / 2).toBe(true)
+			expect(R.pylonRing < R.arenaLength * 0.4).toBe(true)
 		end)
 	end)
 
