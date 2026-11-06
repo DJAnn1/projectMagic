@@ -102,7 +102,7 @@ local function applyRisk(player: Player, humanoid: Humanoid, riskId: string, sev
 	if effect.drain then
 		local state = reservoirs:get(player)
 		if state then
-			state.current -= state.max * effect.drain * math.clamp(severity, 0.5, 1.5)
+			state.current -= if state.infinite then 0 else state.max * effect.drain * math.clamp(severity, 0.5, 1.5)
 			reservoirs:push(player)
 		end
 	end

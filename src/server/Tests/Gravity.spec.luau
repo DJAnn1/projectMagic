@@ -18,6 +18,7 @@ local Shared = ReplicatedStorage.Shared
 local Rules = require(Shared.Magic.GravityRules)
 local G = require(Shared.Magic.Data.GravityTuning)
 local MagicCore = require(Shared.Magic.MagicCore)
+local Reservoir = require(Shared.Magic.Reservoir)
 local Remotes = require(Shared.Net.Remotes)
 local Controls = require(Shared.UI.Controls)
 
@@ -282,6 +283,31 @@ return function(t: any)
 			StatusEffects.apply(hit.humanoid, "gravity_heavy", { duration = 5, magnitude = 0.5 })
 			expect(StatusEffects.damageDealtMult(hit.humanoid)).toBeNear(1.5, 0.001)
 			StatusEffects.dispel(hit.humanoid)
+		end)
+	end)
+
+	describe("The infinite reservoir cheat", function()
+		local function state(infinite: boolean?): any
+			return { current = 10, max = 100, strain = 50, burnoutUntil = 1e12, lockouts = { gravity = 1e12 }, regenMult = 1, riskMult = 1, infinite = infinite }
+		end
+		local stats: any = { domains = { "gravity" }, costBreakdown = { reservoir = 1e6, vitalHp = 0 } }
+		it("pays for anything, even past a full reservoir, and spends nothing", function()
+			local s = state(true)
+			local result = Reservoir.trySpend(s, stats, 0, Random.new(1))
+			expect(result.ok).toBe(true)
+			expect(#result.consequences).toBe(0)
+			expect(s.current).toBe(10)
+		end)
+		it("keeps the reservoir full and clear between casts", function()
+			local s = state(true)
+			Reservoir.tick(s, 0.25, 0, "Normal", 1)
+			expect(s.current).toBe(100)
+			expect(s.strain).toBe(0)
+			expect(s.burnoutUntil).toBe(0)
+			expect(next(s.lockouts)).toBe(nil)
+		end)
+		it("changes nothing without the cheat", function()
+			expect(Reservoir.trySpend(state(), stats, 0, Random.new(1)).ok).toBe(false)
 		end)
 	end)
 

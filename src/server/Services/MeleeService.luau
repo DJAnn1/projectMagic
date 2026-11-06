@@ -240,12 +240,14 @@ local function onIntent(player: Player)
 		return
 	end
 	local cost = D.costBase + D.costShare * stats.costBreakdown.reservoir
-	if reservoir.current < cost then
-		refuse(player, "INSUFFICIENT_RESERVOIR")
-		return
+	if not reservoir.infinite then
+		if reservoir.current < cost then
+			refuse(player, "INSUFFICIENT_RESERVOIR")
+			return
+		end
+		reservoir.current -= cost
+		reservoirs:push(player)
 	end
-	reservoir.current -= cost
-	reservoirs:push(player)
 
 	-- The blade is contact: resolve it as a touch (guards, parries), keeping the spell's power.
 	local melee = table.clone(stats)

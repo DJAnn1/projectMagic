@@ -87,6 +87,11 @@ end
 
 -- Advance regen and decay. Server calls this on a throttled loop (e.g. every 0.5s), not per frame.
 function Reservoir.tick(state: ReservoirState, dt: number, now: number, activity: string, ambientDensity: number)
+	if state.infinite then
+		state.current, state.strain, state.burnoutUntil = state.max, 0, 0
+		table.clear(state.lockouts)
+		return
+	end
 	local regen = Reservoir.regenPerSecond(state, activity, ambientDensity, now)
 	state.current = math.min(state.max, state.current + regen * dt)
 	state.strain = math.max(0, state.strain - R.strainDecayPerSecond * dt)
@@ -125,6 +130,12 @@ function Reservoir.trySpend(state: ReservoirState, stats: SpellStats, now: numbe
 		hpCost = stats.costBreakdown.vitalHp,
 		consequences = {},
 	}
+
+	-- The admin cheat: free, whatever it costs, even a spell that costs more than a full reservoir.
+	if state.infinite then
+		result.ok = true
+		return result
+	end
 
 	for _, d in stats.domains do
 		if Reservoir.isLockedOut(state, d, now) then

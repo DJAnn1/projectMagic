@@ -751,7 +751,7 @@ local function stepFlights(dt: number)
 		end
 		local reservoirs = flying.ctx.services.reservoirs
 		local state = reservoirs:get(player)
-		if state then
+		if state and not state.infinite then
 			state.current = math.max(0, state.current - state.max * flying.flight.drainShare * elapsed)
 			reservoirs:push(player)
 			if state.current <= 0 then

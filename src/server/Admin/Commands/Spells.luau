@@ -42,17 +42,20 @@ return function(admin: any, deps: any)
 					(c :: any)[field] = a.kind == "all"
 				end
 			else
-				local field = map[a.kind]
-				local current = (c :: any)[field] == true
-				local value = if a.on == nil then not current else a.on;
-				(c :: any)[field] = value
+				-- Naming a cheat turns it on, whatever state it was in. Only "off" turns it off: this
+				-- used to toggle, so `cheat infinite` after `cheat all` quietly switched it off.
+				local value = if a.on == nil then true else a.on;
+				(c :: any)[map[a.kind]] = value
 			end
-			if c.infinite then
-				local reservoir = reservoirs:get(ctx.player)
-				if reservoir then
-					reservoir.current = reservoir.max
-					reservoirs:push(ctx.player)
+			-- The reservoir itself knows, so everything that spends from it agrees (Shared/Magic/Reservoir).
+			local reservoir = reservoirs:get(ctx.player)
+			if reservoir then
+				reservoir.infinite = c.infinite == true
+				if c.infinite then
+					reservoir.current, reservoir.strain, reservoir.burnoutUntil = reservoir.max, 0, 0
+					table.clear(reservoir.lockouts)
 				end
+				reservoirs:push(ctx.player)
 			end
 			return string.format("infinite %s · nocooldown %s · nobacklash %s", tostring(c.infinite == true), tostring(c.noCooldown == true), tostring(c.noBacklash == true))
 		end,

@@ -362,6 +362,7 @@ export type ReservoirState = {
 	lockouts: { [string]: number }, -- domainId -> timestamp
 	regenMult: number, -- innate (traits.regen)
 	riskMult: number, -- innate (traits.overdrawRisk)
+	infinite: boolean?, -- the admin cheat: nothing costs anything and it never runs low (session only, never saved)
 }
 
 export type Consequence = {

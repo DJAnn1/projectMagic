@@ -735,13 +735,15 @@ local function resolve(p: Pending)
 				if
 					not pulseRoot
 					or not reservoir
-					or reservoir.current < stats.channelCostPerSecond * T.channelInterval
+					or (not reservoir.infinite and reservoir.current < stats.channelCostPerSecond * T.channelInterval)
 					or (channel and channel.released)
 				then
 					break
 				end
-				reservoir.current -= stats.channelCostPerSecond * T.channelInterval
-				reservoirs:push(player)
+				if not reservoir.infinite then
+					reservoir.current -= stats.channelCostPerSecond * T.channelInterval
+					reservoirs:push(player)
+				end
 				ctx.pulse, ctx.power, ctx.origin = stats.echoes + i, stats.power, pulseRoot.Position
 				-- A channelled beam follows its target: each pulse is a damage tick on where it is now.
 				ctx.point, ctx.target = channelPoint(p, pulseRoot), p.target
