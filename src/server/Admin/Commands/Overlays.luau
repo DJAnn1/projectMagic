@@ -13,6 +13,7 @@
 	  chunks       chunk borders (built chunks solid, unbuilt dashed)
 	  settlements  settlement outlines and district anchors (whole map)
 	  npclod       NPC positions coloured by LOD tier (the panel refreshes it every 2 s)
+	  npcnav       full rigs: route, goal, state, action, animation, last stuck event (also live)
 	  lots         settlement layouts: lot outlines coloured by building type (solid = built,
 	               faint = planned), street centre lines, the plaza, failed lots as red markers
 	  clear        removes every layer
@@ -24,7 +25,7 @@ local Server = script.Parent.Parent.Parent
 local WorldGen = require(Server.World.WorldGen)
 local WorldConfig = require(Server.World.WorldConfig)
 
-local LAYERS = { "density", "resonance", "ley", "stress", "water", "biomes", "chunks", "settlements", "npclod", "lots", "clear" }
+local LAYERS = { "density", "resonance", "ley", "stress", "water", "biomes", "chunks", "settlements", "npclod", "npcnav", "lots", "clear" }
 local GRID = 33
 
 return function(admin: any, deps: any)
@@ -129,6 +130,12 @@ return function(admin: any, deps: any)
 			end
 			local points = npcs:lodPoints(center, radius)
 			return { points = points, live = true }, string.format("%d NPCs (green T0, yellow T1, grey T2, blue frozen)", #points)
+		elseif layer == "npcnav" then
+			if not npcs:isReady() then
+				return nil, "NPCs aren't ready"
+			end
+			local points = npcs:navPoints(center, radius)
+			return { points = points, live = true }, string.format("%d full rigs (green walking, yellow waiting for a path, blue paused, red stuck or failed, grey at rest)", #points)
 		end
 		return nil, "unknown layer " .. layer
 	end

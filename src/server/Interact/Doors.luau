@@ -68,6 +68,15 @@ function Doors.register(leaf: BasePart)
 	grid[k] = list
 	table.insert(list, leaf)
 	leaf:SetAttribute("Open", false)
+	-- Routes may cross a closed door: NPCs open it when they reach it (NPC/NavigationService, which
+	-- also refuses a route through a door locked to that NPC). Without this, every building interior
+	-- is walled off from the pathfinder.
+	if not leaf:FindFirstChildOfClass("PathfindingModifier") then
+		local modifier = Instance.new("PathfindingModifier")
+		modifier.Label = "NpcDoor"
+		modifier.PassThrough = true
+		modifier.Parent = leaf
+	end
 end
 
 function Doors.unregister(leaf: BasePart)

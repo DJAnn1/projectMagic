@@ -12,7 +12,7 @@
 
 	LOOPS
 	    Heartbeat   every 0.5 s  LOD.assign + LOD.sync for the NPCs whose tier changed, day/night
-	                10 Hz        LOD.stepT0 (walking rigs)          every 2 s  LOD.stepT1 (hopping)
+	                10 Hz        Navigation.Step + NPCAnimator.Step          every 2 s  LOD.stepT1 (hopping)
 	                every frame  brain ticks for T0 (1 s) and T1 (5 s) NPCs, within BRAIN_BUDGET
 	    game hour   T2 brains (ParallelPool when >= PARALLEL_MIN), social pairing + gossip,
 	                event relief, knockout recovery, chapter advance
@@ -68,6 +68,9 @@ local RelationshipGraph = require(NPC.RelationshipGraph)
 local NPCMagicLife = require(NPC.NPCMagicLife)
 local DialogueEngine = require(NPC.DialogueEngine)
 local LOD = require(NPC.NPCLOD)
+local Navigation = require(NPC.NavigationService)
+local NPCAnimator = require(NPC.NPCAnimator)
+local Conversation = require(NPC.NPCConversation)
 local NPCCombat = require(NPC.NPCCombat)
 local Combat = require(Server.Magic.Data.CombatTuning)
 local Resistances = require(Server.Magic.Cast.Resistances)
@@ -390,7 +393,15 @@ local function route(npc: any)
 	if not target and not rogue and placeHook then
 		target = placeHook(npc, district) -- AmbientLifeService: the real building for this district
 	end
-	LOD.setDestination(npc, target or spotFor(npc, district))
+	-- Somewhere it just failed to reach: try the plain district spot, and failing that, stay put.
+	if target and Navigation.RecentlyFailed(npc, target) then
+		target = nil
+	end
+	local place = target or spotFor(npc, district)
+	if Navigation.RecentlyFailed(npc, place) then
+		place = npc.position
+	end
+	LOD.setDestination(npc, place)
 end
 
 local function inDanger(npc: any): boolean
@@ -501,8 +512,8 @@ local function think(npc: any, now: number)
 	if NPCCombat.engaged(npc) and (npc.tier ~= 0 or not npc.rig) then
 		NPCCombat.disengage(npc) -- fights only run on full rigs; out of sight, it's over
 	end
-	if now < npc.actionUntil or NPCCombat.engaged(npc) or npc.leash then
-		return -- a fight (NPCCombat) or a quest leash owns the NPC until it ends
+	if now < npc.actionUntil or NPCCombat.engaged(npc) or npc.leash or Navigation.IsPaused(npc) then
+		return -- a fight, a quest leash or a conversation owns the NPC until it ends
 	end
 	local previous = npc.action
 	local block = ScheduleService.blockAt(npc, WorldClock.hourOf(now), inDanger(npc))
@@ -834,6 +845,7 @@ end
 local function knockout(npc: any, source: number?)
 	npc.knockedOut = true
 	npc.knockedOutUntil = WorldClock.now() + 0.25
+	Conversation.Interrupt(npc)
 	LOD.discard(npc)
 	local _, built = LOD.poolStats()
 	LOD.prewarm(built + 1)
@@ -850,6 +862,7 @@ local function onDamage(payload: any)
 	if not npc or npc.knockedOut then
 		return
 	end
+	Conversation.Interrupt(npc) -- nobody chats through being hit
 	local now = WorldClock.now()
 	local town = townById[npc.settlementId]
 	local source: number? = payload.sourceUserId
@@ -1301,9 +1314,15 @@ local function heartbeat()
 				local flinchUntil = humanoid:GetAttribute("FlinchUntil")
 				-- Down or recoiling (HitReactions): no walking, unless a fight is stepping it.
 				local reeling = humanoid:GetAttribute("KnockedDown") or (typeof(flinchUntil) == "number" and flinchUntil > serverNow)
-				if npc.frozen or (npc.talkingUntil or 0) > clock or (reeling and not NPCCombat.engaged(npc)) then
-					humanoid:Move(Vector3.zero)
-				elseif NPCCombat.engaged(npc) then
+				npc.position = npc.rig.root.Position
+				local engaged = NPCCombat.engaged(npc)
+				if engaged then
+					Conversation.Interrupt(npc)
+				end
+				Conversation.Step(npc, clock)
+				if npc.frozen or (reeling and not engaged) then
+					Navigation.Halt(npc)
+				elseif engaged then
 					NPCCombat.step(npc, T0_STEP)
 				else
 					local leash = npc.leash
@@ -1315,7 +1334,10 @@ local function heartbeat()
 							LOD.setDestination(npc, proot.Position - proot.CFrame.LookVector * 4)
 						end
 					end
-					LOD.stepT0(npc)
+					Navigation.Step(npc, clock)
+				end
+				if npc.rig then -- a knockout can take the rig during the step
+					NPCAnimator.Step(npc, clock)
 				end
 			end
 		end
@@ -1430,11 +1452,12 @@ local function onTalk(player: Player, npcId: string, topic: string): any
 	townById[npc.settlementId].dirty = true
 	savePlayerRelation(player, npc)
 
-	-- Face the speaker and stand still for a moment.
-	npc.talkingUntil = os.clock() + 8
-	local flat = Vector3.new(root.Position.X, npcRoot.Position.Y, root.Position.Z)
-	if (flat - npcRoot.Position).Magnitude > 0.1 and not npcRoot.Anchored then
-		npc.rig.model:PivotTo(CFrame.lookAt(npcRoot.Position, flat))
+	-- A conversation holds them still, facing you, until it ends (NPC/NPCConversation).
+	if not NPCCombat.engaged(npc) then
+		Conversation.Say(npc, player, text)
+		if topic == "farewell" then
+			Conversation.Leave(npc, player)
+		end
 	end
 
 	local mood = DialogueEngine.mood(npc, now)
@@ -1826,7 +1849,7 @@ end
 function NPCService.setFrozen(_self: any, npc: any, frozen: boolean)
 	npc.frozen = frozen or nil
 	if npc.rig then
-		npc.rig.humanoid:Move(Vector3.zero)
+		Navigation.Halt(npc)
 		npc.rig.root.Anchored = frozen or npc.tier == 1
 	end
 	if not frozen then
@@ -2093,6 +2116,44 @@ function NPCService.lodPoints(_self: any, center: Vector3, radius: number): { an
 	return out
 end
 
+-- The admin `overlay npcnav` layer: full rigs near a point, with their routes and states.
+function NPCService.navPoints(_self: any, center: Vector3, radius: number): { any }
+	local out = {}
+	for _, npc in tier0 do
+		local rig = npc.rig
+		if rig and (rig.root.Position - center).Magnitude <= radius then
+			local info = Navigation.Debug(npc)
+			local points = {}
+			for _, p in (if info then info.points else {}) :: { Vector3 } do
+				table.insert(points, { x = p.X, y = p.Y, z = p.Z })
+			end
+			local goal: Vector3? = info and info.goal
+			local p = rig.root.Position
+			table.insert(out, {
+				x = p.X, y = p.Y, z = p.Z,
+				points = points,
+				goal = if goal then { x = goal.X, y = goal.Y, z = goal.Z } else nil,
+				status = if info then info.status else "-",
+				level = if info then info.level else 0,
+				anim = npc.animState or "-",
+				action = npc.action,
+				name = npc.name,
+				stuck = info and info.lastStuck or nil,
+			})
+		end
+	end
+	return out
+end
+
+function NPCService.navReport(_self: any, npc: any): string
+	local s = Navigation.Stats()
+	return string.format(
+		"%s\naction %s, tier %s, anim %s\nall NPCs: %d paths (%.0f ms avg), %d cache hits, %d straight walks, %d no path, %d blocked, %d stuck, %d failed, %d recovered, %d doors, %d queued",
+		Navigation.Report(npc), tostring(npc.action), tostring(npc.tier), tostring(npc.animState),
+		s.computed, s.avgMs, s.cacheHits, s.direct, s.failed, s.blocked, s.stuck, s.failures, s.recovered, s.doors, s.queued
+	)
+end
+
 -- Where an NPC is right now (its rig if it has one).
 function NPCService.positionOf(_self: any, npc: any): Vector3
 	return if npc.rig then npc.rig.root.Position else npc.position
@@ -2112,6 +2173,42 @@ function NPCService.init(_self: any, ctx: any)
 	settlementSvc = ctx.get("SettlementService")
 	store = dataService:openStore(Schemas.NpcTown)
 	Net.handle("NpcTalk", onTalk)
+	Net.on("NpcTalkEnd", function(player: Player, npcId: string)
+		local npc = byId[npcId]
+		if npc then
+			Conversation.Leave(npc, player)
+		end
+	end)
+
+	-- Walking, and what it reports back (NPC/NavigationService, docs/NPCMovement.md).
+	Navigation.init({ log = log, world = world })
+	Conversation.speak = function(npc: any, text: string)
+		NPCService:speak(npc, text, BARK_RADIUS)
+	end
+	LOD.onLeaveT0 = function(npc: any)
+		npc.talk = nil
+		NPCAnimator.Release(npc)
+	end
+	-- Couldn't get there: the brain's next look re-routes it, and route() won't send it straight back.
+	Navigation.Failed:Connect(function(npc: any, reason: string, goal: Vector3?)
+		npc.destination = nil
+		npc.actionUntil = 0
+		log:debug("nav_failed", { npc = npc.id, action = npc.action, reason = reason, x = goal and math.floor(goal.X), z = goal and math.floor(goal.Z) })
+	end)
+	Navigation.DoorOpened:Connect(function(npc: any)
+		NPCAnimator.Emote(npc, "point")
+	end)
+	bus:subscribe(Topics.TerrainChanged, function(payload: any)
+		if typeof(payload.position) == "Vector3" and typeof(payload.radius) == "number" then
+			Navigation.Invalidate(payload.position, payload.radius)
+		end
+	end)
+	bus:subscribe(Topics.BuildingBuilt, function(payload: any)
+		local at = settlementSvc:anchor(payload.lotId, "Entrance")
+		if at then
+			Navigation.Invalidate(at, 30)
+		end
+	end)
 
 	bus:subscribe(Topics.MagicWitnessed, onWitnessed)
 	bus:subscribe(Topics.MagicDamage, onDamage)
@@ -2205,7 +2302,7 @@ function NPCService.start(_self: any, _ctx: any)
 
 	boot()
 	LOD.prewarm(math.min(#all, 48))
-	LOD.startPathWorker()
+	Navigation.start()
 	heartbeat()
 	task.spawn(hourly)
 	while true do

@@ -33,8 +33,8 @@
 		insight    a magic school's focus crystal: a one-time insight in its domain
 		deed / decor   HousingService (buy or give up a house; pick up your furniture)
 
-	NPC DOORS: every 0.3 s each loaded NPC rig (workspace.NPCs) opens closed doors within 5 studs
-	(NPCs carry their town's keys); doors close themselves after Doors.AUTO_CLOSE seconds.
+	NPC DOORS: a walking NPC opens the door on its route (NPC/NavigationService), if it's unlocked or
+	the NPC lives or works there; doors close themselves after Doors.AUTO_CLOSE seconds.
 
 	ADMIN (category World)
 		buildingcheck [kind] [teleport]   teleports you inside the nearest built building of a kind
@@ -73,7 +73,6 @@ local Util = require(Server.Admin.Util)
 
 local TRIGGER_GAP = 0.25 -- seconds between two prompt uses by one player
 local CONFIRM_SECONDS = 6
-local NPC_DOOR_RADIUS = 5
 local REST_HEAL_SHARE = 0.015
 local PICK_CHANCE = { 0.55, 0.4 }
 local MAGIC_COST_PER_TIER = 8
@@ -596,23 +595,6 @@ end
 
 -- ─── Loops ──────────────────────────────────────────────────────────────────
 
-local function npcDoors()
-	local folder = workspace:FindFirstChild("NPCs")
-	if not folder then
-		return
-	end
-	for _, rig in folder:GetChildren() do
-		local root = rig:FindFirstChild("HumanoidRootPart")
-		if root and root:IsA("BasePart") then
-			for _, leaf in Doors.near(root.Position, NPC_DOOR_RADIUS) do
-				if not Doors.isOpen(leaf) then
-					Doors.open(leaf)
-				end
-			end
-		end
-	end
-end
-
 local function lampTick()
 	local players: { Vector3 } = {}
 	local occupants: { Vector3 } = {}
@@ -1003,7 +985,6 @@ function InteractionService.start(_self: any, _ctx: any)
 		task.wait(0.3)
 		ticks += 1
 		Doors.tick(os.clock())
-		npcDoors()
 		if ticks % 3 == 0 then
 			healResting()
 			idleDummies()

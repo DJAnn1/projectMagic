@@ -43,6 +43,7 @@ local DailyLife = require(NPC.DailyLife)
 local DialogueEngine = require(NPC.DialogueEngine)
 local GreetingRules = require(NPC.GreetingRules)
 local LOD = require(NPC.NPCLOD)
+local Navigation = require(NPC.NavigationService)
 local MemoryService = require(NPC.MemoryService)
 local NPCMagicLife = require(NPC.NPCMagicLife)
 local WorldClock = require(NPC.WorldClock)
@@ -57,6 +58,7 @@ local WHISPER_RADIUS = 26
 local GREET_AGAIN = 300 -- this NPC won't greet this player again for this long
 local GREET_GAP = 5 -- at most one greeting per player this often, or a crowd all talks at once
 local AVOID_SECONDS = 7
+local GREET_PAUSE = 2.5
 local STALLS_OPEN, STALLS_CLOSE = 8, 18
 local LAMPS_ON, LAMPS_OFF = 19, 6.5
 local LAMPS_FORCED = 21 -- by now every lamp is lit, lamplighter or not
@@ -458,16 +460,6 @@ local function greetingInput(npc: any, player: Player, now: number): GreetingRul
 	}
 end
 
-local function faceTowards(npc: any, position: Vector3)
-	local root = npc.rig and npc.rig.root
-	if root and not root.Anchored then
-		local flat = Vector3.new(position.X, root.Position.Y, position.Z)
-		if (flat - root.Position).Magnitude > 0.5 then
-			root.CFrame = CFrame.lookAt(root.Position, flat)
-		end
-	end
-end
-
 local function behave(npc: any, band: string, player: Player, clock: number)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
@@ -480,8 +472,18 @@ local function behave(npc: any, band: string, player: Player, clock: number)
 		npc.avoidUntil = clock + AVOID_SECONDS
 		return
 	end
-	faceTowards(npc, root.Position)
-	npc.talkingUntil = clock + 2.5
+	-- Stop, turn, say it, walk on. A walk really stops now, so no walk cycle plays on the spot.
+	if npc.talk then
+		return
+	end
+	Navigation.Pause(npc, "greeting")
+	Navigation.Face(npc, root.Position)
+	task.delay(GREET_PAUSE, function()
+		if not npc.talk then
+			Navigation.Face(npc, nil)
+		end
+		Navigation.Resume(npc, "greeting")
+	end)
 	if band == "fawn" then
 		LOD.playActivity(npc, "cheer", Activities.Clips.cheer, false)
 	elseif band == "warm" or band == "awe" then

@@ -106,6 +106,14 @@ return function(admin: any, deps: any)
 	})
 
 	admin:Register({
+		name = "npcmove", category = "NPCs", description = "An NPC's movement report: state, agent size, speed, network owner, recent history, and the totals",
+		args = { npcArg(true) },
+		handler = function(_, a)
+			return npcs:navReport(a.npc)
+		end,
+	})
+
+	admin:Register({
 		name = "npclod", category = "Population", description = "LOD tiers, rig pool, path cache and brain cost",
 		handler = function()
 			local stats = npcs:stats()

@@ -230,6 +230,33 @@ function Overlay.apply(data: any)
 			local color = if p.frozen then Color3.fromRGB(80, 140, 255) else TIER_COLORS[p.tier] or Color3.new(1, 1, 1)
 			part(folder, Vector3.one * (if p.forced then 3 else 2), CFrame.new(p.x, p.y + 8, p.z), color, 0.15, Enum.PartType.Ball)
 		end
+	elseif layer == "npcnav" then
+		-- Green walking, yellow waiting for a path, blue paused, red stuck or failed, grey at rest.
+		for _, p in data.points do
+			local stuck = (p.level or 0) > 0 or p.status == "failed"
+			local color = if stuck then Color3.fromRGB(255, 70, 60)
+				elseif p.status == "walking" then Color3.fromRGB(80, 220, 120)
+				elseif p.status == "queued" then Color3.fromRGB(240, 210, 70)
+				elseif string.sub(p.status, 1, 6) == "paused" then Color3.fromRGB(80, 140, 255)
+				else Color3.fromRGB(170, 170, 170)
+			local at = Vector3.new(p.x, p.y, p.z)
+			local marker = part(folder, Vector3.one * 1.2, CFrame.new(at + Vector3.new(0, 5, 0)), color, 0.1, Enum.PartType.Ball)
+			label(marker, string.format("%s · %s · %s · %s", p.name, tostring(p.action), p.status, p.anim))
+			local last = at
+			for _, w in p.points do
+				local here = Vector3.new(w.x, w.y, w.z)
+				bar(folder, last, here, 0.25, color, 0.25)
+				part(folder, Vector3.one * 0.7, CFrame.new(here), color, 0.2, Enum.PartType.Ball)
+				last = here
+			end
+			if p.goal then
+				local g = Vector3.new(p.goal.x, p.goal.y, p.goal.z)
+				local goal = part(folder, Vector3.new(0.5, 6, 0.5), CFrame.new(g + Vector3.new(0, 3, 0)), color, 0.2)
+				if p.stuck then
+					label(goal, p.stuck)
+				end
+			end
+		end
 	end
 end
 

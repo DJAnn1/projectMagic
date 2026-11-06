@@ -17,15 +17,10 @@
 	RIG POOL  rigs are built once (Players:CreateHumanoidModelFromDescription, R6, no assets) by a
 	       background warm-up, recoloured per NPC on acquire (skin, shirt, trousers), and parked
 	       (Parent = nil) on release. Nothing is destroyed during play.
-	PATHFINDING  T0 only. Paths are cached per (settlement, from-cell, to-cell) on an 8-stud grid and
-	       shared by every NPC walking the same route; at most PATHS_PER_SECOND ComputeAsync calls,
-	       queued; while a path is pending the NPC walks straight. Waypoints are followed by a
-	       stepped MoveTo (no per-NPC event connections); no progress for 3 s -> jump; 6 s ->
-	       snap to the next waypoint.
+	WALKING  T0 walking is NPC/NavigationService's. Animation of walk and idle is NPC/NPCAnimator's.
 ]]
 
 local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local ActionRules = require(Shared.Magic.ActionRules)
@@ -37,16 +32,17 @@ local Resistances = require(Magic.Cast.Resistances)
 local ActionState = require(Magic.Cast.ActionState)
 local NpcLooks = require(script.Parent.NpcLooks)
 local Activities = require(script.Parent.Data.Activities)
+local Navigation = require(script.Parent.NavigationService)
 
 local LOD = {}
+
+local leaveT0: (any) -> ()
 
 local T0_IN, T0_OUT = 110, 140
 local T1_IN, T1_OUT = 350, 400
 local MAX_T0, MAX_T1 = 40, 100
 local SETTLEMENT_SKIP = 1500
 local SPAWNS_PER_STEP = 6
-local PATHS_PER_SECOND = 4
-local PATH_TTL = 300
 local HOP = 30
 local WALK_SPEED = 10
 
@@ -80,6 +76,7 @@ type Rig = {
 	label: TextLabel,
 	look: NpcLooks.Look?, -- what the current wearer has on (re-applied once accessories load)
 	prop: Instance?, -- what they're carrying (LOD.setProp)
+	agent: any?, -- the pathfinding agent measured from this body (NavigationService)
 }
 
 local pool: { Rig } = {}
@@ -104,6 +101,11 @@ local function buildRig(): Rig?
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.WalkSpeed = WALK_SPEED
 	humanoid.BreakJointsOnDeath = false
+	-- These tracks are the only animation: a default Animate script would fight NPCAnimator.
+	local animate = model:FindFirstChild("Animate")
+	if animate then
+		animate:Destroy()
+	end
 	local animator = humanoid:FindFirstChildOfClass("Animator")
 	if not animator then
 		animator = Instance.new("Animator")
@@ -118,6 +120,9 @@ local function buildRig(): Rig?
 		end)
 		if ok2 and track then
 			track.Looped = name ~= "cast"
+			track.Priority = if name == "walk" then Enum.AnimationPriority.Movement
+				elseif name == "idle" then Enum.AnimationPriority.Idle
+				else Enum.AnimationPriority.Action
 			tracks[name] = track
 		end
 	end
@@ -226,6 +231,7 @@ local function dress(rig: Rig, npc: any)
 	-- Hair, headwear, beard, scarf and body scale, chosen from the NPC's seed (NPC/NpcLooks).
 	local look = NpcLooks.choose(npc)
 	rig.look = look
+	rig.agent = nil -- a new body: NavigationService measures it again
 	NpcLooks.apply(rig.model, rig.humanoid, look)
 	rig.model.Name = npc.name
 	rig.model:SetAttribute("NpcId", npc.id)
@@ -276,11 +282,24 @@ local function release(rig: Rig)
 	table.insert(pool, rig)
 end
 
+-- NPCService's cleanup (NPCAnimator, NPCConversation require this module, so it can't call them).
+LOD.onLeaveT0 = nil :: ((any) -> ())?
+
+-- The rig is no longer walking under Navigation, or stopping being a rig altogether.
+leaveT0 = function(npc: any)
+	Navigation.Forget(npc)
+	local hook = LOD.onLeaveT0
+	if hook then
+		hook(npc)
+	end
+end
+
 -- A rig whose Humanoid died can't be revived (Health won't bring a Dead humanoid back), so it is
 -- destroyed instead of pooled; prewarm() builds a replacement.
 function LOD.discard(npc: any)
 	local rig: Rig? = npc.rig
 	if rig then
+		leaveT0(npc)
 		npc.position = rig.root.Position
 		rig.model:Destroy()
 		built -= 1
@@ -319,7 +338,8 @@ function LOD.assign(settlements: { any }): { any }
 			end
 		end
 		for _, npc in s.npcs do
-			local forced = npc.forcedTier
+			-- Someone in a conversation stays a full rig, however far off the cap would push them.
+			local forced = npc.forcedTier or (if npc.talk then 0 else nil)
 			if forced and not npc.knockedOut then
 				-- Admin override: distance 0 sorts it first, so the caps keep it.
 				table.insert(wants, { npc = npc, d = 0, tier = forced })
@@ -384,6 +404,7 @@ function LOD.sync(npc: any, groundAt: (Vector3) -> Vector3): boolean
 			if rig.model.Parent then
 				npc.position = rig.root.Position
 			end
+			leaveT0(npc)
 			release(rig)
 			npc.rig = nil
 		end
@@ -413,10 +434,8 @@ function LOD.sync(npc: any, groundAt: (Vector3) -> Vector3): boolean
 		pcall(function()
 			r.root:SetNetworkOwner(nil)
 		end)
-		if r.tracks.idle and not r.tracks.idle.IsPlaying then
-			r.tracks.idle:Play()
-		end
 	else
+		leaveT0(npc)
 		for _, track in r.tracks do
 			track:Stop(0.2)
 		end
@@ -424,80 +443,12 @@ function LOD.sync(npc: any, groundAt: (Vector3) -> Vector3): boolean
 	return true
 end
 
--- ─── Pathfinding (T0) ───────────────────────────────────────────────────────
-
-type CachedPath = { waypoints: { Vector3 }, at: number }
-
-local pathCache: { [string]: CachedPath } = {}
-local pathQueue: { { key: string, from: Vector3, to: Vector3 } } = {}
-local queued: { [string]: boolean } = {}
-local pathStats = { computed = 0, cacheHits = 0, failed = 0 }
-
-local function cell(v: Vector3): string
-	return math.floor(v.X / 8) .. "," .. math.floor(v.Z / 8)
-end
-
-local function pathKey(settlementId: string, from: Vector3, to: Vector3): string
-	return settlementId .. ":" .. cell(from) .. ">" .. cell(to)
-end
-
--- Cached waypoints for a route, or nil (and the route is queued for computing).
-function LOD.pathFor(settlementId: string, from: Vector3, to: Vector3): { Vector3 }?
-	local key = pathKey(settlementId, from, to)
-	local cached = pathCache[key]
-	if cached and os.clock() - cached.at < PATH_TTL then
-		pathStats.cacheHits += 1
-		return cached.waypoints
-	end
-	if not queued[key] then
-		queued[key] = true
-		table.insert(pathQueue, { key = key, from = from, to = to })
-	end
-	return nil
-end
-
--- Background worker: computes queued paths within the per-second budget.
-function LOD.startPathWorker()
-	task.spawn(function()
-		while true do
-			task.wait(1 / PATHS_PER_SECOND)
-			local job = table.remove(pathQueue, 1)
-			if job then
-				local path = PathfindingService:CreatePath({ AgentRadius = 1.5, AgentHeight = 5, AgentCanJump = true, WaypointSpacing = 6 })
-				local ok = pcall(function()
-					path:ComputeAsync(job.from, job.to)
-				end)
-				queued[job.key] = nil
-				if ok and path.Status == Enum.PathStatus.Success then
-					local waypoints = {}
-					for _, wp in path:GetWaypoints() do
-						table.insert(waypoints, wp.Position)
-					end
-					pathCache[job.key] = { waypoints = waypoints, at = os.clock() }
-					pathStats.computed += 1
-				else
-					-- Remember failure briefly as a straight line, so we don't retry every frame.
-					pathCache[job.key] = { waypoints = { job.to }, at = os.clock() - PATH_TTL + 30 }
-					pathStats.failed += 1
-				end
-			end
-		end
-	end)
-end
-
-function LOD.pathStats(): { [string]: number }
-	return { computed = pathStats.computed, cacheHits = pathStats.cacheHits, failed = pathStats.failed, queued = #pathQueue }
-end
-
 -- ─── Movement ───────────────────────────────────────────────────────────────
+-- T0 walking belongs to NPC/NavigationService: it picks up npc.destination on its next Step.
 
--- Sets where an NPC is heading (a world position). Movement happens in step*().
+-- Sets where an NPC is heading (a world position).
 function LOD.setDestination(npc: any, destination: Vector3)
 	npc.destination = destination
-	npc.waypoints = nil
-	npc.waypointIndex = 1
-	npc.lastProgress = os.clock()
-	npc.lastDistance = math.huge
 end
 
 function LOD.arrived(npc: any): boolean
@@ -505,53 +456,8 @@ function LOD.arrived(npc: any): boolean
 	return dest == nil or Vector3.new(dest.X - npc.position.X, 0, dest.Z - npc.position.Z).Magnitude < 4
 end
 
--- T0: walk the cached path (or straight while it's computing). Call ~10 times a second.
-function LOD.stepT0(npc: any)
-	local rig: Rig? = npc.rig
-	local dest: Vector3? = npc.destination
-	if not rig or not dest then
-		return
-	end
-	npc.position = rig.root.Position
-	if LOD.arrived(npc) then
-		rig.humanoid:Move(Vector3.zero)
-		if rig.tracks.walk and rig.tracks.walk.IsPlaying then
-			rig.tracks.walk:Stop(0.2)
-			if rig.tracks.idle then
-				rig.tracks.idle:Play()
-			end
-		end
-		return
-	end
-	if not npc.waypoints then
-		npc.waypoints = LOD.pathFor(npc.settlementId, npc.position, dest)
-		npc.waypointIndex = 1
-	end
-	local waypoints: { Vector3 } = npc.waypoints or { dest }
-	local target = waypoints[npc.waypointIndex] or dest
-	local flat = Vector3.new(target.X - npc.position.X, 0, target.Z - npc.position.Z).Magnitude
-	if flat < 3 and npc.waypointIndex < #waypoints then
-		npc.waypointIndex += 1
-		target = waypoints[npc.waypointIndex]
-	end
-	rig.humanoid:MoveTo(target)
-	if rig.tracks.walk and not rig.tracks.walk.IsPlaying then
-		rig.tracks.walk:Play()
-		if rig.tracks.idle then
-			rig.tracks.idle:Stop(0.2)
-		end
-	end
-	-- Stuck handling.
-	local now = os.clock()
-	if flat < npc.lastDistance - 0.5 then
-		npc.lastDistance = flat
-		npc.lastProgress = now
-	elseif now - npc.lastProgress > 6 then
-		rig.model:PivotTo(CFrame.new(target + Vector3.new(0, 3, 0)))
-		npc.lastProgress, npc.lastDistance = now, math.huge
-	elseif now - npc.lastProgress > 3 then
-		rig.humanoid.Jump = true
-	end
+function LOD.pathStats(): { [string]: number }
+	return Navigation.Stats()
 end
 
 -- T1: hop up to HOP studs toward the destination (anchored, no physics). Call every ~2 s.

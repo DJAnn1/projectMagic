@@ -84,6 +84,9 @@ Activities.Clips = table.freeze({
 	hold = "rbxassetid://115233860888201",
 	point = "rbxassetid://75385791730022",
 	sit = "rbxassetid://123240149331173",
+	-- Slots waiting for a clip. Empty is fine: NPCAnimator turns the head and bobs it instead.
+	talk = "", -- 3-4 s loop: standing, gesturing with one hand while speaking
+	listen = "", -- 3-4 s loop: standing, shifting weight, a small nod
 	-- Still Roblox's defaults.
 	wave = "rbxassetid://128777973",
 	cheer = "rbxassetid://129423030",

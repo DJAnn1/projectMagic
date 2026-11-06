@@ -18,6 +18,7 @@
 
 local Activities = require(script.Parent.Data.Activities)
 local LOD = require(script.Parent.NPCLOD)
+local Navigation = require(script.Parent.NavigationService)
 
 local DailyLife = {}
 
@@ -53,7 +54,8 @@ local function walkTo(npc: any, life: any, point: Vector3)
 end
 
 function DailyLife.step(npc: any, clock: number, env: any)
-	if not npc.rig or npc.tier ~= 0 or npc.leash or npc.combat or npc.knockedOut or npc.frozen then
+	-- A conversation puts the tool away too: NPCAnimator takes over the clips.
+	if not npc.rig or npc.tier ~= 0 or npc.leash or npc.combat or npc.knockedOut or npc.frozen or npc.talk then
 		DailyLife.clear(npc)
 		return
 	end
@@ -70,16 +72,16 @@ function DailyLife.step(npc: any, clock: number, env: any)
 		npc.life = life
 		LOD.setProp(npc, if def.prop then Activities.Props[def.prop] else nil)
 	end
-	if (npc.talkingUntil or 0) > clock then
-		return
+	if Navigation.IsPaused(npc) then
+		return -- a pause for a greeting: whatever they were doing carries on after
 	end
 	if not LOD.arrived(npc) then
 		if not life.moving then
 			life.moving = true
 			LOD.stopActivity(npc)
 		end
-		if def.jump and npc.rig and wobble(npc, math.floor(clock)) < 0.08 then
-			npc.rig.humanoid.Jump = true
+		if def.jump and wobble(npc, math.floor(clock)) < 0.08 then
+			Navigation.Jump(npc)
 		end
 		return
 	end

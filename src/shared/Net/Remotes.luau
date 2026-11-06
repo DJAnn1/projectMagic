@@ -242,6 +242,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 1 },
 		maxBytes = 256,
 	},
+	NpcTalkEnd = { -- npc id: you closed the panel. The server also ends conversations on its own
+		kind = "Event",
+		from = "Client",
+		args = { S.string(1, 64) },
+		rate = { capacity = 4, perSecond = 1 },
+		maxBytes = 96,
+	},
 	NpcTalk = { -- npc id, topic -> dialogue payload (server checks the player is beside the NPC)
 		kind = "Function",
 		from = "Client",

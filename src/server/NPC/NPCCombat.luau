@@ -45,6 +45,7 @@ local Guard = require(Server.Magic.Cast.Guard)
 local ActionRules = require(Shared.Magic.ActionRules)
 local Charge = require(Shared.Magic.Charge)
 local NPCMagicLife = require(script.Parent.NPCMagicLife)
+local Navigation = require(script.Parent.NavigationService)
 
 local A = C.aggro
 local JOG = 16
@@ -221,8 +222,8 @@ function NPCCombat.disengage(npc: any)
 	npc.combat = nil
 	npc.actionUntil = 0
 	local rig = npc.rig
-	if c and c.jogging and rig and rig.humanoid:GetAttribute("MagicBaseWalk") == nil then
-		rig.humanoid.WalkSpeed = 10
+	if c and c.jogging and rig then
+		Navigation.SetSpeed(npc, Navigation.speedFor(Navigation.styleOf(npc), npc.seed or 0))
 	end
 end
 
@@ -427,13 +428,11 @@ function NPCCombat.step(npc: any, dt: number): boolean
 		humanoid:GetAttribute("KnockedDown")
 		or (typeof(flinchUntil) == "number" and flinchUntil > workspace:GetServerTimeNow())
 	then
-		humanoid:Move(Vector3.zero)
+		Navigation.Halt(npc)
 		return true
 	end
-	if humanoid:GetAttribute("MagicBaseWalk") == nil then
-		humanoid.WalkSpeed = JOG
-		c.jogging = true
-	end
+	Navigation.SetSpeed(npc, JOG)
+	c.jogging = true
 
 	local offset = targetRoot.Position - root.Position
 	local flat = Vector3.new(offset.X, 0, offset.Z)
@@ -441,28 +440,25 @@ function NPCCombat.step(npc: any, dt: number): boolean
 	local toward = if distance > 0.1 then flat.Unit else root.CFrame.LookVector
 
 	if c.stance == "flee" then
-		humanoid:MoveTo(root.Position - toward * A.fleeDistance)
-		if rig.tracks.walk and not rig.tracks.walk.IsPlaying then
-			rig.tracks.walk:Play()
-		end
+		Navigation.Steer(npc, root.Position - toward * A.fleeDistance)
 		return true
 	end
 
 	watchTarget(npc, c, rig, targetModel)
 	if Guard.isGuarding(rig.model) then
-		humanoid:Move(Vector3.zero)
-		root.CFrame = CFrame.lookAt(root.Position, root.Position + toward) -- the ward faces the threat
+		Navigation.Halt(npc)
+		Navigation.FaceNow(npc, toward) -- the ward faces the threat
 		return true
 	end
 
 	-- Fight: hold keepDistance, face the target, cast when ready and in sight.
 	if distance > A.keepDistance + 4 then
-		humanoid:MoveTo(targetRoot.Position - toward * A.keepDistance)
+		Navigation.Steer(npc, targetRoot.Position - toward * A.keepDistance)
 	elseif distance < A.keepDistance - 6 then
-		humanoid:MoveTo(root.Position - toward * 6)
+		Navigation.Steer(npc, root.Position - toward * 6)
 	else
-		humanoid:Move(Vector3.zero)
-		root.CFrame = CFrame.lookAt(root.Position, root.Position + toward)
+		Navigation.Halt(npc)
+		Navigation.FaceNow(npc, toward)
 	end
 	if clock >= c.nextCast and distance <= A.castRange then
 		local eye = root.Position + Vector3.new(0, 1.5, 0)

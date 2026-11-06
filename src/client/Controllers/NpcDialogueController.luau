@@ -160,6 +160,7 @@ local function build(scope: Kit.Scope, root: Frame)
 			end, { kind = if topic == "farewell" then "ghost" else "secondary" }).Parent = buttons
 		end
 		C.button("Close", function()
+			Net.send("NpcTalkEnd", d.npcId) -- so they don't stand waiting for you
 			current:set(nil)
 		end, { kind = "ghost" }).Parent = buttons
 	end)
