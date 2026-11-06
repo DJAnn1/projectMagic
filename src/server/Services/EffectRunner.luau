@@ -47,6 +47,7 @@ local Targeting = require(Cast.Targeting)
 local HitReactions = require(Cast.HitReactions)
 local GravityRuntime = require(Cast.GravityRuntime)
 local TimeRuntime = require(Cast.TimeRuntime)
+local TimeZones = require(Cast.TimeZones)
 local TerrainDeform = require(Server.World.TerrainDeform)
 
 type Active = {
@@ -333,7 +334,9 @@ end
 local function tickFields(dt: number)
 	local t = now()
 	for id, effect in effects do
-		if effect.expires <= t then
+		if TimeZones.stopped(effect.position) then
+			effect.expires += dt -- a Timestop: the field waits, and loses no time
+		elseif effect.expires <= t then
 			stopEffect(id)
 		elseif effect.field then
 			local ok, result = pcall(FieldEffects.step, effect.field, dt)

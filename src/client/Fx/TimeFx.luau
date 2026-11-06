@@ -5,8 +5,8 @@
 
 		afterimage   a ghost of someone, frozen where they were marked, until the mark ends
 		recall       a pale streak from where they were to where they're returned; a ring at each end
-		stop         the world loses its colour for anyone inside, and everyone but the caster stops
-		             animating. A ring shows the edge.
+		stop         the world loses its colour for anyone inside. Everyone but the caster stops animating,
+		             and smoke, sparks and flames stop in mid-air. A ring shows the edge.
 		wound        a dark shell on someone holding back their hits
 		wound_land   it all lands at once
 		loop         a ring where someone will keep ending up
@@ -149,6 +149,34 @@ local function freezeTracks(center: Vector3, radius: number, casterId: any): { A
 	return frozen
 end
 
+-- Smoke, sparks and flames stop in mid-air too: every emitter on a part in the zone, including this
+-- client's own effect parts, which a spatial query can't see (they don't accept queries).
+local function freezeEmitters(center: Vector3, radius: number): { [ParticleEmitter]: number }
+	local frozen: { [ParticleEmitter]: number } = {}
+	local function freeze(p: Instance)
+		for _, child in p:GetChildren() do
+			if child:IsA("ParticleEmitter") and not frozen[child] then
+				frozen[child] = child.TimeScale
+				child.TimeScale = 0
+			end
+		end
+	end
+	local params = OverlapParams.new()
+	params.MaxParts = 400
+	for _, p in workspace:GetPartBoundsInRadius(center, radius, params) do
+		freeze(p)
+	end
+	local magicFx = workspace:FindFirstChild("MagicFx")
+	if magicFx then
+		for _, p in magicFx:GetChildren() do
+			if p:IsA("BasePart") and (p.Position - center).Magnitude <= radius then
+				freeze(p)
+			end
+		end
+	end
+	return frozen
+end
+
 local function stopWorld(id: number?, center: Vector3, radius: number, duration: number, casterId: any)
 	local character = Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -165,6 +193,7 @@ local function stopWorld(id: number?, center: Vector3, radius: number, duration:
 	ring(groundUnder(center), radius * 2, radius * 2, math.max(duration, 0.5), PALE)
 	ring(groundUnder(center), 2, radius * 2, 0.3, PALE)
 	local frozen = freezeTracks(center, radius, casterId)
+	local emitters = freezeEmitters(center, radius)
 	local done = false
 	local function resume()
 		if done then
@@ -174,6 +203,11 @@ local function stopWorld(id: number?, center: Vector3, radius: number, duration:
 		for _, track in frozen do
 			if track.IsPlaying then
 				track:AdjustSpeed(1)
+			end
+		end
+		for emitter, scale in emitters do
+			if emitter.Parent then
+				emitter.TimeScale = scale
 			end
 		end
 		if tint then

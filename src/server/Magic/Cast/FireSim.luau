@@ -29,6 +29,7 @@ local EffectBudget = require(Cast.EffectBudget)
 local ThermalSim = require(Cast.ThermalSim)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
+local TimeZones = require(Cast.TimeZones)
 
 local F = T.fire
 local CELL = F.groundCell
@@ -277,6 +278,9 @@ function FireSim.tick(dt: number)
 			endPartFire(part, false)
 			continue
 		end
+		if TimeZones.stopped(part.Position) then
+			continue -- a Timestop: it neither burns down nor spreads
+		end
 		local flammability = (part:GetAttribute("Flammability") :: number?) or 0.5
 		state.fuel -= dt * (1 + flammability) * boostAt(part.Position)
 		if state.fuel <= 0 then
@@ -298,6 +302,10 @@ function FireSim.tick(dt: number)
 	-- Ground fires: spread downwind, burn out.
 	local spreads: { Spread } = {}
 	for key, cell in groundFires do
+		if TimeZones.stopped(cell.part.Position) then
+			cell.expires += dt
+			continue
+		end
 		if cell.expires <= t then
 			endGroundFire(key, true)
 			continue

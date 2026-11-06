@@ -659,7 +659,8 @@ local function resolve(p: Pending)
 
 	local character = p.caster.castCharacter
 	local root, humanoid = aliveParts(character)
-	if not root or not humanoid or not character or player.Character ~= character or not player.Parent then
+	-- Frozen in a Timestop as it finished (Cast/TimeRuntime): the spell is lost.
+	if not root or not humanoid or not character or player.Character ~= character or not player.Parent or character:GetAttribute("TimeFrozen") then
 		if player.Parent then
 			Net.fire("CastResult", player, {
 				ok = true,
@@ -736,6 +737,7 @@ local function resolve(p: Pending)
 				local pulseRoot = aliveParts(character)
 				if
 					not pulseRoot
+					or character:GetAttribute("TimeFrozen")
 					or not reservoir
 					or (not reservoir.infinite and reservoir.current < stats.channelCostPerSecond * T.channelInterval)
 					or (channel and channel.released)

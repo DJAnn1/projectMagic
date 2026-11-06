@@ -135,8 +135,8 @@ local function tickAll(dt: number, refresh: boolean)
 		local entry = entryFor(player)
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if not entry or not root then
-			continue
+		if not entry or not root or (character :: Model):GetAttribute("TimeFrozen") then
+			continue -- frozen in a Timestop: it doesn't refill either
 		end
 		if refresh then
 			local data = playerData:get(player)

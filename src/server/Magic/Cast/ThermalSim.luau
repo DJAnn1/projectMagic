@@ -22,6 +22,7 @@ local CollectionService = game:GetService("CollectionService")
 
 local T = require(script.Parent.Parent.Data.CastTuning)
 local Targeting = require(script.Parent.Targeting)
+local TimeZones = require(script.Parent.TimeZones)
 
 local TH = T.thermal
 local TAG = "Thermal"
@@ -146,6 +147,9 @@ function ThermalSim.tick(dt: number)
 		if not part.Parent then
 			activeParts[part] = nil
 			continue
+		end
+		if TimeZones.stopped(part.Position) then
+			continue -- a Timestop: its heat stays exactly as it is
 		end
 		processed += 1
 		if processed > TH.maxActive then

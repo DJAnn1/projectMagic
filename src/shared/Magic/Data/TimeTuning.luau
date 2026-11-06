@@ -39,7 +39,8 @@ return table.freeze({
 		radiusMin = 20,
 		radiusMax = 90,
 		scanEvery = 0.25, -- seconds between freezing whoever walked in
-		maxTargets = 40,
+		maxTargets = 60,
+		maxParts = 150, -- loose objects frozen, per stop
 	},
 
 	wound = {

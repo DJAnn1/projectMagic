@@ -38,6 +38,7 @@ local EventRules = require(Server.Social.EventRules)
 local EventEnemies = require(Server.Social.Data.EventEnemies)
 local CreatureRig = require(Server.Creatures.CreatureRig)
 local Damage = require(Server.Magic.Cast.Damage)
+local TimeZones = require(Server.Magic.Cast.TimeZones)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
 
@@ -459,7 +460,9 @@ end
 local function landTelegraphs(active: Active, players: { PlayerView }, now: number)
 	for i = #active.telegraphs, 1, -1 do
 		local t = active.telegraphs[i]
-		if now >= t.at then
+		if TimeZones.stopped(t.position) then
+			t.at += STEP_SECONDS -- a Timestop: the blow hangs until time resumes
+		elseif now >= t.at then
 			table.remove(active.telegraphs, i)
 			hitArea(t.position, t.radius, t.damage, t.domain, t.level, players)
 			cue(active, { kind = "impact", style = t.style, x = t.position.X, y = t.position.Y, z = t.position.Z, radius = t.radius })
@@ -642,6 +645,10 @@ local function stepEvent(active: Active, now: number)
 
 	-- The comet lands: damage, then the shards.
 	local impactAt = active.impactAt
+	if impactAt and TimeZones.stopped(center) then
+		active.impactAt = impactAt + STEP_SECONDS
+		return -- the comet hangs in the sky
+	end
 	if impactAt and now >= impactAt then
 		active.impactAt = nil
 		local c = EventEnemies.comet

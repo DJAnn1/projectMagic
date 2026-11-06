@@ -75,6 +75,15 @@ function TimeRules.woundTotal(held: number, mult: number): number
 	return math.max(0, held) * math.max(0, mult)
 end
 
+-- Does a Timestop take this body? Everything but the caster, except that a duel is its two fighters'
+-- own: an outsider can't freeze a fighter and decide it.
+function TimeRules.stopFreezes(isCaster: boolean, targetDuel: any, casterDuel: any): boolean
+	if isCaster then
+		return false
+	end
+	return targetDuel == nil or targetDuel == casterDuel
+end
+
 function TimeRules.stopRadius(area: number): number
 	return math.clamp(area, T.timestop.radiusMin, T.timestop.radiusMax)
 end

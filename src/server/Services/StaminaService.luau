@@ -80,6 +80,9 @@ end
 local function step(dt: number)
 	local t = now()
 	for player, s in states do
+		if player.Character and player.Character:GetAttribute("TimeFrozen") then
+			continue -- frozen in a Timestop: it doesn't refill either
+		end
 		local max = maxOf(player)
 		if s.infinite then
 			s.current = max

@@ -458,13 +458,24 @@ function StatusEffects.tick(dt: number, damage: (Humanoid, number, number?, stri
 			continue
 		end
 		local anim = 1
+		-- Frozen in a Timestop (Cast/TimeRuntime): nothing burns or runs out. What's holding you has its
+		-- own clock, so it's left alone.
+		local model = humanoid.Parent
+		if model and model:GetAttribute("TimeFrozen") then
+			for id, s in statuses do
+				if id ~= "stasis" and id ~= "gravity_held" then
+					s.expires += dt
+					humanoid:SetAttribute("Status_" .. id, s.expires)
+				end
+			end
+		end
 		for id, s in statuses do
 			if s.expires <= t then
 				StatusEffects.remove(humanoid, id)
 				continue
 			end
 			local def = DEFS[id]
-			if def.dot and s.magnitude > 0 then
+			if def.dot and s.magnitude > 0 and not (model and model:GetAttribute("TimeFrozen")) then
 				damage(humanoid, s.magnitude * dt, s.source, id)
 			end
 			anim *= def.animSpeed or 1

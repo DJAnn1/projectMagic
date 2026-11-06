@@ -14,7 +14,7 @@ These are ordinary recipes from the grammar. Tiers are mastery in the spell's br
 | **Last Moment** | automatic, with a live Self Timeline | A killing blow recalls you instead | Grandmaster up. Once per 180 s (tier 7), 90 s (tier 8) |
 | **Target Timeline** | rewind, sequence, bind, touch or beam | Mark someone; **L** snaps them back to that spot, stunned and hurt | 1 to 6 people, stun 0.5 to 3 s, mark 6 to 45 s |
 | **Stored Moment** | rewind, sequence, bind, aura | Your projectiles hang in the air; **L** sends them all | 2 to 8 held, 4 to 20 s |
-| **Timestop** | stasis, tempo, reduce or bind, zone, burst, aura or ritual, power 7+ | Everyone you can harm in the zone freezes, and every projectile in it hangs, yours too | 0.5 to 5 s, radius 20 to 90 studs, cooldown 120 to 40 s |
+| **Timestop** | stasis, tempo, reduce or bind, zone, burst, aura or ritual, power 7+ | Everything in the zone stops but you (see below) | 0.5 to 5 s, radius 20 to 90 studs, cooldown 120 to 40 s |
 | **Borrowed Wound** | causality, sequence, amplify, touch or beam | Hits on them wait, then all land together, harder | 3 to 8 s, 1.1× to 2.2× |
 | **Deferred Pain** | causality, sequence, reduce, aura | Hits on you wait, and you pay less of them | 3 to 8 s, 0.9× to 0.25× |
 | **Future Sight** | precognition, foresight, amplify, aura or touch | See where nearby spells are aimed, and some hits miss you | 8 to 40 s, dodge 0 to 40% |
@@ -40,17 +40,38 @@ Position, health, reservoir with strain, burnout and lockouts, stamina, dash cha
 
 **Not covered:** a Life spell's health cost, which is already refused when it would kill, and anything outside magic damage such as falling out of the world.
 
-## Freezing
+## Timestop freezes everything
 
-Timestop, a recall's stun and Time Loop use `GravityRuntime.hold`: the server anchors the body, which also blocks casts, dashes and attacks, and the same 1.5 s immunity applies. Timestop adds Stasis, which greys out a frozen player's screen. Clients freeze the animations of everyone in the zone but the caster.
+The owner, 2026-11-06: "Timestop should freeze everything in the radius." Only the caster keeps moving.
 
-Parties and duels hold: `Targeting.canHarm` decides who can be frozen, marked or looped.
+| In the zone | While time is stopped |
+|---|---|
+| **People and creatures** | Frozen, party members and warded NPCs too, whatever immunity they had (a forced hold plus Stasis). Their AI, attacks and casting all stop, and a cast about to finish is lost |
+| **Projectiles** | Hang in the air, yours included, and carry on afterwards |
+| **Loose objects** | Anchored in place (up to 150), and get their momentum back |
+| **Fire and heat** | Don't burn down, spread or cool |
+| **Fields** | Wait, and lose no time |
+| **Gravity powers** | Grips, lifts, wells and singularities pause. A Meteor hangs mid-fall, unless it's the caster's |
+| **Statuses, reservoir, stamina** | Nothing ticks, burns, refills or runs out on a frozen body |
+| **Shared event attacks** | Telegraphed blows and a falling comet hang until time resumes |
+| **Particles** | Smoke, sparks and flames stop on each client |
+| **Hits on the frozen** | Wait, then land together on resume, each credited to who dealt it. A blow that would kill can still trigger a Grandmaster's mark |
+
+Anything with a clock checks `Cast/TimeZones`, which has no dependencies.
+
+**The one exception:** fighters in a duel you aren't part of. A duel is consent-based and nobody else can touch its fighters, so an outsider can't freeze one and decide it. Your own opponent does freeze.
+
+**Not frozen:** tsunamis and quakes already running (world-scale, and they don't check `TimeZones`), the day-night clock, and terrain water. A hit taken while frozen isn't judged as a town crime, because it lands outside the cast, though it still reaches `FactionService`.
+
+## Other freezing
+
+A recall's stun and Time Loop use an ordinary `GravityRuntime.hold`, with its 1.5 s immunity. `Targeting.canHarm` decides who can be marked or looped.
 
 ## Budgets
 
 - **No recording:** a mark snapshots when you make it, so nothing is recorded for people not using Time. That's why there's no ring buffer, unlike the plan in the prompt pack.
 - **Flights:** one extra call per flight per step while any exist; a hanging flight does no raycasts. They count toward Delivery's 160-flight cap.
-- **Timestop:** one area query every 0.25 s, at most 40 targets.
+- **Timestop:** two area queries every 0.25 s, at most 60 people and 150 loose objects, charged to `EffectBudget.takeParts`. With no stop running, everything that checks `TimeZones` returns at once.
 - **Damage:** one table lookup per hit for people with nothing active.
 - **Afterimages:** one local copy per mark, of the body's direct parts only.
 
@@ -73,7 +94,6 @@ Couldn't be checked without running it:
 Known gaps:
 - **Crimes:** Time's spells aren't "harmful" to settlement law, so freezing or looping an NPC in town isn't judged as a cast crime. Damage still reaches `FactionService`.
 - **Weapons:** arrows hang and release correctly but aren't redrawn while hanging, because only spells re-cue their flight.
-- **Fields and fire keep running in a Timestop,** and frozen people still take damage. Only people and projectiles stop.
 - **Dispel** ends a Timestop and makes wounds land now, but doesn't remove marks or Stored Moment.
 - **Audio:** there are no Time sounds yet.
 - **Unhappening** (undoing a physical event) isn't built.

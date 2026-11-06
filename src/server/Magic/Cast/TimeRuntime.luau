@@ -14,8 +14,11 @@
 	TARGET TIMELINE Mark someone. "Release" snaps them back to where you marked them, stunned and hurt.
 	STORED MOMENT   Your projectiles hang in the air. "Release" sends them all at once at your aim, or
 	                at whoever you've just recalled.
-	TIMESTOP        Everyone you may harm in the zone freezes (a real server hold plus Stasis), and
-	                every projectile in it hangs until time resumes, yours included.
+	TIMESTOP        Everything in the zone but you stops. Everyone freezes, allies too (a real server
+	                hold plus Stasis), except fighters in someone else's duel. Projectiles hang, yours
+	                included. Loose objects are anchored and get their momentum back. Fire, heat, fields,
+	                gravity powers and event attacks pause (Cast/TimeZones). Statuses don't tick, and
+	                hits on the frozen wait, then land together when time resumes.
 	BORROWED WOUND  On an enemy: hits are held back, then land together, harder. On yourself: hits are
 	                held back, then you pay less of them.
 	FUTURE SIGHT    You see where nearby spells are aimed, and some hits simply miss you.
@@ -41,6 +44,8 @@ local Delivery = require(Cast.Delivery)
 local GravityRuntime = require(Cast.GravityRuntime)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
+local EffectBudget = require(Cast.EffectBudget)
+local TimeZones = require(Cast.TimeZones)
 
 type Ctx = CastTypes.EffectContext
 type Hit = CastTypes.Hit
@@ -73,9 +78,14 @@ type Stop = {
 	radius: number,
 	expires: number,
 	nextScan: number,
-	frozen: { [Humanoid]: any },
+	zone: TimeZones.Zone,
+	frozen: { [Humanoid]: { hold: any, own: boolean, model: Model } }, -- own: this stop's hold, not someone's grip
+	held: { [Humanoid]: { [string]: HeldHit } }, -- hits waiting for time to resume, by attacker
+	parts: { [BasePart]: Vector3 }, -- loose objects, and the momentum they had
 	flights: { Delivery.Flight },
 }
+
+type HeldHit = { total: number, source: number?, kind: string, domain: string?, power: number?, branch: string? }
 
 type Wound = { total: number, mult: number, expires: number, source: number?, humanoid: Humanoid, domain: string, power: number, branch: string }
 
@@ -378,7 +388,19 @@ function TimeRuntime.startStop(ctx: Ctx): number
 	local radius = Rules.stopRadius(ctx.stats.area)
 	local t = now()
 	stopReady[ctx.player.UserId] = t + Rules.byTier(T.timestop.cooldown, tier)
-	local stop: Stop = { id = newId(), ctx = ctx, center = ctx.point, radius = radius, expires = t + seconds, nextScan = t, frozen = {}, flights = {} }
+	local stop: Stop = {
+		id = newId(),
+		ctx = ctx,
+		center = ctx.point,
+		radius = radius,
+		expires = t + seconds,
+		nextScan = t,
+		zone = TimeZones.add(ctx.point, radius, ctx.player.UserId),
+		frozen = {},
+		held = {},
+		parts = {},
+		flights = {},
+	}
 	table.insert(stops, stop)
 	fx("stop", { id = stop.id, radius = radius, duration = seconds, caster = ctx.player.UserId }, ctx.point, true)
 	log:info("timestop", { userId = ctx.player.UserId, seconds = seconds, radius = radius })
@@ -388,31 +410,105 @@ end
 local function scanStop(stop: Stop, t: number)
 	local ctx = stop.ctx
 	local remaining = stop.expires - t
-	for _, hit in Targeting.inRadius(stop.center, stop.radius, T.timestop.maxTargets, { [ctx.character] = true }) do
-		if not stop.frozen[hit.humanoid] and Targeting.canHarm(ctx.player, hit.model) then
+	local casterHumanoid = ctx.character:FindFirstChildOfClass("Humanoid")
+	local casterDuel = if casterHumanoid then casterHumanoid:GetAttribute("DuelId") else nil
+	for _, hit in Targeting.inRadius(stop.center, stop.radius, T.timestop.maxTargets) do
+		local humanoid = hit.humanoid
+		if not stop.frozen[humanoid] and Rules.stopFreezes(hit.model == ctx.character, humanoid:GetAttribute("DuelId"), casterDuel) then
 			-- Stasis first: an NPC it anchors isn't "already anchored" to the hold (GravityRuntime.hold).
-			StatusEffects.apply(hit.humanoid, "stasis", { duration = remaining + 0.1, source = ctx.player.UserId })
-			local hold = GravityRuntime.hold(hit, ctx.player.UserId, remaining + 0.1)
-			if hold then
-				stop.frozen[hit.humanoid] = hold
+			StatusEffects.apply(humanoid, "stasis", { duration = remaining + 0.1, source = ctx.player.UserId })
+			local existing = GravityRuntime.holdOf(humanoid)
+			if existing then
+				-- Someone's grip already has them: it's paused, and must not let go during the stop.
+				existing.expires = math.max(existing.expires, stop.expires + 0.1)
+				stop.frozen[humanoid] = { hold = existing, own = false, model = hit.model }
 			else
-				StatusEffects.remove(hit.humanoid, "stasis") -- immune, or something else already has them
+				local hold = GravityRuntime.hold(hit, ctx.player.UserId, remaining + 0.1, true)
+				if hold then
+					stop.frozen[humanoid] = { hold = hold, own = true, model = hit.model }
+				end
+			end
+			if stop.frozen[humanoid] then
+				hit.model:SetAttribute("TimeFrozen", true)
 			end
 		end
+	end
+
+	-- Loose objects. Anchoring keeps them exactly where they are, and they get their momentum back.
+	local overlap = OverlapParams.new()
+	overlap.MaxParts = T.timestop.maxParts * 2
+	local found: { BasePart } = {}
+	local count = 0
+	for _ in stop.parts do
+		count += 1
+	end
+	for _, part in workspace:GetPartBoundsInRadius(stop.center, stop.radius, overlap) do
+		if count + #found >= T.timestop.maxParts then
+			break
+		end
+		local root = part.AssemblyRootPart or part
+		if not root.Anchored and not stop.parts[root] and not table.find(found, root) and not Targeting.characterOf(root) then
+			table.insert(found, root)
+		end
+	end
+	for i = 1, EffectBudget.takeParts(#found) do
+		local root = found[i]
+		stop.parts[root] = root.AssemblyLinearVelocity
+		root.Anchored = true
 	end
 end
 
 local function endStop(stop: Stop)
-	for humanoid, hold in stop.frozen do
-		GravityRuntime.release(hold)
+	TimeZones.remove(stop.zone)
+	for humanoid, entry in stop.frozen do
+		if entry.own then
+			GravityRuntime.release(entry.hold)
+		end
+		if entry.model.Parent then
+			entry.model:SetAttribute("TimeFrozen", nil)
+		end
 		if humanoid.Parent then
 			StatusEffects.remove(humanoid, "stasis")
+		end
+	end
+	for root, velocity in stop.parts do
+		if root.Parent then
+			root.Anchored = false
+			root.AssemblyLinearVelocity = velocity
 		end
 	end
 	for _, flight in stop.flights do
 		Delivery.release(flight, nil, nil) -- on with what they were doing
 	end
+	-- Every hit taken while frozen lands now, at once, credited to whoever dealt it. After the thaw,
+	-- so a blow that would kill can still trigger a Grandmaster's mark.
+	for humanoid, byAttacker in stop.held do
+		for _, hit in byAttacker do
+			if humanoid.Parent and humanoid.Health > 0 then
+				Damage.apply(humanoid, hit.total, hit.source, hit.kind, { domain = hit.domain, power = hit.power, branch = hit.branch, undeferred = true })
+			end
+		end
+	end
 	fx("end", { id = stop.id }, stop.center)
+end
+
+-- Is this body frozen? Then a hit on it waits. Returns true if it took the hit.
+local function holdHitForStop(humanoid: Humanoid, amount: number, source: number?, kind: string, info: Damage.Info?): boolean
+	for _, stop in stops do
+		if stop.frozen[humanoid] then
+			local byAttacker = stop.held[humanoid] or {}
+			stop.held[humanoid] = byAttacker
+			local key = tostring(source) .. "|" .. kind
+			local entry = byAttacker[key]
+			if entry then
+				entry.total += amount
+			else
+				byAttacker[key] = { total = amount, source = source, kind = kind, domain = info and info.domain, power = info and info.power, branch = info and info.branch }
+			end
+			return true
+		end
+	end
+	return false
 end
 
 -- Projectiles hang inside a stopped zone, and a caster's own during a Stored Moment.
@@ -493,6 +589,11 @@ local function intercept(humanoid: Humanoid, amount: number, source: number?, ki
 	local player = if model and model:IsA("Model") then Players:GetPlayerFromCharacter(model) else nil
 	local t = now()
 
+	-- Frozen: nothing happens to you yet, not even dying. It all lands when time resumes.
+	if not (info and info.undeferred) and holdHitForStop(humanoid, amount, source, kind, info) then
+		return 0
+	end
+
 	if player then
 		local mark = selfMarks[player]
 		if mark and mark.humanoid == humanoid and Rules.savesFromDeath(amount, humanoid.Health, true, mark.expires, mark.tier, lastMomentReady[player] or 0, t) then
@@ -522,9 +623,16 @@ local function intercept(humanoid: Humanoid, amount: number, source: number?, ki
 	return amount
 end
 
-local function stepWounds(t: number)
+local function isFrozen(humanoid: Humanoid): boolean
+	local model = humanoid.Parent
+	return model ~= nil and model:GetAttribute("TimeFrozen") == true
+end
+
+local function stepWounds(t: number, dt: number)
 	for humanoid, wound in wounds do
-		if t >= wound.expires or not humanoid.Parent or humanoid.Health <= 0 then
+		if isFrozen(humanoid) then
+			wound.expires += dt
+		elseif t >= wound.expires or not humanoid.Parent or humanoid.Health <= 0 then
 			wounds[humanoid] = nil
 			local total = Rules.woundTotal(wound.total, wound.mult)
 			if total > 0 and humanoid.Parent and humanoid.Health > 0 then
@@ -556,11 +664,13 @@ function TimeRuntime.startLoop(ctx: Ctx, hit: Hit)
 	fx("loop", { radius = 7 }, hit.root.Position)
 end
 
-local function stepLoops(t: number)
+local function stepLoops(t: number, dt: number)
 	for i = #loops, 1, -1 do
 		local loop = loops[i]
 		local ctx, hit = loop.ctx, loop.hit
-		if not alive(hit) or loop.left <= 0 or not refresh(ctx) or not Targeting.canHarm(ctx.player, hit.model) then
+		if isFrozen(hit.humanoid) then
+			loop.nextAt += dt
+		elseif not alive(hit) or loop.left <= 0 or not refresh(ctx) or not Targeting.canHarm(ctx.player, hit.model) then
 			table.remove(loops, i)
 		elseif t >= loop.nextAt then
 			loop.nextAt = t + T.loop.interval
@@ -576,11 +686,13 @@ end
 
 -- ─── Stepping ───────────────────────────────────────────────────────────────
 
-local function stepAll()
+local function stepAll(dt: number)
 	local t = now()
 
 	for player, mark in table.clone(selfMarks) do
-		if t >= mark.expires or not player.Parent or player.Character ~= mark.model then
+		if isFrozen(mark.humanoid) then
+			mark.expires += dt -- your mark doesn't run out while you're stopped
+		elseif t >= mark.expires or not player.Parent or player.Character ~= mark.model then
 			dropMark(player, mark)
 		end
 	end
@@ -629,18 +741,21 @@ local function stepAll()
 
 	for i = #stuns, 1, -1 do
 		local s = stuns[i]
-		if t >= s.expires then
+		if isFrozen(s.hold.hit.humanoid) then
+			s.expires += dt
+			s.hold.expires += dt
+		elseif t >= s.expires then
 			table.remove(stuns, i)
 			GravityRuntime.release(s.hold)
 		end
 	end
 
-	stepWounds(t)
-	stepLoops(t)
+	stepWounds(t, dt)
+	stepLoops(t, dt)
 end
 
-function TimeRuntime.step(_dt: number)
-	local ok, err = pcall(stepAll)
+function TimeRuntime.step(dt: number)
+	local ok, err = pcall(stepAll, dt)
 	if not ok and log then
 		log:throttled("time_step", 30, "Error", "time_step_failed", { err = err })
 	end

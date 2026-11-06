@@ -43,6 +43,7 @@ local EffectBudget = require(Cast.EffectBudget)
 local PvpRules = require(Cast.PvpRules)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
+local TimeZones = require(Cast.TimeZones)
 local WorldConfig = require(Cast.Parent.Parent.World.WorldConfig)
 local TerrainDeform = require(Cast.Parent.Parent.World.TerrainDeform)
 
@@ -176,18 +177,21 @@ end
 -- ─── Holding ────────────────────────────────────────────────────────────────
 
 -- Can the server hold this body right now? (Nil = no: already held, immune, warded or at the cap.)
-function GravityRuntime.hold(hit: Hit, sourceUserId: number, seconds: number): Hold?
+function GravityRuntime.hold(hit: Hit, sourceUserId: number, seconds: number, force: boolean?): Hold?
 	local humanoid = hit.humanoid
-	if holds[humanoid] or holdCount >= G.hold.maxHolds or not alive(hit) then
+	if holds[humanoid] or not alive(hit) then
 		return nil
 	end
-	if (immuneUntil[humanoid] or 0) > now() then
-		return nil
-	end
-	-- Quest NPCs under someone's ward can't be frozen by anyone else (Damage.apply refuses their hits).
-	local ward = humanoid:GetAttribute("QuestWard")
-	if typeof(ward) == "number" and ward ~= sourceUserId then
-		return nil
+	-- `force`: a Timestop freezes everything, whatever protects it from a mere grip.
+	if not force then
+		if holdCount >= G.hold.maxHolds or (immuneUntil[humanoid] or 0) > now() then
+			return nil
+		end
+		-- Quest NPCs under someone's ward can't be frozen by anyone else (Damage.apply refuses their hits).
+		local ward = humanoid:GetAttribute("QuestWard")
+		if typeof(ward) == "number" and ward ~= sourceUserId then
+			return nil
+		end
 	end
 	-- Stasis looks after its own anchoring, so it doesn't count as "already anchored" here: that would
 	-- leave an NPC anchored for good once both had ended.
@@ -323,9 +327,18 @@ function GravityRuntime.startGrip(ctx: Ctx, hit: Hit): boolean
 	return true
 end
 
-local function stepGrips(t: number)
+local function stepGrips(t: number, dt: number)
 	for _, grip in table.clone(grips) do
 		local ctx, hit = grip.ctx, grip.hold.hit
+		-- A Timestop pauses it: nothing tightens, and no time passes for it.
+		if TimeZones.stopped(hit.root.Position) then
+			grip.expires += dt
+			grip.started += dt
+			grip.nextTick += dt
+			grip.nextSight += dt
+			grip.hold.expires += dt
+			continue
+		end
 		-- The hold can go from under it too: a recall takes the victim out of your grip.
 		if t >= grip.expires or holds[hit.humanoid] ~= grip.hold or not alive(hit) or not refresh(ctx) or not Targeting.canHarm(ctx.player, hit.model) or (hit.root.Position - ctx.origin).Magnitude > grip.maxRange then
 			endGrip(grip)
@@ -399,8 +412,12 @@ local function stepLifts(dt: number)
 	local L = G.lift
 	for i = #lifts, 1, -1 do
 		local lift = lifts[i]
-		lift.age += dt
 		local hit = lift.hold.hit
+		if TimeZones.stopped(hit.root.Position) then
+			lift.hold.expires += dt -- it hangs in the air until time resumes
+			continue
+		end
+		lift.age += dt
 		if not alive(hit) or holds[hit.humanoid] ~= lift.hold then
 			table.remove(lifts, i)
 			GravityRuntime.release(lift.hold)
@@ -499,10 +516,16 @@ local function pullLoose(well: Well, tier: number)
 	end
 end
 
-local function stepWells(t: number)
+local function stepWells(t: number, dt: number)
 	for i = #wells, 1, -1 do
 		local well = wells[i]
 		local ctx = well.ctx
+		if TimeZones.stopped(well.center) then
+			well.expires += dt
+			well.nextTick += dt
+			well.nextCrush += dt
+			continue
+		end
 		if t >= well.expires or not refresh(ctx) then
 			table.remove(wells, i)
 			giveBackArea(ctx.player.UserId)
@@ -598,6 +621,13 @@ local function stepSingularities(dt: number, t: number)
 	local S = G.singularity
 	for i = #singularities, 1, -1 do
 		local s = singularities[i]
+		if TimeZones.stopped(s.center) then
+			s.nextTick += dt
+			for _, hold in s.holds do
+				hold.expires += dt
+			end
+			continue
+		end
 		s.age += dt
 		if s.age >= S.seconds then
 			table.remove(singularities, i)
@@ -762,6 +792,11 @@ local function stepFlights(dt: number)
 			endFlight(player)
 			continue
 		end
+		-- Frozen in a Timestop: you stay in the air, and it costs nothing, until time resumes.
+		if flying.model:GetAttribute("TimeFrozen") then
+			flying.lastPosition = flying.root.Position
+			continue
+		end
 		-- Being held or silenced, or knocked out of the air: you come down.
 		if flying.model:GetAttribute(HELD_ATTRIBUTE) or StatusEffects.has(humanoid, "knockdown") or StatusEffects.blocksCasting(humanoid) then
 			endFlight(player, "You've been dragged out of the air.")
@@ -831,6 +866,9 @@ local function stepMeteors(dt: number)
 			continue
 		end
 		local position = meteor.root.Position
+		if TimeZones.stopped(position, ctx.player.UserId) then
+			continue -- someone else stopped time: it hangs mid-fall
+		end
 		local target = meteor.ground + Vector3.new(0, 3.2, 0)
 		local remaining = position.Y - target.Y
 		local step = M.speed * dt
@@ -955,9 +993,9 @@ end
 
 local function stepAll(dt: number)
 	local t = now()
-	stepGrips(t)
+	stepGrips(t, dt)
 	stepLifts(dt)
-	stepWells(t)
+	stepWells(t, dt)
 	stepSingularities(dt, t)
 	stepFlights(dt)
 	stepMeteors(dt)
