@@ -37,6 +37,9 @@ local StatusInfo: { [string]: Info } = {
 	knockdown = { name = "Knocked down", harmful = true, description = "You're on the ground." },
 	dazed = { name = "Dazed", harmful = true, description = "Your head is ringing: slower, and your spells backfire more." },
 	jinxed = { name = "Jinxed", harmful = true, description = "Luck has turned on you: hits on you crit more often." },
+	gravity_held = { name = "Held", harmful = true, description = "Gravity has you: you can't move, cast or fight until it lets go." },
+	gravity_heavy = { name = "Anchor Weight", harmful = false, description = "Slower, but you resist damage, shrug off pushes and your spells hit harder." },
+	gravity_light = { name = "Featherweight", harmful = false, description = "Faster, and you jump enormous distances." },
 }
 
 return table.freeze(StatusInfo)

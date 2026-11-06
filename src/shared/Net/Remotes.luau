@@ -95,6 +95,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 3 },
 		maxBytes = 48,
 	},
+	FlightIntent = { -- come down: "land" ends flight; "dive" is Meteor Landing (Services/GravityService checks both)
+		kind = "Event",
+		from = "Client",
+		args = { S.literal("land", "dive") },
+		rate = { capacity = 4, perSecond = 2 },
+		maxBytes = 32,
+	},
 	GuardIntent = { -- raise or lower the guard (equip mode; Services/GuardService)
 		kind = "Event",
 		from = "Client",

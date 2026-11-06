@@ -56,6 +56,7 @@ export type Field = {
 	spare: Model?, -- the caster's character: heavy and light fields leave it alone
 	crush: ((Targeting.Hit, number) -> ())?, -- heavy + harmful: damage(hit, falloff) every crush.interval
 	crushClock: number,
+	gravityMult: number?, -- multiples of normal gravity, by the caster's mastery (GravityRules.fieldMult)
 	inside: { [BasePart]: { force: VectorForce?, attachment: Attachment?, scaled: boolean } },
 	ledger: { [BasePart]: { [string]: any } },
 	edited: boolean,
@@ -80,6 +81,7 @@ export type FieldOptions = {
 	owner: number?,
 	spare: Model?,
 	crush: ((Targeting.Hit, number) -> ())?,
+	gravityMult: number?,
 }
 
 function FieldEffects.new(kind: string, mode: string, center: Vector3, radius: number, opts: FieldOptions): Field
@@ -96,6 +98,7 @@ function FieldEffects.new(kind: string, mode: string, center: Vector3, radius: n
 		spare = opts.spare,
 		crush = opts.crush,
 		crushClock = 0,
+		gravityMult = opts.gravityMult,
 		inside = {},
 		ledger = {},
 		edited = false,
@@ -221,7 +224,7 @@ end
 
 local function stepGravity(field: Field, roots: { BasePart }, characters: { [BasePart]: Targeting.Hit }, dt: number)
 	local g = workspace.Gravity
-	local mult = gravityMultiplier(field.mode)
+	local mult = field.gravityMult or gravityMultiplier(field.mode)
 	local ceiling = field.center.Y + field.height * 0.8
 	local spare = if field.mode ~= "invert" then field.spare else nil
 	-- Crushing: every crush.interval, everyone inside (but the caster) takes damage, most at the centre.

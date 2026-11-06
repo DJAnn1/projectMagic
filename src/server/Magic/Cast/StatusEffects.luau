@@ -45,6 +45,7 @@ export type StatusDef = {
 	harmful: boolean?,
 	knockdown: boolean?, -- NPCs fall (PlatformStand); players fall on their own client (status cue)
 	critTaken: number?, -- added to the crit chance of hits against this humanoid (Jinxed)
+	damageDealt: boolean?, -- this humanoid's spells deal 1 + `magnitude` times the damage (Anchor Weight)
 }
 
 local DEFS: { [string]: StatusDef } = {
@@ -71,6 +72,10 @@ local DEFS: { [string]: StatusDef } = {
 	-- Domain strike riders (Shared/Magic/Data/Strikes).
 	dazed = { name = "Dazed", walk = 0.85, backfireMult = 1.5, client = true, harmful = true },
 	jinxed = { name = "Jinxed", critTaken = 0.15, harmful = true },
+	-- Gravity (Cast/GravityRuntime, Effects/GravityPower). Held bodies are anchored by the runtime.
+	gravity_held = { name = "Held", walk = 0, jump = 0, noCast = true, harmful = true },
+	gravity_heavy = { name = "Anchor Weight", walk = 0.8, jump = 0.6, damageDealt = true },
+	gravity_light = { name = "Featherweight", walk = 1.35, jump = 2.5 },
 }
 
 type Active = { expires: number, magnitude: number, source: number?, resist: { [string]: number }? }
@@ -138,11 +143,22 @@ local function recompute(humanoid: Humanoid)
 		humanoid:SetAttribute("MagicBaseJump", nil)
 	end
 
-	-- Stasis anchors NPCs only (anchoring a client-owned character fights its physics).
+	-- Stasis anchors NPCs only (anchoring a client-owned character fights its physics). It lets go
+	-- only of what it anchored itself: a status on a dummy, a storm node or someone in a gravity hold
+	-- must not drop them.
 	local character = humanoid.Parent
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") and not playerOf(humanoid) then
-		root.Anchored = anchored
+		local byStasis = humanoid:GetAttribute("StasisAnchored") == true
+		if anchored and not byStasis and not root.Anchored then
+			humanoid:SetAttribute("StasisAnchored", true)
+			root.Anchored = true
+		elseif not anchored and byStasis then
+			humanoid:SetAttribute("StasisAnchored", nil)
+			if not (character :: Instance):GetAttribute("GravityHeld") then
+				root.Anchored = false
+			end
+		end
 	end
 
 	-- Knockdown: an NPC falls limp and gets back up when it ends (players do this on their client).
@@ -312,6 +328,17 @@ function StatusEffects.damageTakenMult(humanoid: Humanoid): number
 	local mult = 1
 	for id in (active[humanoid] or {}) :: { [string]: Active } do
 		mult *= DEFS[id].damageTaken or 1
+	end
+	return mult
+end
+
+-- How much harder this humanoid's own spells hit (Anchor Weight; DamageModel).
+function StatusEffects.damageDealtMult(humanoid: Humanoid): number
+	local mult = 1
+	for id, s in (active[humanoid] or {}) :: { [string]: Active } do
+		if DEFS[id].damageDealt then
+			mult *= 1 + s.magnitude
+		end
 	end
 	return mult
 end

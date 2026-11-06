@@ -17,6 +17,7 @@
 		always     normal play
 		equip      the "equip" cast mode (Settings › castMode)    quick      the "quick" cast mode
 		attuned    holding a readied spell (equip mode)           unattuned  not holding one
+	flying     in the air on a Gravity spell (GravityClient)
 		placing    placing furniture (blocks all other play input)
 		menu       a screen is open                                prompt     a ProximityPrompt is
 		admin      admins only (hidden from everyone else)                    in range (Roblox gives
@@ -58,6 +59,7 @@ Controls.contexts = {
 	quick = "Quick mode",
 	attuned = "While a spell is readied",
 	unattuned = "With no spell readied",
+	flying = "While flying",
 	placing = "While placing furniture",
 	menu = "In menus",
 	prompt = "Near something you can use",
@@ -67,7 +69,15 @@ Controls.contexts = {
 local list: { Action } = {
 	-- ─── Movement ──────────────────────────────────────────────────────────────
 	{ id = "move", label = "Move", group = "movement", order = 1, keyboard = { "W", "A", "S", "D" }, gamepad = { "Thumbstick1" }, touch = "Thumbstick (left side of the screen)", contexts = { "always" }, owner = "Roblox" },
-	{ id = "jump", label = "Jump", group = "movement", order = 2, keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Jump button", contexts = { "always" }, owner = "Roblox" },
+	{ id = "jump", label = "Jump", group = "movement", order = 2, keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Jump button", contexts = { "always" }, owner = "Roblox", shares = { "fly_up" } },
+	{
+		id = "fly_up", label = "Climb", group = "movement", order = 4.1,
+		keyboard = { "Space" }, gamepad = { "ButtonA" }, touch = "Up button", contexts = { "flying" }, owner = "GravityClient", shares = { "jump" },
+		note = "Flying (a Gravity spell): you go where the camera looks, so looking down and pushing forward also descends.",
+	},
+	{ id = "fly_down", label = "Sink", group = "movement", order = 4.2, keyboard = { "LeftShift" }, touch = "Down button", contexts = { "flying" }, owner = "GravityClient" },
+	{ id = "fly_land", label = "Land", group = "movement", order = 4.3, keyboard = { "Y" }, touch = "Land button", contexts = { "flying" }, owner = "GravityClient", note = "Touching down with nothing held also lands you." },
+	{ id = "fly_dive", label = "Meteor dive", group = "movement", order = 4.4, keyboard = { "U" }, touch = "Dive button", contexts = { "flying" }, owner = "GravityClient", note = "From Master up: fall on your enemies from high above. The higher you start, the harder it hits." },
 	{
 		id = "camera", label = "Turn the camera", group = "movement", order = 3,
 		keyboard = { "MouseButton2" }, gamepad = { "Thumbstick2" }, touch = "Drag on the right side of the screen",

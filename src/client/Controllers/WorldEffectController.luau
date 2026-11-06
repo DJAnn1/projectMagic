@@ -16,6 +16,7 @@
 		status           our own status overlays (blind, slowed time, silence, burning...)
 		                 (+ knockdown: our character falls for the duration, then gets up)
 		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
+		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
 		event, event_end world events (no visuals yet)
 	Everything visual is pooled and LOD-scaled inside SpellFx; a failing handler is logged, never
 	allowed to break the listener.
@@ -31,6 +32,7 @@ local CombatFeedback = require(script.Parent.Parent.Fx.CombatFeedback)
 local WeaponFx = require(script.Parent.Parent.Fx.WeaponFx)
 local DashFx = require(script.Parent.Parent.Fx.DashFx)
 local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
+local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
@@ -49,6 +51,11 @@ local function knockback(velocity: any)
 	end
 	local character = Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	-- Anchor Weight (a Gravity spell): nothing pushes you around.
+	if humanoid and humanoid:GetAttribute("Status_gravity_heavy") ~= nil then
+		return
+	end
 	if root and root:IsA("BasePart") then
 		local clamped = if velocity.Magnitude > MAX_KNOCKBACK then velocity.Unit * MAX_KNOCKBACK else velocity
 		root.AssemblyLinearVelocity += clamped
@@ -107,8 +114,15 @@ local function handle(effect: { [string]: any })
 		if typeof(effect.role) == "string" then
 			Audio.play(effect.role, { vary = false })
 		end
+	elseif kind == "gravity" then
+		GravityFx.cue(effect)
+	elseif kind == "gravity_pull" then
+		GravityFx.pull(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
+		if effect.field == "gravity" then
+			GravityFx.fieldPulse(effect)
+		end
 	elseif kind == "field_end" then
 		SpellFx.fieldEnd(effect)
 	elseif kind == "wave" then

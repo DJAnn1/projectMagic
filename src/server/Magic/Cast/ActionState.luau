@@ -131,6 +131,10 @@ end
 
 function ActionState.can(model: Model, action: string): (boolean, string)
 	local state = ActionState.get(model)
+	-- In a gravity hold (Cast/GravityRuntime) a body does nothing: no dash out, no swing.
+	if model:GetAttribute("GravityHeld") then
+		return false, state
+	end
 	return ActionRules.allows(state, action), state
 end
 

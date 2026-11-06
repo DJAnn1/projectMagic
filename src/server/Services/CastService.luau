@@ -601,6 +601,18 @@ local function strike(
 				lifetime = flight.lifetime,
 			})
 		end
+		-- Bend Path curved it (Cast/GravityRuntime): clients redraw the flight on its new line.
+		flight.onBend = function(oldId: number, at: Vector3, velocity: Vector3)
+			cue(player, stats, at, at, "resolve", false, false, { projectileId = oldId, expired = true })
+			cue(player, stats, at, at + velocity, "launch", p.heavy, false, {
+				projectileId = flight.id,
+				velocity = velocity,
+				gravity = flight.gravity,
+				hitRadius = flight.radius,
+				turnRate = flight.turnRate,
+				lifetime = flight.lifetime,
+			})
+		end
 		local impact = Delivery.fly(flight, { ctx.character })
 		ctx.point = impact.point
 		ctx.delivered = impact.hits

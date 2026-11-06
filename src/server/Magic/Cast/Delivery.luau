@@ -59,6 +59,8 @@ export type Flight = {
 	property: string?, -- for guards: unblockable categories never parry
 	piercing: boolean?,
 	onReflect: ((oldId: number, at: Vector3, velocity: Vector3) -> ())?, -- set by the caster's side
+	onBend: ((oldId: number, at: Vector3, velocity: Vector3) -> ())?, -- set by the caster's side: re-draw a curved flight
+	bent: boolean?, -- Bend Path has already had its say on this flight
 }
 
 export type Impact = {
@@ -87,6 +89,15 @@ type Live = {
 }
 
 local Delivery = {}
+
+--[[
+	Set by Cast/GravityRuntime. Called once per step for each flight, before it moves. Returns:
+		"stop"              the flight ends here (Orbit Shield)
+		"reflect", model    it turns back at its caster, as a parry does, turned by `model` (Bend Path)
+		"bend", velocity    it carries on with this velocity, no longer homing (Bend Path)
+		nil                 nothing
+]]
+Delivery.interceptor = nil :: ((position: Vector3, velocity: Vector3, flight: Flight) -> (string?, any))?
 
 local live: { Live } = {}
 local nextId = 0
@@ -150,6 +161,28 @@ end
 local function step(entry: Live, dt: number)
 	local f = entry.flight
 	entry.age += dt
+
+	local interceptor = Delivery.interceptor
+	if interceptor then
+		local action, value = interceptor(entry.position, entry.velocity, f)
+		if action == "stop" then
+			finish(entry, entry.position, nil, true, false)
+			return
+		elseif action == "reflect" and value then
+			reflect(entry, value, entry.position)
+			return
+		elseif action == "bend" then
+			entry.velocity = value
+			f.homing = nil
+			local oldId = f.id
+			nextId += 1
+			f.id = nextId
+			local hook = f.onBend
+			if hook then
+				task.spawn(hook, oldId, entry.position, entry.velocity)
+			end
+		end
+	end
 
 	-- Homing: turn the velocity toward the target, at most turnRate x dt radians this step.
 	local target = f.homing

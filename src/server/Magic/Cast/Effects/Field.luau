@@ -11,7 +11,8 @@
 	else centres on the point. A backfire centres it on the caster (an inverted field under your
 	own feet is its own lesson).
 	Crushing: a heavy gravity field cast with a harmful verb (generate, amplify) damages everyone
-	inside but the caster once a second (CombatTuning.crush; strongest at the centre).
+	inside but the caster once a second (CombatTuning.crush; strongest at the centre). How heavy and
+	how hard it crushes both rise with mastery (Data/GravityTuning.field).
 	Radius = the spell's area (clamped by FieldEffects); duration = the spell's duration, at least
 	5 s, at most field.maxFieldSeconds. Budget refusals come back as a note, not an error.
 ]]
@@ -19,6 +20,8 @@
 local Cast = script.Parent.Parent
 local CastTypes = require(Cast.CastTypes)
 local Types = require(game:GetService("ReplicatedStorage").Shared.Magic.Types)
+local GravityRules = require(game:GetService("ReplicatedStorage").Shared.Magic.GravityRules)
+local GravityTuning = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.GravityTuning)
 local EffectBudget = require(Cast.EffectBudget)
 local FieldEffects = require(Cast.FieldEffects)
 local Targeting = require(Cast.Targeting)
@@ -84,10 +87,11 @@ function Field.resolve(ctx: CastTypes.EffectContext, params: { [string]: any }):
 	-- PvP cap). Weight is a knockdown kind, so a strong field also knocks people flat.
 	local crush: ((any, number) -> ())? = nil
 	if kind == "gravity" and mode == "heavy" and stats.harmful and C.crush.verbs[recipe.verb] then
+		local share = GravityRules.byTier(GravityTuning.field.crushShare, stats.masteryTier)
 		crush = function(hit: any, falloff: number)
 			local own = hit.model == ctx.character
 			if (own and ctx.backfire) or (not own and Targeting.canHarm(ctx.player, hit.model)) then
-				DamageModel.hit(ctx, hit, C.crush.share, recipe.property, { falloff = falloff, noCrit = own })
+				DamageModel.hit(ctx, hit, share, recipe.property, { falloff = falloff, noCrit = own })
 			end
 		end
 	end
@@ -99,6 +103,8 @@ function Field.resolve(ctx: CastTypes.EffectContext, params: { [string]: any }):
 		-- Your own heavy / light field leaves you alone (a backfire doesn't).
 		spare = if ctx.backfire then nil else ctx.character,
 		crush = crush,
+		-- Heavier with mastery: a Grandmaster's heavy ground is five times normal gravity.
+		gravityMult = if kind == "gravity" then GravityRules.fieldMult(mode, stats.masteryTier) else nil,
 	})
 	if not id then
 		return { effective = false, hits = 0, note = REFUSALS[reason or ""] or "The working won't take hold." }

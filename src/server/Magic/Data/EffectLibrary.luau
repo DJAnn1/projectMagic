@@ -69,6 +69,16 @@ local routes: { Route } = {
 	{ id = "time_field", effect = "Field", properties = { "tempo" }, verbs = { "reduce", "amplify" }, forms = AREA_FORMS, params = { field = "time" }, heavy = true },
 	{ id = "tempo", effect = "Status", properties = { "tempo" }, verbs = { "reduce", "amplify" }, params = { statusByVerb = { amplify = "haste", reduce = "slow" }, targets = "hit", selfIfNone = true } },
 	{ id = "stasis", effect = "Status", properties = { "persistence" }, verbs = { "bind", "reduce" }, params = { status = "stasis", targets = "hit" } },
+	-- Gravity's powers (Effects/GravityPower, docs/Gravity.md). Before gravity_field and the broad
+	-- force and harm routes, and each is narrow: its own branch, so nothing else moves.
+	{ id = "singularity", effect = "GravityPower", branches = { "collapse" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify" }, forms = { "zone", "burst", "ritual" }, minPower = 7, params = { power = "singularity" }, heavy = true },
+	{ id = "orbit_shield", effect = "GravityPower", branches = { "orbitcraft" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify", "bind" }, forms = { "aura" }, params = { power = "orbit" } },
+	{ id = "gravity_well", effect = "GravityPower", branches = { "attraction" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify" }, forms = { "zone", "burst", "ritual" }, params = { power = "well" }, heavy = true },
+	{ id = "flight", effect = "GravityPower", branches = { "levitation" }, properties = { "buoyancy" }, verbs = { "generate", "amplify" }, forms = { "aura" }, params = { power = "flight" } },
+	{ id = "mass_shift", effect = "GravityPower", branches = { "weightcraft" }, properties = { "density" }, verbs = { "amplify", "reduce" }, forms = { "aura", "touch" }, params = { power = "mass" } },
+	{ id = "crushing_grip", effect = "GravityPower", branches = { "crushing" }, properties = { "weight" }, verbs = { "generate", "amplify", "bind" }, forms = { "touch", "beam" }, params = { power = "grip" } },
+	{ id = "bend_path", effect = "GravityPower", branches = { "vectoring" }, properties = { "momentum", "orientation" }, verbs = { "redirect", "transmute" }, forms = { "aura" }, params = { power = "bend" } },
+	{ id = "lift_slam", effect = "GravityPower", branches = { "vectoring" }, properties = { "momentum", "orientation" }, verbs = { "redirect", "transfer" }, forms = { "touch", "beam" }, params = { power = "lift" } },
 	{ id = "gravity_field", effect = "Field", branches = { "gravity" }, properties = { "weight", "orientation", "buoyancy", "density" }, forms = AREA_FORMS, params = { field = "gravity" }, heavy = true },
 	{ id = "reality", effect = "Field", branches = { "reality" }, properties = { "law", "substance", "identity" }, params = { field = "reality", ruleByProperty = { law = "slick", substance = "intangible", identity = "transmute" } }, heavy = true },
 	{ id = "fortune", effect = "Status", properties = { "probability" }, verbs = { "amplify", "generate" }, params = { status = "lucky", targets = "allies" } },

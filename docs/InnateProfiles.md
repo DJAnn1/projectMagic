@@ -290,6 +290,8 @@ All three mythic Domains share these rules:
 
 ### 6.2 Gravity
 
+The runtime is built: see `docs/Gravity.md`. On the owner's decision (2026-11-06, "don't hold back"), it goes past some limits below: a grip can kill and players can be anchored by the server.
+
 | Mastery | Effects |
 |---|---|
 | Early | Make an object up to 30% heavier or lighter; brief feather-fall on yourself |

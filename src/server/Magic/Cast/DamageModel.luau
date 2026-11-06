@@ -66,6 +66,10 @@ function DamageModel.compute(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, s
 	local stats = ctx.stats
 	local o: Options = opts or {}
 	local amount = DamageModel.base(ctx.power) * share
+	local casterHumanoid = ctx.character and ctx.character:FindFirstChildOfClass("Humanoid")
+	if casterHumanoid then
+		amount *= StatusEffects.damageDealtMult(casterHumanoid) -- Anchor Weight
+	end
 
 	local falloff = 1
 	if o.falloff then
