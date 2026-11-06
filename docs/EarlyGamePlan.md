@@ -31,7 +31,7 @@ dead spot, confusing moment and missing reward; then the remaining early-game pr
 | **5** | **First creatures** (built 2026-11-05): six critters in seeded dens around every town, every domain strong against at least one. | L | EarlyGame #5 | Replaces dummies as the thing to fight. |
 | **6** | **Experimentation pays** (built 2026-11-05): novelty XP, first-reaction toasts, Guided "try something". | M | EarlyGame #7 | Once the basics work. |
 | **7** | **First-time flourishes** (built 2026-11-05): first damage, first new verb/form: a stinger and a toast. The rest of EarlyGame #4 (VFX floor) is already met by the VFX and audio work. | S | EarlyGame #4, trimmed | Polish. |
-| 8 | **Measure the first hour** (JourneySim + telemetry). | M | EarlyGame #8 | Last: measures the above. |
+| **8** | **Measure the first hour** (built 2026-11-05): a simulation + live telemetry. | M | EarlyGame #8 | Last: measures the above. |
 
 Rules kept: non-linear (suggestions and situations, never a mandatory chain), no paid features, `xpScale = 2.3`, server-authoritative, seeded.
 
@@ -116,4 +116,16 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **Spec:** `Tests/Experiment.spec` (3 more tests).
 - **Not done (from EarlyGame #4):** sputter and fizzle visuals near the power ceiling.
 - **Next:** item 8, measure the first hour.
+
+## 10. Item 8, built (2026-11-05, not yet run)
+
+**Targets** (`Progression/FirstHour`, used by both tools): first damage < 2 min, first ranged < 10 min, Novice < 30 min, something new < 20 min, no domain over 25% slower than Energy.
+
+- **Simulation (`Tests/FirstHourSim`, admin `firsthoursim [minutes]`, prints to the Output):** every domain at Modest, Gifted and Prodigy (Faint is excluded: `playerMinGiftTier` is Modest), through the real Cantrips, stats, Reservoir, Progression, Experiment and Creatures. It's a separate module rather than an extension of JourneySim, whose hour-long steps can't resolve a two-minute target. The player is a model (`BEHAVIOUR`, at the top of the file): it never gets lost and always hits. So it finds rule problems, not confusion.
+- **"Discovery" in the target means novelty.** A recipe discovery needs power 2, so it can't happen before Novice. Both are reported.
+- **Novice is reported with and without the mentor lesson,** which pays `650 x tier gap` XP against about 835 to reach Novice from practice. The comparison with Energy uses the no-lesson number, since the lesson is the same for everyone.
+- **Live (`Services/FirstHourService`, admin `firsthour [player]`):** new players only, in seconds of play, saved in `PlayerData.firstHour`. Logged as `first_hour` with no user id. The server report is medians only; the per-player report is admin only. Idle is a ceiling (gaps over 60 s between casts include walking and reading).
+- **Spec:** `Tests/FirstHour.spec` (4 tests): a 12-minute simulation per domain at Modest must meet the first-damage and first-ranged targets. Slower targets are only reported, never failed: they're for a person to judge.
+- **Not modelled:** reactions, weapons, other quests, travel beyond `walkToNext`, overdrawing the reservoir.
+- **Next:** the plan's eight items are built. Read the numbers, then decide what to tune.
 

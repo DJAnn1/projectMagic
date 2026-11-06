@@ -17,7 +17,7 @@ authority, data-driven content, seeded determinism, the 30–60 player / 100–3
 | 6 | Run toggle, walk default, Alt toggle, dash | input + server | Input changes are small; the dash needs server validation. **Built 2026-11-05** (Combat.md §15; dash = R) |
 | 7 | Spell sounds and music | audio system | Needs your soundpack first; a new audio layer + music director. **Built 2026-11-05** (licensed Creator Store picks; docs/Audio.md) |
 | 8 | NPCs look better and more unique | world / visuals | Appearance data exists but isn't drawn; asset choices needed. **Built 2026-11-05** (Roblox-made catalog accessories; NPC.md §6c) |
-| 9 | Make the early game more fun | design + several systems | Re-plans and continues Prompts-EarlyGame.md (2–8). **Step 1 + items 1–7 built 2026-11-05** (innate spells, practice yards, Projectile at Sensing + thrown Strike, beginner quests + town mentor, first creatures, experimentation pays, first-time flourishes; docs/EarlyGamePlan.md §3–9). Next: item 8 (measure the first hour) or the Journal "Path" hints |
+| 9 | Make the early game more fun | design + several systems | Re-plans and continues Prompts-EarlyGame.md (2–8). **Step 1 + all 8 items built 2026-11-05** (innate spells, practice yards, Projectile at Sensing + thrown Strike, beginner quests + town mentor, first creatures, experimentation pays, first-time flourishes, first-hour measurement; docs/EarlyGamePlan.md §3–10). Next: read `firsthoursim`, tune; the Journal "Path" hints are still open |
 | 10 | Gravity feels powerful (flight, crush, more) | new mechanics | New resolvers, movement allowance, client physics |
 | 11 | Time is powerful (timestop, timelines, recall) | new mechanics | State snapshots, freezing everything, PvP fairness: the hardest |
 

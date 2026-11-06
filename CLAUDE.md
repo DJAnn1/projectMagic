@@ -28,7 +28,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 ## Where we left off (session 2026-11-05, last code commit `4e20e0a`)
 
-**Next step:** early-game plan item 8, measure the first hour (docs/EarlyGamePlan.md §2), or the Journal "Path" hints left over from item 4. Item 7 (first-time flourishes, EarlyGamePlan §9) is built, not yet run; expected boot line `specs 353/353`, `first_damage` in the log, 81 sounds. Item 5 (six creatures in seeded dens around every town) is verified in play. Item 6 (novelty XP, first-reaction toasts, Guided "Try something") is built (EarlyGamePlan §8), not yet run. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
+**Next step:** all 8 early-game items are built. Get the `firsthoursim` table from the owner, then tune from it; `xpScale` stays unless the owner changes it. The Journal "Path" hints are still open, and prompts 2, 3, 10 and 11 of the Ideas pack haven't started. Items 7 and 8 (EarlyGamePlan §9–10) are built, not yet run; expected boot line `specs 357/357`, `first_damage` and `first_hour` in the log, 81 sounds. If FirstHour.spec fails, the sim's player model may be at fault as well as the rules: read `BEHAVIOUR` first. To check: one mentor lesson pays `650 x tier gap` XP, about 835 reaches Novice. Item 5 (six creatures in seeded dens around every town) is verified in play. Item 6 (novelty XP, first-reaction toasts, Guided "Try something") is built (EarlyGamePlan §8), not yet run. Item 3 (first ranged spell) is built: the owner said **"I don't want to restrict anything for the player"**, so Projectile opens at Sensing and the thrown Strike (Ember Dart...) is a third innate spell (EarlyGamePlan §5). Item 4 (six beginner quests + a town mentor) is built (EarlyGamePlan §6, Quests.md).
 
 **Ideas prompt pack (`docs/Prompts-Ideas.md`, 11 prompts) progress:**
 | # | Prompt | State |
@@ -41,7 +41,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | 6 | Run toggle, Alt toggle, dash (R) | built; the first test failed (client used `Net.fire`), fixed, not yet re-run |
 | 7 | Sounds + music | built (80 licensed picks, not auditioned) |
 | 8 | NPC looks | built (catalog hair/hats/beards, part-built clothing, signature accents) |
-| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing), 4 (beginner quests + mentor), 5 (first creatures), 6 (experimentation pays) and 7 (first-time flourishes) built; **item 8 next** |
+| 9 | Early game | step 1 plan done; items 1 (innate spells), 2 (practice yards), 3 (ranged at Sensing), 4 (beginner quests + mentor), 5 (first creatures), 6 (experimentation pays), 7 (first-time flourishes) and 8 (first-hour measurement) built; **all 8 done, tune from `firsthoursim`** |
 | 10 | Gravity powers | not started |
 | 11 | Time powers | not started |
 
