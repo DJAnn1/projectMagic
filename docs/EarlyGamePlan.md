@@ -143,5 +143,6 @@ Rules kept: non-linear (suggestions and situations, never a mandatory chain), no
 - **The lesson:** every domain reaches Novice within seconds of it (`study.mentor.xp` 650, at the smallest tier gap the quest allows). A higher-tier mentor pays more. That XP value was meant for a mid-game mentor with a 20-hour cooldown.
 - **Why Time and Reality lag:** the domain's rarity tax multiplies the property's `costWeight`: Time is 1.6 x 2.0 = 3.2 times Energy's cost. Modest Reality waits on its reservoir 65% of the hour, and Modest Time 50%. Gravity's Strike, on a cheaper property, doesn't suffer this.
 - **Void and Space** only just miss, and only at one gift each (15.7 min against a limit of 15.25; 15.2 against 15.0), which is within noise.
-- **Not changed yet:** these are the owner's calls. See the open questions in CLAUDE.md.
+- **Owner's decision on the lesson (2026-11-05):** a fixed 200 XP, about a quarter of the way to Novice. The quest's `study` reward is no longer used by any template, so the code stays for later mentors. It also no longer records a "mentor" fact, and the quest's 20-hour cooldown still limits repeats. FirstHour.spec checks the lesson can't reach Novice alone. The results above predate this.
+- **Time and Reality:** still undecided.
 

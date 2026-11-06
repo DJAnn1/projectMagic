@@ -30,6 +30,7 @@ local Schemas = require(Server.Persistence.Schemas)
 local ProfileGenerator = require(Server.Magic.ProfileGenerator)
 local InnateProfile = require(Server.Magic.InnateProfile)
 local DamageModel = require(Server.Magic.Cast.DamageModel)
+local QuestTemplates = require(Server.Quests.Data.QuestTemplates)
 local Creatures = require(Server.Creatures.Data.Creatures)
 local CreatureRules = require(Server.Creatures.CreatureRules)
 
@@ -40,14 +41,12 @@ local BEHAVIOUR = table.freeze({
 	reaction = 1.5, -- least time between casts
 	patience = 3, -- waiting this long for the reservoir is normal; beyond it, nothing to do
 	lessonAt = 170, -- mentor lesson finished. Seen in play: offered 0:49, finished 2:50
-	lessonMentorTier = 2, -- a Novice mentor, the lowest that can teach a Sensing player
 	huntFrom = 300, -- leaves the yard for the nearest den
 	walkToNext = 15, -- between kills
 	tryEvery = 180, -- presses "Try something new" and casts the result this often
 })
 
 local RANGED: { [string]: boolean } = { projectile = true, beam = true, chain = true } -- as FirstHourService
-local STUDIED_TIER = 1 -- the player's tier when the lesson happens (Sensing)
 local EPOCH = 1_800_000_000
 
 export type Result = FirstHour.Row & {
@@ -77,6 +76,16 @@ local function statsFor(recipe: any, caster: any): any?
 end
 
 local FirstHourSim = {}
+
+-- What the beginner lesson really pays, read from the quest so the two can't drift apart.
+function FirstHourSim.lessonXp(): number
+	for _, template in QuestTemplates.list do
+		if template.id == "mentor_lesson" then
+			return (template.outcomes :: any).taught.rewards.xp.amount
+		end
+	end
+	error("no mentor_lesson template")
+end
 
 function FirstHourSim.run(domainId: string, giftTier: string, options: { minutes: number?, lesson: boolean? }?): Result
 	local o: any = options or {}
@@ -158,8 +167,7 @@ function FirstHourSim.run(domainId: string, giftTier: string, options: { minutes
 		if not lessonDone and t >= BEHAVIOUR.lessonAt then
 			lessonDone = true
 			row.quest = row.quest or BEHAVIOUR.lessonAt
-			local gap = math.max(1, BEHAVIOUR.lessonMentorTier - STUDIED_TIER)
-			learn("study", T.study.mentor.xp * gap, { now = EPOCH + t })
+			learn("study", FirstHourSim.lessonXp(), { now = EPOCH + t })
 		end
 
 		-- Growing changes costs and ceilings.

@@ -831,7 +831,9 @@ local templates: { Template } = {
 		},
 		outcomes = {
 			taught = { text = "{mentor} nods. \"Better. {hint}\"", success = true, memory = "taught_me",
-				rewards = { study = { kind = "mentor", npc = "mentor" }, relationship = 0.2 } },
+				-- A fixed gift, not mentor-channel study: `study.mentor.xp` (650 x tier gap) reached Novice
+				-- by itself at about 3 minutes (docs/EarlyGamePlan.md §10). About a quarter of the way now.
+				rewards = { xp = { branch = "best:any", amount = 200 }, relationship = 0.2 } },
 			listened = { text = "{mentor} talks for an hour. One line sticks: \"{hint}\"", success = true,
 				rewards = { xp = { branch = "best:any", amount = 60 }, relationship = 0.1 } },
 			missed = { text = "{mentor} had other students today.", success = false },

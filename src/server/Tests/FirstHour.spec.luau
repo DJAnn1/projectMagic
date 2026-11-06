@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Registry = require(ReplicatedStorage.Shared.Magic.Registry)
 local Server = ServerScriptService.Server
 local FirstHour = require(Server.Progression.FirstHour)
+local Progression = require(Server.Progression.Progression)
 local FirstHourSim = require(Server.Tests.FirstHourSim)
 
 return function(t: any)
@@ -26,6 +27,11 @@ return function(t: any)
 				end
 				t.log(string.format("  %s: damage %s, ranged %s, %.1f casts/min", domainId, FirstHour.format(row.damage), FirstHour.format(row.ranged), row.castsPerMinute))
 			end
+		end)
+
+		t.it("doesn't let the beginner lesson reach Novice by itself", function()
+			local novice = Registry.masteryTiers.tiers[3].minMastery
+			t.expect(Progression.masteryForXp(FirstHourSim.lessonXp()) < novice).toBe(true)
 		end)
 
 		t.it("judges a row against the targets, fairly to players still on the way", function()
