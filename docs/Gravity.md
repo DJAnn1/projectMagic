@@ -28,12 +28,12 @@ Low-power spells on the collapse branch stay Gravity Wells, and a thrown crush (
 
 ## How holding works
 
-The server anchors the victim's root, the same way `CharacterSafety.holdArea` freezes people during a chunk rebuild, so nothing their client does can get them out. While held they have the `gravity_held` status (no casting) and the `GravityHeld` attribute (`ActionState.can` refuses dashes and attacks). A held body moved by a power is moved with `PivotTo`, about 20 times a second as other clients see it.
+The server anchors the victim's root, the same way `CharacterSafety.holdArea` freezes people during a chunk rebuild, so nothing their client does can get them out. While held they have the `gravity_held` status (no casting) and the `GravityHeld` attribute (`ActionState.can` refuses dashes and attacks). A held body moved by a power is moved with `PivotTo` every server frame; how smooth that looks to other clients hasn't been seen yet.
 
 - **Immunity:** 1.5 s after a hold ends before another can start. That's the one thing stopping someone being held forever. Casting Crushing Grip again on the person you already hold keeps them and doesn't count as a new hold.
 - **Who can be held:** only people you may harm (`Targeting.canHarm`: duels, parties, the PvP flag), checked again each tick. A quest NPC warded for someone else can't be held.
 - **Already anchored things** (dummies, storm nodes) take the damage but never move.
-- **Counters:** Dispel ends other people's grips, wells and shields. Guards reduce grip damage, but Crushing Grip's finishing blow ignores guards.
+- **Counters:** Dispel ends other people's grips, wells and shields. Guards reduce grip damage. Crushing Grip's finishing blow counts as piercing, so a guard stops less of it.
 
 ## Flight
 
@@ -94,4 +94,4 @@ cast weightcraft density amplify aura 4
 gravitystate
 ```
 
-`testspells 10 gravity` puts the eight strongest examples on the hotbar. Use `npcspawn`-style targets or `dummy` for something to hit. `setmastery all <tier>` shows the scaling. `flightend` brings a flyer down.
+`testspells 10 gravity` puts the eight strongest examples on the hotbar. Use `dummy` or a town's NPCs for something to hit (a dummy is anchored, so it takes damage but never moves; use an NPC or a creature to see a lift or a pull). `creature spawn` also works. `setmastery all <tier>` shows the scaling. `flightend` brings a flyer down.
