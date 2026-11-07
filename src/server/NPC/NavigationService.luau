@@ -497,6 +497,36 @@ local function smoothed(waypoints: { Waypoint }, radius: number): { Waypoint }
 	return out
 end
 
+--[[
+	The path queue. One place per person: asking again updates their job and keeps their place.
+	It used to add a new job at the back each time, and the old one still took a turn when it came up. A full
+	queue takes about 13 s to get through and people ask again after about 10, so once it filled, nearly every
+	job was out of date by its turn, and it never recovered: 77 waiting, and almost nobody walking (2026-11-07).
+]]
+function Navigation.enqueue(list: { any }, job: any, max: number)
+	for i, other in list do
+		if other.nav == job.nav then
+			list[i] = job
+			return
+		end
+	end
+	if #list >= max then
+		table.remove(list, 1)
+	end
+	table.insert(list, job)
+end
+
+-- The next job still worth doing. Out-of-date ones are dropped without using up a turn.
+function Navigation.nextJob(list: { any }, isCurrent: (any) -> boolean): any?
+	while #list > 0 do
+		local job = table.remove(list, 1)
+		if isCurrent(job) then
+			return job
+		end
+	end
+	return nil
+end
+
 local function nextAttempt(nav: Nav, why: string)
 	note(nav, why)
 	nav.attempt += 1
@@ -542,10 +572,7 @@ request = function(nav: Nav)
 	-- 3. Queue it, and wait. Standing still beats walking into a wall.
 	nav.status = "queued"
 	haltRig(nav)
-	if #queue >= T.queueMax then
-		table.remove(queue, 1)
-	end
-	table.insert(queue, { nav = nav, id = nextRequest, from = from, target = target, agent = agent })
+	Navigation.enqueue(queue, { nav = nav, id = nextRequest, from = from, target = target, agent = agent }, T.queueMax)
 end
 
 local function compute(job: any)
@@ -567,6 +594,20 @@ local function compute(job: any)
 		stats.failed += 1
 		local status = if ok then path.Status.Name else "error"
 		path:Destroy()
+		if deps.log then
+			deps.log:throttled("nav_no_path", 5, "Info", "nav_no_path", {
+				npc = nav.npc.id,
+				status = status,
+				attempt = nav.attempt,
+				fromX = math.floor(job.from.X),
+				fromY = math.floor(job.from.Y),
+				fromZ = math.floor(job.from.Z),
+				toX = math.floor(job.target.X),
+				toY = math.floor(job.target.Y),
+				toZ = math.floor(job.target.Z),
+				action = tostring(nav.npc.action),
+			})
+		end
 		nextAttempt(nav, "no path: " .. status)
 		return
 	end
@@ -613,7 +654,10 @@ function Navigation.start()
 	task.spawn(function()
 		while true do
 			task.wait(1 / T.pathsPerSecond)
-			local job = table.remove(queue, 1)
+			local job = Navigation.nextJob(queue, function(candidate: any): boolean
+				local nav: Nav = candidate.nav
+				return nav.request == candidate.id and navs[nav.npc] == nav
+			end)
 			if job then
 				local ok, err = pcall(compute, job)
 				if not ok and deps.log then
@@ -1046,6 +1090,20 @@ local function safetyCheck(nav: Nav, root: BasePart, humanoid: Humanoid, clock: 
 	end
 	nav.nextGood = clock + T.goodEvery
 	local npc = nav.npc
+	-- Server-driven, always. Roblox can hand a body to a nearby client; seen on NPCs in `npcmove`, 2026-11-07.
+	if not root.Anchored then
+		local read, owner = pcall(function()
+			return root:GetNetworkOwner()
+		end)
+		if read and owner then
+			local taken, why = pcall(function()
+				root:SetNetworkOwner(nil)
+			end)
+			if deps.log then
+				deps.log:throttled("npc_owner", 30, "Info", "npc_owner_taken_back", { npc = npc.id, from = owner.Name, ok = taken, why = if taken then nil else tostring(why) })
+			end
+		end
+	end
 	local position = root.Position
 	local world = deps.world
 	if world and position.Y < world:surfaceHeight(position.X, position.Z) - T.voidMargin then
