@@ -114,7 +114,7 @@ Data: `Shared/Social/Data/SharedEvents`, `Social/Data/EventEnemies`. Rules: `Soc
 - **Contribution:** damage to this event's enemies; healing other players in the zone (`TargetHealed`, at most 40 points a second); 2 points a second in the zone if you acted in the last 30 s. Tiers: gold ≥ 40% of the top score, silver ≥ 10%, bronze above 25 points. Needs 30 s in the zone. Playing alone earns gold.
 - **Rewards:** gold 300 XP and 60 coins, silver 180 and 30, bronze 90 and 12, each with a seeded item roll. A failed event pays 35% of the XP and coins and no items. XP goes to your strongest branch through the study channel, so daily caps apply.
 - **Server hopping:** `data.sharedEvents.claimed[event id]` in the session-locked save is checked before paying and saved with the reward. Contribution never carries between servers.
-- **Screen:** a panel at the top centre (hidden during a duel), a ✦ world marker, your score once a second, and a recap. The **World event alerts** setting hides the panel and marker until you enter the zone.
+- **Screen:** a panel in the right-hand column (`UI/SideCards`), a ✦ world marker, your score once a second, and a recap. The **World event alerts** setting hides the panel and marker until you enter the zone.
 
 **Known limits:**
 - Leaving before the end pays nothing on that server.

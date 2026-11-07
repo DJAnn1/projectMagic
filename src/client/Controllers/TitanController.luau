@@ -3,8 +3,8 @@
 	TitanController: a Titan from the player's side (docs/Titans.md). The server decides everything
 	(Services/TitanService); `view` is the last state it sent.
 
-		panel    Top centre, below where a shared event sits: what it is, where it's heading, its health,
-		         its weak points and your part. The recap shows your tier and rewards.
+		panel    In the right-hand column (UI/SideCards): what it is, where it's heading, its health, its
+		         weak points and your part. The recap shows your tier and rewards.
 		marker   ✹ over it with the distance, while it's walking and you're not beside it. It moves with
 		         TitanPos, once a second.
 		warnings Fx/EventFx draws the telegraphs the server cues.
@@ -27,10 +27,10 @@ local UI = Client:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local SideCards = require(UI.SideCards)
 local EventFx = require(Client:WaitForChild("Fx"):WaitForChild("EventFx"))
 
 local UPDATE_SECONDS = 0.2
-local PANEL_TOP = 170
 local MARKER_HEIGHT = 90
 
 local TitanController = {
@@ -170,16 +170,7 @@ local function renderRecap(card: Instance, view: { [string]: any })
 end
 
 local function buildLayer(scope: Kit.Scope, root: Frame)
-	local holder: Frame = Kit.create(nil, "Frame", {
-		Name = "TitanPanel",
-		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, PANEL_TOP),
-		Size = UDim2.fromOffset(340, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = root,
-	})
-	C.list("y", Theme.space.xs).Parent = holder
+	local holder = SideCards.holder(scope, root, 2, "TitanPanel")
 
 	Kit.dynamic(scope, { TitanController.view, magic.settings, close, dismissTick }, function(s)
 		local view = TitanController.view:get()
@@ -196,7 +187,7 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 			return
 		end
 		local card = C.panel({
-			BackgroundTransparency = Theme.glass,
+			BackgroundTransparency = SideCards.background,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 1,

@@ -3,7 +3,7 @@
 	RiftController: a Rift from the player's side (docs/Rifts.md). The server decides everything
 	(Services/RiftService); `view` is the last state it sent.
 
-		panel    Top right, while you're inside or for the recap: the twist, the clock, the room you're in,
+		panel    In the right-hand column (UI/SideCards), while you're inside or for the recap: the twist, the clock, the room you're in,
 		         a nudge, and how far along it is. The boss replaces the room at the end.
 		marker   ✦ over the portal with the distance, while it's open and you're outside.
 		warnings Fx/EventFx draws the telegraphs the server cues.
@@ -27,6 +27,7 @@ local UI = Client:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local SideCards = require(UI.SideCards)
 local EventFx = require(Client:WaitForChild("Fx"):WaitForChild("EventFx"))
 
 local UPDATE_SECONDS = 0.2
@@ -173,16 +174,7 @@ local function renderRecap(card: Instance, view: { [string]: any })
 end
 
 local function buildLayer(scope: Kit.Scope, root: Frame)
-	local holder: Frame = Kit.create(nil, "Frame", {
-		Name = "RiftPanel",
-		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -Theme.space.m, 0, 120),
-		Size = UDim2.fromOffset(320, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = root,
-	})
-	C.list("y", Theme.space.xs).Parent = holder
+	local holder = SideCards.holder(scope, root, 4, "RiftPanel")
 
 	Kit.dynamic(scope, { RiftController.view, inside, dismissTick }, function(s)
 		local view = RiftController.view:get()
@@ -196,7 +188,7 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 			return
 		end
 		local card = C.panel({
-			BackgroundTransparency = Theme.glass,
+			BackgroundTransparency = SideCards.background,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 1,

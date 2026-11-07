@@ -3,7 +3,7 @@
 	WildZoneController: a wild zone from the player's side (docs/WildZones.md). The server decides where
 	you are (Services/WildZoneService); this shows it.
 
-		card   Top right, while you're inside: the zone's name and its rule, and on the Tilting Moor a
+		card   In the right-hand column (UI/SideCards), while you're inside: the zone's name and its rule, and on the Tilting Moor a
 		       countdown to the ground letting go, from the same synced clock the server uses.
 		tint   A faint colour over the world while you're inside, so you can feel the border. It's a
 		       local ColorCorrectionEffect. Reduce spell effects leaves it off.
@@ -33,6 +33,7 @@ local UI = Client:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local SideCards = require(UI.SideCards)
 
 local UPDATE_SECONDS = 0.2
 local TINT_SECONDS = 1.5
@@ -62,16 +63,7 @@ local function tideText(def: W.Zone): string
 end
 
 local function buildLayer(scope: Kit.Scope, root: Frame)
-	local holder: Frame = Kit.create(nil, "Frame", {
-		Name = "WildZoneCard",
-		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -Theme.space.m, 0, 120),
-		Size = UDim2.fromOffset(300, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = root,
-	})
-	C.list("y", Theme.space.xs).Parent = holder
+	local holder = SideCards.holder(scope, root, 3, "WildZoneCard")
 
 	Kit.dynamic(scope, { WildZoneController.zone }, function(s)
 		local id = WildZoneController.zone:get()
@@ -80,7 +72,7 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 			return
 		end
 		local card = C.panel({
-			BackgroundTransparency = Theme.glass,
+			BackgroundTransparency = SideCards.background,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 1,

@@ -3,8 +3,8 @@
 	SharedEventController: a server-wide event from the player's side (docs/Social.md "Shared events").
 	The server decides everything (Services/SharedEventService); `view` is the last state it sent.
 
-		panel    top centre: the event, where it is, the countdown or time left, progress and your score.
-		         Hidden during a duel (the duel card sits there). The recap shows your tier and rewards.
+		panel    in the right-hand column (UI/SideCards): the event, where it is, the countdown or time left,
+		         progress and your score. The recap shows your tier and rewards.
 		marker   ✦ over the event's place with the distance, until you're inside its zone.
 		warnings Fx/EventFx draws the telegraphs the server cues.
 
@@ -27,6 +27,7 @@ local UI = Client:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local SideCards = require(UI.SideCards)
 local EventFx = require(Client:WaitForChild("Fx"):WaitForChild("EventFx"))
 
 local UPDATE_SECONDS = 0.2
@@ -34,11 +35,10 @@ local MARKER_HEIGHT = 40
 
 local SharedEventController = {
 	name = "SharedEventController",
-	dependencies = { "InterfaceController", "MagicStateController", "DuelController" },
+	dependencies = { "InterfaceController", "MagicStateController" },
 }
 
 local magic: any = nil
-local duel: any = nil
 local localPlayer = Players.LocalPlayer
 
 SharedEventController.view = Kit.value({ phase = "none" } :: { [string]: any })
@@ -177,26 +177,12 @@ local function renderRecap(card: Instance, view: { [string]: any })
 end
 
 local function buildLayer(scope: Kit.Scope, root: Frame)
-	local holder: Frame = Kit.create(nil, "Frame", {
-		Name = "SharedEventPanel",
-		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, Theme.space.m),
-		Size = UDim2.fromOffset(340, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = root,
-	})
-	C.list("y", Theme.space.xs).Parent = holder
+	local holder = SideCards.holder(scope, root, 1, "SharedEventPanel")
 
-	Kit.dynamic(scope, { SharedEventController.view, duel.view, magic.settings, inZone, dismissTick }, function(s)
+	Kit.dynamic(scope, { SharedEventController.view, magic.settings, inZone, dismissTick }, function(s)
 		local view = SharedEventController.view:get()
 		local phase = view.phase
 		if phase == nil or phase == "none" then
-			return
-		end
-		-- The duel card sits in this spot.
-		local duelPhase = duel.view:get().phase
-		if duelPhase == "fight" or duelPhase == "countdown" or duelPhase == "incoming" then
 			return
 		end
 		if phase == "ended" then
@@ -209,7 +195,7 @@ local function buildLayer(scope: Kit.Scope, root: Frame)
 			return
 		end
 		local card = C.panel({
-			BackgroundTransparency = Theme.glass,
+			BackgroundTransparency = SideCards.background,
 			Size = UDim2.fromScale(1, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = 1,
@@ -340,7 +326,6 @@ end
 
 function SharedEventController.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
-	duel = ctx.get("DuelController")
 	ctx.get("InterfaceController"):registerLayer({ id = "SharedEvent", build = buildLayer })
 end
 

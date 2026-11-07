@@ -125,7 +125,7 @@ Touched: `Net/Remotes`, `Core/Topics`, `Config/Flags` (`rifts_enabled`), `Persis
 - **World-scale spells inside a Rift are unverified.** Quakes and tsunamis read generated height, which is sea floor out there. They should do little, but a quake's stress and magic pressure land on the island's nearest edge region, because region lookups clamp.
 - **Full bags lose loot.** The recap says so, but there's no mail yet, the same as shared events.
 - **Fire needs the `burningParts` budget.** If the server is out, a fire spell removes planks directly instead.
-- **The numbers are barely tested.** The one run used a mix of tier 1 and a jump to tier 8 (`testmage`), so it says little about balance. The panel's position (top right, 120 down) hasn't been reported on.
+- **The numbers are barely tested.** The one run used a mix of tier 1 and a jump to tier 8 (`testmage`), so it says little about balance. The panel is now in the shared right-hand column (`UI/SideCards`).
 - **Fixed after the first run:** the pocket sat at y = 120, and off the island Travel and Flight measure height from sea level, so every ride ended in under a second (`travel_violation height=76`). It's now at y = 60, and a spec keeps it there. Not yet re-run.
 - **One `dash_overshoot` in that run** (blink, allowed 5, moved 21). It only logs, and has no effect on play. A dash during a ride may explain it, unconfirmed. Watch whether it recurs.
 

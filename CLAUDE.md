@@ -46,6 +46,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 - **Titans (`docs/Titans.md`), built 2026-11-06 on "Build that next", not yet run, and the Moor fix and Wild Zones stage 2 above still unreported.** Expected boot line `specs 780/780` (32 new in `Tests/Titans.spec`), if the unconfirmed 748 holds, plus `titans_ready`. Test with `titan start`, `titan goto`, `titan status`, then break a weak point and `titan win`. Look for `titan_built`, `titan_weak_broken`, `titan_fell`. A fall's name is in a world store, so erasure needs `titan forget any <userId>` as well (Backend.md).
 
+- **Event cards moved (2026-11-06, owner: the popout in the middle of the screen "gets hard to read or see"), not yet run.** Shared event, Titan, wild zone and Rift cards now stack in one right-hand column (`UI/SideCards`, 120 down) with a more solid background. Claude assumed the Titan or shared event panel was the one meant; the duel card stays top centre on purpose. New cards of this kind belong in this column, not the middle. No spec change: still expect `specs 780/780`.
+
 **2. Next up**
 - **Rift tuning is paused by the owner (2026-11-06: "we'll go back to tuning rifts another time"):** don't raise it unprompted. When it resumes, the missing log is a low-level run with no `testmage` or `cheat`; `rift_ended seconds=` gives the answer directly. Stage 3 ideas are in `docs/Rifts.md`, nothing chosen.
 - **Wild Zones stage 3, once stage 2 has been played:** quests pointing at zones, more zones or a share per world, rules changing with weather or time of day (`docs/WildZones.md`). Nothing there is chosen.
