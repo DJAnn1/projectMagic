@@ -84,6 +84,7 @@ local BuildingGenerator = {}
 type Opening = { u: number, w: number, bottom: number, top: number, door: boolean? }
 
 type Builder = {
+	links: { { a: Vector3, b: Vector3 } }, -- walkable connections the pathfinder can't see for itself
 	model: Model,
 	base: CFrame,
 	rng: Random,
@@ -302,6 +303,10 @@ local function frontDoor(b: Builder, opening: Opening, d: number, color: Color3,
 		KeyId = b.lotId,
 	})
 	CollectionService:AddTag(leaf, "Door")
+	table.insert(b.links, {
+		a = Vector3.new(opening.u, 1, -d / 2 - 2.5), -- on the ground outside
+		b = Vector3.new(opening.u, FLOOR_Y + 1, -d / 2 + T + 2.5), -- on the floor inside
+	})
 end
 
 -- Fireplace embers: dark until lit (Interact/Lamps: dusk when someone's home, or by hand).
@@ -710,6 +715,10 @@ local function shell(b: Builder, o: ShellOptions): Shell
 			part(b, "Stair", Vector3.new(stairW, storyH / steps, 1.1), CFrame.new(x0 + stairW / 2, FLOOR_Y + (i - 0.5) * storyH / steps, zStart + (i - 0.5) * 1.1), floorMat, vary(rng, floorColor, 0.03), { small = true })
 		end
 		upperY, stairX = y, x0
+		table.insert(b.links, {
+			a = Vector3.new(x0 + stairW / 2, FLOOR_Y + 1, zStart - 1.5), -- at the foot of the stairs
+			b = Vector3.new(x0 - 1.5, y + 1, zEnd - 1), -- on the upper floor, by the top step
+		})
 	end
 
 	-- Roof.
@@ -1272,9 +1281,28 @@ function BuildingGenerator.build(spec: any): (Model?, number, string?)
 		drop = math.max(0, tonumber(spec.drop) or 0),
 		counts = {},
 		seats = {},
+		links = {},
 	}
 	local primary = kind.builder(b, spec)
 	model.PrimaryPart = primary
+	-- Through doors and up stairs. A doorway is narrower than the pathfinder's grid can see, so without these
+	-- every interior is a sealed island: `npcmove` showed 498 no paths and 0 doors ever opened (2026-11-07).
+	for i, link in b.links do
+		local from = Instance.new("Attachment")
+		from.Name = "PathLink" .. i .. "A"
+		from.Parent = primary
+		from.WorldCFrame = b.base * CFrame.new(link.a)
+		local to = Instance.new("Attachment")
+		to.Name = "PathLink" .. i .. "B"
+		to.Parent = primary
+		to.WorldCFrame = b.base * CFrame.new(link.b)
+		local pathLink = Instance.new("PathfindingLink")
+		pathLink.Attachment0 = from
+		pathLink.Attachment1 = to
+		pathLink.IsBidirectional = true
+		pathLink.Label = "NpcDoor"
+		pathLink.Parent = primary
+	end
 	for i, seat in b.seats do
 		anchor(b, primary, "NPCSeat" .. i, "NPCSeat", seat.Position, spec.lotId)
 	end

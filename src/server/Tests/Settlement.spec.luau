@@ -534,6 +534,28 @@ return function(t: any)
 			;(model :: Model):Destroy()
 		end)
 
+		it("connects the inside to the street through its door, and the floors by the stairs", function()
+			local function linksIn(kind: string, w: number, d: number): { PathfindingLink }
+				local at = CFrame.new(-620, 60, 150) * CFrame.Angles(0, 0.7, 0)
+				local model = BuildingGenerator.build({ kind = kind, cframe = at, w = w, d = d, seed = 1, culture = "wayfarer", name = "A", settlementId = "s", lotId = "a" })
+				local links: { PathfindingLink } = {}
+				for _, d2 in (model :: Model):GetDescendants() do
+					if d2:IsA("PathfindingLink") then
+						table.insert(links, d2)
+						local from, to = d2.Attachment0, d2.Attachment1
+						expect(from ~= nil and to ~= nil).toBe(true)
+						-- Near the building, a short step apart: an anchor bug would throw these across the map.
+						expect(((from :: Attachment).WorldPosition - at.Position).Magnitude < 40).toBe(true)
+						expect(((from :: Attachment).WorldPosition - (to :: Attachment).WorldPosition).Magnitude < 30).toBe(true)
+					end
+				end
+				;(model :: Model):Destroy()
+				return links
+			end
+			expect(#linksIn("house_small", 18, 16)).toBe(1)
+			expect(#linksIn("house_large", 26, 22) >= 2).toBe(true)
+		end)
+
 		it("varies with the seed", function()
 			local a = BuildingGenerator.build({ kind = "house_small", cframe = CFrame.new(), w = 18, d = 16, seed = 1, culture = "wayfarer", name = "A", settlementId = "s", lotId = "a" })
 			local b = BuildingGenerator.build({ kind = "house_small", cframe = CFrame.new(), w = 18, d = 16, seed = 2, culture = "wayfarer", name = "B", settlementId = "s", lotId = "b" })

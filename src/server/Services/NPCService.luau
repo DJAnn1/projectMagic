@@ -412,7 +412,18 @@ local function route(npc: any)
 		if district == "home" and npc.home and npc.home.lot == npc.insideLot and not downLots[npc.insideLot] then
 			return -- home already, and staying there
 		end
+		-- They came in by the door, not by a path, so the way out is the same: through it, and into the street.
+		local door = settlementSvc:anchor(npc.insideLot, "Entrance")
 		npc.insideLot = nil
+		if door and npc.rig and not npc.rig.root.Anchored then
+			for _, leaf in Doors.near(door, 8) do
+				if not Doors.isOpen(leaf) then
+					Doors.open(leaf)
+				end
+			end
+			npc.rig.model:PivotTo(CFrame.new(door))
+			npc.position = door
+		end
 	end
 	local target: Vector3? = nil
 	if not rogue and district == "home" and npc.home then
@@ -466,6 +477,7 @@ local function stepEnterHome(npc: any, clock: number)
 	end
 	npc.enterHome = nil
 	npc.insideLot = entering.lot
+	npc.reachedHomeLogged = true -- so this doesn't also count as having walked there
 	local bed = homePosition(npc)
 	Navigation.Stop(npc)
 	npc.destination = nil
