@@ -11,7 +11,7 @@ Following the design rule (2026-11-07): there's no meter, card or popup. You lea
 | Part | What happens | Where |
 |---|---|---|
 | Counting | Every spell that works (SpellResolved: effective, not borrowed, not backfired) adds 1 point to its domain. A hybrid splits the point. At most one counted cast per 2 s per player, and 600 points per domain per real day. | `Services/MarkService`, `Magic/MarkRules.addCast` |
-| Fading | Every real day takes 2% of every domain's points, applied on load and at midnight on a running server. | `MarkRules.decay` |
+| Fading | Every real day takes 2% of every domain's points, applied on load and at midnight on a running server. The owner's decision (2026-11-07): marks fade over time and are never permanent. With no use, a top stage 3 mark drops to stage 2 in about 9 days, to stage 1 in about 68, and is gone in about 146; a fresh stage 1 is gone in about 9. | `MarkRules.decay` |
 | Stages | 250 / 1,200 / 4,000 points. A shown stage only drops below threshold × 0.85, so a mark doesn't flicker on a boundary. | `MarkRules.stageFor` |
 | Share | A domain must be at least 35% of all your points to mark you, and keeps the mark down to 25%. Two marks at most: the strongest win. A little of everything marks nobody. | `MarkRules.evaluate` |
 | On the body | The character gets the attribute `MagicMarks` (`"energy:2,water:1"`) and the tag `MagicMarked`. NPC rigs get the same through `NPCLOD.setMarksProvider`. | `MarkService`, `NPC/NPCLOD` |
