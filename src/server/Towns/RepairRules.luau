@@ -11,12 +11,18 @@
 		mended(integrity) -> (integrity, gained)    a standing building's slow recovery
 		isLiving(modelName) -> boolean              recovers by itself: nobody comes to fix it
 		pickWorker(candidates) -> id?               who comes to fix it
-		workSpot(part, from) -> Vector3             where they stand to do it
+		footprint(positions) / footprintOf(cf, size)   the ground a building covers
+		inside(footprint, position) -> boolean
+		spotAround(footprint, from, turn) -> Vector3   where they stand: outside it, on some side
+		scaffoldPlan(footprint, baseY, topY) -> pieces  poles and planks
 ]]
 
 local Data = require(script.Parent.Data.Repair)
 
 local T = Data.tuning
+
+export type Footprint = { x: number, z: number, hx: number, hz: number }
+export type ScaffoldPiece = { kind: string, size: Vector3, position: Vector3 }
 
 export type Candidate = { id: string, occupation: string, available: boolean, distance: number }
 
@@ -88,10 +94,91 @@ function RepairRules.pickWorker(candidates: { Candidate }): string?
 	return if best then best.id else nil
 end
 
-function RepairRules.workSpot(part: Vector3, from: Vector3): Vector3
-	local flat = Vector3.new(from.X - part.X, 0, from.Z - part.Z)
-	local away = if flat.Magnitude > 0.5 then flat.Unit else Vector3.new(1, 0, 0)
-	return Vector3.new(part.X, from.Y, part.Z) + away * T.stepOff
+-- The ground covered by these points. A collapsed building's real places, not where its rubble landed.
+function RepairRules.footprint(positions: { Vector3 }): Footprint
+	local x0, x1, z0, z1 = math.huge, -math.huge, math.huge, -math.huge
+	for _, p in positions do
+		x0, x1 = math.min(x0, p.X), math.max(x1, p.X)
+		z0, z1 = math.min(z0, p.Z), math.max(z1, p.Z)
+	end
+	if x0 > x1 then
+		return { x = 0, z = 0, hx = 0, hz = 0 }
+	end
+	return { x = (x0 + x1) / 2, z = (z0 + z1) / 2, hx = (x1 - x0) / 2, hz = (z1 - z0) / 2 }
+end
+
+-- The same for a standing model's bounding box, which may be turned.
+function RepairRules.footprintOf(cf: CFrame, size: Vector3): Footprint
+	local r, u, l = cf.RightVector, cf.UpVector, cf.LookVector
+	return {
+		x = cf.Position.X,
+		z = cf.Position.Z,
+		hx = (math.abs(r.X) * size.X + math.abs(u.X) * size.Y + math.abs(l.X) * size.Z) / 2,
+		hz = (math.abs(r.Z) * size.X + math.abs(u.Z) * size.Y + math.abs(l.Z) * size.Z) / 2,
+	}
+end
+
+function RepairRules.inside(footprint: Footprint, position: Vector3): boolean
+	return math.abs(position.X - footprint.x) <= footprint.hx and math.abs(position.Z - footprint.z) <= footprint.hz
+end
+
+-- Somewhere to stand outside the building: the side nearest `from`, then `turn` sides round from there.
+-- Always outside, so nobody gets built into it.
+function RepairRules.spotAround(footprint: Footprint, from: Vector3, turn: number): Vector3
+	local dx, dz = from.X - footprint.x, from.Z - footprint.z
+	local rx, rz = math.abs(dx) / math.max(footprint.hx, 1), math.abs(dz) / math.max(footprint.hz, 1)
+	-- Sides in order round the building: +X, +Z, -X, -Z.
+	local side = if rx >= rz then (if dx >= 0 then 0 else 2) else (if dz >= 0 then 1 else 3)
+	side = (side + turn) % 4
+	local x, z = footprint.x, footprint.z
+	if side == 0 then
+		x += footprint.hx + T.stepOff
+	elseif side == 1 then
+		z += footprint.hz + T.stepOff
+	elseif side == 2 then
+		x -= footprint.hx + T.stepOff
+	else
+		z -= footprint.hz + T.stepOff
+	end
+	return Vector3.new(x, from.Y, z)
+end
+
+function RepairRules.scaffoldPlan(footprint: Footprint, baseY: number, topY: number): { ScaffoldPiece }
+	local s = Data.scaffold
+	local hx, hz = footprint.hx + s.margin, footprint.hz + s.margin
+	local bottom = baseY - s.groundBelow
+	local height = math.max(4, topY - bottom)
+	local midY = bottom + height / 2
+	local out: { ScaffoldPiece } = {}
+	local function pole(x: number, z: number)
+		table.insert(out, { kind = "Pole", size = Vector3.new(s.poleWidth, height, s.poleWidth), position = Vector3.new(x, midY, z) })
+	end
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			pole(footprint.x + sx * hx, footprint.z + sz * hz)
+		end
+		if hz * 2 > s.midPoleOver then
+			pole(footprint.x + sx * hx, footprint.z)
+		end
+	end
+	if hx * 2 > s.midPoleOver then
+		for _, sz in { -1, 1 } do
+			pole(footprint.x, footprint.z + sz * hz)
+		end
+	end
+	local level = 1
+	local y = baseY + s.levelEvery
+	while y < topY and level <= s.maxLevels do
+		for _, sz in { -1, 1 } do
+			table.insert(out, { kind = "Plank", size = Vector3.new(hx * 2, s.plankThick, s.plankWide), position = Vector3.new(footprint.x, y, footprint.z + sz * hz) })
+		end
+		for _, sx in { -1, 1 } do
+			table.insert(out, { kind = "Plank", size = Vector3.new(s.plankWide, s.plankThick, hz * 2), position = Vector3.new(footprint.x + sx * hx, y, footprint.z) })
+		end
+		level += 1
+		y += s.levelEvery
+	end
+	return out
 end
 
 return RepairRules

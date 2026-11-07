@@ -28,6 +28,10 @@ Flag: `town_repair_enabled`.
 
 **Collapsed buildings.** A town building that comes down, whatever caused it (quake, tsunami, Titan, spell), is rebuilt with its own pieces. `WorldStateService.setCollapseHook` records where every piece belongs just before it falls. After 2 minutes for the rubble to settle, it goes back up from the ground, one piece every 8 seconds with someone on it, or every 40 with nobody around, so a house takes many minutes and, with nobody there, about an hour. When the last piece is in it's checked: anything knocked out again goes back on the list. Then it's a real building again, with full integrity, and its damage comes off the town's record. Anything already charred gets repaired along with it.
 
+**The look of it.** Scaffolding goes up around a rebuild (`Towns/Scaffold`, 6 at most at once; nothing in it collides). Pieces rise a couple of studs into place, not fly across town. Workers stand outside the footprint, measured from where the pieces belong rather than where the rubble landed, and move round to another side every 6 pieces. Others are sent out of the footprint every 5 seconds, so nobody gets walled in.
+
+**The people.** When a building falls, whoever lives or works there says something and goes elsewhere straight away (`NPCService.setLotDown`). People who live there go to their closest friend's house in town, or failing that the tavern, and can open that friend's door. People who work there make do at their district's usual spot. When it's rebuilt, they go home and say so. At most 3 of them speak per building.
+
 **Damaged but standing.** A building that's been hurt but hasn't fallen regains 1 integrity every 30 seconds by itself, off the town's record as it goes.
 
 Fighting, a quest needing that NPC, or walking out of range ends the job, and someone else picks it up later.
@@ -53,8 +57,11 @@ Fighting, a quest needing that NPC, or walking out of range ends the job, and so
 - **A scar's box can turn natural bare ground to grass** when it regrows, if the box caught some.
 - **A Titan's trail** is a separate unhealing edit from its fires' scars, so its road stays marked until the chunk rebuilds.
 - **Repair doesn't care how a part burned.** A building in a duel gets the same treatment as one a loose spell lit.
-- **A worker can stand at a bad spot:** the spot is 5 studs from the part on their side, with no check for a wall or drop. If they can't get there in 35 seconds, they work from wherever they stopped.
+- **A worker can stand at a bad spot:** the spot is 4 studs outside the building with no check for a wall or drop. If they can't get there in 35 seconds, they work from wherever they stopped.
+- **Scaffolding only goes up on 6 buildings at a time.** After a big quake, the rest get rebuilt without it, and they don't gain one until they're next looked at.
+- **A player can still be walled in.** Only NPCs are sent out of the footprint.
+- **A district's other buildings** may still send someone towards a collapsed one: only homes and named workplaces are handled.
 
 ## Ideas for later (nothing chosen)
 
-Scaffolding around a rebuild. Repairs using up the town's materials or depending on its prosperity. Players helping, and being remembered for it.
+Repairs using up the town's materials or depending on its prosperity. Players helping, and being remembered for it.

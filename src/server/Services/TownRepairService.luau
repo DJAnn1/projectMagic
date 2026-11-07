@@ -14,8 +14,11 @@
 	           paler, so a patched building looks patched.
 	COLLAPSE   A town building that comes down, for any reason (WorldStateService.setCollapseHook), is put
 	           back from the ground up with its own pieces, once the rubble has settled, one piece at a time.
-	           It takes many minutes with someone on it, and far longer with nobody around. When it's done
-	           it's a real building again, and its damage comes off the town's record.
+	           Scaffolding goes up around it, and pieces rise into place. Workers stand outside it and move
+	           round as they go. It takes many minutes with someone on it, and far longer with nobody around.
+	           When it's done it's a real building again, and its damage comes off the town's record.
+	RESIDENTS  Whoever lives or works there says so, and goes elsewhere (NPCService.setLotDown): to a friend's
+	           house, or the tavern. Others are sent out of the footprint while it goes back up.
 	MENDING    A building that's damaged but still standing slowly regains its strength by itself.
 	SAVED      Nothing. This server's town recovers on this server. Ground that burned bare is a live terrain
 	           edit that never reaches the saved log.
@@ -43,6 +46,7 @@ local Navigation = require(Server.NPC.NavigationService)
 local Activities = require(Server.NPC.Data.Activities)
 local Data = require(Server.Towns.Data.Repair)
 local Rules = require(Server.Towns.RepairRules)
+local Scaffold = require(Server.Towns.Scaffold)
 local TerrainBuilder = require(Server.World.TerrainBuilder)
 
 local T = Data.tuning
@@ -54,7 +58,19 @@ local TownRepairService = {
 
 -- One thing to put right. `at` means it's a piece of a collapsed building, going back to that place.
 type Charred = { part: BasePart, color: Color3, flammability: number, at: CFrame? }
-type Building = { model: Model, parts: { Charred }, rebuild: boolean, startAfter: number, all: { Charred } }
+type Building = {
+	model: Model,
+	parts: { Charred },
+	rebuild: boolean,
+	startAfter: number,
+	all: { Charred },
+	footprint: Rules.Footprint?,
+	baseY: number,
+	topY: number,
+	lotId: string?,
+	scaffold: Model?,
+	nextKeepOut: number,
+}
 type Job = {
 	npc: any,
 	building: Building,
@@ -62,6 +78,8 @@ type Job = {
 	working: boolean,
 	giveUpAt: number,
 	nextPart: number,
+	placed: number,
+	turn: number,
 }
 type Town = { id: string, buildings: { Building }, job: Job?, nextOffscreen: number, nextLiving: number }
 type Scar = { x: number, y: number, z: number, material: string, heals: { number }, spots: { { x: number, z: number } }, done: { boolean } }
@@ -72,6 +90,8 @@ local worldService: any = nil
 local world: any = nil
 local settlements: any = nil
 
+local scaffoldCount = 0
+local scaffoldFolder: Folder? = nil
 local rushing = false -- admin: no settling, and a piece a second, so it can be tested
 local towns: { [string]: Town } = {}
 local scars: { Scar } = {}
@@ -192,7 +212,7 @@ local function record(part: BasePart, color: Color3, flammability: number)
 		end
 	end
 	if not building then
-		building = { model = model, parts = {}, rebuild = false, startAfter = 0, all = {} }
+		building = { model = model, parts = {}, rebuild = false, startAfter = 0, all = {}, footprint = nil, baseY = 0, topY = 0, lotId = nil, scaffold = nil, nextKeepOut = 0 }
 		table.insert(town.buildings, building :: Building)
 	end
 	table.insert((building :: Building).parts, { part = part, color = color, flammability = flammability })
@@ -209,6 +229,8 @@ local function placePiece(entry: Charred)
 	part.AssemblyAngularVelocity = Vector3.zero
 	part.Anchored = true
 	part.Color = entry.color
+	-- It comes up into place, the last bit of being lifted there, and not flying across town.
+	part.CFrame = at * CFrame.new(0, -T.riseFrom, 0)
 	TweenService:Create(part, TweenInfo.new(T.pieceSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = at }):Play()
 end
 
@@ -237,6 +259,53 @@ local function charredIn(parts: { Charred }): number
 	return n
 end
 
+local function removeScaffold(building: Building)
+	local scaffold = building.scaffold
+	if scaffold then
+		building.scaffold = nil
+		scaffoldCount -= 1
+		scaffold:Destroy()
+	end
+end
+
+local function ensureScaffold(building: Building)
+	if building.scaffold or not building.rebuild or not building.footprint or scaffoldCount >= Data.scaffold.maxAlive or not scaffoldFolder then
+		return
+	end
+	building.scaffold = Scaffold.build(building.footprint, building.baseY, building.topY, scaffoldFolder)
+	scaffoldCount += 1
+end
+
+-- They've got somewhere else to be now, or they can go home. A few of them say so.
+local function tellResidents(lotId: string?, down: boolean)
+	if not lotId then
+		return
+	end
+	local affected = npcs:setLotDown(lotId, down)
+	for i, entry in affected do
+		if i > T.maxResidentLines then
+			break
+		end
+		local npc = entry.npc
+		local seed = (npc.seed or 0) + i
+		if down then
+			if entry.friend then
+				local lines = Data.lines.homeLostFriend
+				npcs:speak(npc, string.format(lines[seed % #lines + 1], entry.friend), T.shoutRadius)
+			else
+				local lines = if entry.kind == "home" then Data.lines.homeLost else Data.lines.workLost
+				npcs:speak(npc, lines[seed % #lines + 1], T.shoutRadius)
+			end
+		elseif entry.kind == "home" then
+			local lines = Data.lines.homeBack
+			npcs:speak(npc, lines[seed % #lines + 1], T.shoutRadius)
+		end
+	end
+	if #affected > 0 then
+		log:info("town_residents_moved", { lot = lotId, down = down, people = #affected })
+	end
+end
+
 -- The last piece is in. Anything knocked out again goes back on the list. Otherwise it's a building again.
 local function finishRebuild(town: Town, building: Building): boolean
 	local out: { Charred } = {}
@@ -258,6 +327,8 @@ local function finishRebuild(town: Town, building: Building): boolean
 	world:addSettlementDelta("damage", town.id, -T.wholeIntegrity)
 	settlements:clearInterior(model) -- a quake may have pushed ground up where the floor goes
 	Navigation.Invalidate(model:GetPivot().Position, 40)
+	removeScaffold(building)
+	tellResidents(building.lotId, false)
 	log:info("town_rebuilt", { town = town.id, building = model.Name })
 	return true
 end
@@ -277,6 +348,10 @@ local function tidy(town: Town)
 		end
 		if not building.model.Parent then
 			charredTotal -= charredIn(building.parts)
+			removeScaffold(building)
+			if building.rebuild then
+				tellResidents(building.lotId, false)
+			end
 			table.remove(town.buildings, i)
 		elseif #building.parts == 0 then
 			if not building.rebuild or finishRebuild(town, building) then
@@ -330,13 +405,29 @@ local function onCollapse(model: Model, cause: string)
 		end
 	end
 	Rules.rebuildOrder(pieces)
+	local places: { Vector3 } = {}
+	local baseY, topY = math.huge, -math.huge
+	for _, piece in pieces do
+		local at = (piece.at :: CFrame).Position
+		table.insert(places, at)
+		baseY, topY = math.min(baseY, at.Y), math.max(topY, at.Y)
+	end
+	local lot = model:GetAttribute("LotId")
+	local lotId: string? = if typeof(lot) == "string" then lot else nil
 	table.insert(town.buildings, {
 		model = model,
 		parts = pieces,
 		rebuild = true,
 		startAfter = os.clock() + T.rebuildDelay,
 		all = table.clone(pieces),
+		footprint = Rules.footprint(places),
+		baseY = baseY,
+		topY = topY,
+		lotId = lotId,
+		scaffold = nil,
+		nextKeepOut = 0,
 	})
+	tellResidents(lotId, true)
 	log:info("town_collapse_noted", { town = id, building = model.Name, cause = cause, pieces = #pieces })
 end
 
@@ -407,6 +498,9 @@ local function stepJob(town: Town, job: Job, now: number)
 	if not job.working then
 		local at: Vector3 = npc.rig.root.Position
 		local close = Vector3.new(at.X - job.leash.position.X, 0, at.Z - job.leash.position.Z).Magnitude <= T.workReach
+		if close and not job.working then
+			NPCLOD.stopActivity(npc)
+		end
 		if close or now >= job.giveUpAt then
 			job.working = true
 			job.nextPart = now + secondsFor(building)
@@ -419,9 +513,21 @@ local function stepJob(town: Town, job: Job, now: number)
 		job.nextPart = now + secondsFor(building)
 		table.remove(building.parts)
 		repairPart(entry)
+		job.placed += 1
 		local following = building.parts[#building.parts]
 		if following then
 			Navigation.Face(npc, whereOf(following))
+		end
+		-- On a rebuild they work their way round it, not stand at one wall.
+		local footprint = building.footprint
+		if following and building.rebuild and footprint and job.placed % T.moveEvery == 0 then
+			job.turn += 1
+			local leash = { kind = "hold", position = Rules.spotAround(footprint, npc.position, 1) }
+			job.leash = leash
+			npcs:setLeash(npc, leash)
+			job.working = false
+			job.giveUpAt = now + T.walkSeconds
+			NPCLOD.stopActivity(npc)
 		end
 	end
 end
@@ -462,13 +568,36 @@ local function startJob(town: Town, building: Building, now: number): boolean
 	if not npc then
 		return false
 	end
-	local spot = Rules.workSpot(whereOf(entry), npc.position)
+	local footprint = building.footprint
+	if not footprint then
+		local cf, size = building.model:GetBoundingBox()
+		footprint = Rules.footprintOf(cf, size)
+		building.footprint = footprint
+	end
+	local spot = Rules.spotAround(footprint :: Rules.Footprint, npc.position, 0)
 	local leash = { kind = "hold", position = spot }
 	npcs:setLeash(npc, leash)
-	town.job = { npc = npc, building = building, leash = leash, working = false, giveUpAt = now + T.walkSeconds, nextPart = 0 }
+	town.job = { npc = npc, building = building, leash = leash, working = false, giveUpAt = now + T.walkSeconds, nextPart = 0, placed = 0, turn = 0 }
 	say(npc, if building.rebuild then "rebuildStart" else "start", npc.seed or 0)
 	log:info("town_repair_started", { town = town.id, npc = npc.id, occupation = npc.occupation, parts = #building.parts })
 	return true
+end
+
+-- Nobody stays in a building going back up: that's how you get walled in.
+local function keepOut(town: Town, building: Building, now: number)
+	local footprint = building.footprint
+	if not building.rebuild or not footprint or now < building.nextKeepOut then
+		return
+	end
+	building.nextKeepOut = now + T.keepOutEvery
+	local worker = if town.job then town.job.npc else nil
+	for _, npc in npcs:all() do
+		if npc ~= worker and npc.settlementId == town.id and npc.rig and npc.tier == 0 and not npc.leash and not npc.knockedOut and not NPCCombat.engaged(npc) then
+			if Rules.inside(footprint, npc.rig.root.Position) then
+				NPCLOD.setDestination(npc, Rules.spotAround(footprint, npc.rig.root.Position, 0))
+			end
+		end
+	end
 end
 
 local function stepTown(town: Town, now: number)
@@ -480,6 +609,8 @@ local function stepTown(town: Town, now: number)
 			living = living or candidate
 		elseif rushing or now >= candidate.startAfter then
 			building = building or candidate
+			ensureScaffold(candidate)
+			keepOut(town, candidate, now)
 		end
 	end
 	if living and now >= town.nextLiving then
@@ -613,6 +744,10 @@ function TownRepairService.init(_self: any, ctx: any)
 end
 
 function TownRepairService.start(_self: any, _ctx: any)
+	local folder = Instance.new("Folder")
+	folder.Name = "Scaffolds"
+	folder.Parent = workspace
+	scaffoldFolder = folder
 	task.spawn(function()
 		local mendAcc = 0
 		while true do

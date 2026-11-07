@@ -98,6 +98,71 @@ return function(t: any)
 		end)
 	end)
 
+	describe("A building's footprint", function()
+		it("comes from where the pieces belong", function()
+			local f = Rules.footprint({ Vector3.new(0, 0, 0), Vector3.new(10, 5, 20) })
+			expect(f.x).toBe(5)
+			expect(f.z).toBe(10)
+			expect(f.hx).toBe(5)
+			expect(f.hz).toBe(10)
+			expect(Rules.inside(f, Vector3.new(5, 0, 10))).toBe(true)
+			expect(Rules.inside(f, Vector3.new(50, 0, 10))).toBe(false)
+		end)
+
+		it("survives having no pieces", function()
+			expect(Rules.footprint({}).hx).toBe(0)
+		end)
+
+		it("allows for a turned building", function()
+			local f = Rules.footprintOf(CFrame.Angles(0, math.pi / 2, 0), Vector3.new(10, 4, 20))
+			expect(math.abs(f.hx - 10) < 0.01).toBe(true)
+			expect(math.abs(f.hz - 5) < 0.01).toBe(true)
+		end)
+	end)
+
+	describe("Scaffolding", function()
+		local house: Rules.Footprint = { x = 0, z = 0, hx = 10, hz = 8 }
+
+		it("stands outside the building, with poles and planks", function()
+			local poles, planks = 0, 0
+			for _, piece in Rules.scaffoldPlan(house, 60, 80) do
+				if piece.kind == "Pole" then
+					poles += 1
+					expect(Rules.inside(house, piece.position)).toBe(false)
+				else
+					planks += 1
+				end
+			end
+			expect(poles >= 4).toBe(true)
+			expect(planks >= 4).toBe(true)
+		end)
+
+		it("doesn't grow without limit on something very tall", function()
+			local plan = Rules.scaffoldPlan(house, 0, 1000)
+			expect(#plan <= 8 + Data.scaffold.maxLevels * 4).toBe(true)
+		end)
+
+		it("a low building gets poles and no platforms", function()
+			for _, piece in Rules.scaffoldPlan(house, 60, 62) do
+				expect(piece.kind).toBe("Pole")
+			end
+		end)
+	end)
+
+	describe("People whose building came down", function()
+		it("have words for it, and the friend's name fits", function()
+			for _, line in Data.lines.homeLostFriend do
+				expect(string.find(line, "%s", 1, true) ~= nil).toBe(true)
+			end
+			for _, kind in { "homeLost", "workLost", "homeBack" } do
+				expect(#(Data.lines :: any)[kind] > 0).toBe(true)
+				for _, line in (Data.lines :: any)[kind] do
+					expect(string.find(line, "%", 1, true)).toBe(nil)
+				end
+			end
+		end)
+	end)
+
 	describe("Damaged but standing", function()
 		it("recovers a little at a time, and never past whole", function()
 			local after, gained = Rules.mended(50)
@@ -143,11 +208,36 @@ return function(t: any)
 			expect(Rules.pickWorker({ a, b })).toBe(Rules.pickWorker({ b, a }))
 		end)
 
-		it("stands back from the damage, on their own side of it", function()
-			local spot = Rules.workSpot(Vector3.new(0, 80, 0), Vector3.new(50, 60, 0))
-			expect(spot.X).toBe(T.stepOff)
+		it("stands outside the building, on the side they came from", function()
+			local house: Rules.Footprint = { x = 0, z = 0, hx = 10, hz = 6 }
+			local spot = Rules.spotAround(house, Vector3.new(50, 60, 0), 0)
+			expect(spot.X).toBe(10 + T.stepOff)
 			expect(spot.Z).toBe(0)
 			expect(spot.Y).toBe(60)
+			expect(Rules.inside(house, spot)).toBe(false)
+		end)
+
+		it("is never inside it, from anywhere and on any side: that's how the builder got walled in", function()
+			local house: Rules.Footprint = { x = 5, z = -3, hx = 8, hz = 12 }
+			for _, from in { Vector3.new(5, 0, -3), Vector3.new(6, 0, 0), Vector3.new(100, 0, 3), Vector3.new(-40, 0, -90) } do
+				for turn = 0, 3 do
+					expect(Rules.inside(house, Rules.spotAround(house, from, turn))).toBe(false)
+				end
+			end
+		end)
+
+		it("works its way round: four turns visit four different sides", function()
+			local house: Rules.Footprint = { x = 0, z = 0, hx = 10, hz = 10 }
+			local seen: { [string]: boolean } = {}
+			for turn = 0, 3 do
+				local spot = Rules.spotAround(house, Vector3.new(50, 0, 0), turn)
+				seen[spot.X .. "," .. spot.Z] = true
+			end
+			local count = 0
+			for _ in seen do
+				count += 1
+			end
+			expect(count).toBe(4)
 		end)
 	end)
 

@@ -355,9 +355,18 @@ local function assignBuildings(town: Town)
 	end
 end
 
--- Where an NPC sleeps: its bed's NPCHome anchor, else its old district home spot.
+-- Buildings that have come down, by lot, until they're rebuilt (setLotDown). Nobody goes home to these.
+local downLots: { [string]: boolean } = {}
+
+-- Where an NPC sleeps: its bed's NPCHome anchor, else its old district home spot. With its house down: a
+-- friend's house if it has somewhere to go, else the tavern.
 local function homePosition(npc: any): Vector3
 	local home = npc.home
+	if home and downLots[home.lot] then
+		local shelter = npc.shelter
+		local stay = shelter and settlementSvc:anchor(shelter.lot, "NPCHome", shelter.slot)
+		return stay or spotFor(npc, "tavern")
+	end
 	local at = home and settlementSvc:anchor(home.lot, "NPCHome", home.slot)
 	return at or spotFor(npc, "home")
 end
@@ -365,6 +374,9 @@ end
 -- Where an NPC works: its workplace's NPCWork anchor (co-workers spread around it), or nil.
 local function workPosition(npc: any): Vector3?
 	local work = npc.work
+	if work and downLots[work.lot] then
+		return nil -- their workplace is rubble: they make do at the district's usual spot
+	end
 	local at = work and settlementSvc:anchor(work.lot, "NPCWork")
 	if not at then
 		return nil
@@ -1674,6 +1686,52 @@ function NPCService.setRumorHook(_self: any, fn: (Player, any) -> string?, first
 	else
 		table.insert(rumorHooks, fn)
 	end
+end
+
+-- The closest friend in town whose own house is standing, or nil.
+local function friendToStayWith(npc: any): any?
+	for _, rel in RelationshipGraph.top(npc.id, 8) do
+		local other = byId[rel.id]
+		if other and other.settlementId == npc.settlementId and rel.edge.affinity > 0 and other.home and not downLots[other.home.lot] then
+			return other
+		end
+	end
+	return nil
+end
+
+--[[
+	A building has come down, or is back up (Services/TownRepairService). Whoever lives or works there
+	goes elsewhere, or home again, straight away. Returns who, for them to say something about it:
+	{ { npc, kind = "home" | "work", friend = name? } }.
+]]
+function NPCService.setLotDown(_self: any, lotId: string, down: boolean): { any }
+	downLots[lotId] = if down then true else nil
+	local affected: { any } = {}
+	for _, npc in byId do
+		local lives = npc.home and npc.home.lot == lotId
+		local works = npc.work and npc.work.lot == lotId
+		local staying = npc.shelter and npc.shelter.lot == lotId
+		if lives or staying then
+			if down then
+				local friend = friendToStayWith(npc)
+				npc.shelter = if friend then { lot = friend.home.lot, slot = friend.home.slot } else nil
+				if lives then
+					table.insert(affected, { npc = npc, kind = "home", friend = if friend then friend.name else nil })
+				end
+			else
+				npc.shelter = nil
+				if lives then
+					table.insert(affected, { npc = npc, kind = "home" })
+				end
+			end
+		elseif works then
+			table.insert(affected, { npc = npc, kind = "work" })
+		end
+		if (lives or staying or works) and not npc.leash and not NPCCombat.engaged(npc) then
+			route(npc)
+		end
+	end
+	return affected
 end
 
 -- Something this person will remember, and may gossip about (Services/FeralService).

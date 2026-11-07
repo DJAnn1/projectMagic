@@ -21,9 +21,11 @@ Repair.tuning = {
 
 	-- Charred buildings
 	maxParts = 400, -- charred parts tracked per server
-	workReach = 14, -- close enough to work
+	workReach = 6, -- close enough to work
 	walkSeconds = 35, -- gives up walking after this, and works from wherever it got to
-	stepOff = 5, -- stands this far back from the part
+	stepOff = 4, -- stands this far outside the building, so they can't be built in
+	moveEvery = 6, -- on a rebuild, they move round to another side after this many pieces
+	keepOutEvery = 5, -- seconds between sending people out of a building going back up
 	workSeconds = 5, -- one part repaired this often, by someone there
 	offscreenSeconds = 25, -- and this often with nobody working on it where anyone can see
 	shoutRadius = 45,
@@ -35,6 +37,8 @@ Repair.tuning = {
 	rebuildSeconds = 8, -- one piece this often, with someone working on it
 	rebuildOffscreenSeconds = 40, -- and this often with nobody around
 	pieceSeconds = 0.6, -- how long a piece takes to settle into place
+	riseFrom = 2, -- it comes up from this far below where it goes, not across town
+	maxResidentLines = 3, -- how many of the people affected say something about it
 	wholeIntegrity = 100,
 	-- Damaged but still standing: it slowly regains its strength, or it'd be one tremor from coming down forever.
 	mendEvery = 30, -- seconds between checks
@@ -49,6 +53,21 @@ Repair.trades = { builder = 1, smith = 2, farmer = 3, hunter = 3, merchant = 3, 
 Repair.anyoneElse = 5
 Repair.neverAsked = { child = true, retired = true, guard = true } :: { [string]: boolean }
 
+-- Poles and planks round a building going back up. Only so many at once: a quake can flatten a town.
+Repair.scaffold = {
+	margin = 2.5, -- outside the building
+	poleWidth = 0.5,
+	plankThick = 0.25,
+	plankWide = 1.2,
+	levelEvery = 7, -- studs between platforms
+	maxLevels = 3,
+	midPoleOver = 14, -- a side longer than this gets a pole in the middle
+	groundBelow = 3, -- poles start this far under the floor, to meet uneven ground
+	maxAlive = 6,
+	poleColor = Color3.fromRGB(120, 88, 58),
+	plankColor = Color3.fromRGB(155, 118, 78),
+}
+
 Repair.lines = {
 	start = {
 		"Right. Let's see how bad it is.",
@@ -59,6 +78,24 @@ Repair.lines = {
 		"That'll hold.",
 		"Good as it's going to get.",
 		"There. Nobody'll fall through that now.",
+	},
+	-- %s is the friend they're going to. Only in the lines that have one.
+	homeLostFriend = {
+		"My house! I'll have to go to %s's.",
+		"That was my home. %s will take me in, I hope.",
+	},
+	homeLost = {
+		"My house! Where am I supposed to sleep?",
+		"That was my home. All of it.",
+		"Gone. I suppose it's the tavern for me.",
+	},
+	workLost = {
+		"That's my work gone, then.",
+		"I was only in there this morning.",
+	},
+	homeBack = {
+		"It's standing! I can go home.",
+		"I never thought I'd be so glad to see that door.",
 	},
 	rebuildStart = {
 		"It'll take a while, but it's coming back up.",

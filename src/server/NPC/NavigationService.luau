@@ -444,7 +444,7 @@ local function canOpen(npc: any, leaf: BasePart): boolean
 		return true
 	end
 	local keyId = leaf:GetAttribute("KeyId")
-	return (npc.home and npc.home.lot == keyId) or (npc.work and npc.work.lot == keyId) or false
+	return (npc.home and npc.home.lot == keyId) or (npc.work and npc.work.lot == keyId) or (npc.shelter and npc.shelter.lot == keyId) or false
 end
 
 local function crossesLockedDoor(npc: any, waypoints: { Waypoint }): boolean
