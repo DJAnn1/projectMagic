@@ -31,6 +31,22 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 **Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
 
+**📌 PINNED by the owner (2026-11-07): NPC pathfinding and getting indoors. Paused, not finished.** Don't pick this up unprompted. When the owner says to resume, start here.
+
+- **Where it stands.** In daytime, NPCs walk around town. At night or at meals they walk to a building's door, the door opens, and they appear at their spot inside (the "door fallback", `NPCService` `stepEnterHome`, `leaveBy`, `npc.enterHome`, `npc.insideLot`). They leave the same way. It covers any built lot (`SettlementService.lotAt`), both ways. The latest version (any building, both ways) hasn't been run.
+- **Fixed on the way, each confirmed in a log unless marked:**
+  - NPCs falling through the world: T1 bodies drawn at generator height, inside levelled town ground (`NPCLOD` `standOnRealGround`). Confirmed: no `npc_fall_seen` in 5+ minutes.
+  - Building anchors (`NPCHome`, `NPCWork`, `NPCSeat`, `Entrance`) applied twice and landing far from their buildings (`BuildingGenerator.anchor`). Confirmed by `specs 899/899` and the deed sign.
+  - The path queue jamming itself (`Navigation.enqueue`, `nextJob`). Confirmed: `queued` 0.
+  - NPCs owned by the player's client (`npc_owner_taken_back`). Confirmed: `network owner server`.
+  - `PathfindingLink`s through every front door and up every staircase. Confirmed: `doors` went from 0 to 11, `how=walked` appeared.
+  - Not yet confirmed: `PathfindingModifier` on NPC bodies, a narrow check for walks under 6 studs, 3 path attempts instead of 6.
+- **The open problem: rooms are sealed to the pathfinder.** `nav_no_path` reports `goalOk=false` for spots inside buildings and `startOk=false` for NPCs already inside. Suspects, not measured: furniture crowding the anchors NPCs aim for (`NPCHome` is 2.6 studs from a bed, which is a Seat), the inside end of each door link sitting off the walkable floor, and `AgentRadius` 1.25 to 1.5 in small rooms. `no path` was still about 2:1 against paths. Some failures are outdoors too, including a 3-stud plaza walk, possibly town ground steps or slopes.
+- **To resume:** play at night in Glenhold with the Output open. Read `nav_no_path` (`startOk`, `goalOk`, from and to), `npc_building_path_failed`, `npc_went_indoors how=walked` against `how=door`, and `npc_left_by_door`. Run `npcmove settlement_1#<n>` for `paths`, `no path`, `doors`. Good first steps: test one empty house with `overlay npcnav`, move `NPCHome` anchors clear of furniture, or snap link and anchor points to the real floor with a raycast at build time.
+- **Temporary, remove once resolved:** the `nav_no_path` probes (`canLeave`, two extra path computations at most every 5 s) and `npc_fall_seen` / `npc_fall_loop`.
+- **Unanswered owner questions from this thread:** should NPC accent Neon (belts, bands; the "cyan line") be dimmed, since Bloom blows it out to white? Is people appearing inside at their spot, instead of walking across the room, acceptable for now? Workplaces and the tavern may get crowded inside, which hasn't been seen.
+- **Expected boot line `specs 906/906`.** Commits: `5d48f14` through `0033e44` on `baseline` (not pushed: the branch is 43 commits ahead of `origin/baseline` as of this pin).
+
 **1. Check first (built, not yet confirmed in a log)**
 - **Rooms are closed to the pathfinder: the door fallback now covers any building, both ways (2026-11-07, not yet run).** With `startOk`/`goalOk`: `goalOk=false` for spots inside buildings, `startOk=false` for NPCs already inside. The owner saw a crowd "eating outside": sociable NPCs eat at the tavern (`ScheduleService.districtFor`), and a failed path to it sent them to an outdoor district spot. Now a failed path into any built lot (`SettlementService.lotAt`) walks them to its door and in, and a failed path out of one sends them out through its door. Log: `npc_building_path_failed` (replaces `npc_home_path_failed`), `npc_left_by_door`, `npc_went_indoors`. Still open: why rooms are sealed (furniture near anchors, or the link endpoints), which would let them walk inside too. Boot line stays `specs 906/906`.
 
