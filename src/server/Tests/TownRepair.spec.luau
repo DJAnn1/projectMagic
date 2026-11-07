@@ -107,6 +107,7 @@ return function(t: any)
 		it("has its flag, the hammer clip and its words", function()
 			expect((Flags :: any).town_repair_enabled ~= nil).toBe(true)
 			expect(Activities.Clips.hammer ~= nil).toBe(true)
+			expect(Activities.Props.hammer ~= nil).toBe(true)
 			expect(#Data.lines.start > 0 and #Data.lines.finish > 0).toBe(true)
 		end)
 

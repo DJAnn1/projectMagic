@@ -230,6 +230,7 @@ local function endJob(town: Town, finished: boolean)
 	local npc = job.npc
 	if npc.rig then
 		NPCLOD.stopActivity(npc)
+		NPCLOD.setProp(npc, nil)
 	end
 	if npc.leash == job.leash then
 		npcs:setLeash(npc, nil)
@@ -262,6 +263,10 @@ local function stepJob(town: Town, job: Job, now: number)
 		return
 	end
 	local npc = job.npc
+	-- Checked every tick: DailyLife puts their tool away when they're called off, maybe after this starts.
+	if not npc.rig.prop then
+		NPCLOD.setProp(npc, Activities.Props.hammer, Activities.clipHand.hammer)
+	end
 	if not job.working then
 		local at: Vector3 = npc.rig.root.Position
 		local close = Vector3.new(at.X - job.leash.position.X, 0, at.Z - job.leash.position.Z).Magnitude <= T.workReach
