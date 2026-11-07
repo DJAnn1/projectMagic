@@ -71,9 +71,13 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Town crimes:** later hits from grips, loops, finishers and Meteor Landing aren't judged as cast crimes, and neither are Time's spells.
 - **Fixes if they show up in play:** `foundation_failed` on `House_12` and `HouseLarge_07` in settlement_2, and the spawn rescue from near the world origin.
 
-**4. Pitched and not yet picked (the 2026-11-06 ideas round)**
+**4. Pitched and not yet picked (the 2026-11-06 and 2026-11-07 ideas rounds)**
+- **Feral Spells (recommended 2026-11-07):** a bad backfire escapes as a roaming creature with that spell's recipe, named after its caster; catch it to get a clue to the recipe. M.
+- **Magic Changes You:** what you use most slowly and visibly changes your body, with a small perk and a small quirk. S–M.
+- **Pacts:** seeded otherworldly beings offer a real power for a real cost. M.
+- **Town Mysteries:** a seeded crime in a town, solved with NPC memories and your own magic. M–L.
+- **Ley Claims:** claim a ley nexus for a server session; it boosts your domain nearby, and others can take it. M–L.
 - **The Apex:** a mythic player opts in to be hunted by the whole server. M. Must stay opt-in.
-- **Tournaments:** bracket duels at a town arena once 4+ sign up, with spectators and no fixed schedule. M.
 - **Echoes:** faint ghosts replay legendary moments where they happened, on every server. M. Needs the same limits as Titans.
 
 **5. Paused: multiplayer (design in `docs/Social.md`, "Still to build")**
@@ -163,6 +167,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Parked VFX questions are listed under "Open design questions" below.
 
 ## Decisions already made (don't re-ask)
+
+- **Tournaments are dropped (2026-11-07):** the owner doesn't want them. Don't pitch them again.
 
 - **One world, many servers.** Every server runs the same seed and the same world. Live state is per server; a thin global layer holds the World store, MessagingService announcements and saved terrain edits.
 - **No paid features at all.** Never design paid rerolls of innate profiles.
