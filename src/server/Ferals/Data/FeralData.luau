@@ -6,6 +6,10 @@
 	FIELDS
 		styles   how each domain comes apart: no shell or outline, just loose pieces, in that domain's
 		         character. Each loose spell's pieces are seeded, so no two look quite the same
+		effects  what it does beyond damage, by domain. status and seconds land on whoever it hits. push
+		         throws them back. ground is what it does to the land as it passes: burn sets fire to
+		         what can burn (never saved), quench puts fires out
+		shouts   what townsfolk call out when one comes near
 		words    what people call it, by domain. In their words and the Journal: nothing floats over it
 		rumors   what people say about one. %s are who lost it, and where it was seen
 ]]
@@ -80,6 +84,17 @@ FeralData.tuning = {
 	attackerMemory = 12,
 	fadeSeconds = 1.4,
 
+	-- The world's response. Only NPCs with a full body near a player, the same as any NPC fight.
+	guardRadius = 70, -- guards and hunters come for it from this far
+	fleeRadius = 30, -- everyone else gets away from it
+	shoutChance = 0.35,
+	shoutRadius = 60,
+	trailSeconds = 2, -- how often it marks the ground it's passing
+	trailHeat = 0.7, -- how fierce the fires it starts are
+	quenchRadius = 16,
+	dotShare = 0.2, -- burning and the like, per tick, as a share of the hit
+	provokedSeconds = 10, -- once hurt, it lashes out at anything within `reach`, not just `notice`
+
 	-- What it leaves
 	creditShare = 0.2, -- of its health dealt, to have understood anything from it
 	xpPerPower = 14,
@@ -112,6 +127,34 @@ FeralData.unstableSteps = 10 -- how finely the look follows its energy: fewer me
 -- Forms that land everywhere at once; the rest go at one target.
 FeralData.areaForms = { burst = true, aura = true, zone = true, pillar = true, summon = true, ritual = true, wall = true } :: { [string]: boolean }
 FeralData.maxAreaTargets = 6
+
+FeralData.effects = {
+	energy = { status = "burning", seconds = 3, ground = "burn" },
+	earth = { status = "slow", seconds = 3 },
+	water = { status = "slow", seconds = 2.5, ground = "quench" },
+	air = { push = 55 },
+	life = { status = "rot", seconds = 4 },
+	mind = { status = "dazed", seconds = 3 },
+	spirit = { status = "fear", seconds = 3 },
+	void = { status = "hexed", seconds = 4 },
+	space = { status = "slow", seconds = 2 },
+	time = { status = "time_slow", seconds = 2.5 },
+	gravity = { status = "root", seconds = 1.2 },
+	reality = { status = "jinxed", seconds = 5 },
+} :: { [string]: { status: string?, seconds: number?, push: number?, ground: string? } }
+
+FeralData.shouts = {
+	fight = {
+		"Back! Everyone get back from it!",
+		"Don't use magic near it! It comes to magic!",
+		"It's loose in the street. Spread out!",
+	},
+	flee = {
+		"Run! There's one of those things!",
+		"Get inside!",
+		"Whose is that?! Somebody stop it!",
+	},
+} :: { [string]: { string } }
 
 FeralData.words = {
 	energy = "Stray Ember",

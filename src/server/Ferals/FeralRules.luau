@@ -11,6 +11,7 @@
 		pieces(domain, palette, scale, rng) -> parts    its body, in its domain's character
 		def(recipe, domain, palette, opposed, name, rng) -> a CreatureRig definition
 		unstable(energy, maxEnergy) -> 0..1          how visibly it's coming apart
+		response(occupation, distance) -> "fight" | "flee" | nil      how someone nearby reacts
 		learnsFrom(view) -> boolean                 only a spell you didn't know can teach you
 		clue(recipe, names) -> string
 		pruneStudied(studied, max)                  bounded, oldest first
@@ -165,6 +166,14 @@ function FeralRules.def(recipe: { form: string, power: number }, domain: string,
 		body = FeralRules.pieces(domain, palette, scale, rng),
 		emit = { color = palette[1] or Color3.new(1, 1, 1), rate = 6 },
 	}
+end
+
+-- Guards and hunters go for it. Everyone else gets out of the way when it's close.
+function FeralRules.response(occupation: string, distance: number): string?
+	if occupation == "guard" or occupation == "hunter" then
+		return if distance <= T.guardRadius then "fight" else nil
+	end
+	return if distance <= T.fleeRadius then "flee" else nil
 end
 
 -- Only a spell you didn't know can teach you anything: your own backfires are worth nothing here, so

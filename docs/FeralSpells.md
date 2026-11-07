@@ -35,6 +35,10 @@ Flags: `feral_spells_enabled`, `feral_spells_max` (6).
 
 **Its magic.** It casts the actual spell at half strength, through `Delivery` and `DamageModel`, with no source player, so nobody is blamed for what it does. It discharges at players and NPCs alike. It isn't a hunter: it goes for whoever hit it, or whatever comes within 22 studs. It turns towards magic cast within 90 studs, so going quiet is a real way to avoid one.
 
+**The world.** Its domain carries over (`FeralData.effects`). A fire spell sets what it passes alight and burns who it hits, water puts fires out, air throws people back, and the rest land a status: earth slows, mind dazes, gravity pins, and so on. Fires it starts are never saved to the island.
+
+**Towns.** Guards and hunters within 70 studs come for it through the same `NPCCombat` as any fight, and can bring it down without you. Everyone else runs when it's within 30, and some shout. Once hurt, it lashes out at anything within 34 studs, since it can't tell who did it. This only happens for NPCs with a full body, near a player: with nobody around, the fight doesn't happen. If guards kill it, nobody learns anything from it unless a player also hurt it.
+
 **What it leaves.** Everyone who dealt 20% of its health gets a Journal clue naming the recipe's branch, property, verb and form, plus some XP if they hit it with magic. It's only for a spell you don't know and haven't studied. Your own backfires teach you nothing, so failing on purpose earns nothing.
 
 **Rumours.** Ask a townsperson. They may mention one within 1,100 studs, naming who lost it and in which direction. It goes in your Journal and marks nothing.
@@ -66,11 +70,12 @@ Flagged for the owner, given the rule above:
 
 ## Known limits
 
-- Its spell is simplified: damage only. A fire feral doesn't set things alight, and statuses or terrain effects from the original spell don't happen.
-- Towns don't respond. NPCs take its hits, but guards won't fight it, because `NPCCombat` only targets players.
+- Its effects come from its domain, not its actual recipe, so two fire spells that did different things behave alike.
+- A burning part can still start a saved scorch through `FireSim`: only ground fires carry `unsaved`. It should be rare, but it isn't ruled out.
+- People forget it: there are no NPC memories of what it did, and a burned town doesn't change.
 - It moves in straight lines through the air on a Humanoid, so a wall can stop it for a while.
 - NPCs don't know the caster's story beyond the rumour line.
 
 ## Ideas for later (nothing chosen)
 
-Spells that keep their real effects, so a fire feral burns things as it passes. Guards turning out to deal with one. NPC memories of what it did. Several gathering at a ley line and interacting. A way to bind one rather than destroy it.
+Spells that use their real recipe's effects. NPC memories of what it did, and gossip about who let it loose. Several gathering at a ley line and interacting. A way to bind one rather than destroy it.

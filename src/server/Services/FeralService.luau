@@ -20,6 +20,12 @@
 	           no source player: nobody's to blame for what it does. It isn't a hunter. It discharges at
 	           whatever comes close or hits it, players and NPCs alike. Magic cast nearby draws it, so
 	           going quiet is a real way to avoid one.
+	WORLD      Its domain carries over (FeralData.effects): a fire spell sets what it passes alight and
+	           burns who it hits, water puts fires out, air throws people back. Fires it starts are never
+	           saved to the island.
+	TOWNS      Guards and hunters come for it, through the same NPCCombat as any fight, and can bring it
+	           down without you. Everyone else runs. They may shout about it. Only NPCs with a full body
+	           near a player: with nobody around, a town's fight doesn't happen.
 	AFTER      Bring it down and it leaves a Journal clue to its recipe for anyone who hurt it, unless they
 	           knew the spell already: your own backfires teach you nothing, so failing on purpose is
 	           pointless. data.feral.studied remembers what you've learned, in the player's save.
@@ -31,6 +37,7 @@
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
+local Net = require(Shared.Net)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Topics = require(Shared.Core.Topics)
 local MagicCore = require(Shared.Magic.MagicCore)
@@ -41,6 +48,8 @@ local Server = script.Parent.Parent
 local Cast = Server.Magic.Cast
 local DamageModel = require(Cast.DamageModel)
 local Delivery = require(Cast.Delivery)
+local FireSim = require(Cast.FireSim)
+local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
 local TimeZones = require(Cast.TimeZones)
 local CreatureRig = require(Server.Creatures.CreatureRig)
@@ -85,6 +94,9 @@ type Feral = {
 	drawnUntil: number,
 	attacker: Model?,
 	attackerUntil: number,
+	provokedUntil: number,
+	nextTrail: number,
+	shouted: { [string]: boolean },
 	dealt: { [number]: number },
 	branch: { [number]: string },
 	secondAcc: number,
@@ -164,11 +176,21 @@ local function create(recipe: any, stats: any, source: string, casterName: strin
 		drawnUntil = 0,
 		attacker = nil,
 		attackerUntil = 0,
+		provokedUntil = 0,
+		nextTrail = 0,
+		shouted = {},
 		dealt = {},
 		branch = {},
 		secondAcc = 0,
 	}
 	table.insert(ferals, feral)
+	NPCCombat.setExternalTarget("f:" .. feral.id, function(): (Model?, BasePart?)
+		local body = feral.body
+		if body and body.model.Parent and body.humanoid.Health > 0 then
+			return body.model, body.root
+		end
+		return nil, nil
+	end)
 	log:info("feral_escaped", { id = feral.id, source = source, domain = domain, form = recipe.form, power = recipe.power, x = math.floor(x), z = math.floor(z) })
 	return feral
 end
@@ -313,6 +335,7 @@ local function fade(model: Model)
 end
 
 local function forget(feral: Feral)
+	NPCCombat.setExternalTarget("f:" .. feral.id, nil)
 	local index = table.find(ferals, feral)
 	if index then
 		table.remove(ferals, index)
@@ -434,6 +457,38 @@ local function canReach(model: Model): boolean
 	return model:GetAttribute("FeralSpell") == nil and model:GetAttribute("PracticeTarget") == nil and model:GetAttribute("Creature") == nil
 end
 
+-- A hit, plus what the spell's domain does on top of the damage.
+local function strike(feral: Feral, ctx: any, hit: any, share: number, kind: string)
+	local dealt = DamageModel.hit(ctx, hit, share, kind)
+	local effect = Data.effects[feral.domain]
+	if dealt <= 0 or not effect or hit.humanoid.Health <= 0 then
+		return
+	end
+	local status = effect.status
+	if status then
+		local def = StatusEffects.defs[status]
+		StatusEffects.apply(hit.humanoid, status, {
+			duration = effect.seconds or 2,
+			magnitude = if def and def.dot then math.max(1, dealt * T.dotShare) else nil,
+		})
+	end
+	if effect.ground == "burn" then
+		FireSim.igniteGround(hit.root.Position, T.trailHeat, nil, true)
+	end
+	local push = effect.push
+	if push then
+		local away = hit.root.Position - ctx.origin
+		local direction = (if away.Magnitude > 0.5 then away.Unit else Vector3.new(0, 1, 0)) + Vector3.new(0, 0.5, 0)
+		local velocity = direction.Unit * push
+		local victim = Players:GetPlayerFromCharacter(hit.model)
+		if victim then
+			Net.fire("WorldEffect", victim, { kind = "knockback", velocity = velocity })
+		elseif not hit.root.Anchored then
+			hit.root.AssemblyLinearVelocity += velocity
+		end
+	end
+end
+
 local function discharge(feral: Feral, body: Body, targetModel: Model, targetRoot: BasePart)
 	local form: string = feral.recipe.form
 	local kind: string = feral.recipe.property
@@ -464,7 +519,7 @@ local function discharge(feral: Feral, body: Body, targetModel: Model, targetRoo
 			ctx.point = impact.point
 			for _, hit in impact.hits do
 				if hit.model ~= body.model or impact.reflectedBy then
-					DamageModel.hit(ctx, hit, T.hitShare, kind)
+					strike(feral, ctx, hit, T.hitShare, kind)
 				end
 			end
 		end)
@@ -482,13 +537,13 @@ local function discharge(feral: Feral, body: Body, targetModel: Model, targetRoo
 		local radius = math.max(6, tonumber(feral.stats.area) or 6)
 		for _, hit in Targeting.inRadius(point, radius, Data.maxAreaTargets, { [body.model] = true }) do
 			if canReach(hit.model) then
-				DamageModel.hit(ctx, hit, T.hitShare * 0.8, kind)
+				strike(feral, ctx, hit, T.hitShare * 0.8, kind)
 			end
 		end
 	else
 		local hit = Targeting.characterOf(targetModel)
 		if hit then
-			DamageModel.hit(ctx, hit, T.hitShare, kind)
+			strike(feral, ctx, hit, T.hitShare, kind)
 		end
 	end
 end
@@ -540,7 +595,9 @@ local function stepBody(feral: Feral, body: Body, now: number)
 		end
 	end
 	if not targetModel then
-		for _, hit in Targeting.inRadius(position, T.notice, 6, { [body.model] = true }) do
+		-- Once hurt, it lashes out further: it has no way to know who did it.
+		local range = if now < feral.provokedUntil then T.reach else T.notice
+		for _, hit in Targeting.inRadius(position, range, 6, { [body.model] = true }) do
 			if canReach(hit.model) then
 				targetModel, targetRoot = hit.model, hit.root
 				break
@@ -564,6 +621,50 @@ local function stepBody(feral: Feral, body: Body, now: number)
 	end
 	if feral.goal then
 		humanoid:MoveTo(feral.goal)
+	end
+end
+
+-- What it does to the land it's passing over. Fires it starts are never saved to the island.
+local function markGround(feral: Feral, body: Body, now: number)
+	local effect = Data.effects[feral.domain]
+	if not effect or not effect.ground or now < feral.nextTrail then
+		return
+	end
+	feral.nextTrail = now + T.trailSeconds
+	local position = body.root.Position
+	if TimeZones.stopped(position) then
+		return
+	end
+	if effect.ground == "burn" then
+		FireSim.igniteGround(position - Vector3.new(0, T.hover, 0), T.trailHeat, nil, true)
+	elseif effect.ground == "quench" then
+		FireSim.extinguish(position, T.quenchRadius)
+	end
+end
+
+-- The people around it react. Only those with a full body: with nobody near, it's just a story later.
+local function townResponds(feral: Feral, body: Body)
+	local subject = "f:" .. feral.id
+	local position = body.root.Position
+	for _, npc in npcs:all() do
+		if npc.rig and npc.tier == 0 and not npc.knockedOut and not npc.frozen and not npc.leash then
+			local at: Vector3 = npc.rig.root.Position
+			local distance = Vector3.new(at.X - position.X, 0, at.Z - position.Z).Magnitude
+			local response = Rules.response(npc.occupation, distance)
+			if response == "fight" then
+				NPCCombat.onWitness(npc, subject)
+			elseif response == "flee" then
+				NPCCombat.alarm(npc, subject)
+			end
+			if response and not feral.shouted[npc.id] then
+				feral.shouted[npc.id] = true
+				if feral.rng:NextNumber() < T.shoutChance then
+					local lines = Data.shouts[response]
+					npcs:speak(npc, lines[feral.rng:NextInteger(1, #lines)], T.shoutRadius)
+					log:info("feral_town_reacted", { id = feral.id, npc = npc.id, response = response })
+				end
+			end
+		end
 	end
 end
 
@@ -626,6 +727,9 @@ local function stepOne(feral: Feral, now: number)
 			if body.model:GetAttribute("Unstable") ~= unstable then
 				body.model:SetAttribute("Unstable", unstable)
 			end
+			if now >= feral.graceUntil then
+				townResponds(feral, body)
+			end
 		end
 		local distance = nearestPlayer(feral.x, feral.z)
 		if body and distance > T.sleepRadius then
@@ -638,6 +742,7 @@ local function stepOne(feral: Feral, now: number)
 	end
 
 	if body then
+		markGround(feral, body, now)
 		stepBody(feral, body, now)
 	else
 		stepDormant(feral, now)
@@ -651,6 +756,7 @@ local function onDamaged(payload: any)
 	if not feral then
 		return
 	end
+	feral.provokedUntil = os.clock() + T.provokedSeconds
 	local source: number? = payload.sourceUserId
 	if source then
 		feral.dealt[source] = (feral.dealt[source] or 0) + payload.amount

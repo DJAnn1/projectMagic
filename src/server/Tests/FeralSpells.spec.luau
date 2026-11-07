@@ -14,6 +14,8 @@ local Schemas = require(Server.Persistence.Schemas)
 local CreatureRig = require(Server.Creatures.CreatureRig)
 local Data = require(Server.Ferals.Data.FeralData)
 local Rules = require(Server.Ferals.FeralRules)
+local StatusEffects = require(Server.Magic.Cast.StatusEffects)
+local NPCCombat = require(Server.NPC.NPCCombat)
 
 local Shared = ReplicatedStorage.Shared
 local Registry = require(Shared.Magic.Registry)
@@ -186,6 +188,63 @@ return function(t: any)
 			expect(model:FindFirstChild("Head") ~= nil).toBe(true)
 			expect(model:FindFirstChild("Pose", true) ~= nil).toBe(true)
 			model:Destroy()
+		end)
+	end)
+
+	describe("Its effect on the world", function()
+		it("every domain does something, and its status is real", function()
+			for _, id in Registry.domainIds do
+				local effect = Data.effects[id]
+				expect(effect ~= nil).toBe(true)
+				expect(effect.status ~= nil or effect.push ~= nil or effect.ground ~= nil).toBe(true)
+				if effect.status then
+					expect(StatusEffects.defs[effect.status] ~= nil).toBe(true)
+				end
+			end
+		end)
+
+		it("fire burns what it passes, and water puts fires out", function()
+			expect(Data.effects.energy.ground).toBe("burn")
+			expect(Data.effects.water.ground).toBe("quench")
+		end)
+
+		it("guards and hunters come for it from further off than others run", function()
+			expect(T.guardRadius > T.fleeRadius).toBe(true)
+			expect(Rules.response("guard", T.guardRadius)).toBe("fight")
+			expect(Rules.response("hunter", T.guardRadius)).toBe("fight")
+			expect(Rules.response("guard", T.guardRadius + 1)).toBe(nil)
+			expect(Rules.response("farmer", T.fleeRadius)).toBe("flee")
+			expect(Rules.response("farmer", T.fleeRadius + 1)).toBe(nil)
+		end)
+
+		it("has words for townsfolk to shout", function()
+			expect(#Data.shouts.fight > 0).toBe(true)
+			expect(#Data.shouts.flee > 0).toBe(true)
+		end)
+
+		it("an alarm makes someone run, without interrupting a fight they're already in", function()
+			local calm: any = { occupation = "farmer", seed = 1 }
+			NPCCombat.alarm(calm, "f:test")
+			expect(calm.combat.stance).toBe("flee")
+			expect(calm.combat.threat["f:test"] ~= nil).toBe(true)
+			local fighting: any = { occupation = "guard", seed = 1, combat = { threat = { ["u:1"] = 5 }, stance = "fight", lastHit = 0 } }
+			NPCCombat.alarm(fighting, "f:test")
+			expect(fighting.combat.stance).toBe("fight")
+			expect(fighting.combat.threat["f:test"]).toBe(nil)
+		end)
+
+		it("NPCs lose interest once what they're fighting is gone", function()
+			NPCCombat.setExternalTarget("f:gone", function(): (Model?, BasePart?)
+				return nil, nil
+			end)
+			local rig: any = { humanoid = Instance.new("Humanoid"), root = Instance.new("Part") }
+			local npc: any = { occupation = "guard", seed = 1, rig = rig }
+			NPCCombat.alarm(npc, "f:gone")
+			expect(NPCCombat.step(npc, 0.1)).toBe(false)
+			expect(npc.combat).toBe(nil)
+			NPCCombat.setExternalTarget("f:gone", nil)
+			rig.humanoid:Destroy()
+			rig.root:Destroy()
 		end)
 	end)
 

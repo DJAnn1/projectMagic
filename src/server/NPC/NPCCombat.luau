@@ -3,7 +3,8 @@
 	NPCCombat: what an NPC does when someone hurts it (or someone near it). Driven by NPCService
 	from TargetDamaged / MagicDamage; numbers in Magic/Data/CombatTuning.aggro.
 
-	AGGRO    npc.combat.threat[subject] (subject = "u:<userId>"): + threatPerDamage per point of
+	AGGRO    npc.combat.threat[subject] (subject = "u:<userId>", or anything registered with
+	         setExternalTarget, such as a loose spell): + threatPerDamage per point of
 	         damage taken, + witnessThreat for guards and hunters who see a neighbour attacked;
 	         decays decayPerSecond. The target is the highest threat whose character is alive.
 	STANCE   decided when the fight starts (and re-decided if health drops below a third):
@@ -65,10 +66,18 @@ local NPCCombat = {}
 
 local worldSeed = 0
 local runner: any = nil
+-- Subjects that aren't players: subject -> who and where they are right now, or nil once gone.
+local externalTargets: { [string]: (() -> (Model?, BasePart?))? } = {}
 
 function NPCCombat.init(seed: number, effectRunner: any)
 	worldSeed = seed
 	runner = effectRunner
+end
+
+-- Lets NPCs fight or run from something that isn't a player (Services/FeralService). nil removes it,
+-- and anyone engaged with it stops on their next step.
+function NPCCombat.setExternalTarget(subject: string, resolve: (() -> (Model?, BasePart?))?)
+	externalTargets[subject] = resolve
 end
 
 -- ─── Decisions ──────────────────────────────────────────────────────────────
@@ -185,6 +194,21 @@ function NPCCombat.onWitness(npc: any, subject: string)
 	end
 end
 
+-- Something frightening is close, and it hasn't hurt them yet: they get away from it. Someone already
+-- in a fight stays in it.
+function NPCCombat.alarm(npc: any, subject: string)
+	local fresh = npc.combat == nil
+	if not fresh and (npc.combat :: Combat).threat[subject] == nil then
+		return
+	end
+	local c = combatOf(npc)
+	c.lastHit = os.clock()
+	c.threat[subject] = math.max(c.threat[subject] or 0, A.witnessThreat)
+	if fresh then
+		c.stance = "flee"
+	end
+end
+
 --[[
 	A fight that isn't about courage: a duel the NPC agreed to, or a quest hostile sent for the
 	player. Fights if it has an attack spell (else flees), and won't break off for decay alone
@@ -203,6 +227,10 @@ function NPCCombat.engaged(npc: any): boolean
 end
 
 local function characterOf(subject: string): (Model?, BasePart?)
+	local external = externalTargets[subject]
+	if external then
+		return external()
+	end
 	if string.sub(subject, 1, 2) ~= "u:" then
 		return nil, nil
 	end
