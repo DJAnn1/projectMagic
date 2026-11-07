@@ -38,6 +38,7 @@ Repair.tuning = {
 	rebuildOffscreenSeconds = 40, -- and this often with nobody around
 	pieceSeconds = 0.6, -- how long a piece takes to settle into place
 	riseFrom = 2, -- it comes up from this far below where it goes, not across town
+	strayMargin = 6, -- a piece further than this outside the lot doesn't count towards its size
 	maxResidentLines = 3, -- how many of the people affected say something about it
 	wholeIntegrity = 100,
 	-- Damaged but still standing: it slowly regains its strength, or it'd be one tremor from coming down forever.

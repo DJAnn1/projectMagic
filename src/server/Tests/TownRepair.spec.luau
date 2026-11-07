@@ -120,6 +120,39 @@ return function(t: any)
 		end)
 	end)
 
+	describe("Stray parts", function()
+		local house: Rules.Footprint = { x = 0, z = 0, hx = 10, hz = 8 }
+
+		it("one far-off part doesn't change how tall a building is", function()
+			local base, top, strays = Rules.heightsWithin(house, { Vector3.new(0, 60, 0), Vector3.new(5, 75, 5), Vector3.new(900, 400, -900) }, 6)
+			expect(base).toBe(60)
+			expect(top).toBe(75)
+			expect(strays).toBe(1)
+		end)
+
+		it("counts a part just outside the lot as part of it", function()
+			local _, top, strays = Rules.heightsWithin(house, { Vector3.new(0, 60, 0), Vector3.new(14, 70, 0) }, 6)
+			expect(top).toBe(70)
+			expect(strays).toBe(0)
+		end)
+
+		it("survives nothing being near it", function()
+			local base, top, strays = Rules.heightsWithin(house, { Vector3.new(900, 1, 0) }, 6)
+			expect(base).toBe(0)
+			expect(top).toBe(0)
+			expect(strays).toBe(1)
+		end)
+
+		it("a scaffold planned from a lot stays the size of the lot", function()
+			local lot = Rules.footprintOf(CFrame.new(100, 60, 100), Vector3.new(30, 0, 24))
+			for _, piece in Rules.scaffoldPlan(lot, 60, 80) do
+				expect(math.abs(piece.position.X - 100) <= 15 + Data.scaffold.margin).toBe(true)
+				expect(math.abs(piece.position.Z - 100) <= 12 + Data.scaffold.margin).toBe(true)
+				expect(piece.size.Magnitude < 60).toBe(true)
+			end
+		end)
+	end)
+
 	describe("Scaffolding", function()
 		local house: Rules.Footprint = { x = 0, z = 0, hx = 10, hz = 8 }
 

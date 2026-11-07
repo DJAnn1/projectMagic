@@ -406,21 +406,36 @@ local function onCollapse(model: Model, cause: string)
 	end
 	Rules.rebuildOrder(pieces)
 	local places: { Vector3 } = {}
-	local baseY, topY = math.huge, -math.huge
 	for _, piece in pieces do
-		local at = (piece.at :: CFrame).Position
-		table.insert(places, at)
-		baseY, topY = math.min(baseY, at.Y), math.max(topY, at.Y)
+		table.insert(places, (piece.at :: CFrame).Position)
 	end
 	local lot = model:GetAttribute("LotId")
 	local lotId: string? = if typeof(lot) == "string" then lot else nil
+	-- The lot's own size, from the layout. Measuring the pieces lets one stray part stretch it across the map.
+	local lotFrame, lotSize = nil, nil
+	if lotId then
+		lotFrame, lotSize = settlements:lotBox(lotId)
+	end
+	local footprint = if lotFrame and lotSize then Rules.footprintOf(lotFrame, lotSize) else Rules.footprint(places)
+	local baseY, topY, strays = Rules.heightsWithin(footprint, places, T.strayMargin)
+	if strays > 0 then
+		local names: { string } = {}
+		local grown: Rules.Footprint = { x = footprint.x, z = footprint.z, hx = footprint.hx + T.strayMargin, hz = footprint.hz + T.strayMargin }
+		for _, piece in pieces do
+			if #names < 4 and not Rules.inside(grown, (piece.at :: CFrame).Position) then
+				local p = (piece.at :: CFrame).Position
+				table.insert(names, string.format("%s(%d,%d,%d)", piece.part.Name, p.X, p.Y, p.Z))
+			end
+		end
+		log:warn("town_collapse_strays", { building = model.Name, strays = strays, examples = table.concat(names, " ") })
+	end
 	table.insert(town.buildings, {
 		model = model,
 		parts = pieces,
 		rebuild = true,
 		startAfter = os.clock() + T.rebuildDelay,
 		all = table.clone(pieces),
-		footprint = Rules.footprint(places),
+		footprint = footprint,
 		baseY = baseY,
 		topY = topY,
 		lotId = lotId,

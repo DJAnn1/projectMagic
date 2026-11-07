@@ -13,6 +13,7 @@
 		pickWorker(candidates) -> id?               who comes to fix it
 		footprint(positions) / footprintOf(cf, size)   the ground a building covers
 		inside(footprint, position) -> boolean
+		heightsWithin(footprint, places, margin) -> (baseY, topY, strays)   ignoring what's nowhere near it
 		spotAround(footprint, from, turn) -> Vector3   where they stand: outside it, on some side
 		scaffoldPlan(footprint, baseY, topY) -> pieces  poles and planks
 ]]
@@ -120,6 +121,24 @@ end
 
 function RepairRules.inside(footprint: Footprint, position: Vector3): boolean
 	return math.abs(position.X - footprint.x) <= footprint.hx and math.abs(position.Z - footprint.z) <= footprint.hz
+end
+
+-- How high a building goes, from the places inside its footprint. Strays are left out and counted: one far-off
+-- part stretched a scaffold across the sea (seen in play, 2026-11-07).
+function RepairRules.heightsWithin(footprint: Footprint, places: { Vector3 }, margin: number): (number, number, number)
+	local grown: Footprint = { x = footprint.x, z = footprint.z, hx = footprint.hx + margin, hz = footprint.hz + margin }
+	local base, top, strays = math.huge, -math.huge, 0
+	for _, at in places do
+		if RepairRules.inside(grown, at) then
+			base, top = math.min(base, at.Y), math.max(top, at.Y)
+		else
+			strays += 1
+		end
+	end
+	if base > top then
+		return 0, 0, strays
+	end
+	return base, top, strays
 end
 
 -- Somewhere to stand outside the building: the side nearest `from`, then `turn` sides round from there.

@@ -596,6 +596,16 @@ function SettlementService.spawnPoints(self: any, settlementId: string): { Vecto
 end
 
 -- The built building on a lot (nil until its chunk has been built on this server).
+-- The ground a lot really covers: its centre and size, from the layout (Services/TownRepairService).
+function SettlementService.lotBox(_self: any, lotId: string): (CFrame?, Vector3?)
+	local found = lotIndex[lotId]
+	if not found then
+		return nil, nil
+	end
+	local lot = found.lot
+	return lot.cframe, Vector3.new(lot.w, 0, lot.d)
+end
+
 function SettlementService.modelOf(_self: any, lotId: string): Model?
 	local found = lotIndex[lotId]
 	local model = found and found.entry.built[lotId]
