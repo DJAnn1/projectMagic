@@ -248,7 +248,8 @@ return function(t: any)
 					return { settlements = { { id = "a", name = "Alder" }, { id = "b", name = "Birch" } }, pois = {} }
 				end,
 			}
-			local situation: any = { id = "s", x = 0, z = 0, facts = { settlementId = "a", otherSettlementId = "b" } }
+			-- Like SituationDetector's: the town is on the situation itself as well as in its facts.
+			local situation: any = { id = "s", x = 0, z = 0, settlementId = "a", facts = { settlementId = "a", otherSettlementId = "b" } }
 			local quest: any = QuestFactory.build(QuestTemplates.byId.settlement_dispute, situation, { world = world, npcs = npcs, worldSeed = 1, userId = 7 })
 			expect(quest ~= nil).toBe(true)
 			expect(quest.slots.envoyA).toBe("a#1")
