@@ -398,6 +398,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 3, perSecond = 0.5 },
 		maxBytes = 16,
 	},
+	FamiliarAction = { -- state | mode <id> | summon | dismiss | rename <text> -> { ok, reason?, view? } (Services/FamiliarService)
+		kind = "Function",
+		from = "Client",
+		args = { S.literal("state", "mode", "summon", "dismiss", "rename"), S.optional(S.string(1, 120)) },
+		rate = { capacity = 6, perSecond = 1 },
+		maxBytes = 256,
+	},
 	RequestTitan = { -- -> the current Titan's state (Services/TitanService). Reading its bones is a server-side prompt, not a remote.
 		kind = "Function",
 		from = "Client",
@@ -494,6 +501,7 @@ local Remotes: { [string]: RemoteDef } = {
 	SharedEventState = { kind = "Event", from = "Server" }, -- the server-wide event: { id, type, phase, name, text, goalText, place, x, z, radius, warnEnds, endsAt, progress, goal, detail?, result?, mine? } or { phase = "none" }
 	SharedEventScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, seconds, inZone }: your contribution, once a second while you're taking part
 	SharedEventCue = { kind = "Event", from = "Server" }, -- { kind = "telegraph" | "impact" | "comet", style, x, y, z, radius, duration }: cosmetic warnings and landings, players nearby only
+	FamiliarState = { kind = "Event", from = "Server" }, -- your familiar: { bonded, name, stage, stageName, domain, word, line, mode, summoned, health, koSeconds?, xp, xpFrom, xpTo?, abilities, note? } or { bonded = false, castsLeft }
 	TitanState = { kind = "Event", from = "Server" }, -- the Titan: { id, phase, kind, name, text, towns, x, z, warnEnds, walkedShare, health, weakLeft, weakTotal, stumbling, result?, mine? } or { phase = "none" }
 	TitanPos = { kind = "Unreliable", from = "Server" }, -- { x, z }: where it is, once a second
 	TitanScore = { kind = "Unreliable", from = "Server" }, -- { points, tier, inZone }: your part, once a second while you're taking part

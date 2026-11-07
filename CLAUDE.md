@@ -48,6 +48,10 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 - **Event cards moved (2026-11-06, owner: the popout in the middle of the screen "gets hard to read or see"), not yet run.** Shared event, Titan, wild zone and Rift cards now stack in one right-hand column (`UI/SideCards`, 120 down) with a more solid background. Claude assumed the Titan or shared event panel was the one meant; the duel card stays top centre on purpose. New cards of this kind belong in this column, not the middle. No spec change: still expect `specs 780/780`.
 
+- **Log of 2026-11-07: `specs 780/780` confirmed, which also confirms the Wild Zones stage 2, Titans and event card specs.** One full Titan fight ran: `titan start`, two weak points broken, `titan_fell` with `first=true`, gold payout, crater. `wildzone goto vale` worked. The owner sent no comment on looks or feel, and the Moor's lift isn't in this log. Not bugs: the double `cantrips_granted` (two awakened domains), `towns=` empty on a forced Titan, `power=1` at build (it rises as spells land).
+
+- **Two fixes from that log and Familiars stage 1 (`docs/Familiars.md`), built 2026-11-07, not yet run.** Expected boot line `specs 816/816` (34 in `Tests/Familiars.spec`, 2 in Quest.spec), plus `familiars_ready`. Fixes: a Titan's fires no longer save scorch or vegetation (`FireSim.igniteGround`'s `unsaved`), so a walking Ashwalker should add no `terrain_edit cause=scorch` of its own; `commission_delivery` falls back to any working adult in the other town. That cause is reasoned, not measured, and `quest_build_failed` now logs `why`, so if it still appears, read that. Familiars: O opens the screen. Test with `familiar bond`, `familiar stage 4`, the four orders, `creature spawn`, rename, and a second client to see whether it moves smoothly. Look for `familiar_bonded`, `familiar_grew`, `familiar_ko`.
+
 **2. Next up**
 - **Rift tuning is paused by the owner (2026-11-06: "we'll go back to tuning rifts another time"):** don't raise it unprompted. When it resumes, the missing log is a low-level run with no `testmage` or `cheat`; `rift_ended seconds=` gives the answer directly. Stage 3 ideas are in `docs/Rifts.md`, nothing chosen.
 - **Wild Zones stage 3, once stage 2 has been played:** quests pointing at zones, more zones or a share per world, rules changing with weather or time of day (`docs/WildZones.md`). Nothing there is chosen.
@@ -65,7 +69,6 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **The Apex:** a mythic player opts in to be hunted by the whole server. M. Must stay opt-in.
 - **Tournaments:** bracket duels at a town arena once 4+ sign up, with spectators and no fixed schedule. M.
 - **Echoes:** faint ghosts replay legendary moments where they happened, on every server. M. Needs the same limits as Titans.
-- **Familiars:** a small creature generated from your innate magic, which grows and fights. M–L.
 
 **5. Paused: multiplayer (design in `docs/Social.md`, "Still to build")**
 - Cross-server news and leaderboard, then direct trade, then markets (stalls, auctions, commissions). The remotes are declared with no handlers. M is now the map and K is Surge, so markets and trade need other keys. Should relics be tradable? (Recommended yes.)
@@ -77,6 +80,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Earlier top-5 lists, not picked:** `docs/EngagementIdeas.md` (people noticed that, overheard rumours, goals you set yourself, a rival who remembers) and `docs/MagicIdeas.md`.
 
 **Decisions waiting on the owner**
+- **Familiars:** should other players be able to hurt a familiar (it's untouchable now, to stop griefing)? Should Hunt loot count in full? Is the O key fine, given Roblox's camera also zooms on I and O?
 - **Titans:** is 20 falls the right limit (at least 40 hours before the oldest fades, craters stay)? Should bones ever be permanent for the first-ever kill of each kind?
 - **Craters:** holes in towns (they're scorch marks there now, by Claude's call)? Should craters outside towns ever heal?
 - **Self Timeline:** is a 6 s recall cooldown at Transcendent right?
@@ -195,6 +199,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | **Titans** (not yet run): a huge boss crosses the island every 2 hours on a seeded road, with weak points that make it stumble; the first server to kill it writes a crater, bones and a named map pin that every server shows, 20 kept at most | `docs/Titans.md` | `Services/TitanService`, `src/server/Titans/`, shared `Titans/Data/Titans`, client `TitanController` |
 | **Rifts** (stages 1 and 2 confirmed, tuning pass not yet run): seeded dungeons in a sealed pocket off the island; 7 rooms, 8 twists, 3 bosses; every room accepts all 12 domains; clever answers and magic reactions solve rooms; first-time answers pay once | `docs/Rifts.md` | `Services/RiftService`, `src/server/Rifts/`, shared `Rifts/Data/RiftData`, client `RiftController` |
 | **Wild Zones** (stage 1 confirmed, stage 2 not yet run): 6 permanent seeded regions with broken rules (gravity, slow time, burning water, a tide, no magic, constant healing), each with a heart that pays once and harvests daily; magic effects are permanent `WorldStateService` modifiers; generated terrain per zone; rumours mark them on the map | `docs/WildZones.md` | `Services/WildZoneService`, `World/WildZoneRules`, `World/WildZoneBuilder`, shared `World/WildZones`, client `WildZoneController` |
+| **Familiars** (stage 1, not yet run): a creature seeded from your innate profile, bonded after your first spells; no Humanoid, so spells can't touch it and walls don't stop it; 5 stages, 2 abilities, 4 orders, a filtered name | `docs/Familiars.md` | `Services/FamiliarService`, `src/server/Familiars/`, shared `Familiars/`, client `FamiliarController`, `Fx/FamiliarFx` |
 | **Functional buildings** (world-expansion stage 1 of 6, written 2026-11-03, not yet run): floors fixed (interiors cleared of terrain after every chunk build), working locked/unlocked doors (key, metal magic, lockpick, crime), registry-driven interactables with server ProximityPrompts (beds, chests/barrels/crates, the forge), containers through atomic two-inventory transactions, forge recipes with quality, access/theft rules, `buildingcheck`/`buildingaudit`/`door` | `docs/Buildings.md` | `src/server/Interact/`, `Services/InteractionService`, `ContainerService`, `CraftingService`, `World/BuildingGenerator`, shared `World/Interactables`, `Items/Data/Recipes`, client `InteractionController` |
 
 The player save schema is **v4** (`Persistence/Schemas.luau`), with migrations v1→v2 (spellbook array → map), v2→v3 (mastery → XP) and v3→v4 (placeholder inventory → real inventory).

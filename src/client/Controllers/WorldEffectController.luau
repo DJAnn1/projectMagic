@@ -19,6 +19,7 @@
 		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
+		familiar         Fx/FamiliarFx: its bites and abilities, being born, growing, a knockout
 		event, event_end world events (no visuals yet)
 	Everything visual is pooled and LOD-scaled inside SpellFx; a failing handler is logged, never
 	allowed to break the listener.
@@ -37,6 +38,7 @@ local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local SurgeFx = require(script.Parent.Parent.Fx.SurgeFx)
+local FamiliarFx = require(script.Parent.Parent.Fx.FamiliarFx)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
 local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitimate pushes pass whole
@@ -120,6 +122,8 @@ local function handle(effect: { [string]: any })
 		end
 	elseif kind == "surge" then
 		SurgeFx.cue(effect)
+	elseif kind == "familiar" then
+		FamiliarFx.cue(effect)
 	elseif kind == "time" then
 		TimeFx.cue(effect)
 	elseif kind == "gravity" then

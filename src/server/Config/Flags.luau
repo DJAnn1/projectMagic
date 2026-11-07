@@ -43,6 +43,8 @@ return {
 	titans_enabled = { default = true, description = "Huge bosses that cross the island and leave their bones (Services/TitanService). Off cancels a walking one with no rewards. Bones already fallen stay." },
 	wild_zones_enabled = { default = true, description = "Permanent regions with broken rules (Services/WildZoneService). Off lifts every rule at once and removes their landmarks." },
 	rifts_enabled = { default = true, description = "Seeded dungeons that open in the world (Services/RiftService). Off cancels a running one with no rewards and puts everyone back." },
+	familiars_enabled = { default = true, replicate = true, description = "A small creature born from your magic, which grows and fights beside you (Services/FamiliarService). Off removes them all; saves keep them." },
+	familiars_max_alive = { default = 60, description = "Most familiars out at once on this server." },
 	quests_enabled = { default = true, description = "Quest Director: situations, offers, quest progress and outcomes (Services/QuestDirector)." },
 	combat_anim_debug = { default = false, replicate = true, description = "Show each nearby character's and NPC's action state over its head (client labels; every client sees them, so Studio use)." },
 	combat_debug_log = { default = false, description = "Log every cast's damage breakdown (power, base, each target's damage, crits, kills) at Info level." },

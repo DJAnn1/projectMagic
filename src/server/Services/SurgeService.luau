@@ -218,7 +218,9 @@ local function onDamaged(payload: any)
 	local source: number? = payload.sourceUserId
 	local model = payload.model
 	local victim = if model then Players:GetPlayerFromCharacter(model) else nil
-	if source and source ~= (if victim then victim.UserId else nil) and not (model and model:GetAttribute("PracticeTarget")) then
+	-- A familiar's hits don't count: it mustn't fill your meter while you stand there.
+	local byFamiliar = string.sub(payload.kind or "", 1, 8) == "familiar"
+	if source and not byFamiliar and source ~= (if victim then victim.UserId else nil) and not (model and model:GetAttribute("PracticeTarget")) then
 		local attacker = Players:GetPlayerByUserId(source)
 		if attacker then
 			local s = stateOf(attacker)

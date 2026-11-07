@@ -94,6 +94,11 @@ local function clearFromHotbar(hotbar: { [string]: string? }, key: string)
 	end
 end
 
+-- A player's text, safe to show to anyone (a familiar's name, say). nil if it couldn't be filtered. Yields.
+function SpellbookService.filterName(_self: any, player: Player, text: string): string?
+	return filterForBroadcast(player, text)
+end
+
 --[[
 	The name to show for a spell: the filtered custom name, or the generated description when
 	there's no custom name (or it couldn't be filtered). May yield on first use per spell.

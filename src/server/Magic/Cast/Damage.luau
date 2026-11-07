@@ -54,6 +54,8 @@ local Damage = {}
 
 Damage.onDamage = nil :: ((Humanoid, number, string, number?, Info) -> ())?
 Damage.onHeal = nil :: ((Humanoid, number, number?, Info) -> ())?
+-- Something that isn't a player hit this Humanoid: who it was (info.attacker). Services/FamiliarService.
+Damage.onAttacked = nil :: ((Humanoid, Model) -> ())?
 -- Set by Cast/TimeRuntime: gets what's about to land and returns what does (a mark saving you from
 -- death, a Borrowed Wound holding it back, Future Sight dodging it). `kind` "internal" is overdraw.
 Damage.interceptor = nil :: ((Humanoid, number, number?, string, Info?) -> number)?
@@ -131,6 +133,10 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 	humanoid:SetAttribute("LastMagicHitAt", workspace:GetServerTimeNow())
 	if dealt <= 0 then
 		return 0
+	end
+	local attacked = Damage.onAttacked
+	if attacked and info and info.attacker then
+		attacked(humanoid, info.attacker)
 	end
 	local hitInfo: Info = if info then table.clone(info) else {}
 	hitInfo.killed = humanoid.Health <= 0
