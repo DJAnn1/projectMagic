@@ -18,7 +18,6 @@
 	screen from scratch. These changes are rare, and it keeps every builder simple.
 ]]
 
-local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
@@ -64,6 +63,7 @@ I.inputMode = Kit.value("Keyboard")
 I.openScreen = Kit.value(nil :: string?)
 
 local bus: any = nil
+local log: any = nil
 local magic: any = nil
 local screens: { [string]: ScreenDef } = {}
 local layers: { LayerDef } = {}
@@ -99,8 +99,27 @@ local function modeFor(inputType: Enum.UserInputType): string?
 	return nil
 end
 
--- Screen keys Roblox's default camera also binds (see the binding in start).
-local CAMERA_KEYS: { [Enum.KeyCode]: boolean } = { [Enum.KeyCode.I] = true, [Enum.KeyCode.O] = true }
+--[[
+	Roblox's player scripts bind I and O to camera zoom through the Input Action system
+	(PlayerModule.InputContexts.CameraContext.CameraZoomAction.KeyboardBinding), which takes those keys
+	before our screens can use them. Removing that one binding frees them. The mouse wheel, touch and
+	trackpad have bindings of their own, so they still zoom. Nothing in the player scripts refers to it
+	by name (checked 2026-11-07). If Roblox moves it, the warning below says so.
+]]
+local function freeZoomKeys()
+	local scripts = Players.LocalPlayer:WaitForChild("PlayerScripts", 30)
+	local module = scripts and scripts:WaitForChild("PlayerModule", 30)
+	local contexts = module and module:WaitForChild("InputContexts", 30)
+	local camera = contexts and contexts:WaitForChild("CameraContext", 30)
+	local zoom = camera and camera:WaitForChild("CameraZoomAction", 30)
+	local binding = zoom and zoom:WaitForChild("KeyboardBinding", 30)
+	if binding then
+		binding:Destroy()
+		log:info("zoom_keys_freed")
+	else
+		log:warn("zoom_binding_missing", { why = "I and O may not open their screens" })
+	end
+end
 
 local DIGITS: { [string]: string } = {
 	One = "1", Two = "2", Three = "3", Four = "4", Five = "5",
@@ -420,6 +439,7 @@ end
 
 function InterfaceController.init(_self: any, ctx: any)
 	bus = ctx.bus
+	log = ctx.log
 	magic = ctx.get("MagicStateController")
 	I:registerScreen({ id = "Settings", title = "Settings", order = 99, build = buildSettings })
 end
@@ -483,9 +503,6 @@ function InterfaceController.start(_self: any, _ctx: any)
 		if processed or adminPanelOpen() or UserInputService:GetFocusedTextBox() then
 			return
 		end
-		if CAMERA_KEYS[input.KeyCode] then
-			return -- handled below: both running would open the screen and close it again
-		end
 		if input.KeyCode == Enum.KeyCode.ButtonB and I.openScreen:get() then
 			I:close()
 			return
@@ -493,18 +510,7 @@ function InterfaceController.start(_self: any, _ctx: any)
 		toggleFor(input.KeyCode)
 	end)
 
-	-- Roblox's default camera zooms on I and O, and can mark them as handled before InputBegan sees
-	-- them. Binding them above the camera gets them to the screens first, and they no longer zoom
-	-- (the mouse wheel still does). While you're typing they pass through untouched.
-	ContextActionService:BindActionAtPriority("MagicScreenKeys", function(_action, state, input)
-		if adminPanelOpen() or UserInputService:GetFocusedTextBox() then
-			return Enum.ContextActionResult.Pass
-		end
-		if state == Enum.UserInputState.Begin then
-			toggleFor(input.KeyCode)
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.I, Enum.KeyCode.O)
+	task.spawn(freeZoomKeys)
 
 	rebuildAll()
 end
