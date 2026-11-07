@@ -201,8 +201,10 @@ end
 local function anchor(b: Builder, primary: BasePart, name: string, tagName: string, localPos: Vector3, lotId: string)
 	local attachment = Instance.new("Attachment")
 	attachment.Name = name
-	attachment.WorldCFrame = b.base * CFrame.new(localPos)
+	-- Parent first. With no parent, WorldCFrame is stored as a local offset, and it's then applied a second
+	-- time on top of the part's own place: every anchor lands far from a building away from the world origin.
 	attachment.Parent = primary
+	attachment.WorldCFrame = b.base * CFrame.new(localPos)
 	attachment:SetAttribute("BuildingId", lotId)
 	CollectionService:AddTag(attachment, tagName)
 end

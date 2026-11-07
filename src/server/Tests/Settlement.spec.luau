@@ -519,6 +519,21 @@ return function(t: any)
 			t.log("  max parts per type: " .. table.concat(list, ", "))
 		end)
 
+		it("puts its anchors at the building, wherever it stands", function()
+			-- Away from the origin and turned: at CFrame.new() an offset applied twice doesn't show.
+			local at = CFrame.new(-620, 60, 150) * CFrame.Angles(0, 0.7, 0)
+			local model = BuildingGenerator.build({ kind = "house_small", cframe = at, w = 18, d = 16, seed = 1, culture = "wayfarer", name = "A", settlementId = "s", lotId = "a" })
+			local found = 0
+			for _, d in (model :: Model):GetDescendants() do
+				if d:IsA("Attachment") and d:GetAttribute("BuildingId") == "a" then
+					found += 1
+					expect((d.WorldPosition - at.Position).Magnitude < 30).toBe(true)
+				end
+			end
+			expect(found > 0).toBe(true)
+			;(model :: Model):Destroy()
+		end)
+
 		it("varies with the seed", function()
 			local a = BuildingGenerator.build({ kind = "house_small", cframe = CFrame.new(), w = 18, d = 16, seed = 1, culture = "wayfarer", name = "A", settlementId = "s", lotId = "a" })
 			local b = BuildingGenerator.build({ kind = "house_small", cframe = CFrame.new(), w = 18, d = 16, seed = 2, culture = "wayfarer", name = "B", settlementId = "s", lotId = "b" })
