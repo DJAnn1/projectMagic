@@ -596,6 +596,20 @@ function SettlementService.spawnPoints(self: any, settlementId: string): { Vecto
 end
 
 -- The built building on a lot (nil until its chunk has been built on this server).
+-- The built lot in this town that a point falls inside, or nil (NPCService: is that spot in a building?).
+function SettlementService.lotAt(_self: any, settlementId: string, position: Vector3): string?
+	for lotId, found in lotIndex do
+		if found.entry.settlement.id == settlementId and found.entry.built[lotId] then
+			local lot = found.lot
+			local p = lot.cframe:PointToObjectSpace(position)
+			if math.abs(p.X) <= lot.w / 2 and math.abs(p.Z) <= lot.d / 2 then
+				return lotId
+			end
+		end
+	end
+	return nil
+end
+
 -- The ground a lot really covers: its centre and size, from the layout (Services/TownRepairService).
 function SettlementService.lotBox(_self: any, lotId: string): (CFrame?, Vector3?)
 	local found = lotIndex[lotId]

@@ -392,6 +392,21 @@ end
 
 -- Data-only (T2) NPCs reach their destination on the next hourly pass (thinkFar), so a town
 -- seen from afar fills up over the first game hour instead of all at once.
+-- Out through the door and into the street: the way back from somewhere the pathfinder can't reach.
+local function leaveBy(npc: any, lotId: string)
+	local door = settlementSvc:anchor(lotId, "Entrance")
+	if not door or not npc.rig or npc.rig.root.Anchored then
+		return
+	end
+	for _, leaf in Doors.near(door, 8) do
+		if not Doors.isOpen(leaf) then
+			Doors.open(leaf)
+		end
+	end
+	npc.rig.model:PivotTo(CFrame.new(door))
+	npc.position = door
+end
+
 local function route(npc: any)
 	local def = NeedsActions.actions[npc.action]
 	if not def or def.district == "here" then
@@ -407,23 +422,6 @@ local function route(npc: any)
 			return
 		end
 		npc.enterHome = nil
-	end
-	if npc.insideLot then
-		if district == "home" and npc.home and npc.home.lot == npc.insideLot and not downLots[npc.insideLot] then
-			return -- home already, and staying there
-		end
-		-- They came in by the door, not by a path, so the way out is the same: through it, and into the street.
-		local door = settlementSvc:anchor(npc.insideLot, "Entrance")
-		npc.insideLot = nil
-		if door and npc.rig and not npc.rig.root.Anchored then
-			for _, leaf in Doors.near(door, 8) do
-				if not Doors.isOpen(leaf) then
-					Doors.open(leaf)
-				end
-			end
-			npc.rig.model:PivotTo(CFrame.new(door))
-			npc.position = door
-		end
 	end
 	local target: Vector3? = nil
 	if not rogue and district == "home" and npc.home then
@@ -441,6 +439,16 @@ local function route(npc: any)
 	local place = target or spotFor(npc, district)
 	if Navigation.RecentlyFailed(npc, place) then
 		place = npc.position
+	end
+	-- Inside somewhere they came in by the door: staying if the next thing is in the same building, and out
+	-- through the door if not.
+	local inside = npc.insideLot
+	if inside then
+		if not downLots[inside] and settlementSvc:lotAt(npc.settlementId, place) == inside then
+			return
+		end
+		npc.insideLot = nil
+		leaveBy(npc, inside)
 	end
 	LOD.setDestination(npc, place)
 end
@@ -478,11 +486,11 @@ local function stepEnterHome(npc: any, clock: number)
 	npc.enterHome = nil
 	npc.insideLot = entering.lot
 	npc.reachedHomeLogged = true -- so this doesn't also count as having walked there
-	local bed = homePosition(npc)
+	local spot: Vector3 = entering.spot
 	Navigation.Stop(npc)
 	npc.destination = nil
-	npc.rig.model:PivotTo(CFrame.new(bed))
-	npc.position = bed
+	npc.rig.model:PivotTo(CFrame.new(spot))
+	npc.position = spot
 	log:info("npc_went_indoors", { npc = npc.id, lot = entering.lot, how = "door" })
 end
 
@@ -2365,15 +2373,25 @@ function NPCService.init(_self: any, ctx: any)
 		local entering = npc.enterHome
 		if entering and goal and (goal - entering.door).Magnitude < 2 then
 			npc.enterHome = nil -- not even as far as their own door
-		elseif not entering and goal and npc.home and not downLots[npc.home.lot] and (goal - homePosition(npc)).Magnitude < 2 then
-			if not npc.homeFailLogged then
-				npc.homeFailLogged = true
-				log:info("npc_home_path_failed", { npc = npc.id, lot = npc.home.lot, reason = reason, x = math.floor(goal.X), y = math.floor(goal.Y), z = math.floor(goal.Z) })
-			end
-			local door = settlementSvc:anchor(npc.home.lot, "Entrance")
-			if door then
-				npc.enterHome = { action = npc.action, lot = npc.home.lot, door = door, giveUp = os.clock() + 60 }
-				LOD.setDestination(npc, door)
+		elseif not entering and goal then
+			-- Rooms are mostly closed to the pathfinder (nav_no_path: goalOk and startOk false, 2026-11-07).
+			-- Any building, either way: in through its door, or out through the one they're behind.
+			local lot = settlementSvc:lotAt(npc.settlementId, goal)
+			local here = if npc.rig then settlementSvc:lotAt(npc.settlementId, npc.rig.root.Position) else nil
+			if lot and lot ~= here and not downLots[lot] then
+				if not npc.buildingFailLogged then
+					npc.buildingFailLogged = true
+					log:info("npc_building_path_failed", { npc = npc.id, lot = lot, home = npc.home ~= nil and npc.home.lot == lot, action = tostring(npc.action), reason = reason })
+				end
+				local door = settlementSvc:anchor(lot, "Entrance")
+				if door then
+					npc.enterHome = { action = npc.action, lot = lot, door = door, spot = goal, giveUp = os.clock() + 60 }
+					LOD.setDestination(npc, door)
+				end
+			elseif here and here ~= lot then
+				npc.insideLot = nil
+				leaveBy(npc, here)
+				log:info("npc_left_by_door", { npc = npc.id, lot = here, action = tostring(npc.action) })
 			end
 		end
 		log:debug("nav_failed", { npc = npc.id, action = npc.action, reason = reason, x = goal and math.floor(goal.X), z = goal and math.floor(goal.Z) })
