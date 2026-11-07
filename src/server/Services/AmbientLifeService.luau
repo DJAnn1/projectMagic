@@ -564,6 +564,12 @@ local function greet(npc: any, now: number, clock: number)
 					npc.greeted[key] = clock
 					playerGreeted[player] = clock
 					counters.remarks += 1
+					log:throttled("mark_remark", 3, "Info", "npc_remarked_mark", {
+						npc = npc.id,
+						how = if close then "said" else "whispered",
+						marks = player.Character and player.Character:GetAttribute("MagicMarks"),
+						text = remark,
+					})
 					if close then
 						counters.greetings += 1
 						behave(npc, band, player, clock)
