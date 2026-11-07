@@ -77,7 +77,8 @@ type Record = {
 	pausedAt: number?,
 	snapped: boolean,
 	started: boolean,
-	travelSince: number, -- server time this Travelling phase began (stalls: actphases, actnpc) -- has ever reached Performing (patrols then stay Performing while walking)
+	travelSince: number, -- server time this Travelling phase began (stalls: actphases, actnpc)
+	retryAt: number, -- server time to ask NPCService to route them again while they're stalled -- has ever reached Performing (patrols then stay Performing while walking)
 	finishing: { def: Activity, state: ActivityState.State, untilAt: number, encoded: string }?,
 	forced: { id: string, untilDay: number, station: Station? }?,
 }
@@ -333,6 +334,7 @@ local function newRecord(npc: any, now: number): Record
 		snapped = false,
 		started = false,
 		travelSince = now,
+		retryAt = now + 15,
 		finishing = nil,
 		forced = nil,
 	}
@@ -512,6 +514,12 @@ local function step(npc: any, now: number)
 				if phase ~= "W" then
 					setPhase(rec, "W", now)
 				end
+			elseif not here and phase == "T" and point and not Navigation.IsMoving(npc) and not npc.enterHome and now >= rec.retryAt then
+				-- Stalled short of the use point (a failed path left them at a district spot, or route() gave
+				-- up on it for a while): ask again now and then, so the walk or the door fallback gets another go
+				-- once Navigation's memory of the failure runs out.
+				rec.retryAt = now + 15
+				npcs:reroute(npc)
 			elseif not here and phase ~= "I" and not (phase == "W" and def.spot ~= nil) then
 				-- Walked off to somewhere new. (Station-less work moves about, a farmer along the rows,
 				-- and stays Performing: the condition above leaves that case alone.)

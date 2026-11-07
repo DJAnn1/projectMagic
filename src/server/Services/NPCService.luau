@@ -438,8 +438,11 @@ local function route(npc: any)
 	if not target and not rogue and placeHook then
 		target = placeHook(npc, district) -- AmbientLifeService: the real building for this district
 	end
-	-- Somewhere it just failed to reach: try the plain district spot, and failing that, stay put.
-	if target and Navigation.RecentlyFailed(npc, target) then
+	-- Somewhere it just failed to reach: try the plain district spot, and failing that, stay put. Unless they're
+	-- already standing there (the door fallback put them on it): dropping it then sent them back out through
+	-- the door to an outdoor spot, in a loop (actphases 2026-11-07: 36 of 40 Travelling at 22:00).
+	local standingOnIt = target ~= nil and Vector3.new(target.X - npc.position.X, 0, target.Z - npc.position.Z).Magnitude <= 4
+	if target and not standingOnIt and Navigation.RecentlyFailed(npc, target) then
 		target = nil
 	end
 	local place = target or spotFor(npc, district)
