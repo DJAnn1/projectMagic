@@ -25,6 +25,7 @@
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Types = require(Shared.Magic.Types)
 local Registry = require(Shared.Magic.Registry)
+local Topics = require(Shared.Core.Topics)
 local Server = script.Parent.Parent
 local T = require(Server.Magic.Data.CastTuning)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
@@ -60,6 +61,7 @@ local BacklashService = {
 }
 
 local log: any = nil
+local bus: any = nil
 local reservoirs: any = nil
 local runner: any = nil
 local rng = Random.new()
@@ -160,11 +162,16 @@ function BacklashService.controlLoss(_self: any, player: Player, humanoid: Human
 	local text = applyRisk(player, humanoid, riskId, severity)
 	cue(player, humanoid, riskId, severity)
 	log:info("control_lost", { userId = player.UserId, key = stats.key, severity = math.floor(severity * 100) / 100, risk = riskId })
+	local root = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		bus:publish(Topics.ControlLost, { player = player, stats = stats, severity = severity, position = root.Position })
+	end
 	return severity, text
 end
 
 function BacklashService.init(_self: any, ctx: any)
 	log = ctx.log
+	bus = ctx.bus
 	reservoirs = ctx.get("ReservoirService")
 	runner = ctx.get("EffectRunner")
 end

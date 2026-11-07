@@ -10,6 +10,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
   3. Write complete, commented `--!strict` code.
   4. Call out performance risks, exploit risks and edge cases.
   5. End with **(1) what to test, (2) what to build next, (3) open design questions**.
+- **Design rule (2026-11-07):** a feature must feel like part of a realistic simulated world, not a game system laid over it. Tournaments were dropped for being "too streamlined". Prefer causes inside the world, and tell players through NPCs, journals and what they can see before cards, pins and announcements. Flag anything that still feels like a game.
 - **Non-negotiable constraints:**
   - Server-authoritative: clients send intents only.
   - Data-driven: content lives in data modules.
@@ -31,6 +32,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 **Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
 
 **1. Check first (built, not yet confirmed in a log)**
+- **Feral Spells (`docs/FeralSpells.md`), built 2026-11-07 on "Build feral spells", not yet run.** Expected boot line `specs 849/849` (24 new in `Tests/FeralSpells.spec`), if the unconfirmed 825 holds. No interface and no client code, on purpose: see the design rule below. Test with `feral spawn`, `feral list`, `feral goto`, asking townspeople for rumours, and an NPC accident's clue. Look for `feral_escaped`, `feral_woke`, `feral_fell`, `feral_studied`, `feral_guttered`, `feral_rumor`. The doc lists the parts that still feel like a game, for the owner to judge.
+
 - The progress reset's specs and the map's specs passed (they're inside the confirmed `specs 673/673`); neither feature's in-play behaviour has been seen.
 - The map: check where a click lands, whether a fully explored map hitches on opening (`maprevealall`), and whether uncovered ground survives a rejoin (`docs/Map.md`).
 - A shared event played to the end: payout, tiers, and the guaranteed first relic (`sharedevent start elemental`, 30+ s in the zone).
@@ -72,7 +75,6 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Fixes if they show up in play:** `foundation_failed` on `House_12` and `HouseLarge_07` in settlement_2, and the spawn rescue from near the world origin.
 
 **4. Pitched and not yet picked (the 2026-11-06 and 2026-11-07 ideas rounds)**
-- **Feral Spells (recommended 2026-11-07):** a bad backfire escapes as a roaming creature with that spell's recipe, named after its caster; catch it to get a clue to the recipe. M.
 - **Magic Changes You:** what you use most slowly and visibly changes your body, with a small perk and a small quirk. S–M.
 - **Pacts:** seeded otherworldly beings offer a real power for a real cost. M.
 - **Town Mysteries:** a seeded crime in a town, solved with NPC memories and your own magic. M–L.
@@ -210,6 +212,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 | **Titans** (not yet run): a huge boss crosses the island every 2 hours on a seeded road, with weak points that make it stumble; the first server to kill it writes a crater, bones and a named map pin that every server shows, 20 kept at most | `docs/Titans.md` | `Services/TitanService`, `src/server/Titans/`, shared `Titans/Data/Titans`, client `TitanController` |
 | **Rifts** (stages 1 and 2 confirmed, tuning pass not yet run): seeded dungeons in a sealed pocket off the island; 7 rooms, 8 twists, 3 bosses; every room accepts all 12 domains; clever answers and magic reactions solve rooms; first-time answers pay once | `docs/Rifts.md` | `Services/RiftService`, `src/server/Rifts/`, shared `Rifts/Data/RiftData`, client `RiftController` |
 | **Wild Zones** (stage 1 confirmed, stage 2 not yet run): 6 permanent seeded regions with broken rules (gravity, slow time, burning water, a tide, no magic, constant healing), each with a heart that pays once and harvests daily; magic effects are permanent `WorldStateService` modifiers; generated terrain per zone; rumours mark them on the map | `docs/WildZones.md` | `Services/WildZoneService`, `World/WildZoneRules`, `World/WildZoneBuilder`, shared `World/WildZones`, client `WildZoneController` |
+| **Feral Spells** (not yet run): strong spells that lose control may tear loose and roam, casting what they were, running out of energy, drawn to ley lines and to magic; NPC mages have accidents too; no interface of any kind; a Journal clue to a recipe you didn't know | `docs/FeralSpells.md` | `Services/FeralService`, `src/server/Ferals/` |
 | **Familiars** (stage 1, not yet run): a creature seeded from your innate profile, bonded after your first spells; no Humanoid, so spells can't touch it and walls don't stop it; 5 stages, 2 abilities, 4 orders, a filtered name | `docs/Familiars.md` | `Services/FamiliarService`, `src/server/Familiars/`, shared `Familiars/`, client `FamiliarController`, `Fx/FamiliarFx` |
 | **Functional buildings** (world-expansion stage 1 of 6, written 2026-11-03, not yet run): floors fixed (interiors cleared of terrain after every chunk build), working locked/unlocked doors (key, metal magic, lockpick, crime), registry-driven interactables with server ProximityPrompts (beds, chests/barrels/crates, the forge), containers through atomic two-inventory transactions, forge recipes with quality, access/theft rules, `buildingcheck`/`buildingaudit`/`door` | `docs/Buildings.md` | `src/server/Interact/`, `Services/InteractionService`, `ContainerService`, `CraftingService`, `World/BuildingGenerator`, shared `World/Interactables`, `Items/Data/Recipes`, client `InteractionController` |
 
