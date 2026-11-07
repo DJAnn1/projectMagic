@@ -65,12 +65,22 @@ function DailyLife.step(npc: any, clock: number, env: any)
 		DailyLife.clear(npc)
 		return
 	end
+	-- An ActivityLibrary activity (Services/ActivityService) is drawn by the clients: no server prop or clip.
+	-- At a station it stays put; at a spot it still roams and patrols from here.
+	local activity = npc.activity
+	local rendered = activity ~= nil and activity.def ~= nil
+	local atStation = rendered and activity.station ~= nil
 	local life = npc.life
-	if not life or life.key ~= key then
+	if not life or life.key ~= key or life.rendered ~= rendered then
 		DailyLife.clear(npc)
-		life = { key = key, n = 0, nextClip = 0, nextMove = 0, stop = 0, center = nil, moving = false }
+		life = { key = key, n = 0, nextClip = 0, nextMove = 0, stop = 0, center = nil, moving = false, rendered = rendered }
 		npc.life = life
-		LOD.setProp(npc, if def.prop then Activities.Props[def.prop] else nil, if def.clip then Activities.clipHand[def.clip] else nil)
+		if not rendered then
+			LOD.setProp(npc, if def.prop then Activities.Props[def.prop] else nil, if def.clip then Activities.clipHand[def.clip] else nil)
+		end
+	end
+	if atStation then
+		return
 	end
 	if Navigation.IsPaused(npc) then
 		return -- a pause for a greeting: whatever they were doing carries on after
@@ -113,7 +123,10 @@ function DailyLife.step(npc: any, clock: number, env: any)
 		end
 	end
 
-	-- Standing at the spot: hold the clip, or play it now and then.
+	-- Standing at the spot: hold the clip, or play it now and then (only for the legacy, server-drawn ones).
+	if rendered then
+		return -- the clients draw it (practice shows its own magic: Fx/SetPieces)
+	end
 	if def.looped then
 		startClip(npc, def)
 	elseif clock >= life.nextClip and def.every then

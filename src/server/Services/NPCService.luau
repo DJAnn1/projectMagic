@@ -145,6 +145,7 @@ local talkHook: ((Player, any, string) -> (string?, boolean))? = nil -- QuestDir
 local rumorHooks: { (Player, any) -> string? } = {} -- WildZoneService, FeralService (setRumorHook)
 local ambientHook: ((any, number, number) -> ())? = nil -- AmbientLifeService (setAmbientHooks)
 local placeHook: ((any, string) -> Vector3?)? = nil
+local activityHook: ((any) -> Vector3?)? = nil -- ActivityService (setActivityHook): the station's use point
 local store: any = nil
 local dataService: any = nil
 local settlementSvc: any = nil
@@ -424,9 +425,13 @@ local function route(npc: any)
 		npc.enterHome = nil
 	end
 	local target: Vector3? = nil
-	if not rogue and district == "home" and npc.home then
+	-- The activity's own place first: the use point at its station (a bed, the anvil) or its spot.
+	if not rogue and activityHook then
+		target = activityHook(npc)
+	end
+	if not target and not rogue and district == "home" and npc.home then
 		target = homePosition(npc)
-	elseif not rogue and def.district == "work" then
+	elseif not target and not rogue and def.district == "work" then
 		target = workPosition(npc)
 	end
 	if not target and not rogue and placeHook then
@@ -1847,6 +1852,16 @@ function NPCService.questBond(_self: any, npc: any, player: Player, delta: numbe
 end
 
 -- AmbientLifeService's way in: once a second for each T0 NPC, and where a district really is.
+-- ActivityService: where the NPC's current activity happens (nil = the usual district or building spot).
+function NPCService.setActivityHook(_self: any, fn: (any) -> Vector3?)
+	activityHook = fn
+end
+
+-- A building that's down (collapsed, waiting to be rebuilt): nobody uses it.
+function NPCService.lotDown(_self: any, lotId: string): boolean
+	return downLots[lotId] == true
+end
+
 function NPCService.setAmbientHooks(_self: any, ambient: (any, number, number) -> (), place: (any, string) -> Vector3?)
 	ambientHook, placeHook = ambient, place
 end

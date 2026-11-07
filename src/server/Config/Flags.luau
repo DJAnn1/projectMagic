@@ -53,6 +53,7 @@ return {
 	combat_debug_log = { default = false, description = "Log every cast's damage breakdown (power, base, each target's damage, crits, kills) at Info level." },
 	magic_casting_enabled = { default = true, replicate = true, description = "Global kill switch for casting." },
 	ambient_life_enabled = { default = true, description = "Visible daily life, barks and reputation greetings (AmbientLifeService). Off = the old NPC barks." },
+	activities_enabled = { default = true, description = "Readable NPC activities (ActivityService): stations, use points, the NpcActivity attribute clients draw props and poses from. Off = the old DailyLife props." },
 	ambient_all_towns = { default = false, description = "Daily life activities, real-building routing, stalls and lamps in every town. Off = the spawn town only." },
 	scenes_enabled = { default = true, description = "Small stories that happen in every town, watched or not (SceneDirector)." },
 	creatures_enabled = { default = true, description = "Wild creatures around towns (CreatureService). Off puts every den to sleep." },

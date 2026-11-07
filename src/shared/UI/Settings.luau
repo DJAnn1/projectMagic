@@ -192,6 +192,14 @@ local Settings: { [string]: SettingDef } = {
 		options = { "everyone", "party", "nobody" },
 		labels = { "Everyone", "My party", "Nobody" },
 	},
+	npcObserve = {
+		order = 10,
+		label = "Reading people",
+		description = "Look at someone for a moment to read what they're doing. Minimal: what they're at. Standard: who they are and why, once you know them or have watched a while. Detailed: how far along they are too. Off: nothing; read the world alone.",
+		default = "Standard",
+		options = { "Off", "Minimal", "Standard", "Detailed" },
+		labels = { "Off", "Minimal", "Standard", "Detailed" },
+	},
 	composerHelpSeen = {
 		order = 101,
 		hidden = true,

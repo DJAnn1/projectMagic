@@ -291,6 +291,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 1 },
 		maxBytes = 96,
 	},
+	NpcObserve = { -- npc id, detail -> { npcId, title, line, level } (ActivityService: within 45 studs; detail is the npcObserve setting)
+		kind = "Function",
+		from = "Client",
+		args = { S.string(1, 64), S.literal("Minimal", "Standard", "Detailed") },
+		rate = { capacity = 6, perSecond = 2 },
+		maxBytes = 120,
+	},
 	NpcTalk = { -- npc id, topic -> dialogue payload (server checks the player is beside the NPC)
 		kind = "Function",
 		from = "Client",
@@ -485,6 +492,7 @@ local Remotes: { [string]: RemoteDef } = {
 	WorldEffect = { kind = "Event", from = "Server" }, -- cosmetic cues: camera shake, wave visuals, sky
 	MapReveal = { kind = "Event", from = "Server" }, -- { cells = { i, code, ... }, pois }: ground and places you've just uncovered (Services/MapService)
 	Notify = { kind = "Event", from = "Server" },
+	ActivityDebug = { kind = "Event", from = "Server" }, -- boolean: the actlabels admin command, to that admin only
 	NpcSpeech = { kind = "Event", from = "Server" }, -- { npcId, text }: a speech bubble over an NPC (nearby players only)
 	JournalChanged = { kind = "Event", from = "Server" }, -- { kind, text, questId? }: a new journal entry (owner only)
 	InventoryChanged = { kind = "Event", from = "Server" },

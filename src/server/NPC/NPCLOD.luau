@@ -280,6 +280,7 @@ local function release(rig: Rig)
 		rig.prop = nil
 	end
 	rig.model:SetAttribute("NpcId", nil)
+	rig.model:SetAttribute("NpcActivity", nil) -- ActivityService writes the next wearer's
 	rig.model.Parent = nil
 	table.insert(pool, rig)
 end

@@ -3,9 +3,14 @@
 	Activities: what an NPC visibly does once it reaches where its schedule sent it
 	(docs/LivingWorld.md §2). Pure data; NPC/DailyLife runs it.
 
-	CLIPS are the replaceable animation slots. To replace one, change its id here and nothing else: a
-	hammering animation goes in `hammer`, and every smith and builder picks it up. An animation must
-	be owned by whoever owns the place (or shared with it), or it won't load: NPCLOD warns once.
+	The LEGACY layer: since docs/Activities.md, NPCs doing an ActivityLibrary activity get their props and
+	poses on the clients instead (Services/ActivityService), and DailyLife only moves them (roams, patrols).
+	This table still dresses every action the library doesn't cover yet.
+
+	CLIPS are the replaceable animation slots, now in Shared/Life/Data/ActivityPoses.slots. To replace one,
+	change its id there and nothing else: a hammering animation goes in `hammer`, and every smith and
+	builder picks it up. An animation must be owned by whoever owns the place (or shared with it), or it
+	won't load: NPCLOD warns once.
 
 	PROPS are small parts welded to an arm (the right, unless clipHand says otherwise), each one a list
 	of { size, offset, color, material }.
@@ -24,6 +29,8 @@
 
 	LOOKUP: byOccupation[occupation][action], then byAction[action], else nothing (a plain idle).
 ]]
+
+local ActivityPoses = require(game:GetService("ReplicatedStorage").Shared.Life.Data.ActivityPoses)
 
 local rgb = Color3.fromRGB
 local M = Enum.Material
@@ -77,23 +84,9 @@ local Activities = {}
 
 Activities.Props = Props
 
--- R6 only: the project's rigs are R6 (CombatAnimations.rigType).
-Activities.Clips = table.freeze({
-	-- The owner's own clips (2026-11-05).
-	hammer = "rbxassetid://83054299922044",
-	dig = "rbxassetid://102462779862982",
-	hold = "rbxassetid://115233860888201",
-	point = "rbxassetid://75385791730022",
-	sit = "rbxassetid://123240149331173",
-	-- Slots waiting for a clip. Empty is fine: NPCAnimator turns the head and bobs it instead.
-	talk = "", -- 3-4 s loop: standing, gesturing with one hand while speaking
-	listen = "", -- 3-4 s loop: standing, shifting weight, a small nod
-	-- Still Roblox's defaults.
-	wave = "rbxassetid://128777973",
-	cheer = "rbxassetid://129423030",
-	laugh = "rbxassetid://129423131",
-	dance = "rbxassetid://182435998",
-}) :: { [string]: string }
+-- The animation slots now live in Shared/Life/Data/ActivityPoses (clients play activity clips too, from
+-- the same table). R6 only: the project's rigs are R6 (CombatAnimations.rigType).
+Activities.Clips = ActivityPoses.slots
 
 Activities.byOccupation = {
 	smith = { work = { clip = "hammer", every = { 1.8, 3 }, prop = "hammer", spark = true } },

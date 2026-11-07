@@ -25,6 +25,7 @@ Theme.settings = {
 	reducedEffects = false,
 	damageNumbers = true,
 	questMarkers = true,
+	npcObserve = "Standard",
 }
 
 -- ─── Colour ─────────────────────────────────────────────────────────────────
