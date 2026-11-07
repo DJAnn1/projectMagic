@@ -46,6 +46,7 @@ export type Part = {
 	color: Color3,
 	material: Enum.Material,
 	transparency: number?,
+	anim: { kind: string, amount: number, speed: number, phase: number? }?, -- moved on the client (Fx/FamiliarAnimator)
 }
 
 export type Def = {

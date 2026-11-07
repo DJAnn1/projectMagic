@@ -4,14 +4,26 @@
 	guess. Server only: clients never need any of this, because a feral spell has no interface.
 
 	FIELDS
-		bodies   what a loose spell looks like, by the shape of the spell that escaped. Part slots:
-		         core (the domain's darkest bright colour, Neon), body, haze (see-through)
-		forms    which body each spell form becomes
-		words    what it's called, by domain. Plain, like something a person would say
+		styles   how each domain comes apart: no shell or outline, just loose pieces, in that domain's
+		         character. Each loose spell's pieces are seeded, so no two look quite the same
+		words    what people call it, by domain. In their words and the Journal: nothing floats over it
 		rumors   what people say about one. %s are who lost it, and where it was seen
 ]]
 
-export type Part = { name: string, shape: string, size: Vector3, offset: Vector3, slot: string, transparency: number? }
+export type Style = {
+	count: number, -- pieces
+	spread: Vector3, -- how far out they scatter
+	size: { number }, -- min, max
+	stretch: Vector3, -- leaves are flat, slivers are long
+	shape: string, -- "Ball" | "Block"
+	motion: string, -- tumble | swirl | flicker (Fx/FamiliarAnimator)
+	amount: number, -- how far each piece wanders
+	speed: { number }, -- min, max
+	glowShare: number, -- share of the pieces that are Neon
+	alpha: { number }, -- min, max transparency
+	material: string?,
+	dark: boolean?,
+}
 
 local FeralData = {}
 
@@ -78,49 +90,24 @@ FeralData.tuning = {
 	rumorRadius = 1100, -- people only talk about what's near enough to worry them
 }
 
-FeralData.bodies = {
-	-- Touch, projectile and chain: a small hard spark of the thing.
-	spark = {
-		{ name = "Head", shape = "Ball", size = Vector3.new(1.1, 1.1, 1.1), offset = Vector3.zero, slot = "core" },
-		{ name = "Shell", shape = "Ball", size = Vector3.new(1.9, 1.9, 1.9), offset = Vector3.zero, slot = "body", transparency = 0.45 },
-		{ name = "Haze", shape = "Ball", size = Vector3.new(3.2, 3.2, 3.2), offset = Vector3.zero, slot = "haze", transparency = 0.82 },
-		{ name = "ShardA", shape = "Ball", size = Vector3.new(0.45, 0.45, 1.1), offset = Vector3.new(1.3, 0.3, 0.2), slot = "body" },
-		{ name = "ShardB", shape = "Ball", size = Vector3.new(0.4, 1, 0.4), offset = Vector3.new(-1.1, -0.45, -0.5), slot = "body" },
-		{ name = "ShardC", shape = "Ball", size = Vector3.new(0.9, 0.35, 0.35), offset = Vector3.new(0.1, 1.15, 0.8), slot = "core" },
-	},
-	-- Burst, aura and zone: a loose churning mass.
-	mass = {
-		{ name = "Head", shape = "Ball", size = Vector3.new(1.5, 1.3, 1.5), offset = Vector3.new(0, 0.25, 0), slot = "core" },
-		{ name = "LobeA", shape = "Ball", size = Vector3.new(2, 1.5, 1.7), offset = Vector3.new(0.75, -0.2, 0.3), slot = "body", transparency = 0.3 },
-		{ name = "LobeB", shape = "Ball", size = Vector3.new(1.7, 1.6, 2), offset = Vector3.new(-0.7, 0, -0.4), slot = "body", transparency = 0.35 },
-		{ name = "LobeC", shape = "Ball", size = Vector3.new(1.4, 1.2, 1.4), offset = Vector3.new(0.1, 0.8, -0.7), slot = "body", transparency = 0.4 },
-		{ name = "Haze", shape = "Ball", size = Vector3.new(4.4, 3.6, 4.4), offset = Vector3.zero, slot = "haze", transparency = 0.85 },
-	},
-	-- Beam, wall and pillar: tall and thin, hard to look at straight on.
-	column = {
-		{ name = "Head", shape = "Ball", size = Vector3.new(0.8, 1, 0.8), offset = Vector3.new(0, 1.6, 0), slot = "core" },
-		{ name = "Spine", shape = "Ball", size = Vector3.new(0.8, 3.4, 0.8), offset = Vector3.zero, slot = "core" },
-		{ name = "Shell", shape = "Ball", size = Vector3.new(1.5, 4, 1.5), offset = Vector3.zero, slot = "body", transparency = 0.5 },
-		{ name = "Haze", shape = "Ball", size = Vector3.new(2.7, 5, 2.7), offset = Vector3.zero, slot = "haze", transparency = 0.84 },
-	},
-	-- Summon and ritual: rings of something that nearly forms a shape.
-	knot = {
-		{ name = "Head", shape = "Ball", size = Vector3.new(1, 1, 1), offset = Vector3.zero, slot = "core" },
-		{ name = "RingA", shape = "Ball", size = Vector3.new(3, 0.25, 3), offset = Vector3.zero, slot = "body", transparency = 0.25 },
-		{ name = "RingB", shape = "Ball", size = Vector3.new(0.25, 3, 3), offset = Vector3.zero, slot = "body", transparency = 0.3 },
-		{ name = "RingC", shape = "Ball", size = Vector3.new(3, 3, 0.25), offset = Vector3.zero, slot = "body", transparency = 0.35 },
-		{ name = "Haze", shape = "Ball", size = Vector3.new(3.8, 3.8, 3.8), offset = Vector3.zero, slot = "haze", transparency = 0.86 },
-	},
-} :: { [string]: { Part } }
+-- rgbs come from the domain's palette, except `dark`, which uses near-black instead.
+FeralData.styles = {
+	energy = { count = 11, spread = Vector3.new(1.5, 1.8, 1.5), size = { 0.2, 0.6 }, stretch = Vector3.new(0.5, 1.4, 0.5), shape = "Ball", motion = "flicker", amount = 0.45, speed = { 2.5, 5 }, glowShare = 0.8, alpha = { 0, 0.25 } },
+	earth = { count = 9, spread = Vector3.new(1.5, 1.2, 1.5), size = { 0.35, 0.95 }, stretch = Vector3.new(1, 0.8, 1.1), shape = "Block", motion = "tumble", amount = 0.3, speed = { 0.4, 1.1 }, glowShare = 0, alpha = { 0, 0 }, material = "Slate" },
+	water = { count = 10, spread = Vector3.new(1.4, 1.4, 1.4), size = { 0.35, 0.85 }, stretch = Vector3.new(1, 1.15, 1), shape = "Ball", motion = "swirl", amount = 0, speed = { 0.7, 1.5 }, glowShare = 0, alpha = { 0.25, 0.5 } },
+	air = { count = 12, spread = Vector3.new(1.9, 1, 1.9), size = { 0.3, 0.7 }, stretch = Vector3.new(2.6, 0.14, 0.4), shape = "Ball", motion = "swirl", amount = 0, speed = { 1.5, 3.2 }, glowShare = 0, alpha = { 0.45, 0.75 } },
+	life = { count = 12, spread = Vector3.new(1.5, 1.5, 1.5), size = { 0.25, 0.6 }, stretch = Vector3.new(1.3, 0.2, 0.8), shape = "Ball", motion = "tumble", amount = 0.35, speed = { 0.5, 1.4 }, glowShare = 0.1, alpha = { 0, 0.15 } },
+	mind = { count = 7, spread = Vector3.new(1.1, 1.5, 1.1), size = { 0.8, 1.7 }, stretch = Vector3.new(1, 1, 0.06), shape = "Ball", motion = "tumble", amount = 0.2, speed = { 0.5, 1.2 }, glowShare = 0.3, alpha = { 0.35, 0.65 } },
+	spirit = { count = 10, spread = Vector3.new(1.2, 2, 1.2), size = { 0.3, 0.7 }, stretch = Vector3.new(0.6, 1.7, 0.6), shape = "Ball", motion = "flicker", amount = 0.6, speed = { 0.7, 1.4 }, glowShare = 0.2, alpha = { 0.45, 0.7 } },
+	void = { count = 10, spread = Vector3.new(1.4, 1.4, 1.4), size = { 0.25, 0.8 }, stretch = Vector3.new(0.35, 1.5, 0.35), shape = "Block", motion = "tumble", amount = 0.4, speed = { 0.3, 0.9 }, glowShare = 0.12, alpha = { 0, 0.2 }, dark = true },
+	space = { count = 7, spread = Vector3.new(1.3, 1.3, 1.3), size = { 0.8, 1.6 }, stretch = Vector3.new(1, 1, 0.05), shape = "Block", motion = "flicker", amount = 0.7, speed = { 1, 2.5 }, glowShare = 0.25, alpha = { 0.3, 0.6 } },
+	time = { count = 8, spread = Vector3.new(1.7, 0.5, 1.7), size = { 0.3, 0.9 }, stretch = Vector3.new(0.16, 0.1, 1.5), shape = "Block", motion = "swirl", amount = 0, speed = { 0.25, 1.4 }, glowShare = 0.4, alpha = { 0, 0.2 } },
+	gravity = { count = 9, spread = Vector3.new(1.3, 0.8, 1.3), size = { 0.3, 0.85 }, stretch = Vector3.new(1, 1, 1), shape = "Block", motion = "swirl", amount = 0, speed = { 0.8, 1.8 }, glowShare = 0.1, alpha = { 0, 0 }, dark = true, material = "Basalt" },
+	reality = { count = 10, spread = Vector3.new(1.5, 1.5, 1.5), size = { 0.25, 0.9 }, stretch = Vector3.new(1, 1, 1), shape = "Block", motion = "flicker", amount = 0.5, speed = { 0.5, 3 }, glowShare = 0.5, alpha = { 0, 0.4 } },
+} :: { [string]: Style }
 
-FeralData.forms = {
-	touch = "spark", projectile = "spark", chain = "spark",
-	burst = "mass", aura = "mass", zone = "mass",
-	beam = "column", wall = "column", pillar = "column",
-	summon = "knot", ritual = "knot",
-} :: { [string]: string }
-
-FeralData.defaultBody = "spark"
+FeralData.coreSize = 0.55 -- a small bright centre, called Head because the rest of the game looks for one
+FeralData.unstableSteps = 10 -- how finely the look follows its energy: fewer means less replication
 
 -- Forms that land everywhere at once; the rest go at one target.
 FeralData.areaForms = { burst = true, aura = true, zone = true, pillar = true, summon = true, ritual = true, wall = true } :: { [string]: boolean }

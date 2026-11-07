@@ -8,7 +8,7 @@ Specs: `Tests/FeralSpells.spec`.
 
 The owner turned down Tournaments as "too streamlined": "too much like a game attribute instead of a realistic world attribute". So Feral Spells is built to be something that happens in the world.
 
-**There's no interface at all:** no card, map pin, announcement, remote or client code. You watch one get loose, you run into one, or someone tells you about it.
+**There's no interface at all:** no card, map pin, announcement, remote, name or health bar. You watch one get loose, you run into one, or someone tells you about it. The only client code is cosmetic: `Fx/FamiliarAnimator` moves its pieces, because doing that from the server would flood the network.
 
 ## Where it lives
 
@@ -31,7 +31,7 @@ Flags: `feral_spells_enabled`, `feral_spells_max` (6).
 
 **Energy.** A loose spell runs out from the moment it escapes: 10 minutes plus 2.5 per power, before drain. It drains 0.4× as fast where ley energy is thick and 1.6× where it's thin. It leans towards that energy as it wanders, so loose spells tend to end up along ley lines. When it runs out, it gutters away and nobody is told.
 
-**Body.** It only has one with a player within 180 studs, like a creature den. With nobody near, it's a position and a number, and it still moves. It's a real Humanoid, so every spell, status and weapon works on it. It looks like the shape of spell it was (a spark, a mass, a column or a knot), in its domain's colours. Its own domain barely hurts it, and opposed domains hurt it more (water on fire).
+**Body.** It only has one with a player within 180 studs, like a creature den. With nobody near, it's a position and a number, and it still moves. It's a real Humanoid, so every spell, status and weapon works on it. Its own domain barely hurts it, and opposed domains hurt it more (water on fire).
 
 **Its magic.** It casts the actual spell at half strength, through `Delivery` and `DamageModel`, with no source player, so nobody is blamed for what it does. It discharges at players and NPCs alike. It isn't a hunter: it goes for whoever hit it, or whatever comes within 22 studs. It turns towards magic cast within 90 studs, so going quiet is a real way to avoid one.
 
@@ -40,6 +40,12 @@ Flags: `feral_spells_enabled`, `feral_spells_max` (6).
 **Rumours.** Ask a townsperson. They may mention one within 1,100 studs, naming who lost it and in which direction. It goes in your Journal and marks nothing.
 
 **Not saved.** A loose spell lasts as long as its server at most. Only what you've studied is saved, so progress resets and erasure already cover it.
+
+## How it looks
+
+There's no shell or outline, only loose pieces around a small centre, in a way that suits the domain (`FeralData.styles`): a gust is long pale streaks circling, earth is tumbling rock, fire is flecks that wink in and out, a life spell is drifting leaves. Pieces are seeded, so two loose spells of a domain differ, but one keeps its body each time it wakes.
+
+Everything keeps moving, and the model's `Unstable` attribute (0 to 1, in tenths) makes it faster, wider and less steady as its energy runs out. So you can judge how close one is to guttering out just by looking at it. Nothing tells you what it is.
 
 ## Admin
 
@@ -53,9 +59,9 @@ Flags: `feral_spells_enabled`, `feral_spells_max` (6).
 
 Flagged for the owner, given the rule above:
 
-- **The name over it** ("Stray Ember", with a health bar when hurt) is the creature system's overlay.
 - **The clue** is a tidy Journal sentence. Something you have to work out from how it behaved would be more realistic, and harder to make fair.
 - **"It got away"** is a floating word over it, the one small notice in the system.
+- **Lock-on and damage numbers** still work on it, as on everything else.
 - **The 20% credit line** is a game rule, there to stop someone learning from one stray hit.
 
 ## Known limits

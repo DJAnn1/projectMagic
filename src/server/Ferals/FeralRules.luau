@@ -8,7 +8,9 @@
 		energyFor(power) -> seconds
 		drainRate(density) -> multiplier            thick ley energy keeps it going longer
 		pickDirection(samples, roll) -> index       leans towards energy, never into the sea
-		def(recipe, domain, palette, opposed, name) -> a CreatureRig definition
+		pieces(domain, palette, scale, rng) -> parts    its body, in its domain's character
+		def(recipe, domain, palette, opposed, name, rng) -> a CreatureRig definition
+		unstable(energy, maxEnergy) -> 0..1          how visibly it's coming apart
 		learnsFrom(view) -> boolean                 only a spell you didn't know can teach you
 		clue(recipe, names) -> string
 		pruneStudied(studied, max)                  bounded, oldest first
@@ -19,6 +21,8 @@
 local Data = require(script.Parent.Data.FeralData)
 
 local T = Data.tuning
+local T_STEPS = Data.unstableSteps
+local DIM = 0.42 -- how far Neon goes towards black: Bloom blows bright Neon out to white
 
 export type EscapeView = {
 	severity: number,
@@ -87,31 +91,64 @@ function FeralRules.pickDirection(samples: { Sample }, roll: number): number?
 	return last
 end
 
-function FeralRules.bodyFor(form: string): { Data.Part }
-	return Data.bodies[Data.forms[form] or Data.defaultBody] or Data.bodies[Data.defaultBody]
+-- How far gone it is, 0 fresh to 1 nearly out, in steps: a replicated attribute shouldn't change every tick.
+function FeralRules.unstable(energy: number, maxEnergy: number): number
+	local share = 1 - math.clamp(energy / math.max(1, maxEnergy), 0, 1)
+	return math.floor(share * T_STEPS + 0.5) / T_STEPS
 end
 
--- A definition CreatureRig can build. Spells can hit it and lock on to it, like any creature.
-function FeralRules.def(recipe: { form: string, power: number }, domain: string, palette: { Color3 }, opposed: { string }, name: string): any
-	local scale = T.sizeBase + T.sizePerPower * recipe.power
+local function between(rng: Random, range: { number }): number
+	return range[1] + (range[2] - range[1]) * rng:NextNumber()
+end
+
+-- The pieces of one loose spell, in its domain's character. `rng` is seeded per spell, so the same spell
+-- has the same body each time it wakes, and two spells of a domain differ.
+function FeralRules.pieces(domain: string, palette: { Color3 }, scale: number, rng: Random): { any }
+	local style = Data.styles[domain] or Data.styles.energy
 	local bright = palette[1] or Color3.new(1, 1, 1)
-	local colors: { [string]: Color3 } = {
-		core = bright:Lerp(Color3.new(0, 0, 0), 0.42), -- dimmed: Bloom blows bright Neon out to white
-		body = bright,
-		haze = palette[2] or bright,
+	local parts: { any } = {
+		{
+			name = "Head",
+			shape = "Ball",
+			size = Vector3.one * Data.coreSize * scale,
+			offset = Vector3.zero,
+			color = (if style.dark then Color3.new(0.05, 0.03, 0.08) else bright:Lerp(Color3.new(0, 0, 0), DIM)),
+			material = if style.dark then Enum.Material.SmoothPlastic else Enum.Material.Neon,
+			transparency = 0,
+			anim = { kind = "flicker", amount = 0.08 * scale, speed = 3, phase = rng:NextNumber() * 6.28 },
+		},
 	}
-	local parts = {}
-	for _, spec in FeralRules.bodyFor(recipe.form) do
+	for i = 1, style.count do
+		-- Somewhere in a ball around the centre, biased outwards so it doesn't read as a solid lump.
+		local angle, tilt = rng:NextNumber() * 2 * math.pi, math.acos(rng:NextNumber() * 2 - 1)
+		local reach = 0.45 + rng:NextNumber() * 0.55
+		local offset = Vector3.new(math.sin(tilt) * math.cos(angle), math.cos(tilt), math.sin(tilt) * math.sin(angle)) * style.spread * reach * scale
+		local neon = rng:NextNumber() < style.glowShare
+		local base = palette[rng:NextInteger(1, math.max(1, #palette))] or bright
+		if style.dark and not neon then
+			base = base:Lerp(Color3.new(0, 0, 0), 0.8)
+		end
+		local material = if neon then Enum.Material.Neon
+			elseif style.material then (Enum.Material :: any)[style.material]
+			else Enum.Material.SmoothPlastic
 		table.insert(parts, {
-			name = spec.name,
-			shape = spec.shape,
-			size = spec.size * scale,
-			offset = spec.offset * scale,
-			color = colors[spec.slot] or bright,
-			material = if spec.slot == "core" then Enum.Material.Neon else Enum.Material.SmoothPlastic,
-			transparency = spec.transparency,
+			name = "Piece" .. i,
+			shape = style.shape,
+			size = style.stretch * between(rng, style.size) * scale,
+			offset = offset,
+			color = if neon then base:Lerp(Color3.new(0, 0, 0), DIM) else base,
+			material = material,
+			transparency = between(rng, style.alpha),
+			anim = { kind = style.motion, amount = style.amount * scale, speed = between(rng, style.speed), phase = rng:NextNumber() * 6.28 },
 		})
 	end
+	return parts
+end
+
+-- A definition CreatureRig can build. Spells can hit it and lock on to it, like any creature, but nothing
+-- floats over it: you judge it by how it behaves.
+function FeralRules.def(recipe: { form: string, power: number }, domain: string, palette: { Color3 }, opposed: { string }, name: string, rng: Random): any
+	local scale = T.sizeBase + T.sizePerPower * recipe.power
 	local resist: { [string]: number } = { [domain] = T.ownResist }
 	for _, id in opposed do
 		resist[id] = T.opposedWeakness
@@ -119,13 +156,14 @@ function FeralRules.def(recipe: { form: string, power: number }, domain: string,
 	return {
 		id = "feral",
 		name = name,
+		silent = true,
 		health = T.healthBase + T.healthPerPower * recipe.power,
 		walk = T.walk,
 		hipHeight = T.hover,
 		hitbox = Vector3.new(2.6, 2.6, 2.6) * scale,
 		resist = resist,
-		body = parts,
-		emit = { color = bright, rate = 8 },
+		body = FeralRules.pieces(domain, palette, scale, rng),
+		emit = { color = palette[1] or Color3.new(1, 1, 1), rate = 6 },
 	}
 end
 

@@ -72,10 +72,25 @@ function CreatureRig.build(def: Creatures.Def, at: CFrame): (Model, Humanoid, Ba
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
 		part:SetAttribute("Flammability", 0)
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = root
-		weld.Part1 = part
-		weld.Parent = part
+		local anim = spec.anim
+		if anim then
+			-- A Weld the client can pose (Fx/FamiliarAnimator), locally: no network.
+			local weld = Instance.new("Weld")
+			weld.Name = "Pose"
+			weld.Part0 = root
+			weld.Part1 = part
+			weld.C0 = CFrame.new(spec.offset)
+			weld.Parent = part
+			part:SetAttribute("Anim", anim.kind)
+			part:SetAttribute("AnimAmount", anim.amount)
+			part:SetAttribute("AnimSpeed", anim.speed)
+			part:SetAttribute("AnimPhase", anim.phase or 0)
+		else
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = root
+			weld.Part1 = part
+			weld.Parent = part
+		end
 		part.Parent = model
 	end
 
@@ -110,6 +125,11 @@ function CreatureRig.build(def: Creatures.Def, at: CFrame): (Model, Humanoid, Ba
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.DisplayWhenDamaged
 	for _, state in DISABLED_STATES do
 		humanoid:SetStateEnabled(state, false)
+	end
+	if (def :: any).silent then
+		-- Nothing floats over it: no name, no health bar (a loose spell, Ferals/FeralRules).
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	end
 	for key, value in def.resist do
 		humanoid:SetAttribute("Resist_" .. key, value)

@@ -4,8 +4,9 @@
 	(docs/FeralSpells.md). Numbers and words: Ferals/Data/FeralData. Decisions: Ferals/FeralRules.
 
 	This is meant to feel like something that happens in the world, not a feature of the game (owner,
-	2026-11-07). So there's no interface at all: no card, no map pin, no announcement, no remote and no
-	client code. You see one get loose, you run into one, or somebody tells you about it.
+	2026-11-07). So there's no interface at all: no card, no map pin, no announcement, no remote, and no
+	name or health bar over it. You see one get loose, you run into one, or somebody tells you about it. The
+	only client code is cosmetic: Fx/FamiliarAnimator moves its pieces, faster and wilder as its energy runs out.
 
 	ESCAPE     A loss of control (Topics.ControlLost) may tear the spell loose, seeded. NPC mages have
 	           accidents too, one chance per time slot, the same on every server, so this happens with
@@ -72,6 +73,7 @@ type Feral = {
 	x: number,
 	z: number,
 	energy: number,
+	maxEnergy: number,
 	healthShare: number,
 	body: Body?,
 	rng: Random,
@@ -150,6 +152,7 @@ local function create(recipe: any, stats: any, source: string, casterName: strin
 		x = x,
 		z = z,
 		energy = Rules.energyFor(recipe.power),
+		maxEnergy = Rules.energyFor(recipe.power),
 		healthShare = 1,
 		body = nil,
 		rng = Seed.random(worldService:getSeed(), seedKey, "feral_life", counter),
@@ -260,10 +263,13 @@ local function wakeBody(feral: Feral)
 		return
 	end
 	local domain = Registry.domains[feral.domain]
-	local def = Rules.def(feral.recipe, feral.domain, domain.feel.palette, domain.oppositions, feral.name)
+	-- Seeded by its id, so it has the same body each time it wakes.
+	local bodyRng = Seed.random(worldService:getSeed(), feral.id, "feral_body")
+	local def = Rules.def(feral.recipe, feral.domain, domain.feel.palette, domain.oppositions, feral.name, bodyRng)
 	local at = CFrame.new(ground + Vector3.new(0, T.hover + def.hitbox.Y / 2 + 0.5, 0))
 	local model, humanoid, root = CreatureRig.build(def, at)
 	model:SetAttribute("FeralSpell", feral.id)
+	model:SetAttribute("Unstable", Rules.unstable(feral.energy, feral.maxEnergy))
 	humanoid.MaxHealth = def.health
 	humanoid.Health = math.max(1, def.health * feral.healthShare)
 	model.Parent = folder
@@ -614,6 +620,12 @@ local function stepOne(feral: Feral, now: number)
 		if feral.energy <= 0 then
 			gutter(feral)
 			return
+		end
+		if body then
+			local unstable = Rules.unstable(feral.energy, feral.maxEnergy)
+			if body.model:GetAttribute("Unstable") ~= unstable then
+				body.model:SetAttribute("Unstable", unstable)
+			end
 		end
 		local distance = nearestPlayer(feral.x, feral.z)
 		if body and distance > T.sleepRadius then

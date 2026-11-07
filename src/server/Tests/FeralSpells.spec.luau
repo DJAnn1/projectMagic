@@ -48,14 +48,16 @@ return function(t: any)
 			end
 		end)
 
-		it("every spell form has a body, and each body has a Head for its name", function()
-			for _, id in Registry.formIds do
-				expect(Data.forms[id] ~= nil).toBe(true)
-				local head = false
-				for _, part in Rules.bodyFor(id) do
-					head = head or part.name == "Head"
+		it("every domain has its own way of coming apart, with a motion the client plays", function()
+			local motions = { tumble = true, swirl = true, flicker = true }
+			for _, id in Registry.domainIds do
+				local style = Data.styles[id]
+				expect(style ~= nil).toBe(true)
+				expect((motions :: any)[style.motion]).toBe(true)
+				expect(style.count > 0).toBe(true)
+				if style.material then
+					expect((Enum.Material :: any)[style.material] ~= nil).toBe(true)
 				end
-				expect(head).toBe(true)
 			end
 		end)
 
@@ -103,8 +105,8 @@ return function(t: any)
 		end)
 
 		it("ley energy keeps it going, and thin air runs it down", function()
-			expect(Rules.drainRate(T.densityHigh)).toBe(T.drainThick)
-			expect(Rules.drainRate(T.densityLow)).toBe(T.drainThin)
+			expect(math.abs(Rules.drainRate(T.densityHigh) - T.drainThick) < 1e-6).toBe(true)
+			expect(math.abs(Rules.drainRate(T.densityLow) - T.drainThin) < 1e-6).toBe(true)
 			expect(Rules.drainRate(1) < Rules.drainRate(0)).toBe(true)
 		end)
 
@@ -129,34 +131,60 @@ return function(t: any)
 		local recipe = { form = "burst", power = 5 }
 		local palette = { Color3.fromRGB(255, 140, 40), Color3.fromRGB(255, 230, 120) }
 
+		local function def(domain: string, power: number?, seed: number?): any
+			return Rules.def({ form = "burst", power = power or 5 }, domain, palette, { "water", "void" }, "Stray Ember", Random.new(seed or 1))
+		end
+
 		it("takes more from what opposes it, and little from its own domain", function()
-			local def = Rules.def(recipe, "energy", palette, { "water", "void" }, "Stray Ember")
-			expect(def.resist.energy).toBe(T.ownResist)
-			expect(def.resist.water).toBe(T.opposedWeakness)
+			local d = def("energy")
+			expect(d.resist.energy).toBe(T.ownResist)
+			expect(d.resist.water).toBe(T.opposedWeakness)
 		end)
 
 		it("a stronger spell has more health and is bigger", function()
-			local weak = Rules.def({ form = "burst", power = 1 }, "energy", palette, {}, "x")
-			local strong = Rules.def({ form = "burst", power = 10 }, "energy", palette, {}, "x")
-			expect(strong.health > weak.health).toBe(true)
-			expect(strong.hitbox.X > weak.hitbox.X).toBe(true)
+			expect(def("energy", 10).health > def("energy", 1).health).toBe(true)
+			expect(def("energy", 10).hitbox.X > def("energy", 1).hitbox.X).toBe(true)
 		end)
 
-		it("dims its Neon, because Bloom blows bright Neon out to white", function()
-			local def = Rules.def(recipe, "air", { Color3.new(1, 1, 1) }, {}, "x")
-			for _, part in def.body do
-				if part.material == Enum.Material.Neon then
-					expect(math.max(part.color.R, part.color.G, part.color.B) < 0.75).toBe(true)
+		it("dims its Neon in every domain, because Bloom blows bright Neon out to white", function()
+			for _, id in Registry.domainIds do
+				for _, part in Rules.def(recipe, id, { Color3.new(1, 1, 1) }, {}, "x", Random.new(3)).body do
+					if part.material == Enum.Material.Neon then
+						expect(math.max(part.color.R, part.color.G, part.color.B) < 0.75).toBe(true)
+					end
 				end
 			end
 		end)
 
-		it("CreatureRig can build it, as something spells can hit", function()
-			local def = Rules.def(recipe, "energy", palette, { "water" }, "Stray Ember")
-			local model, humanoid = CreatureRig.build(def, CFrame.new())
-			expect(humanoid.MaxHealth).toBe(def.health)
+		it("is the same body each time it wakes, and two loose spells differ", function()
+			local a, b, other = def("air", 5, 7), def("air", 5, 7), def("air", 5, 8)
+			expect(#a.body).toBe(#b.body)
+			expect(a.body[2].offset).toBe(b.body[2].offset)
+			expect(a.body[2].offset == other.body[2].offset).toBe(false)
+		end)
+
+		it("all its pieces move", function()
+			for _, part in def("air").body do
+				expect(part.anim ~= nil).toBe(true)
+			end
+		end)
+
+		it("comes apart as its energy runs out, in steps", function()
+			expect(Rules.unstable(100, 100)).toBe(0)
+			expect(Rules.unstable(0, 100)).toBe(1)
+			expect(Rules.unstable(51, 100)).toBe(0.5)
+		end)
+
+		it("CreatureRig builds something spells can hit, with nothing floating over it", function()
+			local d = def("energy")
+			local model, humanoid = CreatureRig.build(d, CFrame.new())
+			expect(humanoid.MaxHealth).toBe(d.health)
 			expect(model:GetAttribute("Creature")).toBe("feral")
 			expect(humanoid:GetAttribute("Resist_water")).toBe(T.opposedWeakness)
+			expect(humanoid.DisplayDistanceType).toBe(Enum.HumanoidDisplayDistanceType.None)
+			expect(humanoid.HealthDisplayType).toBe(Enum.HumanoidHealthDisplayType.AlwaysOff)
+			expect(model:FindFirstChild("Head") ~= nil).toBe(true)
+			expect(model:FindFirstChild("Pose", true) ~= nil).toBe(true)
 			model:Destroy()
 		end)
 	end)
