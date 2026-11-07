@@ -31,6 +31,15 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 **Start here.** This list decides what comes next; where the session notes below name a different next step, this list wins. Work top-down unless the owner picks something else. Only Rifts follows the recommended order the owner has been approving; the rest are pitched or designed, not yet chosen. Design details are in the linked docs. Say the plan before coding, and commit each piece.
 
+**📌 PINNED by the owner (2026-11-07, second pin): Readable NPC activities (`docs/Activities.md`). Paused mid-test; resume here next session.**
+
+- **Where it stands.** Stage 1 is built (commits `ac6cc28`, `b10bb3a`, `cc2b3c8`, `2a3ed63`) with 15 activities. Confirmed in logs: `specs 926/926`, stations 107 with 3 invalid (`activity_stations`), `actreport` pass 0 · warn 13 (sound only) · fail 9 (the fails are actions with no activity yet), and `actforce forging` working.
+- **Built, not yet run:** the fix for the door-fallback loop (`NPCService.route` `standingOnIt`), and ActivityService re-routing travellers stalled short of their station every 15 s (`retryAt`).
+- **First thing to do:** play, `time 22`, then run `actphases Glenhold` twice about a minute apart. Before the fix it showed 36 of 40 Travelling. If Performing climbs, look inside houses for blankets and at the smithy after `actforce forging`. Watch the log for `npc_left_by_door action=sleep`.
+- **What will still hold it back:** about 25 to 30 NPCs standing with no path even outdoors. That's the other pin below, and the two are tied together. Ask the owner whether to resume pathfinding once this run is read.
+- **Then stage 2:** the actions `actreport` marks FAIL (work for merchants, healers, scholars and other trades; socialise; attend; hobby; teach; trade; play; idle; practice in the other 9 domains). After that come audio, icons and barks, join and assist, and the LOD pass.
+- **Open owner questions:** should talking to a sleeper wake them (the Talk prompt is off while they sleep, by default)? Did the Observe label appear on hover (never confirmed)? Should the permanent name-and-job nameplate go? Should the glowing Neon belts be dimmed? Do the Observe skill, Activity Director and Growth system from the brief exist, or are they new? Should we pick licensed activity sounds now or in the audio stage?
+
 **📌 PINNED by the owner (2026-11-07): NPC pathfinding and getting indoors. Paused, not finished.** Don't pick this up unprompted. When the owner says to resume, start here.
 
 - **Where it stands.** In daytime, NPCs walk around town. At night or at meals they walk to a building's door, the door opens, and they appear at their spot inside (the "door fallback", `NPCService` `stepEnterHome`, `leaveBy`, `npc.enterHome`, `npc.insideLot`). They leave the same way. It covers any built lot (`SettlementService.lotAt`), both ways. The latest version (any building, both ways) hasn't been run.
