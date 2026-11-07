@@ -7,6 +7,8 @@
 		quarters(x, z, size) -> { {x, z} }          the patches a scar regrows in
 		healTimes(now, rng) -> { number }           when each one comes back, seeded
 		freshColor(original) -> Color3              a repaired part stays a little paler
+		rebuildOrder(pieces)                        sorts so the lowest comes off the end first
+		mended(integrity) -> (integrity, gained)    a standing building's slow recovery
 		isLiving(modelName) -> boolean              recovers by itself: nobody comes to fix it
 		pickWorker(candidates) -> id?               who comes to fix it
 		workSpot(part, from) -> Vector3             where they stand to do it
@@ -44,6 +46,21 @@ end
 
 function RepairRules.freshColor(original: Color3): Color3
 	return original:Lerp(T.freshColor, T.freshShare)
+end
+
+-- From the ground up. The list is worked from its end, so the lowest piece goes last in the list.
+function RepairRules.rebuildOrder(pieces: { any })
+	table.sort(pieces, function(a, b)
+		if a.at.Position.Y ~= b.at.Position.Y then
+			return a.at.Position.Y > b.at.Position.Y
+		end
+		return a.part.Name > b.part.Name
+	end)
+end
+
+function RepairRules.mended(integrity: number): (number, number)
+	local after = math.min(T.wholeIntegrity, integrity + T.mendAmount)
+	return after, after - integrity
 end
 
 function RepairRules.isLiving(modelName: string): boolean

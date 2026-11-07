@@ -12,15 +12,21 @@
 	           a player, someone from the town walks over and works on it, part by part, usually the builder.
 	           With nobody around to see, it still gets done, more slowly. A repaired part stays a little
 	           paler, so a patched building looks patched.
+	COLLAPSE   A town building that comes down, for any reason (WorldStateService.setCollapseHook), is put
+	           back from the ground up with its own pieces, once the rubble has settled, one piece at a time.
+	           It takes many minutes with someone on it, and far longer with nobody around. When it's done
+	           it's a real building again, and its damage comes off the town's record.
+	MENDING    A building that's damaged but still standing slowly regains its strength by itself.
 	SAVED      Nothing. This server's town recovers on this server. Ground that burned bare is a live terrain
 	           edit that never reaches the saved log.
-	LIMITS     Only charring. A building that collapsed (Rubble) isn't rebuilt. Trees and anything else outside
-	           a town stay charred, and ordinary fires still leave their permanent scorch.
+	LIMITS     Trees and anything else outside a town stay charred, and ordinary fires still leave their
+	           permanent scorch. A piece that's been destroyed (fell out of the world) stays missing.
 
-	Flag: town_repair_enabled. Admin: townrepair status | burn | scar | heal.
+	Flag: town_repair_enabled. Admin: townrepair status | burn | scar | heal | collapse | rush.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local FeatureFlags = require(Shared.Core.FeatureFlags)
@@ -43,11 +49,12 @@ local T = Data.tuning
 
 local TownRepairService = {
 	name = "TownRepairService",
-	dependencies = { "AdminService", "NPCService", "WorldService" },
+	dependencies = { "AdminService", "NPCService", "SettlementService", "WorldService", "WorldStateService" },
 }
 
-type Charred = { part: BasePart, color: Color3, flammability: number }
-type Building = { model: Model, parts: { Charred } }
+-- One thing to put right. `at` means it's a piece of a collapsed building, going back to that place.
+type Charred = { part: BasePart, color: Color3, flammability: number, at: CFrame? }
+type Building = { model: Model, parts: { Charred }, rebuild: boolean, startAfter: number, all: { Charred } }
 type Job = {
 	npc: any,
 	building: Building,
@@ -62,7 +69,10 @@ type Scar = { x: number, y: number, z: number, material: string, heals: { number
 local log: any = nil
 local npcs: any = nil
 local worldService: any = nil
+local world: any = nil
+local settlements: any = nil
 
+local rushing = false -- admin: no settling, and a piece a second, so it can be tested
 local towns: { [string]: Town } = {}
 local scars: { Scar } = {}
 local charredTotal = 0
@@ -182,14 +192,31 @@ local function record(part: BasePart, color: Color3, flammability: number)
 		end
 	end
 	if not building then
-		building = { model = model, parts = {} }
+		building = { model = model, parts = {}, rebuild = false, startAfter = 0, all = {} }
 		table.insert(town.buildings, building :: Building)
 	end
 	table.insert((building :: Building).parts, { part = part, color = color, flammability = flammability })
 	charredTotal += 1
 end
 
+local function placePiece(entry: Charred)
+	local part = entry.part
+	local at = entry.at
+	if not at or not part.Parent then
+		return
+	end
+	part.AssemblyLinearVelocity = Vector3.zero
+	part.AssemblyAngularVelocity = Vector3.zero
+	part.Anchored = true
+	part.Color = entry.color
+	TweenService:Create(part, TweenInfo.new(T.pieceSeconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = at }):Play()
+end
+
 local function repairPart(entry: Charred, living: boolean?)
+	if entry.at then
+		placePiece(entry)
+		return
+	end
 	charredTotal -= 1
 	local part = entry.part
 	if part.Parent and not part:GetAttribute("Burning") then
@@ -200,19 +227,128 @@ local function repairPart(entry: Charred, living: boolean?)
 	end
 end
 
--- Forgets parts that have gone (a collapse, say), and buildings with nothing left to do.
+local function charredIn(parts: { Charred }): number
+	local n = 0
+	for _, entry in parts do
+		if not entry.at then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- The last piece is in. Anything knocked out again goes back on the list. Otherwise it's a building again.
+local function finishRebuild(town: Town, building: Building): boolean
+	local out: { Charred } = {}
+	for _, entry in building.all do
+		local at = entry.at
+		if at and entry.part.Parent and (not entry.part.Anchored or (entry.part.Position - at.Position).Magnitude > 0.5) then
+			table.insert(out, entry)
+		end
+	end
+	if #out > 0 then
+		Rules.rebuildOrder(out)
+		building.parts = out
+		return false
+	end
+	local model = building.model
+	CollectionService:RemoveTag(model, "Rubble")
+	CollectionService:AddTag(model, "Structure")
+	model:SetAttribute("Integrity", T.wholeIntegrity)
+	world:addSettlementDelta("damage", town.id, -T.wholeIntegrity)
+	settlements:clearInterior(model) -- a quake may have pushed ground up where the floor goes
+	Navigation.Invalidate(model:GetPivot().Position, 40)
+	log:info("town_rebuilt", { town = town.id, building = model.Name })
+	return true
+end
+
+-- Forgets parts that have gone, and anything with nothing left to do.
 local function tidy(town: Town)
 	for i = #town.buildings, 1, -1 do
 		local building = town.buildings[i]
 		for j = #building.parts, 1, -1 do
-			if not building.parts[j].part.Parent then
+			local entry = building.parts[j]
+			if not entry.part.Parent then
 				table.remove(building.parts, j)
-				charredTotal -= 1
+				if not entry.at then
+					charredTotal -= 1
+				end
 			end
 		end
-		if #building.parts == 0 or not building.model.Parent or CollectionService:HasTag(building.model, "Rubble") then
-			charredTotal -= #building.parts
+		if not building.model.Parent then
+			charredTotal -= charredIn(building.parts)
 			table.remove(town.buildings, i)
+		elseif #building.parts == 0 then
+			if not building.rebuild or finishRebuild(town, building) then
+				table.remove(town.buildings, i)
+			end
+		end
+	end
+end
+
+local function secondsFor(building: Building): number
+	return if rushing then 1 elseif building.rebuild then T.rebuildSeconds else T.workSeconds
+end
+
+local function whereOf(entry: Charred): Vector3
+	local at = entry.at
+	return if at then at.Position else entry.part.Position
+end
+
+-- It's coming down: remember where every piece belongs, while it's all still there.
+local function onCollapse(model: Model, cause: string)
+	local id = model:GetAttribute("SettlementId")
+	if not enabled() or typeof(id) ~= "string" then
+		return
+	end
+	local town = townFor(id)
+	-- What had already been burned gets repaired along with the rest.
+	local burned: { [BasePart]: Charred } = {}
+	for i = #town.buildings, 1, -1 do
+		local building = town.buildings[i]
+		if building.model == model then
+			for _, entry in building.parts do
+				burned[entry.part] = entry
+			end
+			charredTotal -= charredIn(building.parts)
+			table.remove(town.buildings, i)
+		end
+	end
+	local pieces: { Charred } = {}
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Anchored then
+			local charred = burned[part]
+			table.insert(pieces, {
+				part = part,
+				color = if charred then Rules.freshColor(charred.color) else part.Color,
+				flammability = 0,
+				at = part.CFrame,
+			})
+			if charred then
+				part:SetAttribute("Flammability", charred.flammability)
+			end
+		end
+	end
+	Rules.rebuildOrder(pieces)
+	table.insert(town.buildings, {
+		model = model,
+		parts = pieces,
+		rebuild = true,
+		startAfter = os.clock() + T.rebuildDelay,
+		all = table.clone(pieces),
+	})
+	log:info("town_collapse_noted", { town = id, building = model.Name, cause = cause, pieces = #pieces })
+end
+
+-- Damaged but still standing: a little stronger now and then, off the town's record as it goes.
+local function mendStanding()
+	for _, model in CollectionService:GetTagged("Structure") do
+		local id = model:GetAttribute("SettlementId")
+		local integrity = model:GetAttribute("Integrity")
+		if typeof(id) == "string" and typeof(integrity) == "number" and integrity < T.wholeIntegrity then
+			local after, gained = Rules.mended(integrity)
+			model:SetAttribute("Integrity", after)
+			world:addSettlementDelta("damage", id, -gained)
 		end
 	end
 end
@@ -237,7 +373,7 @@ local function endJob(town: Town, finished: boolean)
 		npcs:setLeash(npc, nil)
 	end
 	if finished then
-		say(npc, "finish", npc.seed or 0)
+		say(npc, if job.building.rebuild then "rebuildFinish" else "finish", npc.seed or 0)
 		log:info("town_repaired", { town = town.id, npc = npc.id, building = job.building.model.Name })
 	end
 end
@@ -273,19 +409,19 @@ local function stepJob(town: Town, job: Job, now: number)
 		local close = Vector3.new(at.X - job.leash.position.X, 0, at.Z - job.leash.position.Z).Magnitude <= T.workReach
 		if close or now >= job.giveUpAt then
 			job.working = true
-			job.nextPart = now + T.workSeconds
-			Navigation.Face(npc, entry.part.Position)
+			job.nextPart = now + secondsFor(building)
+			Navigation.Face(npc, whereOf(entry))
 			NPCLOD.playActivity(npc, "hammer", Activities.Clips.hammer, true)
 		end
 		return
 	end
 	if now >= job.nextPart then
-		job.nextPart = now + T.workSeconds
+		job.nextPart = now + secondsFor(building)
 		table.remove(building.parts)
 		repairPart(entry)
 		local following = building.parts[#building.parts]
 		if following then
-			Navigation.Face(npc, following.part.Position)
+			Navigation.Face(npc, whereOf(following))
 		end
 	end
 end
@@ -322,15 +458,15 @@ local function startJob(town: Town, building: Building, now: number): boolean
 	if not entry then
 		return false
 	end
-	local npc = findWorker(town, entry.part.Position)
+	local npc = findWorker(town, whereOf(entry))
 	if not npc then
 		return false
 	end
-	local spot = Rules.workSpot(entry.part.Position, npc.position)
+	local spot = Rules.workSpot(whereOf(entry), npc.position)
 	local leash = { kind = "hold", position = spot }
 	npcs:setLeash(npc, leash)
 	town.job = { npc = npc, building = building, leash = leash, working = false, giveUpAt = now + T.walkSeconds, nextPart = 0 }
-	say(npc, "start", npc.seed or 0)
+	say(npc, if building.rebuild then "rebuildStart" else "start", npc.seed or 0)
 	log:info("town_repair_started", { town = town.id, npc = npc.id, occupation = npc.occupation, parts = #building.parts })
 	return true
 end
@@ -342,7 +478,7 @@ local function stepTown(town: Town, now: number)
 	for _, candidate in town.buildings do
 		if Rules.isLiving(candidate.model.Name) then
 			living = living or candidate
-		else
+		elseif rushing or now >= candidate.startAfter then
 			building = building or candidate
 		end
 	end
@@ -366,7 +502,7 @@ local function stepTown(town: Town, now: number)
 	end
 	-- Nobody there to see, or nobody free: it still gets done, more slowly.
 	if now >= town.nextOffscreen then
-		town.nextOffscreen = now + T.offscreenSeconds
+		town.nextOffscreen = now + (if rushing then 1 elseif building.rebuild then T.rebuildOffscreenSeconds else T.offscreenSeconds)
 		local entry = table.remove(building.parts)
 		if entry then
 			repairPart(entry)
@@ -395,8 +531,8 @@ local function registerAdmin(admin: any)
 	admin:Register({
 		name = "townrepair",
 		category = "World",
-		description = "How places recover: status, burn (char the town parts around you), scar (burn the grass around you), heal (regrow every scar now)",
-		args = { { name = "action", type = "enum", options = { "status", "burn", "scar", "heal" } } },
+		description = "How places recover: status, burn (char the town parts around you), scar (burn the grass around you), heal (regrow every scar now), collapse (bring down the buildings around you), rush (toggle: no settling, a piece a second)",
+		args = { { name = "action", type = "enum", options = { "status", "burn", "scar", "heal", "collapse", "rush" } } },
 		handler = function(ctx: any, a: any)
 			if not enabled() then
 				return "flag town_repair_enabled is off"
@@ -410,10 +546,19 @@ local function registerAdmin(admin: any)
 					end
 					if parts > 0 then
 						local job = town.job
-						table.insert(lines, string.format("%s: %d parts in %d buildings, %s", id, parts, #town.buildings, if job then tostring(job.npc.name) .. (if job.working then " working" else " on the way") else "nobody on it"))
+						local waiting = 0
+						for _, building in town.buildings do
+							if building.rebuild then
+								waiting += 1
+							end
+						end
+						table.insert(lines, string.format("%s: %d parts in %d buildings (%d collapsed), %s", id, parts, #town.buildings, waiting, if job then tostring(job.npc.name) .. (if job.working then " working" else " on the way") else "nobody on it"))
 					end
 				end
 				return table.concat(lines, "\n")
+			elseif a.action == "rush" then
+				rushing = not rushing
+				return if rushing then "rushing: no settling, a piece a second" else "back to normal speed"
 			elseif a.action == "heal" then
 				local n = #scars
 				healScars(true)
@@ -422,6 +567,10 @@ local function registerAdmin(admin: any)
 			local root = ctx.player.Character and ctx.player.Character:FindFirstChild("HumanoidRootPart")
 			if not root then
 				return "no character"
+			end
+			if a.action == "collapse" then
+				local n = world:damageStructures(root.Position, 40, 1000, "admin")
+				return string.format("%d buildings came down", n)
 			end
 			if a.action == "burn" then
 				local n = 0
@@ -455,6 +604,9 @@ function TownRepairService.init(_self: any, ctx: any)
 	log = ctx.log
 	npcs = ctx.get("NPCService")
 	worldService = ctx.get("WorldService")
+	world = ctx.get("WorldStateService")
+	settlements = ctx.get("SettlementService")
+	world:setCollapseHook(onCollapse)
 	FireSim.onCharred = record
 	FireSim.onBurnedOut = scarAt
 	registerAdmin(ctx.get("AdminService"))
@@ -462,10 +614,19 @@ end
 
 function TownRepairService.start(_self: any, _ctx: any)
 	task.spawn(function()
+		local mendAcc = 0
 		while true do
 			task.wait(T.tickSeconds)
 			if enabled() then
 				local now = os.clock()
+				mendAcc += T.tickSeconds
+				if mendAcc >= T.mendEvery then
+					mendAcc = 0
+					local mendOk, mendErr = pcall(mendStanding)
+					if not mendOk then
+						log:throttled("repair_mend", 60, "Error", "town_repair_failed", { err = mendErr })
+					end
+				end
 				-- One failure mustn't stop the rest of the island recovering.
 				local ok, err = pcall(healScars, false)
 				if not ok then

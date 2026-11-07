@@ -617,6 +617,8 @@ function WorldStateService.judgeCast(self: any, player: Player, stats: Types.Spe
 	end
 end
 
+local collapseHook: ((Model, string) -> ())? = nil
+
 function WorldStateService.addSettlementDelta(_self: any, kind: string, id: string, amount: number)
 	settlementDeltas[kind][id] = (settlementDeltas[kind][id] or 0) + amount
 end
@@ -629,6 +631,11 @@ end
 	unanchor and it's re-tagged "Rubble". Settlement buildings (attribute SettlementId) record
 	damage into the settlement's persistent state. Returns how many structures collapsed.
 ]]
+-- Told about a building just before it comes down, while it's still standing (Services/TownRepairService).
+function WorldStateService.setCollapseHook(_self: any, fn: (Model, string) -> ())
+	collapseHook = fn
+end
+
 function WorldStateService.damageStructures(self: any, position: Vector3, radius: number, amount: number, cause: string): number
 	local params = OverlapParams.new()
 	params.MaxParts = 400
@@ -652,6 +659,13 @@ function WorldStateService.damageStructures(self: any, position: Vector3, radius
 		end
 		if integrity <= 0 then
 			collapsed += 1
+			-- Before anything moves: this is the only moment anyone can see how it stood.
+			if collapseHook then
+				local ok, err = pcall(collapseHook :: any, model, cause)
+				if not ok then
+					log:error("collapse_hook_failed", { err = tostring(err) })
+				end
+			end
 			CollectionService:RemoveTag(model, "Structure")
 			CollectionService:AddTag(model, "Rubble")
 			for _, descendant in model:GetDescendants() do

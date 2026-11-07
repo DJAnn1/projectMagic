@@ -30,6 +30,15 @@ Repair.tuning = {
 	-- Living things recover by themselves, slowly. Nobody hammers a tree (seen in play, 2026-11-07).
 	livingSeconds = 150, -- one part this often
 	livingNames = { "tree", "hedge", "bush", "orchard", "garden", "plant", "flower", "grass" } :: { string },
+	-- Collapsed buildings: the same pieces, put back from the ground up. It's meant to take a while.
+	rebuildDelay = 120, -- seconds for the rubble to settle, before anyone starts
+	rebuildSeconds = 8, -- one piece this often, with someone working on it
+	rebuildOffscreenSeconds = 40, -- and this often with nobody around
+	pieceSeconds = 0.6, -- how long a piece takes to settle into place
+	wholeIntegrity = 100,
+	-- Damaged but still standing: it slowly regains its strength, or it'd be one tremor from coming down forever.
+	mendEvery = 30, -- seconds between checks
+	mendAmount = 1, -- integrity per check
 	-- Repaired parts stay a little paler: a patched building looks patched.
 	freshColor = Color3.fromRGB(190, 155, 110),
 	freshShare = 0.18,
@@ -50,6 +59,16 @@ Repair.lines = {
 		"That'll hold.",
 		"Good as it's going to get.",
 		"There. Nobody'll fall through that now.",
+	},
+	rebuildStart = {
+		"It'll take a while, but it's coming back up.",
+		"Right. From the ground up, then.",
+		"Most of it's still here. It's only got to go back where it was.",
+	},
+	rebuildFinish = {
+		"There. Standing again.",
+		"That's the last of it.",
+		"You'd hardly know, would you?",
 	},
 }
 

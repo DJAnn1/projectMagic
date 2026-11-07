@@ -26,21 +26,28 @@ Flag: `town_repair_enabled`.
 - **Afterwards:** a repaired part is slightly paler than it was, so a patched building looks patched.
 - **Living things** (`tree`, `hedge` and so on, by model name) aren't worked on. They grow back by themselves, one part every 150 seconds, looking as they did.
 
+**Collapsed buildings.** A town building that comes down, whatever caused it (quake, tsunami, Titan, spell), is rebuilt with its own pieces. `WorldStateService.setCollapseHook` records where every piece belongs just before it falls. After 2 minutes for the rubble to settle, it goes back up from the ground, one piece every 8 seconds with someone on it, or every 40 with nobody around, so a house takes many minutes and, with nobody there, about an hour. When the last piece is in it's checked: anything knocked out again goes back on the list. Then it's a real building again, with full integrity, and its damage comes off the town's record. Anything already charred gets repaired along with it.
+
+**Damaged but standing.** A building that's been hurt but hasn't fallen regains 1 integrity every 30 seconds by itself, off the town's record as it goes.
+
 Fighting, a quest needing that NPC, or walking out of range ends the job, and someone else picks it up later.
 
 **Saved.** Nothing. A town recovers on the server it burned on, and a restart puts it back as new.
 
 ## Admin
 
-`townrepair status | burn | scar | heal`. `burn` chars up to 12 town parts within 30 studs of you. `scar` burns the grass around you. `heal` regrows every scar at once.
+`townrepair status | burn | scar | heal | collapse | rush`. `burn` chars up to 12 town parts within 30 studs of you. `scar` burns the grass around you. `heal` regrows every scar at once. `collapse` brings down the buildings within 40 studs. `rush` toggles no settling and a piece a second, to test a rebuild without waiting.
 
 ## Log lines
 
-`town_repair_started`, `town_repaired`, `town_repair_failed`.
+`town_collapse_noted`, `town_repair_started`, `town_repaired`, `town_rebuilt`, `town_repair_failed`, `collapse_hook_failed`.
 
 ## Known limits
 
-- **Collapsed buildings aren't rebuilt.** `Rubble` stays. That's a bigger job, and fire doesn't collapse anything, so loose spells can't cause it.
+- **A piece that's been destroyed stays missing.** Anything that fell out of the world leaves a hole in the rebuilt house.
+- **Rubble is only the building's own.** A piece can settle into place on top of someone standing there, and they get pushed out by physics.
+- **Buildings outside a town** aren't rebuilt.
+- **Terrain isn't repaired.** A quake's ruptures and a tsunami's erosion stay, as they're saved. A rebuilt house's interior is cleared, but its yard may not match any more.
 - **Anything outside a town** stays charred, trees included.
 - **Ordinary fires** still leave their permanent saved scorch. Only unsaved fires leave a scar that heals.
 - **A scar's box can turn natural bare ground to grass** when it regrows, if the box caught some.
@@ -50,4 +57,4 @@ Fighting, a quest needing that NPC, or walking out of range ends the job, and so
 
 ## Ideas for later (nothing chosen)
 
-Rebuilding collapsed buildings, with scaffolding. Repairs using up the town's materials or depending on its prosperity. Players helping, and being remembered for it.
+Scaffolding around a rebuild. Repairs using up the town's materials or depending on its prosperity. Players helping, and being remembered for it.

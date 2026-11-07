@@ -67,6 +67,54 @@ return function(t: any)
 		end)
 	end)
 
+	describe("Collapsed buildings", function()
+		local function piece(name: string, y: number): any
+			return { at = CFrame.new(0, y, 0), part = { Name = name } }
+		end
+
+		it("goes back up from the ground: the list is worked from its end", function()
+			local pieces = { piece("roof", 30), piece("floor", 2), piece("wall", 10) }
+			Rules.rebuildOrder(pieces)
+			expect(pieces[#pieces].part.Name).toBe("floor")
+			expect(pieces[#pieces - 1].part.Name).toBe("wall")
+			expect(pieces[1].part.Name).toBe("roof")
+		end)
+
+		it("puts pieces at the same height in a steady order", function()
+			local a, b = { piece("a", 5), piece("b", 5) }, { piece("b", 5), piece("a", 5) }
+			Rules.rebuildOrder(a)
+			Rules.rebuildOrder(b)
+			expect(a[1].part.Name).toBe(b[1].part.Name)
+		end)
+
+		it("takes its time, and longer with nobody on it", function()
+			expect(T.rebuildDelay > 0).toBe(true)
+			expect(T.rebuildSeconds > T.workSeconds).toBe(true)
+			expect(T.rebuildOffscreenSeconds > T.rebuildSeconds).toBe(true)
+		end)
+
+		it("has its own words", function()
+			expect(#Data.lines.rebuildStart > 0 and #Data.lines.rebuildFinish > 0).toBe(true)
+		end)
+	end)
+
+	describe("Damaged but standing", function()
+		it("recovers a little at a time, and never past whole", function()
+			local after, gained = Rules.mended(50)
+			expect(after).toBe(50 + T.mendAmount)
+			expect(gained).toBe(T.mendAmount)
+			local full, none = Rules.mended(T.wholeIntegrity)
+			expect(full).toBe(T.wholeIntegrity)
+			expect(none).toBe(0)
+		end)
+
+		it("only gains what it's missing", function()
+			local after, gained = Rules.mended(T.wholeIntegrity - 0.25)
+			expect(after).toBe(T.wholeIntegrity)
+			expect(gained).toBe(0.25)
+		end)
+	end)
+
 	describe("Who comes to fix it", function()
 		it("the builder before anyone else, even from further off", function()
 			expect(Rules.pickWorker({ person("a", "farmer", 5), person("b", "builder", 90) })).toBe("b")
