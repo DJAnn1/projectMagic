@@ -3,7 +3,7 @@
 	FamiliarController: your familiar from the player's side (docs/Familiars.md). The server decides
 	everything (Services/FamiliarService); `view` is the last state it sent, and buttons are intents.
 
-		screen   Familiar [O]: what it is, how it's grown, its abilities, your orders, and its name.
+		screen   Familiar [.]: what it is, how it's grown, its abilities, your orders, and its name.
 		notes    bonding, growing and knockouts arrive with the state, as ordinary toasts.
 
 	The name box sits outside the dynamic region, so an update never wipes what you're typing.

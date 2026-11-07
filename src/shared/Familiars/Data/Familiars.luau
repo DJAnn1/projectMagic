@@ -226,27 +226,30 @@ Familiars.shapes = {
 	{
 		id = "serpent", hover = 2.7,
 		parts = {
-			ball("Head", v(1.2, 0.9, 1.45), v(0, 0.35, -1.7), "primary"),
-			ball("Snout", v(0.8, 0.5, 0.75), v(0, 0.2, -2.45), "secondary"),
-			ball("Neck", v(0.98, 0.92, 1.1), v(0, 0.1, -0.85), "primary"),
-			ball("Seg1", v(0.95, 0.9, 1.1), v(0, -0.02, -0.05), "secondary", { anim = wag(0.05, 2.4) }),
-			ball("Seg2", v(0.88, 0.84, 1.05), v(0, -0.1, 0.7), "primary", { anim = wag(0.13, 2.4, 0.6) }),
-			ball("Seg3", v(0.76, 0.72, 1), v(0, -0.16, 1.42), "secondary", { anim = wag(0.2, 2.4, 1.2) }),
-			ball("Seg4", v(0.62, 0.58, 0.95), v(0, -0.2, 2.1), "primary", { anim = wag(0.27, 2.4, 1.8) }),
-			ball("Seg5", v(0.45, 0.42, 0.9), v(0, -0.23, 2.72), "secondary", { anim = wag(0.33, 2.4, 2.4) }),
-			ball("TailTip", v(0.24, 0.5, 0.75), v(0, -0.2, 3.28), "glow", { anim = wag(0.38, 2.4, 3) }),
-			ball("Belly", v(0.7, 0.3, 2.6), v(0, -0.4, 0), "accent", { alpha = 0.1 }),
-			ball("Fin1", v(0.12, 0.55, 0.6), v(0, 0.62, -0.75), "accent"),
-			ball("Fin2", v(0.12, 0.5, 0.55), v(0, 0.48, -0.05), "accent", { anim = wag(0.05, 2.4) }),
-			ball("Fin3", v(0.12, 0.42, 0.5), v(0, 0.3, 0.7), "accent", { anim = wag(0.13, 2.4, 0.6) }),
-			ball("WhiskerL", v(0.6, 0.06, 0.06), v(-0.62, 0.12, -2.45), "glow", { anim = bob(0.05, 3) }),
-			ball("WhiskerR", v(0.6, 0.06, 0.06), v(0.62, 0.12, -2.45), "glow", { anim = bob(0.05, 3, 1) }),
-			ball("HornL", v(0.16, 0.65, 0.2), v(-0.34, 0.95, -1.5), "glow", { from = 3 }),
-			ball("HornR", v(0.16, 0.65, 0.2), v(0.34, 0.95, -1.5), "glow", { from = 3 }),
-			ball("FrillL", v(0.75, 0.55, 0.14), v(-0.72, 0.38, -1.25), "accent", { from = 4, alpha = 0.1, anim = flap(0.12, 3) }),
-			ball("FrillR", v(0.75, 0.55, 0.14), v(0.72, 0.38, -1.25), "accent", { from = 4, alpha = 0.1, anim = flap(0.12, 3) }),
-			ball("EyeL", v(0.34, 0.38, 0.2), v(-0.44, 0.52, -2.1), "eye"),
-			ball("EyeR", v(0.34, 0.38, 0.2), v(0.44, 0.52, -2.1), "eye"),
+			-- One smooth body: a single colour, each segment well into the next.
+			ball("Head", v(1.15, 0.85, 1.4), v(0, 0.3, -1.75), "primary"),
+			ball("Snout", v(0.72, 0.42, 0.8), v(0, 0.22, -2.4), "primary"),
+			ball("Neck", v(0.92, 0.84, 1.3), v(0, 0.14, -1), "primary"),
+			ball("Seg1", v(0.9, 0.82, 1.3), v(0, 0.05, -0.45), "primary", { anim = wag(0.03, 2.4) }),
+			ball("Seg2", v(0.86, 0.78, 1.3), v(0, -0.02, 0.1), "primary", { anim = wag(0.08, 2.4, 0.5) }),
+			ball("Seg3", v(0.78, 0.71, 1.25), v(0, -0.08, 0.65), "primary", { anim = wag(0.13, 2.4, 1) }),
+			ball("Seg4", v(0.68, 0.62, 1.2), v(0, -0.13, 1.2), "primary", { anim = wag(0.18, 2.4, 1.5) }),
+			ball("Seg5", v(0.56, 0.51, 1.15), v(0, -0.17, 1.72), "primary", { anim = wag(0.23, 2.4, 2) }),
+			ball("Seg6", v(0.43, 0.39, 1.1), v(0, -0.2, 2.22), "primary", { anim = wag(0.28, 2.4, 2.5) }),
+			ball("Seg7", v(0.3, 0.27, 1), v(0, -0.22, 2.7), "primary", { anim = wag(0.33, 2.4, 3) }),
+			ball("TailTip", v(0.16, 0.3, 0.75), v(0, -0.23, 3.2), "glow", { anim = wag(0.38, 2.4, 3.5) }),
+			ball("Fin1", v(0.08, 0.32, 0.55), v(0, 0.55, -0.95), "accent"),
+			ball("Fin2", v(0.08, 0.3, 0.55), v(0, 0.45, -0.25), "accent", { anim = wag(0.05, 2.4, 0.3) }),
+			ball("Fin3", v(0.08, 0.26, 0.5), v(0, 0.33, 0.45), "accent", { anim = wag(0.11, 2.4, 0.8) }),
+			ball("Fin4", v(0.08, 0.2, 0.45), v(0, 0.2, 1.1), "accent", { anim = wag(0.17, 2.4, 1.4) }),
+			ball("WhiskerL", v(0.5, 0.05, 0.05), v(-0.52, 0.2, -2.5), "accent", { anim = bob(0.04, 3) }),
+			ball("WhiskerR", v(0.5, 0.05, 0.05), v(0.52, 0.2, -2.5), "accent", { anim = bob(0.04, 3, 1) }),
+			ball("HornL", v(0.13, 0.55, 0.16), v(-0.3, 0.85, -1.55), "glow", { from = 3 }),
+			ball("HornR", v(0.13, 0.55, 0.16), v(0.3, 0.85, -1.55), "glow", { from = 3 }),
+			ball("FrillL", v(0.7, 0.5, 0.1), v(-0.68, 0.34, -1.2), "accent", { from = 4, alpha = 0.1, anim = flap(0.12, 3) }),
+			ball("FrillR", v(0.7, 0.5, 0.1), v(0.68, 0.34, -1.2), "accent", { from = 4, alpha = 0.1, anim = flap(0.12, 3) }),
+			ball("EyeL", v(0.32, 0.36, 0.18), v(-0.43, 0.48, -2.08), "eye"),
+			ball("EyeR", v(0.32, 0.36, 0.18), v(0.43, 0.48, -2.08), "eye"),
 		},
 	},
 	{
@@ -337,5 +340,8 @@ Familiars.names = {
 
 Familiars.eyeColor = rgb(245, 245, 240)
 Familiars.pupilColor = rgb(16, 16, 22)
+Familiars.eyeScale = 0.8 -- eyes draw a little under the size the shapes give them
+Familiars.pupilScale = Vector3.new(0.8, 0.82, 0.7) -- of the eye: mostly pupil, or it looks startled
+Familiars.glowDim = 0.42 -- how far Neon parts go towards black: Bloom blows bright Neon out to white
 
 return table.freeze(Familiars)

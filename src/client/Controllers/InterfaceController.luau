@@ -63,7 +63,6 @@ I.inputMode = Kit.value("Keyboard")
 I.openScreen = Kit.value(nil :: string?)
 
 local bus: any = nil
-local log: any = nil
 local magic: any = nil
 local screens: { [string]: ScreenDef } = {}
 local layers: { LayerDef } = {}
@@ -99,31 +98,10 @@ local function modeFor(inputType: Enum.UserInputType): string?
 	return nil
 end
 
---[[
-	Roblox's player scripts bind I and O to camera zoom through the Input Action system
-	(PlayerModule.InputContexts.CameraContext.CameraZoomAction.KeyboardBinding), which takes those keys
-	before our screens can use them. Removing that one binding frees them. The mouse wheel, touch and
-	trackpad have bindings of their own, so they still zoom. Nothing in the player scripts refers to it
-	by name (checked 2026-11-07). If Roblox moves it, the warning below says so.
-]]
-local function freeZoomKeys()
-	local scripts = Players.LocalPlayer:WaitForChild("PlayerScripts", 30)
-	local module = scripts and scripts:WaitForChild("PlayerModule", 30)
-	local contexts = module and module:WaitForChild("InputContexts", 30)
-	local camera = contexts and contexts:WaitForChild("CameraContext", 30)
-	local zoom = camera and camera:WaitForChild("CameraZoomAction", 30)
-	local binding = zoom and zoom:WaitForChild("KeyboardBinding", 30)
-	if binding then
-		binding:Destroy()
-		log:info("zoom_keys_freed")
-	else
-		log:warn("zoom_binding_missing", { why = "I and O may not open their screens" })
-	end
-end
-
 local DIGITS: { [string]: string } = {
 	One = "1", Two = "2", Three = "3", Four = "4", Five = "5",
 	Six = "6", Seven = "7", Eight = "8", Nine = "9", Zero = "0",
+	Comma = ",", Period = ".",
 }
 
 -- Short display name for a key: One -> "1", ButtonY -> "Y", DPadLeft -> "D-Left".
@@ -439,7 +417,6 @@ end
 
 function InterfaceController.init(_self: any, ctx: any)
 	bus = ctx.bus
-	log = ctx.log
 	magic = ctx.get("MagicStateController")
 	I:registerScreen({ id = "Settings", title = "Settings", order = 99, build = buildSettings })
 end
@@ -510,7 +487,6 @@ function InterfaceController.start(_self: any, _ctx: any)
 		toggleFor(input.KeyCode)
 	end)
 
-	task.spawn(freeZoomKeys)
 
 	rebuildAll()
 end

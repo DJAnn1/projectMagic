@@ -43,6 +43,17 @@ return function(t: any)
 			end
 		end)
 
+		-- Tried twice on 2026-11-07 and neither fix worked: in Studio, I and O never opened a screen.
+		t.it("gives no screen I or O, which never reached the game in Studio", function()
+			for _, action in Controls.list do
+				if string.sub(action.id, 1, 5) == "open_" then
+					for _, name in (action.keyboard or {}) :: { string } do
+						t.expect(name ~= "I" and name ~= "O").toBe(true)
+					end
+				end
+			end
+		end)
+
 		t.it("never binds one key to two live actions on the same device", function()
 			local list = Controls.list
 			for i = 1, #list do

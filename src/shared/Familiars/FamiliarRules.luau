@@ -147,9 +147,9 @@ function FamiliarRules.body(identity: Identity, stage: number): Body
 	local primary = look.glow:Lerp(identity.colors.primary, 0.25)
 	local slots: { [string]: Color3 } = {
 		primary = primary,
-		secondary = primary:Lerp(Color3.new(0, 0, 0), 0.3):Lerp(identity.colors.secondary, 0.15),
+		secondary = primary:Lerp(Color3.new(0, 0, 0), 0.14):Lerp(identity.colors.secondary, 0.12), -- darker, never grey
 		accent = identity.colors.accent:Lerp(look.glow, 0.25),
-		glow = look.glow,
+		glow = look.glow:Lerp(Color3.new(0, 0, 0), F.glowDim),
 		dark = F.pupilColor,
 		eye = F.eyeColor,
 	}
@@ -171,8 +171,9 @@ function FamiliarRules.body(identity: Identity, stage: number): Body
 				-- A white, and a pupil just in front of it. Both blink.
 				local blink: F.Anim = { kind = "blink", amount = 0, speed = 0, phase = identity.followAngle }
 				local moving = if anim then anim else blink
-				add(spec.name, spec.shape, size, offset, slots.eye, Enum.Material.SmoothPlastic, 0, moving)
-				add(spec.name .. "Pupil", "Ball", size * Vector3.new(0.58, 0.62, 0.7), offset + Vector3.new(0, 0, -size.Z * 0.32), F.pupilColor, Enum.Material.SmoothPlastic, 0, moving)
+				local eye = size * F.eyeScale
+				add(spec.name, spec.shape, eye, offset, slots.eye, Enum.Material.SmoothPlastic, 0, moving)
+				add(spec.name .. "Pupil", "Ball", eye * F.pupilScale, offset + Vector3.new(0, 0, -eye.Z * 0.32), F.pupilColor, Enum.Material.SmoothPlastic, 0, moving)
 			else
 				local material = if spec.slot == "glow" then Enum.Material.Neon elseif spec.slot == "dark" then Enum.Material.SmoothPlastic else look.material
 				add(spec.name, spec.shape, size, offset, slots[spec.slot] or slots.primary, material, spec.transparency, anim)

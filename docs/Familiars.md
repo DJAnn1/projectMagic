@@ -12,7 +12,7 @@ Specs: `Tests/Familiars.spec`.
 | Decisions (pure) | `Shared/Familiars/FamiliarRules` |
 | Running it | `Services/FamiliarService` |
 | The body | `Familiars/FamiliarRig` |
-| The screen (O) | `Controllers/FamiliarController` |
+| The screen (the . key) | `Controllers/FamiliarController` |
 | Effects | `Fx/FamiliarFx`, from the `familiar` WorldEffect cue |
 | Movement of its parts | `Fx/FamiliarAnimator`, on each client |
 | Save | `PlayerData.familiar` |
@@ -69,6 +69,7 @@ At the daily limit, Ascendant takes about a week of hard play. Time, Gravity and
 The domain sets the main colour, so you can tell what it is at a glance. Your signature tints it and sets the accents.
 
 - **Bodies:** six shapes of up to about 21 parts each, drawn from `Data/Familiars`.
+- **Neon is dimmed** (`F.glowDim`). The game's Bloom blew pale Neon out to white flares (owner's screenshots, 2026-11-07).
 - **Movement:** tails and serpent bodies wag, wings flap, legs and ears bob, sparks orbit, and eyes blink. `Fx/FamiliarAnimator` does this on each client through `Weld.C0`, so it costs no network. It only runs within 90 studs, at 30 updates a second, and stops under Reduced effects.
 - **At rest:** it keeps hovering and looks at you.
 - **Growth:** stage 2 adds a trail when it moves. Stage 3 adds details like horns, and motes start to circle it, one more per stage. Stage 4 adds a light and more details.

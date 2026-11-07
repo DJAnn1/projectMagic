@@ -710,7 +710,7 @@ local function bond(player: Player, state: any): Live?
 	if rig then
 		runner:cue("familiar", { fx = "born", domain = record.domain }, rig.root.Position, true)
 	end
-	local note = string.format("Something answers your magic: %s, a small %s creature. Press O to see it.", live.displayName, record.domain)
+	local note = string.format("Something answers your magic: %s, a small %s creature. Press the . key to see it.", live.displayName, record.domain)
 	journal:log(player, "discovery", string.format("Your magic has drawn something to you. You've called it %s, for now.", live.displayName))
 	log:info("familiar_bonded", { userId = player.UserId, domain = record.domain, shape = live.identity.shape, personality = live.identity.personality.word })
 	push(live, player, note)

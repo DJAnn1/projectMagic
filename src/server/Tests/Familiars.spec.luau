@@ -313,6 +313,16 @@ return function(t: any)
 			end
 		end)
 
+		it("dims its Neon, because Bloom blows bright Neon out to white", function()
+			local who = identity("air") -- the palest glow
+			who.shape = "wisp"
+			for _, part in Rules.body(who, 5).parts do
+				if part.material == Enum.Material.Neon then
+					expect(math.max(part.color.R, part.color.G, part.color.B) < 0.75).toBe(true)
+				end
+			end
+		end)
+
 		it("makes the domain's colour show, whatever the signature", function()
 			local function gap(a: Color3, b: Color3): number
 				return math.abs(a.R - b.R) + math.abs(a.G - b.G) + math.abs(a.B - b.B)
