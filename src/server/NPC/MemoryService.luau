@@ -58,6 +58,11 @@ MemoryService.KINDS = {
 	duel_lost = { valence = -0.5, gossip = true },
 	backlash = { valence = -0.6, gossip = true },
 	disaster = { valence = -0.7, gossip = true },
+	-- Loose spells (Services/FeralService). An accident, so milder than attacking someone on purpose.
+	lost_control = { valence = -0.35, gossip = true }, -- I saw their spell tear loose
+	spell_hurt_me = { valence = -0.7, gossip = true }, -- the spell they let loose hurt me
+	ended_it = { valence = 0.6, gossip = true }, -- they brought down a loose spell here
+	cleaned_up = { valence = 0.2, gossip = true }, -- it was their own, but at least they dealt with it
 	became_student = { valence = 0.5, gossip = true },
 	school_founded = { valence = 0.6, gossip = true },
 	went_rogue = { valence = -0.8, gossip = true },

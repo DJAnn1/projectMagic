@@ -12,6 +12,10 @@
 		def(recipe, domain, palette, opposed, name, rng) -> a CreatureRig definition
 		unstable(energy, maxEnergy) -> 0..1          how visibly it's coming apart
 		response(occupation, distance) -> "fight" | "flee" | nil      how someone nearby reacts
+		blameFor(blamed) -> number                   standing lost for this hit, once the limit's reached 0
+		thanksFor(isCaster) -> number                standing for bringing one down
+		endedKind(isCaster) -> memory kind
+		memoryLine(kind, who, secondhand) -> string? what someone says about a loose spell they remember
 		learnsFrom(view) -> boolean                 only a spell you didn't know can teach you
 		clue(recipe, names) -> string
 		pruneStudied(studied, max)                  bounded, oldest first
@@ -174,6 +178,31 @@ function FeralRules.response(occupation: string, distance: number): string?
 		return if distance <= T.guardRadius then "fight" else nil
 	end
 	return if distance <= T.fleeRadius then "flee" else nil
+end
+
+-- It was an accident, so this isn't a crime, and it stops adding up after a few hits.
+function FeralRules.blameFor(blamed: number): number
+	return if blamed < T.blameMax then T.blamePerHit else 0
+end
+
+function FeralRules.thanksFor(isCaster: boolean): number
+	return if isCaster then T.thanksOwn else T.thanks
+end
+
+function FeralRules.endedKind(isCaster: boolean): string
+	return if isCaster then "cleaned_up" else "ended_it"
+end
+
+-- `who` is nil when it's about the person being spoken to.
+function FeralRules.memoryLine(kind: string, who: string?, secondhand: boolean): string?
+	local lines = Data.memories[kind]
+	if not lines then
+		return nil
+	end
+	if not who then
+		return lines.you
+	end
+	return string.format(if secondhand then lines.heard else lines.known, who)
 end
 
 -- Only a spell you didn't know can teach you anything: your own backfires are worth nothing here, so

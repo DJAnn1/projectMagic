@@ -1676,6 +1676,20 @@ function NPCService.setRumorHook(_self: any, fn: (Player, any) -> string?, first
 	end
 end
 
+-- Something this person will remember, and may gossip about (Services/FeralService).
+function NPCService.remember(_self: any, npc: any, kind: string, subject: string, intensity: number)
+	MemoryService.add(npc, kind, subject, WorldClock.now(), { intensity = intensity })
+	local town = townById[npc.settlementId]
+	if town then
+		town.dirty = true
+	end
+end
+
+-- Who a memory's subject is, as of now. Saved memories hold an id, never a player's name.
+function NPCService.nameOf(_self: any, subject: string): string
+	return nameOf(subject)
+end
+
 -- A quest's ending, remembered: relationship change plus a memory the NPC may gossip about.
 function NPCService.questBond(_self: any, npc: any, player: Player, delta: number, memoryKind: string?)
 	local subject = subjectOf(player.UserId)

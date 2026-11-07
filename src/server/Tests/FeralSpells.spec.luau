@@ -16,6 +16,8 @@ local Data = require(Server.Ferals.Data.FeralData)
 local Rules = require(Server.Ferals.FeralRules)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local NPCCombat = require(Server.NPC.NPCCombat)
+local MemoryService = require(Server.NPC.MemoryService)
+local DialogueEngine = require(Server.NPC.DialogueEngine)
 
 local Shared = ReplicatedStorage.Shared
 local Registry = require(Shared.Magic.Registry)
@@ -245,6 +247,68 @@ return function(t: any)
 			NPCCombat.setExternalTarget("f:gone", nil)
 			rig.humanoid:Destroy()
 			rig.root:Destroy()
+		end)
+	end)
+
+	describe("What people remember", function()
+		local function person(): any
+			return { id = "t#1", traits = { neuroticism = 0.5 }, quirks = {} }
+		end
+
+		it("every memory it makes is a kind people gossip about, with all three ways to say it", function()
+			for kind, lines in Data.memories do
+				expect(MemoryService.KINDS[kind] ~= nil).toBe(true)
+				expect(MemoryService.KINDS[kind].gossip).toBe(true)
+				expect(string.find(lines.known, "%s", 1, true) ~= nil).toBe(true)
+				expect(string.find(lines.heard, "%s", 1, true) ~= nil).toBe(true)
+				expect(string.find(lines.you, "%s", 1, true)).toBe(nil)
+			end
+		end)
+
+		it("an accident is held against you, but less than an attack", function()
+			expect(MemoryService.KINDS.lost_control.valence < 0).toBe(true)
+			expect(MemoryService.KINDS.lost_control.valence > MemoryService.KINDS.attacked_me.valence).toBe(true)
+		end)
+
+		it("makes them wary of the one who lost it, and warm to the one who ended it", function()
+			local hurt = person()
+			MemoryService.add(hurt, "spell_hurt_me", "u:1", 0, { intensity = 1 })
+			MemoryService.add(hurt, "lost_control", "u:1", 0, { intensity = 1 })
+			local band = DialogueEngine.band(hurt, "u:1", 0)
+			expect(band == "wary" or band == "hostile").toBe(true)
+			local thankful = person()
+			MemoryService.add(thankful, "ended_it", "u:2", 0, { intensity = 1 })
+			expect(MemoryService.opinion(thankful, "u:2", 0) > 0).toBe(true)
+		end)
+
+		it("spreads by gossip, weaker second-hand", function()
+			local speaker, listener = person(), person()
+			listener.id = "t#2"
+			MemoryService.add(speaker, "lost_control", "u:1", 0, { intensity = 1 })
+			MemoryService.gossip(speaker, listener, 0, 1)
+			local heard = MemoryService.top(listener, 1, 0, "u:1")[1]
+			expect(heard ~= nil and heard.kind == "lost_control").toBe(true)
+			expect(heard.secondhand).toBe(true)
+			expect(heard.intensity < speaker.memories[1].intensity).toBe(true)
+		end)
+
+		it("costs standing for the first few hurt, then stops adding up", function()
+			expect(Rules.blameFor(0)).toBe(T.blamePerHit)
+			expect(Rules.blameFor(T.blameMax - 1)).toBe(T.blamePerHit)
+			expect(Rules.blameFor(T.blameMax)).toBe(0)
+		end)
+
+		it("gives less credit for ending your own", function()
+			expect(Rules.thanksFor(true) < Rules.thanksFor(false)).toBe(true)
+			expect(Rules.endedKind(true)).toBe("cleaned_up")
+			expect(Rules.endedKind(false)).toBe("ended_it")
+		end)
+
+		it("says it to you differently, and names someone else", function()
+			expect(Rules.memoryLine("lost_control", nil, false)).toBe(Data.memories.lost_control.you)
+			expect(string.find(Rules.memoryLine("lost_control", "Hedda", false) :: string, "Hedda", 1, true) ~= nil).toBe(true)
+			expect(Rules.memoryLine("lost_control", "Hedda", true)).toBe(string.format(Data.memories.lost_control.heard, "Hedda"))
+			expect(Rules.memoryLine("chatted", "Hedda", false)).toBe(nil)
 		end)
 	end)
 

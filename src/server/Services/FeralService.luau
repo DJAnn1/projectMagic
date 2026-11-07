@@ -26,6 +26,11 @@
 	TOWNS      Guards and hunters come for it, through the same NPCCombat as any fight, and can bring it
 	           down without you. Everyone else runs. They may shout about it. Only NPCs with a full body
 	           near a player: with nobody around, a town's fight doesn't happen.
+	MEMORY     People who see one get loose, get hurt by one, or see one brought down remember it
+	           (MemoryService), about whoever lost it or ended it. Gossip spreads that, and opinion follows,
+	           so they greet you warily or warmly and mention it. Hurting people costs a little standing
+	           in their town, but it was an accident, so it isn't a crime. Ask for rumours and they may
+	           bring up what they remember. Saved memories hold an id, never a player's name.
 	AFTER      Bring it down and it leaves a Journal clue to its recipe for anyone who hurt it, unless they
 	           knew the spell already: your own backfires teach you nothing, so failing on purpose is
 	           pointless. data.feral.studied remembers what you've learned, in the player's save.
@@ -57,6 +62,8 @@ local Data = require(Server.Ferals.Data.FeralData)
 local Rules = require(Server.Ferals.FeralRules)
 local NPCCombat = require(Server.NPC.NPCCombat)
 local NPCMagicLife = require(Server.NPC.NPCMagicLife)
+local MemoryService = require(Server.NPC.MemoryService)
+local WorldClock = require(Server.NPC.WorldClock)
 local WildZoneRules = require(Server.World.WildZoneRules)
 local WorldConfig = require(Server.World.WorldConfig)
 
@@ -64,7 +71,7 @@ local T = Data.tuning
 
 local FeralService = {
 	name = "FeralService",
-	dependencies = { "AdminService", "EffectRunner", "JournalService", "NPCService", "PlayerDataService", "ProgressionService", "WorldService", "WorldStateService" },
+	dependencies = { "AdminService", "EffectRunner", "JournalService", "NPCService", "PlayerDataService", "ProgressionService", "ReputationService", "WorldService", "WorldStateService" },
 }
 
 type Body = { model: Model, humanoid: Humanoid, root: BasePart }
@@ -79,6 +86,8 @@ type Feral = {
 	source: string, -- "player" | "npc"
 	casterName: string,
 	casterUserId: number?,
+	subject: string?, -- who people blame: "u:<userId>", or an NPC's id
+	blamed: number,
 	x: number,
 	z: number,
 	energy: number,
@@ -108,6 +117,7 @@ local journal: any = nil
 local npcs: any = nil
 local playerData: any = nil
 local progression: any = nil
+local reputation: any = nil
 local worldService: any = nil
 local world: any = nil
 
@@ -117,6 +127,7 @@ local counter = 0
 local lastEscape: { [number]: number } = {} -- caster's userId -> os.clock()
 local escapes: { [number]: number } = {} -- caster's userId -> how many so far, for the seeded roll
 local heardBy: { [Player]: { [string]: boolean } } = {}
+local recalledBy: { [Player]: { [string]: boolean } } = {} -- "<npc>|<kind>|<subject>": told you once this session
 local handledSlot = -1
 local folder: Folder? = nil
 local terrainParams: RaycastParams? = nil
@@ -145,7 +156,26 @@ end
 
 -- ─── Getting loose ──────────────────────────────────────────────────────────
 
-local function create(recipe: any, stats: any, source: string, casterName: string, casterUserId: number?, x: number, z: number, seedKey: string): Feral?
+-- Whoever's near enough remembers this, about `subject`. Not the subject themselves.
+local function witnesses(kind: string, subject: string, x: number, z: number, intensity: number): any?
+	local nearest: any? = nil
+	local nearestDistance = math.huge
+	for _, npc in npcs:all() do
+		local at: Vector3? = npc.position
+		if at and not npc.knockedOut and npc.id ~= subject and npc.ageBand ~= "child" then
+			local distance = Vector3.new(at.X - x, 0, at.Z - z).Magnitude
+			if distance <= T.witnessRadius then
+				npcs:remember(npc, kind, subject, intensity)
+				if distance < nearestDistance then
+					nearest, nearestDistance = npc, distance
+				end
+			end
+		end
+	end
+	return nearest
+end
+
+local function create(recipe: any, stats: any, source: string, casterName: string, casterUserId: number?, subject: string?, x: number, z: number, seedKey: string): Feral?
 	local domain: string? = stats.domains and stats.domains[1]
 	if not domain or not Registry.domains[domain] then
 		return nil
@@ -161,6 +191,8 @@ local function create(recipe: any, stats: any, source: string, casterName: strin
 		source = source,
 		casterName = casterName,
 		casterUserId = casterUserId,
+		subject = subject,
+		blamed = 0,
 		x = x,
 		z = z,
 		energy = Rules.energyFor(recipe.power),
@@ -192,6 +224,9 @@ local function create(recipe: any, stats: any, source: string, casterName: strin
 		return nil, nil
 	end)
 	log:info("feral_escaped", { id = feral.id, source = source, domain = domain, form = recipe.form, power = recipe.power, x = math.floor(x), z = math.floor(z) })
+	if subject then
+		witnesses("lost_control", subject, x, z, 0.6)
+	end
 	return feral
 end
 
@@ -218,7 +253,7 @@ local function onControlLost(payload: any)
 		return
 	end
 	lastEscape[userId] = os.clock()
-	local feral = create(stats.recipe, stats, "player", player.DisplayName, userId, position.X, position.Z, "player:" .. userId)
+	local feral = create(stats.recipe, stats, "player", player.DisplayName, userId, "u:" .. userId, position.X, position.Z, "player:" .. userId)
 	if feral then
 		-- It leaves a mark of what happened where you'd look for it, and a word over it. No announcement.
 		journal:log(player, "discovery", string.format("A spell tore loose from you and didn't go out. It moved off on its own: a %s, you'd call it.", string.lower(feral.name)))
@@ -260,7 +295,7 @@ local function checkAccident()
 	local recipe = NPCCombat.attackRecipe(mage)
 	local stats = recipe and MagicCore.computeStats(recipe, mage.magic.caster, nil)
 	if recipe and stats then
-		create(recipe, stats, "npc", mage.name, nil, mage.position.X, mage.position.Z, "npc:" .. tostring(mage.id))
+		create(recipe, stats, "npc", mage.name, nil, mage.id, mage.position.X, mage.position.Z, "npc:" .. tostring(mage.id))
 	end
 end
 
@@ -395,6 +430,25 @@ local function reward(feral: Feral, maxHealth: number)
 	end
 end
 
+-- Whoever did the most to bring it down gets the credit, with whoever saw it.
+local function creditEnding(feral: Feral, position: Vector3)
+	local bestId, bestDealt = nil, 0
+	for userId, dealt in feral.dealt do
+		if dealt > bestDealt then
+			bestId, bestDealt = userId, dealt
+		end
+	end
+	if not bestId then
+		return -- guards or hunters saw to it, or it fell by itself: nobody to credit by name
+	end
+	local isCaster = feral.casterUserId == bestId
+	local nearest = witnesses(Rules.endedKind(isCaster), "u:" .. bestId, position.X, position.Z, 0.7)
+	local player = Players:GetPlayerByUserId(bestId)
+	if nearest and player then
+		reputation:addSettlement(player, nearest.settlementId, Rules.thanksFor(isCaster), "feral_ended")
+	end
+end
+
 local function die(feral: Feral)
 	local body = feral.body :: Body
 	local maxHealth = body.humanoid.MaxHealth
@@ -402,6 +456,7 @@ local function die(feral: Feral)
 	feral.body = nil
 	body.root.Anchored = true
 	reward(feral, maxHealth)
+	creditEnding(feral, body.root.Position)
 	fade(body.model)
 	forget(feral)
 	local helpers = 0
@@ -457,9 +512,32 @@ local function canReach(model: Model): boolean
 	return model:GetAttribute("FeralSpell") == nil and model:GetAttribute("PracticeTarget") == nil and model:GetAttribute("Creature") == nil
 end
 
+-- Someone in town got hurt by it: they remember whose it was, and it costs that person a little there.
+local function blame(feral: Feral, hit: any, dealt: number)
+	local subject = feral.subject
+	local npcId = hit.model:GetAttribute("NpcId")
+	local npc = if npcId then npcs:get(npcId) else nil
+	if not subject or not npc or npc.id == subject then
+		return
+	end
+	npcs:remember(npc, "spell_hurt_me", subject, math.clamp(dealt / 40, 0.3, 1))
+	local caster = if feral.casterUserId then Players:GetPlayerByUserId(feral.casterUserId) else nil
+	if caster then
+		local delta = Rules.blameFor(feral.blamed)
+		feral.blamed += 1
+		if delta ~= 0 then
+			reputation:addSettlement(caster, npc.settlementId, delta, "feral_hurt")
+			log:info("feral_blamed", { id = feral.id, userId = caster.UserId, npc = npc.id })
+		end
+	end
+end
+
 -- A hit, plus what the spell's domain does on top of the damage.
 local function strike(feral: Feral, ctx: any, hit: any, share: number, kind: string)
 	local dealt = DamageModel.hit(ctx, hit, share, kind)
+	if dealt > 0 then
+		blame(feral, hit, dealt)
+	end
 	local effect = Data.effects[feral.domain]
 	if dealt <= 0 or not effect or hit.humanoid.Health <= 0 then
 		return
@@ -786,8 +864,35 @@ local function onSpell(payload: any)
 	end
 end
 
+-- Something this person remembers about a loose spell, told once per session.
+local function recalled(player: Player, npc: any): string?
+	local told = recalledBy[player]
+	if not told then
+		told = {}
+		recalledBy[player] = told
+	end
+	local now = WorldClock.now()
+	local you = "u:" .. player.UserId
+	for _, memory in MemoryService.top(npc, 24, now) do
+		if Data.memories[memory.kind] and MemoryService.strength(npc, memory, now) >= T.rememberedStrength then
+			local key = string.format("%s|%s|%s", tostring(npc.id), memory.kind, memory.subject)
+			if not told[key] then
+				told[key] = true
+				local who = if memory.subject == you then nil else npcs:nameOf(memory.subject)
+				local text = Rules.memoryLine(memory.kind, who, memory.secondhand)
+				if text then
+					journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text))
+					log:info("feral_remembered", { userId = player.UserId, npc = npc.id, kind = memory.kind, secondhand = memory.secondhand })
+				end
+				return text
+			end
+		end
+	end
+	return nil
+end
+
 local function rumorHook(player: Player, npc: any): string?
-	if not enabled() or #ferals == 0 then
+	if not enabled() then
 		return nil
 	end
 	local at: Vector3 = npc.position
@@ -801,7 +906,7 @@ local function rumorHook(player: Player, npc: any): string?
 	local list: { Rules.RumorFeral } = ferals :: any
 	local found = Rules.rumorFor(list, heard, at.X, at.Z, rng:NextNumber())
 	if not found then
-		return nil
+		return recalled(player, npc) -- nothing loose near here: what do they remember?
 	end
 	heard[found.id] = true
 	local feral = found :: any
@@ -867,7 +972,7 @@ local function registerAdmin(admin: any)
 				local stats = MagicCore.computeStats(state.data.spellbook[key].recipe, state.caster, nil)
 				if stats and stats.harmful then
 					local at = root.Position + root.CFrame.LookVector * 18
-					local feral = create(stats.recipe, stats, "player", ctx.player.DisplayName, nil, at.X, at.Z, "admin")
+					local feral = create(stats.recipe, stats, "player", ctx.player.DisplayName, ctx.player.UserId, "u:" .. ctx.player.UserId, at.X, at.Z, "admin")
 					if feral then
 						return "loose: " .. feral.id .. ", " .. feral.name
 					end
@@ -887,6 +992,7 @@ function FeralService.init(_self: any, ctx: any)
 	npcs = ctx.get("NPCService")
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
+	reputation = ctx.get("ReputationService")
 	worldService = ctx.get("WorldService")
 	world = ctx.get("WorldStateService")
 	ctx.bus:subscribe(Topics.ControlLost, onControlLost)
@@ -903,6 +1009,7 @@ function FeralService.start(_self: any, _ctx: any)
 	folder = parent
 	Players.PlayerRemoving:Connect(function(player)
 		heardBy[player] = nil
+		recalledBy[player] = nil
 	end)
 	task.spawn(function()
 		world:awaitReady()

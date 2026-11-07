@@ -10,6 +10,8 @@
 		         throws them back. ground is what it does to the land as it passes: burn sets fire to
 		         what can burn (never saved), quench puts fires out
 		shouts   what townsfolk call out when one comes near
+		memories what people say when asked for rumours, about a loose spell they remember. you is said
+		         to the person it's about, known by someone who saw it, heard by someone who was told
 		words    what people call it, by domain. In their words and the Journal: nothing floats over it
 		rumors   what people say about one. %s are who lost it, and where it was seen
 ]]
@@ -95,6 +97,14 @@ FeralData.tuning = {
 	dotShare = 0.2, -- burning and the like, per tick, as a share of the hit
 	provokedSeconds = 10, -- once hurt, it lashes out at anything within `reach`, not just `notice`
 
+	-- What people remember, and what it costs. Nothing here is a crime: it was an accident.
+	witnessRadius = 70, -- saw it get loose, or saw it brought down
+	blamePerHit = -2, -- standing in that person's town, when your loose spell hurts them...
+	blameMax = 3, -- ...for this many hits per loose spell
+	thanks = 3, -- standing, for bringing one down with people watching
+	thanksOwn = 1, -- when it was yours to begin with
+	rememberedStrength = 0.05, -- below this, they've all but forgotten
+
 	-- What it leaves
 	creditShare = 0.2, -- of its health dealt, to have understood anything from it
 	xpPerPower = 14,
@@ -155,6 +165,29 @@ FeralData.shouts = {
 		"Whose is that?! Somebody stop it!",
 	},
 } :: { [string]: { string } }
+
+FeralData.memories = {
+	lost_control = {
+		you = "You know what they say about you here. That spell of yours, the one that got away.",
+		known = "I saw it myself. %s lost hold of a spell, right here, and it just went.",
+		heard = "They say %s lost hold of a spell round here. Got clean away from them.",
+	},
+	spell_hurt_me = {
+		you = "I still feel where your spell caught me. I don't suppose you meant it.",
+		known = "That loose spell of %s's caught me. I've still got the marks.",
+		heard = "Someone got hurt by a loose spell, one of %s's, they say.",
+	},
+	ended_it = {
+		you = "People remember you brought down that loose spell.",
+		known = "I watched %s bring down one of those loose spells. Good thing someone did.",
+		heard = "They say %s brought down a loose spell near here, and nobody asked them to.",
+	},
+	cleaned_up = {
+		you = "It was yours, that spell, but you did go after it. That counts for something.",
+		known = "%s went after their own loose spell and finished it. Fair's fair.",
+		heard = "They say %s put down their own loose spell. Better than leaving it.",
+	},
+} :: { [string]: { you: string, known: string, heard: string } }
 
 FeralData.words = {
 	energy = "Stray Ember",

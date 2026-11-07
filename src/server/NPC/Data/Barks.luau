@@ -177,7 +177,12 @@ local Lines: { Line } = {
 	{ cat = "story", text = "Heard at the well: {story}.", quirk = { "gossip", "collects_rumors" } },
 	{ cat = "story", text = "Nobody told you? {story}.", high = { extraversion = 0.6 } },
 
-	-- ─── Things this NPC remembers about the player beside them (12) ────────
+	-- ─── Things this NPC remembers about the player beside them (17) ────────
+	{ cat = "deed", text = "You're the one whose spell got away. Are you holding it properly now?", deed = { "lost_control" } },
+	{ cat = "deed", text = "Keep your magic to yourself. We saw what happened last time.", deed = { "lost_control" }, low = { agreeableness = 0.5 } },
+	{ cat = "deed", text = "That thing you let loose hurt me. Did anyone tell you that?", deed = { "spell_hurt_me" } },
+	{ cat = "deed", text = "You took down that loose spell. Not everyone would have.", deed = { "ended_it" } },
+	{ cat = "deed", text = "It was yours to begin with, but you did see it off. I'll give you that.", deed = { "cleaned_up" } },
 	{ cat = "deed", text = "That's who I saw casting the other day.", deed = { "saw_magic" } },
 	{ cat = "deed", text = "I saw what you can do. Bit showy, if you ask me.", deed = { "saw_magic" }, low = { agreeableness = 0.45 } },
 	{ cat = "deed", text = "Careful with that magic round here. People got scared.", deed = { "saw_harmful_magic" } },
