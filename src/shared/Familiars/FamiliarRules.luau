@@ -43,9 +43,10 @@ export type BodyPart = {
 	color: Color3,
 	material: Enum.Material,
 	transparency: number,
+	anim: F.Anim?,
 }
 
-export type Body = { parts: { BodyPart }, hover: number, glow: Color3, emit: boolean, radius: number }
+export type Body = { parts: { BodyPart }, hover: number, glow: Color3, emit: boolean, radius: number, top: number, light: boolean, trail: boolean }
 
 export type Stats = { maxHealth: number, bite: number, biteCooldown: number, speed: number }
 
@@ -141,29 +142,60 @@ function FamiliarRules.body(identity: Identity, stage: number): Body
 	local shape = shapeOf(identity.shape)
 	local look = F.looks[identity.domain] or F.looks.energy
 	local scale = F.stages[stage].scale * identity.sizeJitter
+	-- The domain sets the colour, so you can tell what it is at a glance. Your signature tints it, and
+	-- its accents are yours alone.
+	local primary = look.glow:Lerp(identity.colors.primary, 0.25)
 	local slots: { [string]: Color3 } = {
-		primary = identity.colors.primary:Lerp(look.glow, 0.45),
-		secondary = identity.colors.secondary:Lerp(look.glow, 0.25),
-		accent = identity.colors.accent,
+		primary = primary,
+		secondary = primary:Lerp(Color3.new(0, 0, 0), 0.3):Lerp(identity.colors.secondary, 0.15),
+		accent = identity.colors.accent:Lerp(look.glow, 0.25),
+		glow = look.glow,
+		dark = F.pupilColor,
 		eye = F.eyeColor,
 	}
 	local parts: { BodyPart } = {}
-	local radius = 0
-	for _, spec in shape.parts do
-		local isEye = spec.slot == "eye"
-		local size, offset = spec.size * scale, spec.offset * scale
+	local radius, top = 0, 0
+	local function add(name: string, kind: string, size: Vector3, offset: Vector3, color: Color3, material: Enum.Material, transparency: number?, anim: F.Anim?)
 		radius = math.max(radius, offset.Magnitude + size.Magnitude / 2)
-		table.insert(parts, {
-			name = spec.name,
-			shape = spec.shape,
-			size = size,
-			offset = offset,
-			color = slots[spec.slot] or slots.primary,
-			material = if isEye then Enum.Material.SmoothPlastic else look.material,
-			transparency = spec.transparency or 0,
-		})
+		top = math.max(top, offset.Y + size.Y / 2)
+		table.insert(parts, { name = name, shape = kind, size = size, offset = offset, color = color, material = material, transparency = transparency or 0, anim = anim })
 	end
-	return { parts = parts, hover = shape.hover * scale, glow = look.glow, emit = look.emit, radius = radius }
+	for _, spec in shape.parts do
+		if stage >= (spec.fromStage or 1) then
+			local size, offset = spec.size * scale, spec.offset * scale
+			local anim = spec.anim
+			if anim and anim.kind ~= "wag" and anim.kind ~= "flap" and anim.kind ~= "orbit" then
+				anim = { kind = anim.kind, amount = anim.amount * scale, speed = anim.speed, phase = anim.phase }
+			end
+			if spec.slot == "eye" then
+				-- A white, and a pupil just in front of it. Both blink.
+				local blink: F.Anim = { kind = "blink", amount = 0, speed = 0, phase = identity.followAngle }
+				local moving = if anim then anim else blink
+				add(spec.name, spec.shape, size, offset, slots.eye, Enum.Material.SmoothPlastic, 0, moving)
+				add(spec.name .. "Pupil", "Ball", size * Vector3.new(0.58, 0.62, 0.7), offset + Vector3.new(0, 0, -size.Z * 0.32), F.pupilColor, Enum.Material.SmoothPlastic, 0, moving)
+			else
+				local material = if spec.slot == "glow" then Enum.Material.Neon elseif spec.slot == "dark" then Enum.Material.SmoothPlastic else look.material
+				add(spec.name, spec.shape, size, offset, slots[spec.slot] or slots.primary, material, spec.transparency, anim)
+			end
+		end
+	end
+	local g = F.growth
+	local bodyRadius = radius
+	for i = 1, math.max(0, stage - g.moteFrom + 1) do
+		local angle = (i - 1) * 2 * math.pi / math.max(1, stage - g.moteFrom + 1)
+		local at = Vector3.new(math.cos(angle), 0.25, math.sin(angle)) * (bodyRadius * 0.45 + g.moteRadius)
+		add("Mote" .. i, "Ball", Vector3.one * g.moteSize * scale, at, slots.glow, Enum.Material.Neon, 0, { kind = "orbit", amount = 0, speed = g.moteSpeed })
+	end
+	return {
+		parts = parts,
+		hover = shape.hover * scale,
+		glow = look.glow,
+		emit = look.emit,
+		radius = radius,
+		top = top,
+		light = stage >= g.lightFrom,
+		trail = stage >= g.trailFrom,
+	}
 end
 
 -- `fullHit` is a full-strength spell at the owner's tier (DamageModel.base), so a familiar keeps its

@@ -90,7 +90,7 @@ return function(t: any)
 		end)
 
 		it("every shape has eyes, and every part names a known colour slot", function()
-			local slots = { primary = true, secondary = true, accent = true, eye = true }
+			local slots = { primary = true, secondary = true, accent = true, glow = true, dark = true, eye = true }
 			for _, shape in F.shapes do
 				local eyes = 0
 				for _, part in shape.parts do
@@ -100,6 +100,21 @@ return function(t: any)
 					end
 				end
 				expect(eyes >= 2).toBe(true)
+			end
+		end)
+
+		it("part names are unique within a shape, and every anim is one the client plays", function()
+			local kinds = { wag = true, flap = true, bob = true, orbit = true }
+			for _, shape in F.shapes do
+				local seen: { [string]: boolean } = {}
+				for _, part in shape.parts do
+					expect(seen[part.name]).toBe(nil)
+					seen[part.name] = true
+					if part.anim then
+						expect((kinds :: any)[part.anim.kind]).toBe(true)
+					end
+					expect(part.fromStage == nil or F.stages[part.fromStage] ~= nil).toBe(true)
+				end
 			end
 		end)
 
@@ -148,6 +163,9 @@ return function(t: any)
 				end
 			end
 			expect(rig.model:FindFirstChildOfClass("Humanoid")).toBe(nil)
+			-- The client poses parts through these, so they have to be Welds.
+			expect(rig.model:FindFirstChild("WeldConstraint", true)).toBe(nil)
+			expect(rig.model:FindFirstChild("Pose", true) ~= nil).toBe(true)
 			rig.model:Destroy()
 		end)
 	end)
@@ -265,6 +283,50 @@ return function(t: any)
 
 		it("grows bigger with each stage", function()
 			expect(Rules.body(identity(), 5).radius > Rules.body(identity(), 1).radius).toBe(true)
+		end)
+
+		it("shows its growth: more parts, then a trail, then a light", function()
+			for _, shape in F.shapes do
+				local who = identity()
+				who.shape = shape.id
+				local young, old = Rules.body(who, 1), Rules.body(who, 5)
+				expect(#old.parts > #young.parts).toBe(true)
+				expect(young.trail).toBe(false)
+				expect(old.trail).toBe(true)
+				expect(young.light).toBe(false)
+				expect(old.light).toBe(true)
+			end
+		end)
+
+		it("gives every eye a pupil, and every body part a real colour and unique name", function()
+			for _, shape in F.shapes do
+				local who = identity()
+				who.shape = shape.id
+				local names: { [string]: boolean } = {}
+				for _, part in Rules.body(who, 5).parts do
+					expect(names[part.name]).toBe(nil)
+					names[part.name] = true
+					expect(typeof(part.color)).toBe("Color3")
+				end
+				expect(names.EyeLPupil).toBe(true)
+				expect(names.EyeRPupil).toBe(true)
+			end
+		end)
+
+		it("makes the domain's colour show, whatever the signature", function()
+			local function gap(a: Color3, b: Color3): number
+				return math.abs(a.R - b.R) + math.abs(a.G - b.G) + math.abs(a.B - b.B)
+			end
+			local who = identity("water")
+			who.shape = "wisp"
+			local color: Color3? = nil
+			for _, part in Rules.body(who, 1).parts do
+				if part.name == "Body" then
+					color = part.color
+				end
+			end
+			expect(color ~= nil).toBe(true)
+			expect(gap(color :: Color3, F.looks.water.glow) < gap(color :: Color3, COLORS.primary)).toBe(true)
 		end)
 	end)
 

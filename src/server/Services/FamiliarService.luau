@@ -567,9 +567,10 @@ local function stepOne(live: Live, now: number)
 		targetToOwner = (target.root.Position - ownerPosition).Magnitude
 	end
 	local stay = live.record.mode == "stay"
+	local frozen = TimeZones.stopped(position)
 	local action = Rules.decide({
 		hasOwner = ownerRoot ~= nil,
-		frozen = TimeZones.stopped(position),
+		frozen = frozen,
 		mode = live.record.mode,
 		ownerDistance = (ownerPosition - position).Magnitude,
 		hasTarget = target ~= nil,
@@ -611,6 +612,14 @@ local function stepOne(live: Live, now: number)
 		local anchor = live.stayAt or position
 		live.stayAt = anchor
 		moveTo(live, rig, Vector3.new(anchor.X, anchor.Y - live.hover, anchor.Z), 0, now)
+	end
+	if action == "idle" and ownerRoot and not stay and not frozen then
+		-- Standing by: it keeps hovering, and it looks at you.
+		moveTo(live, rig, Vector3.new(position.X, live.groundY or (position.Y - live.hover), position.Z), 0, now)
+		local toOwner = Vector3.new(ownerPosition.X - position.X, 0, ownerPosition.Z - position.Z)
+		if toOwner.Magnitude > 0.5 then
+			rig.orient.CFrame = CFrame.lookAt(Vector3.zero, toOwner.Unit)
+		end
 	end
 	-- Not fighting, but mending still works, and stepping aside is no reason to stop helping.
 	if ownerRoot then

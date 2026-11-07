@@ -69,10 +69,20 @@ function FamiliarRig.build(body: FamiliarRules.Body, at: CFrame, ownerId: number
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
 		quiet(part)
-		local weld = Instance.new("WeldConstraint")
+		-- A Weld, not a WeldConstraint: Fx/FamiliarAnimator poses parts through C0, on each client only.
+		local weld = Instance.new("Weld")
+		weld.Name = "Pose"
 		weld.Part0 = root
 		weld.Part1 = part
+		weld.C0 = CFrame.new(spec.offset)
 		weld.Parent = part
+		local anim = spec.anim
+		if anim then
+			part:SetAttribute("Anim", anim.kind)
+			part:SetAttribute("AnimAmount", anim.amount)
+			part:SetAttribute("AnimSpeed", anim.speed)
+			part:SetAttribute("AnimPhase", anim.phase or 0)
+		end
 		part.Parent = model
 	end
 
@@ -108,11 +118,38 @@ function FamiliarRig.build(body: FamiliarRules.Body, at: CFrame, ownerId: number
 		emitter.Parent = root
 	end
 
+	if body.light then
+		local light = Instance.new("PointLight")
+		light.Color = body.glow
+		light.Brightness = 1.2
+		light.Range = 12
+		light.Parent = root
+	end
+
+	if body.trail then
+		-- Only shows while it moves, so it reads as speed and not as clutter.
+		local top = Instance.new("Attachment")
+		top.Position = Vector3.new(0, body.hover * 0.12 + 0.25, 0)
+		top.Parent = root
+		local bottom = Instance.new("Attachment")
+		bottom.Position = Vector3.new(0, -(body.hover * 0.12 + 0.25), 0)
+		bottom.Parent = root
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = top
+		trail.Attachment1 = bottom
+		trail.Color = ColorSequence.new(body.glow)
+		trail.Transparency = NumberSequence.new(0.55, 1)
+		trail.Lifetime = 0.45
+		trail.LightEmission = 0.6
+		trail.FaceCamera = true
+		trail.Parent = root
+	end
+
 	-- Name and health over its head. Words as well as a bar, so colour isn't the only cue.
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Tag"
 	gui.Size = UDim2.fromOffset(120, 26)
-	gui.StudsOffset = Vector3.new(0, body.radius + 0.8, 0)
+	gui.StudsOffset = Vector3.new(0, body.top + 1.4, 0) -- from its height: a serpent is long, not tall
 	gui.MaxDistance = 70
 	gui.LightInfluence = 0
 	gui.Parent = root

@@ -18,6 +18,7 @@ local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local FamiliarAnimator = require(script.Parent.Parent:WaitForChild("Fx"):WaitForChild("FamiliarAnimator"))
 
 local FamiliarController = {
 	name = "FamiliarController",
@@ -259,6 +260,7 @@ function FamiliarController.init(_self: any, ctx: any)
 end
 
 function FamiliarController.start(_self: any, _ctx: any)
+	FamiliarAnimator.start()
 	Net.listen("FamiliarState", receive)
 	task.spawn(function()
 		local ok, result = Net.invoke("FamiliarAction", "state")
