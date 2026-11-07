@@ -15,6 +15,11 @@
 	           worked out here from the server clock, so nothing replicates per stage) each stage
 	           brightens the light and thickens the sparks, and a hum rises in pitch (only within
 	           SOUND_RANGE). Overcharged: the glow shakes in the hand and the sparks crackle outward.
+	CONJURING  while charging, the spell itself forms (Fx/Conjure): in the palm, overhead or on the
+	           ground by its form (AttunedForm), looking like its domain and property
+	           (AttunedDomain, AttunedProperty), in the caster's own hand (Player attribute
+	           "SpellHand": shape, rune, spin, detail by tier). When the charge ends it flashes into
+	           the cast (ActionState "casting" just after) or falls apart (anything else).
 ]]
 
 local Players = game:GetService("Players")
@@ -22,10 +27,12 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Charge = require(Shared.Magic.Charge)
+local SpellHand = require(Shared.Magic.SpellHand)
 
 local Client = script.Parent.Parent
 local SpellFx = require(Client:WaitForChild("Fx").SpellFx)
 local DomainFx = require(Client.Fx.DomainFx)
+local Conjure = require(Client.Fx.Conjure)
 
 local MAX_GLOWS = 24
 local RANGE = 150
@@ -49,6 +56,8 @@ type Glow = {
 	base: CFrame, -- the attachment's resting place (the shake is around it)
 	rate: number, -- the emitter's resting rate
 	near: boolean,
+	player: Player,
+	conjure: Conjure.Conjuring?, -- the spell forming while charging
 }
 
 local magic: any = nil
@@ -60,9 +69,32 @@ local function handOf(character: Model): BasePart?
 	return if hand and hand:IsA("BasePart") then hand else nil
 end
 
+-- How a conjured spell ends: it became the cast, or the charge was dropped.
+local function endConjure(glow: Glow)
+	local conjure = glow.conjure
+	if not conjure then
+		return
+	end
+	glow.conjure = nil
+	local character = glow.character
+	-- The cast's action state replicates just after the charge attributes clear: give it a beat.
+	task.delay(0.08, function()
+		if character:GetAttribute("ActionState") == "casting" then
+			conjure:release()
+		else
+			conjure:cancel()
+		end
+	end)
+end
+
 local function removeGlow(character: Model)
 	local glow = glows[character]
 	if glow then
+		local conjure = glow.conjure
+		if conjure then
+			glow.conjure = nil
+			conjure:cancel()
+		end
 		glow.attachment:Destroy() -- takes the light and emitter with it
 		glows[character] = nil
 		count -= 1
@@ -145,6 +177,8 @@ local function addGlow(player: Player, character: Model, domain: string)
 		base = attachment.CFrame,
 		rate = emitter.Rate,
 		near = true,
+		player = player,
+		conjure = nil,
 	}
 	count += 1
 end
@@ -222,6 +256,7 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 			local start = glow.character:GetAttribute("ChargeStart")
 			local step = glow.character:GetAttribute("ChargeStep")
 			if not glow.near or typeof(start) ~= "number" or typeof(step) ~= "number" then
+				endConjure(glow)
 				if glow.hum.Playing then
 					glow.hum:Stop()
 					glow.attachment.CFrame = glow.base
@@ -241,6 +276,27 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 			end
 			glow.hum.Volume = 0.15 + 0.06 * index
 			glow.hum.PlaybackSpeed = 0.7 + 0.25 * (index - 1)
+			-- The spell itself, forming.
+			if not glow.conjure then
+				local character = glow.character
+				local domain = character:GetAttribute("AttunedDomain")
+				local property = character:GetAttribute("AttunedProperty")
+				local form = character:GetAttribute("AttunedForm")
+				if typeof(domain) == "string" then
+					glow.conjure = Conjure.begin(character, glow.attachment, {
+						domain = domain,
+						property = if typeof(property) == "string" then property else nil,
+						form = if typeof(form) == "string" then form else nil,
+						style = SpellFx.styleFor(glow.player.UserId, domain),
+						hand = SpellFx.handOf(character),
+						reduced = magic.settings:get().reducedEffects == true,
+					})
+				end
+			end
+			local conjure = glow.conjure
+			if conjure then
+				conjure:update(SpellHand.progress(t - start, step), stage.overcharge == true, os.clock())
+			end
 			if stage.overcharge then
 				local jitter = Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * (SHAKE * 2)
 				glow.attachment.CFrame = glow.base + jitter

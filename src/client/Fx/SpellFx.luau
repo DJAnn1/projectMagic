@@ -44,10 +44,12 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Registry = require(Shared.Magic.Registry)
+local SpellHand = require(Shared.Magic.SpellHand)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local Recipes = require(script.Parent.FxRecipes)
+local KenneyTextures = require(script.Parent.KenneyTextures)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 
@@ -141,6 +143,31 @@ local function styleFromSignature(raw: string, domain: string, base: Style): Sty
 	return style
 end
 
+-- A player's spell hand (Player attribute "SpellHand", Services/SpellHandService) adds their own
+-- rune pattern and voice to a style. Cached by style + hand.
+local handCache: { [Style]: { [string]: Style } } = setmetatable({}, { __mode = "k" }) :: any
+
+local function withHand(style: Style, raw: any): Style
+	local hand = SpellHand.decode(raw)
+	if not hand then
+		return style
+	end
+	local byHand = handCache[style]
+	if not byHand then
+		byHand = {}
+		handCache[style] = byHand
+	end
+	local cached = byHand[raw]
+	if cached then
+		return cached
+	end
+	local out = table.clone(style)
+	out.rune = KenneyTextures[SpellHand.data.runes[hand.rune]]
+	out.pitch = hand.pitch
+	byHand[raw] = out
+	return out
+end
+
 -- `signature` (an NPC's Signature JSON, sent in its cue) wins over the player attribute.
 function SpellFx.styleFor(userId: number?, domain: string, signature: string?): Style
 	local base = domainStyle(domain)
@@ -149,10 +176,17 @@ function SpellFx.styleFor(userId: number?, domain: string, signature: string?): 
 	end
 	local player = userId and Players:GetPlayerByUserId(userId)
 	local raw = player and player:GetAttribute("MagicSignature")
-	if not userId or typeof(raw) ~= "string" then
+	if not userId or not player then
 		return base
 	end
-	return styleFromSignature(raw, domain, base)
+	local style = if typeof(raw) == "string" then styleFromSignature(raw, domain, base) else base
+	return withHand(style, player:GetAttribute("SpellHand"))
+end
+
+-- The decoded spell hand of whoever owns this character (players only), or nil.
+function SpellFx.handOf(character: Model?): SpellHand.Hand?
+	local player = character and Players:GetPlayerFromCharacter(character)
+	return if player then SpellHand.decode(player:GetAttribute("SpellHand") :: string?) else nil
 end
 
 local function tierOf(index: any): Recipes.Refinement
@@ -530,7 +564,7 @@ function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement
 		end)
 	end
 	if (lod or 2) >= 1 then
-		FxLayers.sound(origin, look.sounds.cast, 0.8)
+		FxLayers.sound(origin, look.sounds.cast, 0.8, nil, style.pitch)
 	end
 	return circle
 end

@@ -36,6 +36,8 @@ export type Style = {
 	accent: Color3,
 	particle: string,
 	motion: string,
+	rune: string?, -- the caster's own rune texture (their spell hand, Magic/SpellHand); nil = the default
+	pitch: number?, -- the caster's voice: multiplies their cast sounds' pitch
 }
 
 export type EmitterSpec = {
@@ -376,7 +378,7 @@ local liveSounds = 0
 
 -- A 3D one-shot. `group` is an Audio group ("Spells" by default, "Combat" for hit feedback); a
 -- library sound that failed to load plays its built-in fallback (DomainFx.Sound.fallback) instead.
-function FxLayers.sound(position: Vector3, sound: DomainFx.Sound, volumeMult: number?, group: string?)
+function FxLayers.sound(position: Vector3, sound: DomainFx.Sound, volumeMult: number?, group: string?, pitchMult: number?)
 	if liveSounds >= MAX_SOUNDS then
 		return
 	end
@@ -396,7 +398,7 @@ function FxLayers.sound(position: Vector3, sound: DomainFx.Sound, volumeMult: nu
 	local s = Instance.new("Sound")
 	s.SoundId = id
 	s.Volume = volume * (volumeMult or 1)
-	s.PlaybackSpeed = pitch * (0.94 + rng:NextNumber() * 0.12)
+	s.PlaybackSpeed = pitch * (pitchMult or 1) * (0.94 + rng:NextNumber() * 0.12)
 	s.SoundGroup = Audio.group(group or "Spells")
 	s.RollOffMode = Enum.RollOffMode.InverseTapered
 	s.RollOffMinDistance = 10
@@ -431,7 +433,7 @@ function FxLayers.castCircle(feet: Vector3, normal: Vector3, radius: number, sty
 	local d = radius * 2
 	local grow = math.min(0.35, hold * 0.3) / (hold + 0.4)
 	local runes = FxLayers.emitter(anchor, {
-		texture = TEX.rune,
+		texture = style.rune or TEX.rune,
 		color = FxLayers.solid(style.primary),
 		size = FxLayers.seq(0, 0, grow, d, 1, d * 1.05),
 		transparency = FxLayers.seq(0, 0.15, 0.85, 0.25, 1, 1),

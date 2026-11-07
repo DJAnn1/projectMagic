@@ -9,7 +9,8 @@
 	    - the character's action state is "equipping" (Equip clip) then "holding" (Hold loop),
 	      and it returns to "holding" after every cast (it would otherwise end at idle);
 	    - walk speed is x CastTuning.attunedWalkMult (StatusEffects.setWalkMultiplier);
-	    - character attributes AttunedDomain / AttunedForm let every client draw the hand glow
+	    - character attributes AttunedDomain / AttunedForm / AttunedProperty let every client draw
+	      the hand glow, and conjure a charging spell (Fx/Conjure)
 	      (and, later, reticles) without being sent the recipe.
 	QUICK MODE: a hotbar key casts at once; nothing here applies and attuning is refused.
 
@@ -72,6 +73,7 @@ end
 local function clearBody(character: Model)
 	character:SetAttribute("AttunedDomain", nil)
 	character:SetAttribute("AttunedForm", nil)
+	character:SetAttribute("AttunedProperty", nil)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		StatusEffects.setWalkMultiplier(humanoid, "attuned", nil)
@@ -164,6 +166,7 @@ local function attune(player: Player, slot: number): (boolean, string?)
 	attuned[player] = { key = key, slot = slot, domain = domain, character = character }
 	character:SetAttribute("AttunedDomain", domain)
 	character:SetAttribute("AttunedForm", recipe.form)
+	character:SetAttribute("AttunedProperty", recipe.property) -- what a charge conjures (Fx/Conjure)
 	StatusEffects.setWalkMultiplier(humanoid, "attuned", T.attunedWalkMult)
 	ActionState.set(character, "equipping", { domain = domain })
 	log:debug("attuned", { userId = player.UserId, slot = slot, key = key })
