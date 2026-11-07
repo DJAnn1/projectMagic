@@ -956,6 +956,81 @@ local function stepFacing(nav: Nav, root: BasePart, dt: number)
 	root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, root.Position + flat), share)
 end
 
+-- An NPC rescued over and over is falling through something the rescue thinks is solid (seen 2026-11-07:
+-- settlement_1#1, once a second for 17 s, cause unknown). Hold it still for a while instead of looping, and
+-- log what's true of its rig and the ground, once, so the next log can name the cause.
+local FALL_LOOP_COUNT = 3
+local FALL_LOOP_WINDOW = 8
+local FALL_HOLD_SECONDS = 30
+local fallLoops: { [any]: { count: number, last: number, reported: boolean } } = setmetatable({}, { __mode = "k" }) :: any
+
+local function holdIfFallingLoop(nav: Nav, root: BasePart, humanoid: Humanoid, clock: number)
+	local npc = nav.npc
+	local loop = fallLoops[npc]
+	if not loop or clock - loop.last > FALL_LOOP_WINDOW then
+		loop = { count = 0, last = clock, reported = if loop then loop.reported else false }
+		fallLoops[npc] = loop
+	end
+	loop.count += 1
+	loop.last = clock
+	if loop.count < FALL_LOOP_COUNT then
+		return
+	end
+	loop.count = 0
+	local rig = npc.rig
+	if not rig then
+		return
+	end
+	if not loop.reported and deps.log then
+		loop.reported = true
+		local position = root.Position
+		local world = deps.world
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { rig.model }
+		local surface = if world then world:surfaceHeight(position.X, position.Z) else position.Y
+		local hit = workspace:Raycast(Vector3.new(position.X, surface + 40, position.Z), Vector3.new(0, -400, 0), params)
+		local collidingParts = 0
+		for _, part in rig.model:GetDescendants() do
+			if part:IsA("BasePart") and part.CanCollide then
+				collidingParts += 1
+			end
+		end
+		local torso = rig.model:FindFirstChild("Torso")
+		deps.log:warn("npc_fall_loop", {
+			npc = npc.id,
+			x = math.floor(position.X),
+			z = math.floor(position.Z),
+			surface = math.floor(surface),
+			chunkBuilt = if world then world:isChunkBuilt(position.X, position.Z) else "?",
+			hitY = if hit then math.floor(hit.Position.Y) else "none",
+			hitWhat = if hit then hit.Instance:GetFullName() else "none",
+			hitMaterial = if hit then hit.Material.Name else "none",
+			hitCollides = if hit and hit.Instance:IsA("BasePart") then hit.Instance.CanCollide else "terrain",
+			state = humanoid:GetState().Name,
+			platformStand = humanoid.PlatformStand,
+			collidingParts = collidingParts,
+			torsoCollides = if torso and torso:IsA("BasePart") then torso.CanCollide else "no torso",
+			owner = (function(): string
+				local ok, owner = pcall(function()
+					return root:GetNetworkOwner()
+				end)
+				return if ok and owner then owner.Name else "server"
+			end)(),
+			mass = math.floor(root.AssemblyMass * 10) / 10,
+		})
+	end
+	local held = rig
+	held.root.AssemblyLinearVelocity = Vector3.zero
+	held.root.Anchored = true
+	task.delay(FALL_HOLD_SECONDS, function()
+		-- Only if it's still this NPC's rig, and nothing else (T1, a freeze) wants it anchored.
+		if npc.rig == held and npc.tier == 0 and npc.frozen ~= true then
+			held.root.Anchored = false
+		end
+	end)
+end
+
 local function safetyCheck(nav: Nav, root: BasePart, humanoid: Humanoid, clock: number)
 	if clock < nav.nextGood then
 		return
@@ -968,6 +1043,8 @@ local function safetyCheck(nav: Nav, root: BasePart, humanoid: Humanoid, clock: 
 		-- A fallen NPC is under the world, where nobody sees it. Nowhere good yet: leave it to Failed.
 		if not recover(nav, "below the terrain") then
 			note(nav, "below the terrain, with no safe place to go")
+		else
+			holdIfFallingLoop(nav, root, humanoid, clock)
 		end
 		return
 	end
