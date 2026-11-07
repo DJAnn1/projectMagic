@@ -1012,12 +1012,12 @@ local function tryOffer(player: Player, state: any, q: any, position: Vector3)
 			end
 		end
 		local c = candidates[chosen]
-		local quest = QuestFactory.build(c.template, c.situation, { world = world, npcs = npcs, worldSeed = worldSeed, userId = player.UserId, position = position })
+		local quest, why = QuestFactory.build(c.template, c.situation, { world = world, npcs = npcs, worldSeed = worldSeed, userId = player.UserId, position = position })
 		if quest then
 			offer(player, quest)
 			return
 		end
-		log:info("quest_build_failed", { template = c.template.id, situation = c.situation.id })
+		log:info("quest_build_failed", { template = c.template.id, situation = c.situation.id, why = why })
 		table.remove(candidates, chosen)
 		if #candidates == 0 then
 			return

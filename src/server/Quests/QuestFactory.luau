@@ -10,7 +10,8 @@
 		from = "<fact>"     a situation fact (npcId, poiId, settlementId, otherSettlementId, branch,
 		                    domain, ...), or "here" (the situation's position)
 		pick = "<picker>"   colleague:<occ,occ>          an NPC of that occupation in the situation's town
-		                    colleagueIn:<slot>:<occ,..>  the same, in another settlement slot's town
+		                    colleagueIn:<slot>:<occ,..>  the same, in another settlement slot's town. A last "*" means
+		                                                 any working adult there when nobody has those trades
 		                    anywhere:<occ>               the nearest of that occupation
 		                    worriedOne                   someone close to the situation's NPC
 		                    elder:<domain>               the old NPC with the most affinity for it
@@ -174,7 +175,15 @@ local function resolveSlot(spec: QuestTypes.SlotSpec, situation: Situation, slot
 		if not town then
 			return nil
 		end
-		local list = npcsIn(npcs, town.value, split(occs :: string))
+		local wanted = split(occs :: string)
+		local list = npcsIn(npcs, town.value, wanted)
+		if #list == 0 and table.find(wanted, "*") then
+			for _, npc in npcsIn(npcs, town.value) do
+				if npc.occupation ~= "child" and npc.occupation ~= "retired" then
+					table.insert(list, npc)
+				end
+			end
+		end
 		local npc = list[rng:NextInteger(1, math.max(1, #list))]
 		return if npc then { value = npc.id, name = npc.name, npc = npc } else nil
 	elseif kind == "anywhere" then

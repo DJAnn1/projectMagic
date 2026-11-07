@@ -44,9 +44,9 @@ local FLAMMABLE_TERRAIN: { [Enum.Material]: number } = {
 }
 
 type PartFire = { fire: Fire, fuel: number, intensity: number, source: number? }
-type GroundFire = { part: BasePart, expires: number, flammability: number, intensity: number, source: number?, x: number, z: number }
+type GroundFire = { part: BasePart, expires: number, flammability: number, intensity: number, source: number?, x: number, z: number, unsaved: boolean? }
 type Boost = { position: Vector3, radius: number, mult: number, expires: number }
-type Spread = { position: Vector3, intensity: number, source: number? }
+type Spread = { position: Vector3, intensity: number, source: number?, unsaved: boolean? }
 
 local FireSim = {}
 
@@ -158,7 +158,9 @@ local function groundAt(x: number, y: number, z: number): (number, Vector3?)
 	return base * vegetation, hit.Position
 end
 
-function FireSim.igniteGround(position: Vector3, intensity: number, source: number?): boolean
+-- `unsaved`: this fire and everything it spreads to burn for show and leave nothing permanent: no
+-- scorch in the saved terrain, no lost vegetation (a Titan's footfalls, every 2 hours, on every server).
+function FireSim.igniteGround(position: Vector3, intensity: number, source: number?, unsaved: boolean?): boolean
 	local key = cellKey(position.X, position.Z)
 	if groundFires[key] then
 		return false
@@ -191,6 +193,7 @@ function FireSim.igniteGround(position: Vector3, intensity: number, source: numb
 		source = source,
 		x = cx,
 		z = cz,
+		unsaved = unsaved,
 	}
 	return true
 end
@@ -203,7 +206,7 @@ local function endGroundFire(key: string, burnedOut: boolean)
 	groundFires[key] = nil
 	EffectBudget.release("groundFires")
 	cell.part:Destroy()
-	if burnedOut and world then
+	if burnedOut and world and not cell.unsaved then
 		world:setVegetation(cell.x, cell.z, world:vegetationAt(cell.x, cell.z) * 0.85)
 		burnedCells += 1
 		if burnedCells % SCORCH_EVERY == 0 then
@@ -321,13 +324,13 @@ function FireSim.tick(dt: number)
 			local dir = Vector3.new(math.cos(angle), 0, math.sin(angle))
 			local windFactor = math.max(0.05, 1 + F.windInfluence * 2 * dir:Dot(wind))
 			if rng:NextNumber() < F.spreadChance * cell.flammability * windFactor * boost * dt / F.tick then
-				table.insert(spreads, { position = position + dir * CELL, intensity = cell.intensity * 0.95, source = cell.source })
+				table.insert(spreads, { position = position + dir * CELL, intensity = cell.intensity * 0.95, source = cell.source, unsaved = cell.unsaved })
 			end
 		end
 	end
 	-- Spread after the loop: igniting while iterating groundFires would mutate it mid-walk.
 	for _, s in spreads do
-		FireSim.igniteGround(s.position, s.intensity, s.source)
+		FireSim.igniteGround(s.position, s.intensity, s.source, s.unsaved)
 	end
 
 	-- Persistent scorch marks, a few at a time, through the terrain budget.

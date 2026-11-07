@@ -199,7 +199,7 @@ local templates: { Template } = {
 		slots = {
 			giver = { kind = "npc", from = "npcId" },
 			other = { kind = "settlement", from = "otherSettlementId" },
-			supplier = { kind = "npc", pick = "colleagueIn:other:merchant,smith,innkeeper" },
+			supplier = { kind = "npc", pick = "colleagueIn:other:merchant,smith,innkeeper,*" },
 			town = { kind = "settlement", from = "settlementId" },
 		},
 		stages = {

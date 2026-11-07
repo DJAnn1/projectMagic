@@ -627,7 +627,7 @@ local function footLands(run: Run, position: Vector3)
 		run.collapses += world:damageStructures(position, run.kind.structureRadius, run.kind.structureDamage, "titan")
 	end
 	if run.kind.burnsGround then
-		FireSim.igniteGround(position, 1, nil)
+		FireSim.igniteGround(position, 1, nil, true) -- unsaved: burning out must not write to the island
 	end
 	if EffectBudget.takeTerrainOps(T.trailBudget) >= T.trailBudget then
 		for _, from in { "Grass", "LeafyGrass" } do

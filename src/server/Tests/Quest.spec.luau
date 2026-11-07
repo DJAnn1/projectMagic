@@ -207,6 +207,36 @@ return function(t: any)
 		end)
 	end)
 
+	describe("Commission supplier", function()
+		local function build(occupation: string): any
+			local giver = { id = "a#1", name = "Giver", occupation = "farmer" }
+			local other = { id = "b#1", name = "Other", occupation = occupation }
+			local npcs: any = {
+				towns = function()
+					return { { id = "a", npcs = { giver } }, { id = "b", npcs = { other } } }
+				end,
+				get = function(_self: any, id: string)
+					return if id == giver.id then giver else nil
+				end,
+			}
+			local world: any = {
+				placement = function()
+					return { settlements = { { id = "a", name = "Alder" }, { id = "b", name = "Birch" } }, pois = {} }
+				end,
+			}
+			local situation: any = { id = "s", x = 0, z = 0, facts = { npcId = giver.id, otherSettlementId = "b", settlementId = "a" } }
+			return (QuestFactory.build(QuestTemplates.byId.commission_delivery, situation, { world = world, npcs = npcs, worldSeed = 1, userId = 7 }))
+		end
+		it("falls back to any working adult when the other town has no supplier", function()
+			local quest = build("farmer")
+			expect(quest ~= nil).toBe(true)
+			expect(quest.slots.supplier).toBe("b#1")
+		end)
+		it("still refuses when the other town only has children", function()
+			expect(build("child")).toBe(nil)
+		end)
+	end)
+
 	describe("Quest text", function()
 		it("fills names and ids", function()
 			local quest: any = { slots = { branch = "alloycraft", town = "s1" }, names = { giver = "Hedda", town_name = "Emberfall" } }
