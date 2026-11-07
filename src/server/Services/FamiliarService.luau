@@ -275,6 +275,21 @@ end
 
 -- ─── Growing ────────────────────────────────────────────────────────────────
 
+-- Old enough, and no second ability yet: it learns one. Returns the words to tell you, if it did.
+local function learnIfDue(live: Live): string?
+	local record = live.record
+	if live.stage < T.learnStage or record.learned ~= "" then
+		return nil
+	end
+	local domain = Registry.domains[record.domain]
+	local learned = Rules.learnedDomain(record.tally, record.domain, domain and domain.synergies)
+	if not learned then
+		return nil
+	end
+	record.learned = learned
+	return " It has watched you, and learned " .. F.abilities[learned].name .. "."
+end
+
 local function grow(live: Live, amount: number)
 	if not Rules.active(os.clock(), live.lastAction) then
 		return
@@ -294,13 +309,7 @@ local function grow(live: Live, amount: number)
 	if stage >= T.abilityStage and F.abilities[record.domain] and stage < T.learnStage then
 		note ..= " It knows " .. F.abilities[record.domain].name .. "."
 	end
-	if stage >= T.learnStage and record.learned == "" then
-		local learned = Rules.learnedDomain(record.tally, record.domain)
-		if learned then
-			record.learned = learned
-			note ..= " It has watched you, and learned " .. F.abilities[learned].name .. "."
-		end
-	end
+	note ..= learnIfDue(live) or ""
 	local rig = live.rig
 	local at = if rig then rig.root.Position else nil
 	destroyBody(live)
@@ -671,9 +680,10 @@ local function wake(player: Player, state: any): Live
 	local live = makeLive(player, state)
 	lives[player] = live
 	buildBody(live)
+	local learned = learnIfDue(live) -- one that passed the stage before it had anything to learn from
 	task.spawn(function()
 		filterInto(live)
-		push(live, player)
+		push(live, player, if learned then live.displayName .. learned else nil)
 	end)
 	return live
 end

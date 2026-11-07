@@ -198,7 +198,9 @@ function FamiliarRules.killXp(targetMaxHealth: number): number
 end
 
 -- The domain you've cast most, other than the one it was born from. Ties go by id, so it's stable.
-function FamiliarRules.learnedDomain(tally: { [string]: number }, born: string): string?
+-- If you've cast nothing else (someone with one domain may never), it takes the first of `synergies`
+-- (the domains that pair with its own), so every familiar does get a second ability.
+function FamiliarRules.learnedDomain(tally: { [string]: number }, born: string, synergies: { string }?): string?
 	local ids: { string } = {}
 	for id in tally do
 		table.insert(ids, id)
@@ -211,7 +213,15 @@ function FamiliarRules.learnedDomain(tally: { [string]: number }, born: string):
 			best, bestCount = id, count
 		end
 	end
-	return best
+	if best then
+		return best
+	end
+	for _, id in (synergies or {}) :: { string } do
+		if id ~= born and F.abilities[id] then
+			return id
+		end
+	end
+	return nil
 end
 
 function FamiliarRules.abilitiesOf(record: { domain: string, learned: string }, stage: number): { F.Ability }

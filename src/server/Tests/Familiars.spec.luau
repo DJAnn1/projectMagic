@@ -231,6 +231,18 @@ return function(t: any)
 			expect(Rules.learnedDomain({ air = 5, water = 5 }, "energy")).toBe("air")
 		end)
 
+		it("having cast nothing else, learns from a domain that pairs with its own", function()
+			expect(Rules.learnedDomain({ energy = 50 }, "energy", { "air", "earth" })).toBe("air")
+			expect(Rules.learnedDomain({}, "energy", { "energy", "earth" })).toBe("earth")
+			expect(Rules.learnedDomain({ water = 1 }, "energy", { "air" })).toBe("water")
+		end)
+
+		it("every domain can learn a second ability, even with nothing else cast", function()
+			for _, id in Registry.domainIds do
+				expect(Rules.learnedDomain({}, id, Registry.domains[id].synergies) ~= nil).toBe(true)
+			end
+		end)
+
 		it("gets its abilities at the right stages", function()
 			local record = { domain = "energy", learned = "water" }
 			expect(#Rules.abilitiesOf(record, 1)).toBe(0)

@@ -54,7 +54,7 @@ It sits out your duels. Hunt only ever starts on creatures, never on people.
 | Hatchling | 0 | Bite |
 | Young | 120 | Its own domain's ability |
 | Grown | 500 | |
-| Elder | 1,500 | A second ability, from the domain you cast most other than its own |
+| Elder | 1,500 | A second ability, from the domain you cast most other than its own. If you've cast no other, from the first domain that pairs with its own (`synergies`) |
 | Ascendant | 4,000 | |
 
 At the daily limit, Ascendant takes about a week of hard play. Time, Gravity and Reality familiars bite 25% harder. Abilities fail where magic does (the Hushed Hollow, through `densityAt`). Bites don't.
