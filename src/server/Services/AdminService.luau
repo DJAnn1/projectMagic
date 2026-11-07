@@ -264,9 +264,10 @@ local function parseArgs(def: CommandDef, tokens: { string }, ctx: Context): ({ 
 		if raw == nil or raw == "" then
 			if arg.default ~= nil then
 				local value = arg.default
-				-- A player default ("me") has to become a real player, or every handler gets the word "me".
-				-- Other string defaults ("nearest", "here") are read as words by their handlers: left alone.
-				if arg.type == "player" and typeof(value) == "string" then
+				-- A player default ("me") has to become a real player, or every handler gets the word "me". The
+				-- same for an npc default ("nearest"): handlers want the NPC (actforce crashed on the word,
+				-- 2026-11-07). Other string defaults ("here") are read as words by their handlers: left alone.
+				if (arg.type == "player" or arg.type == "npc") and typeof(value) == "string" then
 					local parsed, err = parseValue(arg, value, ctx)
 					if err or parsed == nil then
 						return nil, (err or ("bad " .. arg.name)) .. "\nusage: " .. usageOf(def)

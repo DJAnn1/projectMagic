@@ -664,7 +664,7 @@ local function liveExtras(npc: any, now: number, clock: number)
 	end
 	if ambientHook and flags.get("ambient_life_enabled") == true then
 		ambientHook(npc, now, clock) -- AmbientLifeService: activity, barks, greetings
-	elseif clock >= (npc.nextBark or 0) and #playersNear(npc.position, BARK_RADIUS) > 0 then
+	elseif npc.action ~= "sleep" and clock >= (npc.nextBark or 0) and #playersNear(npc.position, BARK_RADIUS) > 0 then
 		npc.nextBark = clock + 45 + (npc.seed % 45)
 		say(npc, "ambient", nil, nil)
 	end

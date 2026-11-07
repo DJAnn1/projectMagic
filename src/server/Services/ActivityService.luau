@@ -109,13 +109,29 @@ local function stationLive(station: Station?): boolean
 	return station ~= nil and StationRegistry.usable(station) and not npcs:lotDown(station.lotId)
 end
 
+-- Someone holding a slot who is actually there: settling in, working or paused at it. Out of sight (no rig)
+-- counts as there; still on the way does not, so a forge doesn't light up when the smith sets off for it.
+local function presentUser(station: Station): string?
+	for slot = 1, #station.points do
+		local id = station.users[slot]
+		local npc = id and npcs:get(id)
+		if npc then
+			local rec = npc.activity
+			if not npc.rig or (rec and rec.station == station and rec.state.phase ~= "T") then
+				return id
+			end
+		end
+	end
+	return nil
+end
+
 -- Turns a station's look on or off (and its building's passive partner, the smithy's forge).
 local function refreshStation(station: Station)
 	local part = station.part
 	if not part.Parent then
 		return
 	end
-	local user = StationRegistry.firstUser(station)
+	local user = presentUser(station)
 	local active = user ~= nil
 	if part:GetAttribute(A.active) ~= active then
 		part:SetAttribute(A.active, active)
@@ -127,7 +143,7 @@ local function refreshStation(station: Station)
 	if def and def.linked then
 		local anyActive = false
 		for _, same in StationRegistry.inLot(station.lotId, station.kind) do
-			if StationRegistry.firstUser(same) then
+			if presentUser(same) then
 				anyActive = true
 			end
 		end
@@ -424,6 +440,9 @@ local function setPhase(rec: Record, phase: ActivityState.Phase, now: number)
 	end
 	s.phase = phase
 	s.phaseAt = now
+	if rec.station then
+		refreshStation(rec.station)
+	end
 end
 
 local function interrupted(npc: any, def: Activity): boolean
@@ -480,7 +499,15 @@ local function step(npc: any, now: number)
 			end
 		else
 			local phase = rec.state.phase
+			-- With a station, "there" means at its use point, not wherever the walk ended: someone whose path
+			-- failed and who stopped at a district spot is still on the way (the door fallback brings them in),
+			-- not asleep in the street.
+			local point = usePoint(rec)
 			local here = NPCLOD.arrived(npc)
+			if point and not rig.root.Anchored then
+				local at = rig.root.Position
+				here = Vector3.new(point.stand.X - at.X, 0, point.stand.Z - at.Z).Magnitude <= SNAP_REACH
+			end
 			if def.spot == "patrol" and rec.started then
 				if phase ~= "W" then
 					setPhase(rec, "W", now)
@@ -493,24 +520,12 @@ local function step(npc: any, now: number)
 					rec.snapped = false
 				end
 			elseif phase == "T" then
-				-- Arrived somewhere other than the use point (the walk failed and route() fell back to a
-				-- district spot): they can't be at the station, so it isn't theirs any more.
-				local point = usePoint(rec)
-				if point and not rig.root.Anchored then
-					local at = rig.root.Position
-					local off = Vector3.new(point.stand.X - at.X, 0, point.stand.Z - at.Z).Magnitude
-					if off > SNAP_REACH * 1.6 then
-						releaseStation(npc, rec)
-						rec.state.station = ""
-					end
-				end
 				setPhase(rec, "P", now)
 				snap(npc, rec)
 			elseif phase == "P" and now - rec.state.phaseAt >= ActivityState.PREPARE_SECONDS then
 				setPhase(rec, "W", now)
 			elseif phase == "I" then
 				setPhase(rec, "W", now)
-				local point = usePoint(rec)
 				if point and rec.station then
 					Navigation.Face(npc, rec.station.part.Position)
 				end
@@ -537,6 +552,12 @@ local function step(npc: any, now: number)
 	rec.encoded = encoded
 	local rig = npc.rig
 	if rig then
+		-- Nobody chats with a sleeper: the Talk prompt is off while they're lying down asleep.
+		local asleep = def ~= nil and def.id == "sleeping" and rec.state.phase ~= "T"
+		local wantPrompt = npc.tier == 0 and not asleep
+		if rig.prompt.Enabled ~= wantPrompt then
+			rig.prompt.Enabled = wantPrompt
+		end
 		local model: Model = rig.model
 		if rec.model ~= model or model:GetAttribute(ActivityState.ATTR) ~= encoded then
 			model:SetAttribute(ActivityState.ATTR, if encoded == "" then nil else encoded)

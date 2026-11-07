@@ -410,6 +410,10 @@ local function noteLine(npc: any, settlementId: string, index: number, clock: nu
 end
 
 local function bark(npc: any, now: number, clock: number)
+	-- Asleep: no talking in their sleep (owner, 2026-11-07).
+	if npc.action == "sleep" then
+		return
+	end
 	if clock < (npc.nextBark or 0) or clock - (townBark[npc.settlementId] or -math.huge) < BARK_TOWN_GAP then
 		return
 	end
