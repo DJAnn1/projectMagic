@@ -99,6 +99,12 @@ local function buildRig(): Rig?
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.WalkSpeed = WALK_SPEED
 	humanoid.BreakJointsOnDeath = false
+	-- People don't cut holes in the walkable map. An anchored body (T1) would, and an NPC released there
+	-- could be left with no path from where it stands, or a crowd could seal off a plaza.
+	local notAnObstacle = Instance.new("PathfindingModifier")
+	notAnObstacle.Label = "NpcBody"
+	notAnObstacle.PassThrough = true
+	notAnObstacle.Parent = model
 	-- These tracks are the only animation: a default Animate script would fight NPCAnimator.
 	local animate = model:FindFirstChild("Animate")
 	if animate then

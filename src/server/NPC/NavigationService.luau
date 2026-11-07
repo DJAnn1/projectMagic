@@ -73,7 +73,11 @@ local T = table.freeze({
 	reachGoal = 1.8,
 	maxPathRatio = 4, -- a path over 4 x the straight distance + maxPathExtra is rejected
 	maxPathExtra = 80,
-	maxAttempts = 6, -- the goal, then spots around it
+	maxAttempts = 3, -- the goal, then spots around it. More only meant standing still for longer
+	nearWalk = 6, -- this close, a narrow check is enough: a wide one catches on sloping ground
+	nearRadius = 0.5,
+	probeDistance = 6, -- how far the no-path log tests from each end
+	probeEvery = 5, -- seconds between those tests
 	repathGap = 1.5,
 	stuckWindow = 1.5,
 	stuckMoved = 0.75, -- less than this in a window is no progress
@@ -551,7 +555,8 @@ request = function(nav: Nav)
 	nav.nextRepath = os.clock() + T.repathGap
 
 	-- 1. Close and clear.
-	if flatDistance(from, target) <= T.direct and clearWalk(from, target) then
+	local distance = flatDistance(from, target)
+	if (distance <= T.nearWalk and clearWalk(from, target, T.nearRadius)) or (distance <= T.direct and clearWalk(from, target)) then
 		stats.direct += 1
 		startWalking(nav, { { p = target, jump = false } }, nil)
 		return
@@ -575,6 +580,19 @@ request = function(nav: Nav)
 	Navigation.enqueue(queue, { nav = nav, id = nextRequest, from = from, target = target, agent = agent }, T.queueMax)
 end
 
+-- Can anyone walk a few studs from here? Tells a sealed-off start or goal from one that's just far away.
+local function canLeave(agent: any, position: Vector3): boolean
+	local path = PathfindingService:CreatePath(agent.params)
+	local ok = pcall(function()
+		path:ComputeAsync(position, position + Vector3.new(T.probeDistance, 0, 0))
+	end)
+	local good = ok and path.Status == Enum.PathStatus.Success
+	path:Destroy()
+	return good
+end
+
+local lastProbe = 0
+
 local function compute(job: any)
 	local nav: Nav = job.nav
 	if nav.request ~= job.id or navs[nav.npc] ~= nav then
@@ -594,10 +612,15 @@ local function compute(job: any)
 		stats.failed += 1
 		local status = if ok then path.Status.Name else "error"
 		path:Destroy()
-		if deps.log then
-			deps.log:throttled("nav_no_path", 5, "Info", "nav_no_path", {
+		if deps.log and os.clock() - lastProbe >= T.probeEvery then
+			lastProbe = os.clock()
+			local startOk = canLeave(job.agent, job.from)
+			local goalOk = canLeave(job.agent, job.target)
+			deps.log:info("nav_no_path", {
 				npc = nav.npc.id,
 				status = status,
+				startOk = startOk,
+				goalOk = goalOk,
 				attempt = nav.attempt,
 				fromX = math.floor(job.from.X),
 				fromY = math.floor(job.from.Y),
@@ -607,6 +630,9 @@ local function compute(job: any)
 				toZ = math.floor(job.target.Z),
 				action = tostring(nav.npc.action),
 			})
+			if nav.request ~= job.id or navs[nav.npc] ~= nav then
+				return -- the tests above yield: they may have moved on
+			end
 		end
 		nextAttempt(nav, "no path: " .. status)
 		return
