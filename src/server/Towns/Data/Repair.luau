@@ -27,6 +27,9 @@ Repair.tuning = {
 	workSeconds = 5, -- one part repaired this often, by someone there
 	offscreenSeconds = 25, -- and this often with nobody working on it where anyone can see
 	shoutRadius = 45,
+	-- Living things recover by themselves, slowly. Nobody hammers a tree (seen in play, 2026-11-07).
+	livingSeconds = 150, -- one part this often
+	livingNames = { "tree", "hedge", "bush", "orchard", "garden", "plant", "flower", "grass" } :: { string },
 	-- Repaired parts stay a little paler: a patched building looks patched.
 	freshColor = Color3.fromRGB(190, 155, 110),
 	freshShare = 0.18,

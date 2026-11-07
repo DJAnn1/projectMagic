@@ -7,6 +7,7 @@
 
 	GROUND     A fire that isn't saved (a loose spell's, a Titan's: FireSim.onBurnedOut) leaves the grass
 	           burned bare. It grows back a quarter at a time, over 10 to 20 minutes.
+	LIVING     A tree or hedge in town grows back by itself, slowly, looking as it did. Nobody comes to fix it.
 	BUILDINGS  Any fire that chars part of a town (FireSim.onCharred) gets repaired, whatever started it. Near
 	           a player, someone from the town walks over and works on it, part by part, usually the builder.
 	           With nobody around to see, it still gets done, more slowly. A repaired part stays a little
@@ -55,7 +56,7 @@ type Job = {
 	giveUpAt: number,
 	nextPart: number,
 }
-type Town = { id: string, buildings: { Building }, job: Job?, nextOffscreen: number }
+type Town = { id: string, buildings: { Building }, job: Job?, nextOffscreen: number, nextLiving: number }
 type Scar = { x: number, y: number, z: number, material: string, heals: { number }, spots: { { x: number, z: number } }, done: { boolean } }
 
 local log: any = nil
@@ -157,7 +158,7 @@ end
 local function townFor(id: string): Town
 	local town = towns[id]
 	if not town then
-		town = { id = id, buildings = {}, job = nil, nextOffscreen = 0 }
+		town = { id = id, buildings = {}, job = nil, nextOffscreen = 0, nextLiving = 0 }
 		towns[id] = town
 	end
 	return town
@@ -188,11 +189,11 @@ local function record(part: BasePart, color: Color3, flammability: number)
 	charredTotal += 1
 end
 
-local function repairPart(entry: Charred)
+local function repairPart(entry: Charred, living: boolean?)
 	charredTotal -= 1
 	local part = entry.part
 	if part.Parent and not part:GetAttribute("Burning") then
-		part.Color = Rules.freshColor(entry.color)
+		part.Color = if living then entry.color else Rules.freshColor(entry.color)
 		part:SetAttribute("Flammability", entry.flammability)
 		part:SetAttribute("Temperature", nil)
 		ThermalSim.ensure(part)
@@ -336,12 +337,27 @@ end
 
 local function stepTown(town: Town, now: number)
 	tidy(town)
+	local building: Building? = nil
+	local living: Building? = nil
+	for _, candidate in town.buildings do
+		if Rules.isLiving(candidate.model.Name) then
+			living = living or candidate
+		else
+			building = building or candidate
+		end
+	end
+	if living and now >= town.nextLiving then
+		town.nextLiving = now + T.livingSeconds
+		local entry = table.remove(living.parts)
+		if entry then
+			repairPart(entry, true)
+		end
+	end
 	local job = town.job
 	if job then
 		stepJob(town, job, now)
 		return
 	end
-	local building = town.buildings[1]
 	if not building then
 		return
 	end

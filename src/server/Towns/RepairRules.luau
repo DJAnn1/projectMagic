@@ -7,6 +7,7 @@
 		quarters(x, z, size) -> { {x, z} }          the patches a scar regrows in
 		healTimes(now, rng) -> { number }           when each one comes back, seeded
 		freshColor(original) -> Color3              a repaired part stays a little paler
+		isLiving(modelName) -> boolean              recovers by itself: nobody comes to fix it
 		pickWorker(candidates) -> id?               who comes to fix it
 		workSpot(part, from) -> Vector3             where they stand to do it
 ]]
@@ -43,6 +44,16 @@ end
 
 function RepairRules.freshColor(original: Color3): Color3
 	return original:Lerp(T.freshColor, T.freshShare)
+end
+
+function RepairRules.isLiving(modelName: string): boolean
+	local lower = string.lower(modelName)
+	for _, word in T.livingNames do
+		if string.find(lower, word, 1, true) then
+			return true
+		end
+	end
+	return false
 end
 
 -- The right trade first, then whoever's closest. Children, the retired and guards on duty aren't asked.

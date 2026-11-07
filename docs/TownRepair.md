@@ -24,6 +24,7 @@ Flag: `town_repair_enabled`.
 - **With a player near:** someone from that town walks over and works on it, playing the hammer clip and repairing one part every 5 seconds. A builder comes first, then a smith, then people with trades, then anyone. Children, the retired and guards aren't asked.
 - **With nobody to see:** it still gets done, one part every 25 seconds.
 - **Afterwards:** a repaired part is slightly paler than it was, so a patched building looks patched.
+- **Living things** (`tree`, `hedge` and so on, by model name) aren't worked on. They grow back by themselves, one part every 150 seconds, looking as they did.
 
 Fighting, a quest needing that NPC, or walking out of range ends the job, and someone else picks it up later.
 
@@ -40,7 +41,7 @@ Fighting, a quest needing that NPC, or walking out of range ends the job, and so
 ## Known limits
 
 - **Collapsed buildings aren't rebuilt.** `Rubble` stays. That's a bigger job, and fire doesn't collapse anything, so loose spells can't cause it.
-- **Trees and things outside towns** stay charred.
+- **Anything outside a town** stays charred, trees included.
 - **Ordinary fires** still leave their permanent saved scorch. Only unsaved fires leave a scar that heals.
 - **A scar's box can turn natural bare ground to grass** when it regrows, if the box caught some.
 - **A Titan's trail** is a separate unhealing edit from its fires' scars, so its road stays marked until the chunk rebuilds.
