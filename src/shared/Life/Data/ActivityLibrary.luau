@@ -11,6 +11,7 @@
 		domain       practice only: the NPC's strongest domain must be this one
 		weight       among several fits for the same person, how often this one is chosen (default 1)
 		station      a StationTypes kind the NPC goes to and uses; nil = performed at a spot
+		altStation   where it's done when the town has no free `station` (reading at home without a school)
 		spot         station-less: "route" (wherever the schedule sends them), "door" (a house's front
 		             step), "yard" (beside a house), "patrol" (a guard's round)
 		props        { right = HeldProps id?, left = HeldProps id? }, out from Preparing to Finishing
@@ -41,6 +42,7 @@ export type Activity = {
 	domain: string?,
 	weight: number?,
 	station: string?,
+	altStation: string?,
 	spot: string?,
 	props: { right: string?, left: string? },
 	carry: boolean?,
@@ -123,7 +125,7 @@ local list: { Activity } = {
 	{
 		id = "reading", index = 0, group = "learning", name = "Studying",
 		actions = { "study" },
-		station = "desk", props = { right = "quill" },
+		station = "desk", altStation = "table", props = { right = "quill" },
 		pose = "read", vfx = {},
 		minutes = { 40, 90 }, interrupt = "hold",
 		tell = "Hunched over a desk, head down, a candle lit beside an open book.",

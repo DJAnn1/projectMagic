@@ -38,7 +38,10 @@ local StationTypes = require(Shared.Life.Data.StationTypes)
 
 local A = StationTypes.ATTR
 local ROOT_HEIGHT = 3 -- an R6 root's centre over the floor it stands on
-local BODY_BOX = Vector3.new(1.8, 4.4, 1.4)
+-- What has to be clear where someone stands: an R6 Humanoid only collides with its torso and head (legs
+-- and arms don't), so from 2 studs over the floor up. Benches, stools, chair seats and mattresses are lower.
+local BODY_BOX = Vector3.new(1.8, 2.5, 1.1)
+local BODY_BOX_CENTRE = 0.3 -- over the root (root 3 over the floor: the box spans 2.05 to 4.55)
 local FLOOR_TOLERANCE = 0.8
 
 export type Point = { stand: CFrame, body: CFrame?, attachment: Attachment }
@@ -115,7 +118,7 @@ local function clear(stand: Vector3, station: BasePart, ignore: { Instance }): b
 	local list = table.clone(ignore)
 	table.insert(list, station)
 	overlap.FilterDescendantsInstances = list
-	local centre = stand + Vector3.new(0, -0.6, 0)
+	local centre = stand + Vector3.new(0, BODY_BOX_CENTRE, 0)
 	local hits = workspace:GetPartBoundsInBox(CFrame.new(centre), BODY_BOX, overlap)
 	for _, part in hits do
 		if part.CanCollide and part.Transparency < 1 then
@@ -142,7 +145,7 @@ end
 local function chairsNear(model: Model, table_: BasePart): { BasePart }
 	local out: { BasePart } = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("BasePart") and d.Name == "ChairSeat" and (d.Position - table_.Position).Magnitude < 4.5 then
+		if d:IsA("BasePart") and (d.Name == "ChairSeat" or d.Name == "Stool") and (d.Position - table_.Position).Magnitude < 4.5 then
 			table.insert(out, d)
 		end
 	end
@@ -229,7 +232,7 @@ local function register(station: Station)
 	part:SetAttribute(A.work, "")
 	CollectionService:AddTag(part, StationTypes.TAG)
 	if station.invalid and log then
-		log:info("activity_station_invalid", { station = station.id, kind = station.kind, why = station.invalid })
+		log:debug("activity_station_invalid", { station = station.id, kind = station.kind, why = station.invalid })
 	end
 end
 
@@ -242,7 +245,7 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 	StationRegistry.forget(lotId)
 	local ignore = excluded()
 	local counts: { [string]: number } = {}
-	local found: { { kind: string, part: BasePart, seat: Attachment? } } = {}
+	local found: { { kind: string, part: BasePart, seat: Attachment?, noSeat: boolean? } } = {}
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
 			local interactable = d:GetAttribute("Interactable")
@@ -255,10 +258,16 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 			end
 		elseif d:IsA("Attachment") then
 			for kind, def in StationTypes.types do
-				if def.seatTag and CollectionService:HasTag(d, def.seatTag) then
-					local parent = d.Parent
-					if parent and parent:IsA("BasePart") then
-						table.insert(found, { kind = kind, part = parent, seat = d })
+				local buildingOk = def.buildings == nil or table.find(def.buildings, model:GetAttribute("BuildingType")) ~= nil
+				if def.seatTag and buildingOk and CollectionService:HasTag(d, def.seatTag) then
+					-- Seat anchors hang off the foundation; the station is the bench or stool under them.
+					rayParams.FilterDescendantsInstances = ignore
+					local hit = workspace:Raycast(d.WorldPosition + Vector3.new(0, 0.5, 0), Vector3.new(0, -3, 0), rayParams)
+					local under = hit and hit.Instance
+					if under and under:IsA("BasePart") and under:IsDescendantOf(model) and not CollectionService:HasTag(under, "BuildingFloor") then
+						table.insert(found, { kind = kind, part = under, seat = d })
+					else
+						table.insert(found, { kind = kind, part = d.Parent :: BasePart, seat = d, noSeat = true })
 					end
 				end
 			end
@@ -285,6 +294,13 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 			register(station)
 			continue
 		end
+		if f.noSeat then
+			-- Not given a part of its own (its attributes would land on the foundation): logged, not registered.
+			if log then
+				log:debug("activity_station_invalid", { station = station.id, kind = station.kind, why = "no bench or stool under the seat anchor" })
+			end
+			continue
+		end
 		local seat = f.seat
 		if seat then
 			-- One slot: stand beside the bench, sit on the seat facing the table.
@@ -292,6 +308,7 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 			local withBench = table.clone(ignore)
 			table.insert(withBench, f.part)
 			local floorY = floorAt(seatAt, withBench) or (seatAt.Y - 2)
+			local seatTop = f.part.Position.Y + f.part.Size.Y / 2
 			-- A stand-in the size of a person's footprint on the floor under the seat, so the sides are
 			-- measured from the seat itself rather than the whole bench.
 			local probe = Instance.new("Part")
@@ -302,7 +319,7 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 			local tablePart = nearestTable(model, seatAt)
 			local faceAt = if tablePart then tablePart.Position else (interiorOf(model) or model:GetPivot()).Position
 			if #stands > 0 then
-				local bodyAt = lookFlat(Vector3.new(seatAt.X, f.part.Position.Y + f.part.Size.Y / 2 + 1.5, seatAt.Z), faceAt)
+				local bodyAt = lookFlat(Vector3.new(seatAt.X, seatTop + 1.5, seatAt.Z), faceAt)
 				addPoint(station, 1, lookFlat(stands[1], seatAt), bodyAt)
 			else
 				station.invalid = "no clear floor beside the seat"
@@ -314,7 +331,8 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 		local bodies: { CFrame? } = {}
 		if def.body == "self" then
 			-- A bed: lying along its length, on the mattress (the seat sits on top of it).
-			local top = f.part.Position + Vector3.new(0, f.part.Size.Y / 2 + 0.75, 0)
+			-- The bed seat sits just over the mattress: a body lying on its back is half a stud thick.
+			local top = f.part.Position + Vector3.new(0, 0.3, 0)
 			bodies[1] = CFrame.new(top) * f.part.CFrame.Rotation
 		elseif def.body == "chairs" then
 			for i, chair in chairsNear(model, f.part) do
@@ -325,20 +343,25 @@ function StationRegistry.scanLot(lotId: string, model: Model, settlementId: stri
 		if def.body == "chairs" then
 			slots = math.min(slots, #bodies)
 		end
+		local taken: { [Vector3]: boolean } = {}
 		for slot = 1, slots do
 			local stand = stands[slot]
 			local body = bodies[slot]
 			if def.body == "chairs" and body then
-				-- Stand at whichever valid point is nearest this chair.
-				local best, bestD = stand, math.huge
+				-- Stand at whichever free valid point is nearest this chair.
+				local best, bestD = nil :: Vector3?, math.huge
 				for _, s in stands do
 					local d = (s - body.Position).Magnitude
-					if d < bestD then
+					if d < bestD and not taken[s] then
 						best, bestD = s, d
 					end
 				end
+				if not best then
+					break
+				end
 				stand = best
 			end
+			taken[stand] = true
 			addPoint(station, slot, lookFlat(stand, f.part.Position), body)
 		end
 		if #station.points == 0 then

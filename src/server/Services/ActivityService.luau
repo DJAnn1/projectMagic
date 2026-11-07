@@ -76,7 +76,8 @@ type Record = {
 	model: Model?,
 	pausedAt: number?,
 	snapped: boolean,
-	started: boolean, -- has ever reached Performing (patrols then stay Performing while walking)
+	started: boolean,
+	travelSince: number, -- server time this Travelling phase began (stalls: actphases, actnpc) -- has ever reached Performing (patrols then stay Performing while walking)
 	finishing: { def: Activity, state: ActivityState.State, untilAt: number, encoded: string }?,
 	forced: { id: string, untilDay: number, station: Station? }?,
 }
@@ -315,6 +316,7 @@ local function newRecord(npc: any, now: number): Record
 		pausedAt = nil,
 		snapped = false,
 		started = false,
+		travelSince = now,
 		finishing = nil,
 		forced = nil,
 	}
@@ -346,7 +348,9 @@ local function newRecord(npc: any, now: number): Record
 		s.tier = tier
 	end
 	if def.station then
-		claimStation(npc, rec, def.station, preferred)
+		if not claimStation(npc, rec, def.station, preferred) and def.altStation then
+			claimStation(npc, rec, def.altStation, nil)
+		end
 		if rec.station then
 			s.station = rec.station.id
 		end
@@ -410,6 +414,9 @@ local function setPhase(rec: Record, phase: ActivityState.Phase, now: number)
 		-- Back to work: the clock moves on by the pause, so progress carries on from where it stopped.
 		s.start += now - rec.pausedAt
 		rec.pausedAt = nil
+	end
+	if phase == "T" then
+		rec.travelSince = now
 	end
 	if phase == "W" and not rec.started then
 		rec.started = true
@@ -637,16 +644,29 @@ local function activityOptions(): { string }
 	return out
 end
 
+-- Why someone is still Travelling: how long, how far, and whether they're actually walking.
+local function travelNote(npc: any, rec: Record, now: number): string
+	local dest: Vector3? = npc.destination
+	local far = if dest then Vector3.new(dest.X - npc.position.X, 0, dest.Z - npc.position.Z).Magnitude else 0
+	local how = if Navigation.IsPaused(npc) then "paused"
+		elseif Navigation.IsMoving(npc) then "walking"
+		elseif npc.enterHome then "heading for the door"
+		else "standing (no path yet, or retrying)"
+	return string.format(" · travelling %ds, %d studs to go, %s", math.floor(now - rec.travelSince), math.floor(far), how)
+end
+
 local function describeRecord(npc: any): string
 	local rec: Record? = npc.activity
 	if not rec or not rec.def then
 		return string.format("%s (%s): action %s, no activity", npc.name, npc.id, tostring(npc.action))
 	end
 	local s = rec.state
-	local progress = ActivityState.progress(s, serverNow())
-	return string.format("%s (%s): %s · %s · station %s · %s · %d%% · tier %d", npc.name, npc.id, rec.def.id,
+	local now = serverNow()
+	local progress = ActivityState.progress(s, now)
+	return string.format("%s (%s): %s · %s · station %s · %s · %d%% · tier %d%s", npc.name, npc.id, rec.def.id,
 		ActivityState.phaseNames[s.phase], if s.station ~= "" then s.station elseif rec.spot then "spot" else "none",
-		ActivityLibrary.reasons[s.reason] or s.reason, math.floor(progress * 100), npc.tier or 2)
+		ActivityLibrary.reasons[s.reason] or s.reason, math.floor(progress * 100), npc.tier or 2,
+		if s.phase == "T" and npc.rig then travelNote(npc, rec, now) else "")
 end
 
 local function townNpcs(settlementId: string?): { any }
@@ -692,6 +712,48 @@ local function registerAdmin(admin: any)
 				table.insert(lines, string.format("%s: %d  %s", k, #names, table.concat(names, ", ", 1, math.min(#names, 6)) .. (if #names > 6 then ", ..." else "")))
 			end
 			return table.concat(lines, "\n")
+		end,
+	})
+	admin:Register({
+		name = "actphases", category = "NPCs", description = "How many NPCs with a body are in each activity phase, and why the travellers aren't there yet",
+		args = { { name = "settlement", type = "settlement", optional = true } },
+		handler = function(_ctx: any, a: any)
+			local now = serverNow()
+			local phases: { [string]: number } = {}
+			local walking, standing, door, paused, long = 0, 0, 0, 0, 0
+			local rigs, none = 0, 0
+			for _, npc in townNpcs(a.settlement and a.settlement.id) do
+				local rec: Record? = npc.activity
+				if npc.rig then
+					rigs += 1
+					if not rec or not rec.def then
+						none += 1
+					else
+						local ph = rec.state.phase
+						phases[ph] = (phases[ph] or 0) + 1
+						if ph == "T" then
+							if Navigation.IsPaused(npc) then
+								paused += 1
+							elseif Navigation.IsMoving(npc) then
+								walking += 1
+							elseif npc.enterHome then
+								door += 1
+							else
+								standing += 1
+							end
+							if now - rec.travelSince > 30 then
+								long += 1
+							end
+						end
+					end
+				end
+			end
+			local parts: { string } = {}
+			for _, ph in { "T", "P", "W", "F", "I" } do
+				table.insert(parts, string.format("%s %d", ActivityState.phaseNames[ph], phases[ph] or 0))
+			end
+			return string.format("%d NPCs with a body: %s · no activity %d\nTravelling: walking %d · standing (no path yet or retrying) %d · heading for a door %d · paused %d · over 30 s %d",
+				rigs, table.concat(parts, " · "), none, walking, standing, door, paused, long)
 		end,
 	})
 	admin:Register({
@@ -869,13 +931,19 @@ function ActivityService.start(_self: any, _ctx: any)
 				end
 			end
 		end
+		-- Most buildings go up after boot (BuildingBuilt scans them as they do), so the count that means
+		-- something comes later.
+		task.wait(90)
 		local total, bad = StationRegistry.counts()
 		local n, b = 0, 0
+		local byKind: { string } = {}
 		for k, v in total do
 			n += v
 			b += bad[k] or 0
+			table.insert(byKind, string.format("%s %d/%d", k, v - (bad[k] or 0), v))
 		end
-		log:info("activity_stations", { lots = scanned, stations = n, invalid = b })
+		table.sort(byKind)
+		log:info("activity_stations", { atBoot = scanned, stations = n, invalid = b, usable = table.concat(byKind, " ") })
 	end)
 	RunService.Heartbeat:Connect(sweep)
 end

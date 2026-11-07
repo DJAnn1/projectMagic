@@ -31,6 +31,7 @@
 	hidden latents (to players) or ProfileTuning to a client.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -467,6 +468,39 @@ local function threatened(npc: any, now: number): boolean
 	return inDanger(npc) or (npc.threatUntil or -1) > now
 end
 
+--[[
+	Where the door fallback puts someone: never inside furniture. A goal can be a seat anchor at bench height
+	(the tavern), and a body placed there is thrown out through the floor (npc_fall_seen at Tavern_01,
+	2026-11-07, each within 2 s of npc_went_indoors how=door). So: the nearest activity use point within
+	3.5 studs (ActivityService's StationRegistry puts those on clear floor), else standing on whatever is
+	under the spot, root 3 studs over it.
+]]
+local landingParams = RaycastParams.new()
+landingParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function landingFor(spot: Vector3, body: Model): Vector3
+	local best, bestD = nil :: Vector3?, 3.5
+	for _, point in CollectionService:GetTagged("StationUsePoint") do
+		if point:IsA("Attachment") then
+			local d = (point.WorldPosition - spot).Magnitude
+			if d < bestD then
+				best, bestD = point.WorldPosition, d
+			end
+		end
+	end
+	if best then
+		return best
+	end
+	local ignore: { Instance } = { body }
+	local folder = workspace:FindFirstChild("NPCs")
+	if folder then
+		table.insert(ignore, folder)
+	end
+	landingParams.FilterDescendantsInstances = ignore
+	local hit = workspace:Raycast(spot + Vector3.new(0, 2, 0), Vector3.new(0, -8, 0), landingParams)
+	return if hit then Vector3.new(spot.X, hit.Position.Y + 3, spot.Z) else spot
+end
+
 -- They couldn't find a way to their bed, but they can reach their own front door: the door opens and they
 -- go in. Pathing into a building can fail for reasons of its own (the logged reason says which), and someone
 -- asleep shouldn't be left standing in the street.
@@ -491,7 +525,7 @@ local function stepEnterHome(npc: any, clock: number)
 	npc.enterHome = nil
 	npc.insideLot = entering.lot
 	npc.reachedHomeLogged = true -- so this doesn't also count as having walked there
-	local spot: Vector3 = entering.spot
+	local spot = landingFor(entering.spot, npc.rig.model)
 	Navigation.Stop(npc)
 	npc.destination = nil
 	npc.rig.model:PivotTo(CFrame.new(spot))

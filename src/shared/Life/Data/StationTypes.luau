@@ -8,7 +8,9 @@
 		label        what it's called in reports and tooltips
 		names        parts with these names are this station
 		interactables  parts whose Interactable attribute is one of these are this station
-		seatTag      Attachments with this CollectionService tag are this station (one slot each)
+		seatTag      Attachments with this CollectionService tag are this station (one slot each); the station's
+		             part is the bench or stool under the attachment
+		buildings    only in buildings of these BuildingType values (tavern seats aren't a house's stools)
 		slots        how many people can use one at once (each gets its own use point)
 		reach        how far out from the part's side the person stands (studs)
 		body         where the body is drawn: "self" (on the station itself: a bed, a bench seat),
@@ -31,6 +33,7 @@ export type StationType = {
 	fx: string,
 	passive: boolean?,
 	linked: string?,
+	buildings: { string }?, -- only in buildings of these BuildingTypes (nil = any)
 }
 
 local types: { [string]: StationType } = {
@@ -40,7 +43,7 @@ local types: { [string]: StationType } = {
 	desk = { label = "Desk", interactables = { "enchanting_desk", "alchemy_table" }, slots = 1, reach = 1.3, face = "station", fx = "desk" },
 	bed = { label = "Bed", interactables = { "bed" }, slots = 1, reach = 1.2, body = "self", face = "station", fx = "bed" },
 	altar = { label = "Altar", interactables = { "ward_stone" }, slots = 2, reach = 1.6, face = "station", fx = "altar" },
-	seat = { label = "Tavern seat", seatTag = "NPCSeat", slots = 1, reach = 1.4, body = "self", face = "table", fx = "seat" },
+	seat = { label = "Tavern seat", seatTag = "NPCSeat", buildings = { "tavern" }, slots = 1, reach = 1.4, body = "self", face = "table", fx = "seat" },
 	table = { label = "Table", names = { "TableTop" }, slots = 2, reach = 1.3, body = "chairs", face = "station", fx = "table" },
 }
 

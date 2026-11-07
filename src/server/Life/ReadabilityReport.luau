@@ -153,15 +153,25 @@ function ReadabilityReport.run(settlementId: string, npcs: { any }, pick: (any, 
 		if def then
 			local checks = ReadabilityReport.checks(def)
 			if def.station then
-				local usable, all = 0, 0
-				for _, station in StationRegistry.inTown(settlementId, def.station) do
-					all += 1
-					if StationRegistry.usable(station) then
-						usable += 1
+				local function count(kind: string): (number, number)
+					local usable, all = 0, 0
+					for _, station in StationRegistry.inTown(settlementId, kind) do
+						all += 1
+						if StationRegistry.usable(station) then
+							usable += 1
+						end
 					end
+					return usable, all
 				end
-				checks.station = if usable > 0 then { ok = true, text = string.format("✓ %d/%d %s", usable, all, def.station) }
-					else { ok = false, text = string.format("✗ 0/%d %s with a use point", all, def.station) }
+				local usable, all = count(def.station)
+				if usable > 0 then
+					checks.station = { ok = true, text = string.format("✓ %d/%d %s", usable, all, def.station) }
+				elseif def.altStation and (count(def.altStation)) > 0 then
+					local altUsable, altAll = count(def.altStation)
+					checks.station = { ok = true, text = string.format("✓ no %s here: %d/%d %s instead", def.station, altUsable, altAll, def.altStation) }
+				else
+					checks.station = { ok = false, text = string.format("✗ 0/%d %s with a use point", all, def.station) }
+				end
 			end
 			local v = verdict(checks)
 			if v == "PASS" then

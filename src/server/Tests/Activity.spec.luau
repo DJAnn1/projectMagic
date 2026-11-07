@@ -83,6 +83,9 @@ return function(t: any)
 				if def.clip then
 					expect(ActivityPoses.slots[def.clip] ~= nil).toBe(true)
 				end
+				if def.altStation then
+					expect(StationTypes.types[def.altStation] ~= nil).toBe(true)
+				end
 				if def.station then
 					expect(StationTypes.types[def.station] ~= nil).toBe(true)
 				else
