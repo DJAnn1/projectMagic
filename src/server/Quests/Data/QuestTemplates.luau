@@ -435,8 +435,8 @@ local templates: { Template } = {
 		slots = {
 			town = { kind = "settlement", from = "settlementId" },
 			other = { kind = "settlement", from = "otherSettlementId" },
-			envoyA = { kind = "npc", pick = "colleague:guard" },
-			envoyB = { kind = "npc", pick = "colleagueIn:other:guard" },
+			envoyA = { kind = "npc", pick = "colleague:guard,*" },
+			envoyB = { kind = "npc", pick = "colleagueIn:other:guard,*" },
 		},
 		stages = {
 			{ id = "hear", text = "{envoyA} wants someone neutral to carry words.", options = {

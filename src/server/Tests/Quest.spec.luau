@@ -235,6 +235,25 @@ return function(t: any)
 		it("still refuses when the other town only has children", function()
 			expect(build("child")).toBe(nil)
 		end)
+		it("a dispute finds envoys in towns with no guards", function()
+			local a = { id = "a#1", name = "A", occupation = "farmer" }
+			local b = { id = "b#1", name = "B", occupation = "fisher" }
+			local npcs: any = {
+				towns = function()
+					return { { id = "a", npcs = { a } }, { id = "b", npcs = { b } } }
+				end,
+			}
+			local world: any = {
+				placement = function()
+					return { settlements = { { id = "a", name = "Alder" }, { id = "b", name = "Birch" } }, pois = {} }
+				end,
+			}
+			local situation: any = { id = "s", x = 0, z = 0, facts = { settlementId = "a", otherSettlementId = "b" } }
+			local quest: any = QuestFactory.build(QuestTemplates.byId.settlement_dispute, situation, { world = world, npcs = npcs, worldSeed = 1, userId = 7 })
+			expect(quest ~= nil).toBe(true)
+			expect(quest.slots.envoyA).toBe("a#1")
+			expect(quest.slots.envoyB).toBe("b#1")
+		end)
 	end)
 
 	describe("Quest text", function()

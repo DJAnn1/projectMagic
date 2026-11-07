@@ -50,7 +50,9 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 
 - **Log of 2026-11-07: `specs 780/780` confirmed, which also confirms the Wild Zones stage 2, Titans and event card specs.** One full Titan fight ran: `titan start`, two weak points broken, `titan_fell` with `first=true`, gold payout, crater. `wildzone goto vale` worked. The owner sent no comment on looks or feel, and the Moor's lift isn't in this log. Not bugs: the double `cantrips_granted` (two awakened domains), `towns=` empty on a forced Titan, `power=1` at build (it rises as spells land).
 
-- **Two fixes from that log and Familiars stage 1 (`docs/Familiars.md`), built 2026-11-07, not yet run.** Expected boot line `specs 816/816` (34 in `Tests/Familiars.spec`, 2 in Quest.spec), plus `familiars_ready`. Fixes: a Titan's fires no longer save scorch or vegetation (`FireSim.igniteGround`'s `unsaved`), so a walking Ashwalker should add no `terrain_edit cause=scorch` of its own; `commission_delivery` falls back to any working adult in the other town. That cause is reasoned, not measured, and `quest_build_failed` now logs `why`, so if it still appears, read that. Familiars: O opens the screen. Test with `familiar bond`, `familiar stage 4`, the four orders, `creature spawn`, rename, and a second client to see whether it moves smoothly. Look for `familiar_bonded`, `familiar_grew`, `familiar_ko`.
+- **Log of 2026-11-07 (second): `specs 816/816` confirmed, `familiar_bonded` seen, and `commission_delivery` is now offered, so that fix held.** The owner reported that O doesn't open the Familiar screen. Roblox's camera binds I and O for zoom and is the likely cause (reasoned, not measured), so `InterfaceController` now binds both above the camera with `ContextActionService`; they no longer zoom, and the mouse wheel still does. If O still fails, suspect a Studio plugin or shortcut, and the tab bar (G, then the Familiar tab) still opens it. `settlement_dispute` failed with `why="slot envoyA unresolved"` (a town with no guards) and now falls back the same way. Both not yet run. Expected boot line `specs 817/817`.
+
+- **Familiars stage 1 (`docs/Familiars.md`), and the Titan fire fix, built 2026-11-07, in-play behaviour not yet reported.** A Titan's fires no longer save scorch or vegetation (`FireSim.igniteGround`'s `unsaved`), so a walking Ashwalker should add no `terrain_edit cause=scorch` of its own. Familiars: O opens the screen. Test with `familiar bond`, `familiar stage 4`, the four orders, `creature spawn`, rename, and a second client to see whether it moves smoothly. Look for `familiar_bonded`, `familiar_grew`, `familiar_ko`.
 
 **2. Next up**
 - **Rift tuning is paused by the owner (2026-11-06: "we'll go back to tuning rifts another time"):** don't raise it unprompted. When it resumes, the missing log is a low-level run with no `testmage` or `cheat`; `rift_ended seconds=` gives the answer directly. Stage 3 ideas are in `docs/Rifts.md`, nothing chosen.
@@ -80,7 +82,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - **Earlier top-5 lists, not picked:** `docs/EngagementIdeas.md` (people noticed that, overheard rumours, goals you set yourself, a rival who remembers) and `docs/MagicIdeas.md`.
 
 **Decisions waiting on the owner**
-- **Familiars:** should other players be able to hurt a familiar (it's untouchable now, to stop griefing)? Should Hunt loot count in full? Is the O key fine, given Roblox's camera also zooms on I and O?
+- **Familiars:** should other players be able to hurt a familiar (it's untouchable now, to stop griefing)? Should Hunt loot count in full?
 - **Titans:** is 20 falls the right limit (at least 40 hours before the oldest fades, craters stay)? Should bones ever be permanent for the first-ever kill of each kind?
 - **Craters:** holes in towns (they're scorch marks there now, by Claude's call)? Should craters outside towns ever heal?
 - **Self Timeline:** is a 6 s recall cooldown at Transcendent right?
@@ -150,7 +152,6 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 - Faces for NPCs (classic faces)? Culture clothing palettes OK (`NPC/Data/NpcLooks` `palette`)?
 - Cantrip utility by temperament instead of a seeded "Sense <property>"?
 - Practice yard on markers / in the Journal? A first-hit reward on a dummy (plan item 7)?
-- Roblox's default camera zooms with I/O, so I opens the inventory AND zooms: disable I/O zoom?
 - Lighting haze (Atmosphere density 0.28) OK? Should fire that spreads after a spell count as a crime?
 - Should more forms open at Sensing (Burst, Beam)? It's a data change in `Data/MasteryTiers`. Thrown Strike in slot 2 instead of 3?
 - Beginner quests: permanent map pins for the practice yard and the mentor? Should finishing "Lamps at Dusk" actually light the lamps (today it's flavour)? Beginner rewards: add coins or a starter item (only the lost pet pays 10)?

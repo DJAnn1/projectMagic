@@ -9,7 +9,8 @@
 	SLOTS
 		from = "<fact>"     a situation fact (npcId, poiId, settlementId, otherSettlementId, branch,
 		                    domain, ...), or "here" (the situation's position)
-		pick = "<picker>"   colleague:<occ,occ>          an NPC of that occupation in the situation's town
+		pick = "<picker>"   colleague:<occ,occ>          an NPC of that occupation in the situation's town. A last "*"
+		                                                 means any working adult when nobody has those trades
 		                    colleagueIn:<slot>:<occ,..>  the same, in another settlement slot's town. A last "*" means
 		                                                 any working adult there when nobody has those trades
 		                    anywhere:<occ>               the nearest of that occupation
@@ -109,6 +110,19 @@ local function npcsIn(npcs: any, settlementId: string, occupations: { string }?)
 	return out
 end
 
+-- The same, and a "*" in the list falls back to any working adult there when nobody has those trades.
+local function peopleIn(npcs: any, settlementId: string, wanted: { string }): { any }
+	local list = npcsIn(npcs, settlementId, wanted)
+	if #list == 0 and table.find(wanted, "*") then
+		for _, npc in npcsIn(npcs, settlementId) do
+			if npc.occupation ~= "child" and npc.occupation ~= "retired" then
+				table.insert(list, npc)
+			end
+		end
+	end
+	return list
+end
+
 -- Fills {placeholders} from a lookup function; unknown keys are left as they are.
 local function substitute(s: string, lookup: (string) -> string?): string
 	return (string.gsub(s, "{([%w_]+)}", function(key)
@@ -166,7 +180,7 @@ local function resolveSlot(spec: QuestTypes.SlotSpec, situation: Situation, slot
 	local here = Vector3.new(situation.x, 0, situation.z)
 
 	if kind == "colleague" then
-		local list = npcsIn(npcs, situation.settlementId or "", split(rest))
+		local list = peopleIn(npcs, situation.settlementId or "", split(rest))
 		local npc = list[rng:NextInteger(1, math.max(1, #list))]
 		return if npc then { value = npc.id, name = npc.name, npc = npc } else nil
 	elseif kind == "colleagueIn" then
@@ -175,15 +189,7 @@ local function resolveSlot(spec: QuestTypes.SlotSpec, situation: Situation, slot
 		if not town then
 			return nil
 		end
-		local wanted = split(occs :: string)
-		local list = npcsIn(npcs, town.value, wanted)
-		if #list == 0 and table.find(wanted, "*") then
-			for _, npc in npcsIn(npcs, town.value) do
-				if npc.occupation ~= "child" and npc.occupation ~= "retired" then
-					table.insert(list, npc)
-				end
-			end
-		end
+		local list = peopleIn(npcs, town.value, split(occs :: string))
 		local npc = list[rng:NextInteger(1, math.max(1, #list))]
 		return if npc then { value = npc.id, name = npc.name, npc = npc } else nil
 	elseif kind == "anywhere" then
