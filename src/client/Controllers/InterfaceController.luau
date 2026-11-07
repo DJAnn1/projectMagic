@@ -18,6 +18,7 @@
 	screen from scratch. These changes are rare, and it keeps every builder simple.
 ]]
 
+local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
@@ -97,6 +98,9 @@ local function modeFor(inputType: Enum.UserInputType): string?
 	end
 	return nil
 end
+
+-- Screen keys Roblox's default camera also binds (see the binding in start).
+local CAMERA_KEYS: { [Enum.KeyCode]: boolean } = { [Enum.KeyCode.I] = true, [Enum.KeyCode.O] = true }
 
 local DIGITS: { [string]: string } = {
 	One = "1", Two = "2", Three = "3", Four = "4", Five = "5",
@@ -464,21 +468,43 @@ function InterfaceController.start(_self: any, _ctx: any)
 		bus:publish(Topics.ScreenChanged, { screen = id })
 	end)
 
+	-- Toggles the screen on this key. False if no screen uses it.
+	local function toggleFor(keyCode: Enum.KeyCode): boolean
+		for id, def in screens do
+			if def.key == keyCode or def.gamepadKey == keyCode then
+				I:toggle(id)
+				return true
+			end
+		end
+		return false
+	end
+
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed or adminPanelOpen() or UserInputService:GetFocusedTextBox() then
 			return
+		end
+		if CAMERA_KEYS[input.KeyCode] then
+			return -- handled below: both running would open the screen and close it again
 		end
 		if input.KeyCode == Enum.KeyCode.ButtonB and I.openScreen:get() then
 			I:close()
 			return
 		end
-		for id, def in screens do
-			if (def.key and input.KeyCode == def.key) or (def.gamepadKey and input.KeyCode == def.gamepadKey) then
-				I:toggle(id)
-				return
-			end
-		end
+		toggleFor(input.KeyCode)
 	end)
+
+	-- Roblox's default camera zooms on I and O, and can mark them as handled before InputBegan sees
+	-- them. Binding them above the camera gets them to the screens first, and they no longer zoom
+	-- (the mouse wheel still does). While you're typing they pass through untouched.
+	ContextActionService:BindActionAtPriority("MagicScreenKeys", function(_action, state, input)
+		if adminPanelOpen() or UserInputService:GetFocusedTextBox() then
+			return Enum.ContextActionResult.Pass
+		end
+		if state == Enum.UserInputState.Begin then
+			toggleFor(input.KeyCode)
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.I, Enum.KeyCode.O)
 
 	rebuildAll()
 end
