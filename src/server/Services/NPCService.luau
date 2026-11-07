@@ -69,6 +69,7 @@ local NPCMagicLife = require(NPC.NPCMagicLife)
 local DialogueEngine = require(NPC.DialogueEngine)
 local LOD = require(NPC.NPCLOD)
 local Navigation = require(NPC.NavigationService)
+local Doors = require(script.Parent.Parent.Interact.Doors)
 local NPCAnimator = require(NPC.NPCAnimator)
 local Conversation = require(NPC.NPCConversation)
 local NPCCombat = require(NPC.NPCCombat)
@@ -76,6 +77,7 @@ local Combat = require(Server.Magic.Data.CombatTuning)
 local Resistances = require(Server.Magic.Cast.Resistances)
 
 local LOD_INTERVAL = 0.5
+local ENTER_REACH = 6 -- studs from their door, or their bed, that counts as being there
 local T0_STEP = 0.1
 local T1_STEP = 2
 local T0_BRAIN = 1
@@ -397,6 +399,21 @@ local function route(npc: any)
 	end
 	local rogue = npc.magic.rogue
 	local district = if rogue then "wilds" else ScheduleService.districtFor(npc, npc.action, def.district)
+	-- On their way to their own door (their walk to the bed failed), or already in: carry on with that.
+	local entering = npc.enterHome
+	if entering then
+		if entering.action == npc.action then
+			LOD.setDestination(npc, entering.door)
+			return
+		end
+		npc.enterHome = nil
+	end
+	if npc.insideLot then
+		if district == "home" and npc.home and npc.home.lot == npc.insideLot and not downLots[npc.insideLot] then
+			return -- home already, and staying there
+		end
+		npc.insideLot = nil
+	end
 	local target: Vector3? = nil
 	if not rogue and district == "home" and npc.home then
 		target = homePosition(npc)
@@ -424,6 +441,51 @@ end
 
 local function threatened(npc: any, now: number): boolean
 	return inDanger(npc) or (npc.threatUntil or -1) > now
+end
+
+-- They couldn't find a way to their bed, but they can reach their own front door: the door opens and they
+-- go in. Pathing into a building can fail for reasons of its own (the logged reason says which), and someone
+-- asleep shouldn't be left standing in the street.
+local function stepEnterHome(npc: any, clock: number)
+	local entering = npc.enterHome
+	if not entering then
+		return
+	end
+	if entering.action ~= npc.action or clock > entering.giveUp or not npc.rig or downLots[entering.lot] then
+		npc.enterHome = nil
+		return
+	end
+	local at: Vector3 = npc.rig.root.Position
+	if Vector3.new(at.X - entering.door.X, 0, at.Z - entering.door.Z).Magnitude > ENTER_REACH then
+		return
+	end
+	for _, leaf in Doors.near(entering.door, 8) do
+		if not Doors.isOpen(leaf) then
+			Doors.open(leaf)
+		end
+	end
+	npc.enterHome = nil
+	npc.insideLot = entering.lot
+	local bed = homePosition(npc)
+	Navigation.Stop(npc)
+	npc.destination = nil
+	npc.rig.model:PivotTo(CFrame.new(bed))
+	npc.position = bed
+	log:info("npc_went_indoors", { npc = npc.id, lot = entering.lot, how = "door" })
+end
+
+-- Once per NPC: they really got home on foot. Tells the log how often the proper walk works.
+local function noteReachedHome(npc: any, clock: number)
+	if npc.reachedHomeLogged or npc.action ~= "sleep" or not npc.home or clock < (npc.homeCheckAt or 0) then
+		return
+	end
+	npc.homeCheckAt = clock + 2
+	local bed = homePosition(npc)
+	local at: Vector3 = npc.rig.root.Position
+	if (at - bed).Magnitude <= ENTER_REACH then
+		npc.reachedHomeLogged = true
+		log:info("npc_went_indoors", { npc = npc.id, lot = npc.home.lot, how = "walked" })
+	end
 end
 
 -- ─── Dialogue ───────────────────────────────────────────────────────────────
@@ -1347,6 +1409,8 @@ local function heartbeat()
 							LOD.setDestination(npc, proot.Position - proot.CFrame.LookVector * 4)
 						end
 					end
+					stepEnterHome(npc, clock)
+					noteReachedHome(npc, clock)
 					Navigation.Step(npc, clock)
 				end
 				if npc.rig then -- a knockout can take the rig during the step
@@ -2286,6 +2350,20 @@ function NPCService.init(_self: any, ctx: any)
 	Navigation.Failed:Connect(function(npc: any, reason: string, goal: Vector3?)
 		npc.destination = nil
 		npc.actionUntil = 0
+		local entering = npc.enterHome
+		if entering and goal and (goal - entering.door).Magnitude < 2 then
+			npc.enterHome = nil -- not even as far as their own door
+		elseif not entering and goal and npc.home and not downLots[npc.home.lot] and (goal - homePosition(npc)).Magnitude < 2 then
+			if not npc.homeFailLogged then
+				npc.homeFailLogged = true
+				log:info("npc_home_path_failed", { npc = npc.id, lot = npc.home.lot, reason = reason, x = math.floor(goal.X), y = math.floor(goal.Y), z = math.floor(goal.Z) })
+			end
+			local door = settlementSvc:anchor(npc.home.lot, "Entrance")
+			if door then
+				npc.enterHome = { action = npc.action, lot = npc.home.lot, door = door, giveUp = os.clock() + 60 }
+				LOD.setDestination(npc, door)
+			end
+		end
 		log:debug("nav_failed", { npc = npc.id, action = npc.action, reason = reason, x = goal and math.floor(goal.X), z = goal and math.floor(goal.Z) })
 	end)
 	Navigation.DoorOpened:Connect(function(npc: any)
