@@ -698,6 +698,7 @@ local function buildHoverTooltip(scope: Scope)
 		DisplayOrder = 30,
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, -- children draw over their parent: under Global, the card covered its own text
 		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
 	})
 	scope:add(gui)
@@ -709,7 +710,8 @@ local function buildHoverTooltip(scope: Scope)
 		if not view or interface.inputMode:get() ~= "Keyboard" then
 			return
 		end
-		local p = C.panel({ Size = UDim2.fromOffset(300, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = Theme.glass, ZIndex = 10, Parent = gui })
+		-- Solid, with a raised colour and a clear edge: this card sits on top of other items' icons.
+		local p = C.panel({ Size = UDim2.fromOffset(300, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Theme.color.panelRaised, BackgroundTransparency = 0, Parent = gui })
 		s:add(p)
 		C.padding(Theme.space.s).Parent = p
 		C.list("y", 2).Parent = p
