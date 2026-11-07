@@ -392,6 +392,24 @@ function LOD.assign(settlements: { any }): { any }
 end
 
 -- Brings an NPC's Instances in line with its tier. Returns false when the pool was empty.
+-- An NPC out of range is drawn on the generator's height, which ignores town levelling, so in a town it's
+-- 4 or 5 studs inside the real ground. Released there, physics drops it straight through the world (seen in
+-- npc_fall_seen, 2026-11-07). So the moment it gets physics, it's stood on what's really there.
+local function standOnRealGround(rig: Rig)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = if folder then { folder :: Instance } else { rig.model :: Instance }
+	params.RespectCanCollide = true
+	local at = rig.root.Position
+	for _, above in { 8, 30 } do
+		local hit = workspace:Raycast(at + Vector3.new(0, above, 0), Vector3.new(0, -(above + 40), 0), params)
+		if hit then
+			rig.model:PivotTo(CFrame.new(hit.Position + Vector3.new(0, 3.2, 0)) * rig.root.CFrame.Rotation)
+			return
+		end
+	end
+end
+
 function LOD.sync(npc: any, groundAt: (Vector3) -> Vector3): boolean
 	local tier = npc.tier or 2
 	local rig: Rig? = npc.rig
@@ -423,6 +441,9 @@ function LOD.sync(npc: any, groundAt: (Vector3) -> Vector3): boolean
 		rig.model.Parent = folder
 	end
 	local r = rig :: Rig
+	if tier == 0 and r.root.Anchored and npc.frozen ~= true then
+		standOnRealGround(r)
+	end
 	r.root.Anchored = tier == 1 or npc.frozen == true
 	r.humanoid.PlatformStand = false
 	r.prompt.Enabled = tier == 0
