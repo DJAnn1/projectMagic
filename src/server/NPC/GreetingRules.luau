@@ -17,12 +17,16 @@
 		agreeable   the NPC's agreeableness, 0..1
 		nervous     the NPC's neuroticism, 0..1
 		child       the NPC is a child
+		unsettle    optional, 0..1: how strange your Magic Marks look (Magic/MarkRules.unsettle);
+		            takes nervousness x unsettle x Data/Marks unsettleWeight off the score
 	}
 
 	SCORE = town + faction / 2 + opinion - infamy + a nudge from personality. Each is scaled so about
 	1 is a lot. A bounty can't go above wary. Children never fawn or stay wary for long: they're
 	excited or scared. A readied spell makes a neutral stranger stare.
 ]]
+
+local MarkTuning = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.Marks).tuning
 
 local T = table.freeze({
 	settlementScale = 50, -- reputation at which the town counts as a full point
@@ -48,6 +52,7 @@ export type Input = {
 	agreeable: number,
 	nervous: number,
 	child: boolean,
+	unsettle: number?,
 }
 
 local GreetingRules = {}
@@ -58,6 +63,7 @@ function GreetingRules.score(i: Input): number
 		+ i.opinion
 		- i.infamy / T.infamyScale
 		+ (i.agreeable - i.nervous) * T.personality
+		- (i.unsettle or 0) * i.nervous * MarkTuning.unsettleWeight
 end
 
 function GreetingRules.band(i: Input): string

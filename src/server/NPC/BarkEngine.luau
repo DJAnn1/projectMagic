@@ -129,13 +129,14 @@ end
 
 --[[
 	A line whose category starts with `prefix` ("greet_warm"), or for "ambient" any non-greeting line.
-	Returns (index, text), or nil when nothing fits.
+	Returns (index, text), or nil when nothing fits. `lines` picks from another list of the same shape
+	(NPC/Data/MarkLines); indices then refer to that list.
 ]]
-function BarkEngine.pick(prefix: string, ctx: Context, rng: Random, recent: { [number]: boolean }, cooling: { [number]: boolean }?): (number?, string?)
+function BarkEngine.pick(prefix: string, ctx: Context, rng: Random, recent: { [number]: boolean }, cooling: { [number]: boolean }?, lines: { Barks.Line }?): (number?, string?)
 	local ambient = prefix == "ambient"
 	local total = 0
 	local options: { { index: number, text: string, weight: number } } = {}
-	for index, line in Barks do
+	for index, line in lines or Barks do
 		local matches = if ambient then string.sub(line.cat, 1, 6) ~= "greet_" else line.cat == prefix
 		if matches and not recent[index] and not (cooling and cooling[index]) and BarkEngine.eligible(line, ctx) then
 			local text = BarkEngine.fill(line.text, ctx.vars)

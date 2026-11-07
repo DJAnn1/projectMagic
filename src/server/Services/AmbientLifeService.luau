@@ -13,6 +13,10 @@
 	              close enough to hear, no repeats, never two people at once in one town.
 	GREETINGS     everywhere. NPC/GreetingRules: from your reputation here, the NPC's factions, what the
 	              NPC thinks of you, infamy, bounties, and whether magic is visibly in your hand.
+	MARKS         the first time an NPC sees a Magic Mark on you (or a mark that's grown), they remark
+	              on it instead of greeting you, or whisper about it from further off: once per NPC per
+	              mark and stage (Data/MarkLines, docs/MagicMarks.md). Strange marks also make nervous
+	              people a little warier (GreetingRules `unsettle`).
 
 	Server only and cosmetic: nothing here changes reputation, XP or anything saved.
 
@@ -33,11 +37,13 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Registry = require(Shared.Magic.Registry)
 local Seed = require(Shared.Magic.Seed)
+local MarkRules = require(Shared.Magic.MarkRules)
 
 local Server = script.Parent.Parent
 local NPC = Server.NPC
 local Activities = require(NPC.Data.Activities)
 local Barks = require(NPC.Data.Barks)
+local MarkLines = require(NPC.Data.MarkLines)
 local BarkEngine = require(NPC.BarkEngine)
 local DailyLife = require(NPC.DailyLife)
 local DialogueEngine = require(NPC.DialogueEngine)
@@ -85,7 +91,8 @@ local townLines: { [string]: { [number]: number } } = {} -- town -> line -> when
 local playerGreeted: { [Player]: number } = {}
 local visitedLamps: { [Instance]: boolean } = {}
 local stories: { [string]: { { text: string, day: number } } } = {} -- town -> recent news (SceneDirector)
-local counters = { barks = 0, greetings = 0, whispers = 0 }
+local counters = { barks = 0, greetings = 0, whispers = 0, remarks = 0 }
+local MARK_WHISPER_CHANCE = 0.35 -- of people further off, how many bother to whisper about a mark
 
 local function ground(v: Vector3): Vector3
 	return Vector3.new(v.X, world:surfaceHeight(v.X, v.Z), v.Z)
@@ -461,7 +468,52 @@ local function greetingInput(npc: any, player: Player, now: number): GreetingRul
 		agreeable = npc.traits.agreeableness or 0.5,
 		nervous = npc.traits.neuroticism or 0.5,
 		child = npc.ageBand == "child",
+		unsettle = if character then MarkRules.unsettle(character:GetAttribute("MagicMarks") :: string?) else 0,
 	}
+end
+
+--[[
+	What this NPC says about the marks on you, if they haven't yet: the strongest mark, in its own
+	words, or as kin when they carry the same one; from further off, sometimes a whisper. Either way
+	this mark and stage counts as seen by them, so it comes up once.
+]]
+local function markLine(npc: any, player: Player, close: boolean, now: number): string?
+	local character = player.Character
+	local raw = character and character:GetAttribute("MagicMarks")
+	if typeof(raw) ~= "string" or raw == "" then
+		return nil
+	end
+	npc.markSeen = npc.markSeen or {}
+	if npc.markSeen[player.UserId] == raw then
+		return nil
+	end
+	local top = MarkRules.decode(raw)[1]
+	if not top then
+		return nil
+	end
+	npc.markSeen[player.UserId] = raw
+	local rng = rngFor(npc, "mark")
+	local ctx = contextFor(npc, player, rng, now)
+	ctx.vars.mark = MarkRules.seen(top.domain, top.stage) or "magic on you"
+	if not close then
+		if rng:NextNumber() > MARK_WHISPER_CHANCE then
+			return nil
+		end
+		local _, text = BarkEngine.pick("mark_whisper", ctx, rng, {}, nil, MarkLines)
+		return text
+	end
+	local own = npc.rig and npc.rig.model:GetAttribute("MagicMarks")
+	local text: string? = nil
+	if typeof(own) == "string" and string.find(own, top.domain .. ":", 1, true) then
+		_, text = BarkEngine.pick("mark_kin", ctx, rng, {}, nil, MarkLines)
+	end
+	if not text and rng:NextNumber() < 0.7 then
+		_, text = BarkEngine.pick("mark_" .. top.domain, ctx, rng, {}, nil, MarkLines)
+	end
+	if not text then
+		_, text = BarkEngine.pick("mark_any", ctx, rng, {}, nil, MarkLines)
+	end
+	return text
 end
 
 local function behave(npc: any, band: string, player: Player, clock: number)
@@ -507,6 +559,20 @@ local function greet(npc: any, now: number, clock: number)
 			if root and root:IsA("BasePart") then
 				local close = (root.Position - npc.position).Magnitude <= GREET_RADIUS
 				local band = GreetingRules.band(greetingInput(npc, player, now))
+				local remark = if band ~= "avoid" then markLine(npc, player, close, now) else nil
+				if remark then
+					npc.greeted[key] = clock
+					playerGreeted[player] = clock
+					counters.remarks += 1
+					if close then
+						counters.greetings += 1
+						behave(npc, band, player, clock)
+					else
+						counters.whispers += 1
+					end
+					npcs:speak(npc, remark, BARK_RADIUS)
+					return
+				end
 				local category = if close then "greet_" .. band else GreetingRules.whisper(band)
 				if category then
 					local rng = rngFor(npc, "greet")
@@ -568,7 +634,7 @@ local function registerAdmin(admin: any)
 			end
 			local lines = {
 				string.format("spawn town %s, all towns: %s, %s", tostring(spawnTownId), tostring(FeatureFlags.get("ambient_all_towns")), WorldClock.stamp()),
-				string.format("barks %d, greetings %d, whispers %d, %d lines", counters.barks, counters.greetings, counters.whispers, #Barks),
+				string.format("barks %d, greetings %d, whispers %d, mark remarks %d, %d lines", counters.barks, counters.greetings, counters.whispers, counters.remarks, #Barks),
 			}
 			local keys: { string } = {}
 			for key in doing do
@@ -614,11 +680,14 @@ local function registerAdmin(admin: any)
 			if npc.greeted then
 				npc.greeted[ctx.player.UserId] = nil
 			end
+			if npc.markSeen then
+				npc.markSeen[ctx.player.UserId] = nil -- so it can remark on your marks again
+			end
 			playerGreeted[ctx.player] = nil
 			return string.format(
-				"%s: %s (score %.2f)\n  town %.0f, faction %.0f, opinion %.2f, infamy %.0f, bounty %s, notoriety %.0f, attuned %s",
+				"%s: %s (score %.2f)\n  town %.0f, faction %.0f, opinion %.2f, infamy %.0f, bounty %s, notoriety %.0f, attuned %s, marks unsettle %.2f",
 				npc.name, GreetingRules.band(input), GreetingRules.score(input),
-				input.settlement, input.faction, input.opinion, input.infamy, tostring(input.bounty), input.notoriety, tostring(input.attuned)
+				input.settlement, input.faction, input.opinion, input.infamy, tostring(input.bounty), input.notoriety, tostring(input.attuned), input.unsettle or 0
 			)
 		end,
 	})

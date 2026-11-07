@@ -12,6 +12,8 @@
 		items    a provider callback (InventoryService registers Items/StatCache.resistFor): a
 		         player's equipped items, set bonuses and item buffs
 		manual   Humanoid attributes "Resist_<key>" (admin `resist`, tests, scripted encounters)
+		marks    the character's "MagicMarks" attribute: your own domain, per stage (Magic/MarkRules;
+		         Services/MarkService sets it on players and NPC rigs)
 
 	KEYS: a domain id, a property id, or "all". For a spell, the applied value is
 		avg(domain keys over a hybrid's domains) + property key + all
@@ -28,6 +30,7 @@ local Cast = script.Parent
 local C = require(Cast.Parent.Data.CombatTuning)
 local Gear = require(Cast.Parent.Data.Gear)
 local StatusEffects = require(Cast.StatusEffects)
+local MarkRules = require(game:GetService("ReplicatedStorage").Shared.Magic.MarkRules)
 
 export type Map = { [string]: number }
 export type Line = { source: string, key: string, value: number }
@@ -101,6 +104,15 @@ local function sources(humanoid: Humanoid): { [string]: Map }
 	local manual = manualMap(humanoid)
 	if manual then
 		out.manual = manual
+	end
+	-- Magic Marks: the character model's "MagicMarks" attribute (Services/MarkService).
+	local model = humanoid.Parent
+	local raw = model and model:GetAttribute("MagicMarks")
+	if typeof(raw) == "string" and raw ~= "" then
+		local marks = MarkRules.resist(raw)
+		if next(marks) ~= nil then
+			out.marks = marks
+		end
 	end
 	return out
 end

@@ -107,6 +107,7 @@ Schemas.Player = {
 			rifts = { claimed = {}, found = {} }, -- claimed: Rift id -> os.time() paid, one reward per Rift even across servers. found: answer key -> os.time() first used, a bounded set (Services/RiftService; reconcile fills old saves)
 			feral = { studied = {} }, -- recipe key -> os.time() you learned it from a loose spell, a bounded set (Services/FeralService; reconcile fills old saves)
 			familiar = { bonded = 0, domain = "", xp = 0, day = 0, dayXp = 0, casts = 0, name = "", mode = "guard", summoned = true, learned = "", tally = {} }, -- bonded: os.time(), 0 = not yet. name: raw, shown only through the filter. learned: the second ability's domain. tally: domain -> casts. Its look is regenerated from the seed (Services/FamiliarService; reconcile fills old saves)
+			marks = { points = {}, day = 0, dayPoints = {}, decayDay = 0, shown = {} }, -- Magic Marks: domain -> points (decayed), the day dayPoints counts (daily cap), the last day decay ran, domain -> stage on your body (Services/MarkService, Magic/MarkRules; reconcile fills old saves)
 			firstHour = {}, -- new players only: milestone -> seconds of play, casts, idle (FirstHourService; no schema bump)
 			creatureHunt = { hour = 0, total = 0, byType = {} }, -- kills this hour per type (CreatureService's anti-grind) + lifetime total (loot seed); reconcile fills old saves
 			-- Items (docs/Items.md §6; Server/Items/Inventory). Records use short keys (ItemTypes.Record).

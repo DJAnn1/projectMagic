@@ -20,6 +20,7 @@
 	WALKING  T0 walking is NPC/NavigationService's. Animation of walk and idle is NPC/NPCAnimator's.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -35,6 +36,30 @@ local Activities = require(script.Parent.Data.Activities)
 local Navigation = require(script.Parent.NavigationService)
 
 local LOD = {}
+
+-- Magic Marks on an NPC's body (Services/MarkService): npc -> "energy:2" or nil.
+local marksProvider: ((any) -> string?)? = nil
+local MARKED_TAG = "MagicMarked"
+
+function LOD.setMarksProvider(fn: (any) -> string?)
+	marksProvider = fn
+end
+
+-- Puts this NPC's marks on its rig (or takes them off). Safe to call again when they change.
+function LOD.applyMarks(model: Model, npc: any)
+	local provider = marksProvider
+	local raw: string? = nil
+	if provider then
+		local ok, value = pcall(provider, npc)
+		raw = if ok and typeof(value) == "string" and value ~= "" then value else nil
+	end
+	model:SetAttribute("MagicMarks", raw)
+	if raw then
+		CollectionService:AddTag(model, MARKED_TAG)
+	else
+		CollectionService:RemoveTag(model, MARKED_TAG)
+	end
+end
 
 local leaveT0: (any) -> ()
 
@@ -238,6 +263,7 @@ local function dress(rig: Rig, npc: any)
 	rig.model.Name = npc.name
 	rig.model:SetAttribute("NpcId", npc.id)
 	rig.model:SetAttribute("MagicSignature", npc.signatureJson)
+	LOD.applyMarks(rig.model, npc)
 	rig.label.Text = string.format("%s\n%s", npc.name, npc.occupationName)
 	rig.prompt.ObjectText = npc.name
 	rig.humanoid.Health = rig.humanoid.MaxHealth
@@ -281,6 +307,8 @@ local function release(rig: Rig)
 	end
 	rig.model:SetAttribute("NpcId", nil)
 	rig.model:SetAttribute("NpcActivity", nil) -- ActivityService writes the next wearer's
+	rig.model:SetAttribute("MagicMarks", nil)
+	CollectionService:RemoveTag(rig.model, MARKED_TAG)
 	rig.model.Parent = nil
 	table.insert(pool, rig)
 end
