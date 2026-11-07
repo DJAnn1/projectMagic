@@ -157,6 +157,13 @@ local VFX: { [string]: { [string]: any } } = {
 	dirt = { Texture = KenneyTextures.dirt_02, Color = ColorSequence.new(Color3.fromRGB(110, 80, 52)), Size = NumberSequence.new(0.3, 0.1), Lifetime = NumberRange.new(0.4, 0.7), Speed = NumberRange.new(4, 7), SpreadAngle = Vector2.new(50, 50), Acceleration = Vector3.new(0, -30, 0), Rate = 0, LightInfluence = 1 },
 	chips = { Texture = KenneyTextures.dirt_01, Color = ColorSequence.new(Color3.fromRGB(196, 160, 112)), Size = NumberSequence.new(0.2, 0.05), Lifetime = NumberRange.new(0.4, 0.6), Speed = NumberRange.new(5, 9), SpreadAngle = Vector2.new(60, 60), Acceleration = Vector3.new(0, -30, 0), Rate = 0, LightInfluence = 1 },
 	prayer = { Texture = KenneyTextures.light_02, Color = ColorSequence.new(Color3.fromRGB(255, 236, 190)), Size = NumberSequence.new(0.3, 0), Lifetime = NumberRange.new(1.5, 2.5), Speed = NumberRange.new(0.2, 0.6), SpreadAngle = Vector2.new(180, 180), LightEmission = 1, Rate = 4, LightInfluence = 0 },
+	-- Stage 2 (2026-11-07). Rate 0 = only on a strike (the tool landing).
+	grit = { Texture = KenneyTextures.dirt_01, Color = ColorSequence.new(Color3.fromRGB(140, 134, 124)), Size = NumberSequence.new(0.3, 0.08), Lifetime = NumberRange.new(0.4, 0.7), Speed = NumberRange.new(5, 9), SpreadAngle = Vector2.new(60, 60), Acceleration = Vector3.new(0, -30, 0), Rate = 0, LightInfluence = 1 },
+	shavings = { Texture = KenneyTextures.dirt_01, Color = ColorSequence.new(Color3.fromRGB(222, 190, 140)), Size = NumberSequence.new(0.15, 0.05), Lifetime = NumberRange.new(0.5, 0.8), Speed = NumberRange.new(1, 3), SpreadAngle = Vector2.new(50, 50), Acceleration = Vector3.new(0, -14, 0), Rate = 0, LightInfluence = 1 },
+	leaves = { Texture = KenneyTextures.dirt_02, Color = ColorSequence.new(Color3.fromRGB(110, 160, 80)), Size = NumberSequence.new(0.18, 0.05), Lifetime = NumberRange.new(0.6, 1.1), Speed = NumberRange.new(0.5, 1.5), SpreadAngle = Vector2.new(90, 90), Acceleration = Vector3.new(0, -3, 0), Rate = 3, LightInfluence = 1 },
+	spray = { Texture = KenneyTextures.circle_05, Color = ColorSequence.new(Color3.fromRGB(210, 232, 255)), Size = NumberSequence.new(0.15, 0.4), Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(0.5, 1.5), SpreadAngle = Vector2.new(180, 180), Transparency = NumberSequence.new(0.4, 1), Acceleration = Vector3.new(0, -2, 0), Rate = 6, LightInfluence = 1 },
+	wind = { Texture = KenneyTextures.smoke_05, Color = ColorSequence.new(Color3.fromRGB(235, 245, 255)), Size = NumberSequence.new(0.5, 1.6), Lifetime = NumberRange.new(0.6, 1), Speed = NumberRange.new(3, 6), SpreadAngle = Vector2.new(25, 25), Transparency = NumberSequence.new(0.75, 1), Rate = 5, LightInfluence = 1 },
+	suds = { Texture = KenneyTextures.circle_05, Color = ColorSequence.new(Color3.fromRGB(250, 250, 255)), Size = NumberSequence.new(0.2, 0.35), Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(0.2, 0.8), SpreadAngle = Vector2.new(120, 120), Transparency = NumberSequence.new(0.2, 1), Acceleration = Vector3.new(0, 1, 0), Rate = 5, LightInfluence = 1 },
 }
 
 local function dropVfx(n: Npc)
@@ -342,7 +349,7 @@ local function strike(n: Npc)
 	if n.piece then
 		SetPieces.strike(n.piece)
 	end
-	local dirt = n.vfx.dirt or n.vfx.chips
+	local dirt = n.vfx.dirt or n.vfx.chips or n.vfx.grit or n.vfx.shavings
 	if dirt then
 		dirt:Emit(6)
 	end

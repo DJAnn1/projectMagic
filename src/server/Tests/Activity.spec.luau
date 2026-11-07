@@ -18,12 +18,22 @@ local Registry = require(Shared.Magic.Registry)
 
 local Server = ServerScriptService.Server
 local NeedsActions = require(Server.NPC.Data.NeedsActions)
+local NpcData = require(Server.NPC.Data.NpcData)
+local Quirks = require(Server.NPC.Data.Quirks)
 local Activities = require(Server.NPC.Data.Activities)
 local ActivityRules = require(Server.Life.ActivityRules)
 local ReadabilityReport = require(Server.Life.ReadabilityReport)
 
-local SET_PIECES = { furrows = true, swept = true, logpile = true, fishing = true, blanket = true, practice_energy = true, practice_earth = true, practice_water = true }
-local VFX = { flour = true, dust = true, dirt = true, chips = true, prayer = true }
+-- Mirrors of the client's tables (Fx/SetPieces builders, ActivityController VFX): a new id goes in both.
+local SET_PIECES = {
+	furrows = true, swept = true, logpile = true, fishing = true, blanket = true,
+	practice_energy = true, practice_earth = true, practice_water = true,
+	rubble = true, frame = true, herbs = true, wares = true, ball = true, pots = true, birds = true, cairn = true,
+	practice_air = true, practice_life = true, practice_mind = true, practice_spirit = true, practice_void = true,
+	practice_space = true, practice_time = true, practice_gravity = true, practice_reality = true,
+}
+local VFX = { flour = true, dust = true, dirt = true, chips = true, prayer = true, grit = true, shavings = true, leaves = true, spray = true, wind = true, suds = true }
+local DOMAINS = { "energy", "earth", "water", "air", "life", "mind", "spirit", "void", "space", "time", "gravity", "reality" }
 local SPOTS = { route = true, door = true, yard = true, patrol = true }
 local INTERRUPTS = { hold = true, setDown = true, stay = true }
 local JOINTS = { ["Right Shoulder"] = true, ["Left Shoulder"] = true, ["Right Hip"] = true, ["Left Hip"] = true, ["Neck"] = true, ["RootJoint"] = true }
@@ -228,12 +238,84 @@ return function(t: any)
 
 	describe("Who does what", function()
 		it("gives each trade its own work", function()
-			local cases = { smith = "forging", farmer = "farming", guard = "patrolling", fisher = "fishing", innkeeper = "baking" }
+			local cases = {
+				smith = "forging", farmer = "farming", guard = "patrolling", fisher = "fishing", innkeeper = "baking",
+				miner = "mining", builder = "building", herbalist = "gathering", healer = "remedies", lamplighter = "lamplighting",
+				tidepriest = "blessing_water", weathercaller = "skyreading", scholar = "copying", merchant = "selling", hunter = "hunting",
+			}
 			for occupation, expected in cases do
 				local def = ActivityRules.pick(person({ occupation = occupation }), "work", 10)
 				expect(def ~= nil and def.id).toBe(expected)
 			end
-			expect(ActivityRules.pick(person({ occupation = "merchant" }), "work", 10)).toBe(nil)
+		end)
+
+		-- Stage 2: nobody is ever left "just standing there" for want of an activity.
+		it("has an activity for every brain action", function()
+			for id in NeedsActions.actions do
+				local found = false
+				for _, def in ActivityLibrary.list do
+					if table.find(def.actions, id) then
+						found = true
+					end
+				end
+				if not found then
+					t.log("no activity for action " .. id)
+				end
+				expect(found).toBe(true)
+			end
+		end)
+
+		it("has work for every trade that works", function()
+			for id in NpcData.occupations do
+				if id ~= "child" and id ~= "retired" then
+					local def = ActivityRules.pick(person({ occupation = id }), "work", 4)
+					if not def then
+						t.log("no work activity for " .. id)
+					end
+					expect(def ~= nil).toBe(true)
+				end
+			end
+		end)
+
+		it("has the everyday ones for anyone, children included", function()
+			for _, action in { "socialize", "idle", "wander", "shelter" } do
+				expect(ActivityRules.pick(person({}), action, 2) ~= nil).toBe(true)
+				expect(ActivityRules.pick(person({ occupation = "child", ageBand = "child" }), action, 2) ~= nil).toBe(true)
+			end
+			local child = person({ occupation = "child", ageBand = "child" })
+			expect((ActivityRules.pick(child, "attend", 1) :: any).id).toBe("lessons")
+			expect((ActivityRules.pick(child, "play", 1) :: any).id).toBe("playing")
+			expect((ActivityRules.pick(person({}), "trade", 1) :: any).id).toBe("haggling")
+			expect((ActivityRules.pick(person({}), "teach", 1) :: any).id).toBe("teaching")
+		end)
+
+		it("does the hobby the person actually has, and only theirs", function()
+			local covered: { [string]: string } = {}
+			for _, def in ActivityLibrary.list do
+				for _, q in (def.quirks or {}) :: { string } do
+					expect(covered[q]).toBe(nil) -- one hobby activity per quirk
+					covered[q] = def.id
+				end
+			end
+			for id, quirk in Quirks.defs do
+				if quirk.effects.hobby then
+					if not covered[id] then
+						t.log("no hobby activity for quirk " .. id)
+					end
+					expect(covered[id] ~= nil).toBe(true)
+					local def = ActivityRules.pick(person({ quirks = { id } }), "hobby", 3)
+					expect(def and def.id).toBe(covered[id])
+				end
+			end
+			-- Someone with no hobby quirk has no hobby activity (and the brain never gives them the action).
+			expect(ActivityRules.pick(person({ quirks = {} }), "hobby", 3)).toBe(nil)
+		end)
+
+		it("gives every action a reason in words", function()
+			for id in NeedsActions.actions do
+				local why = ActivityRules.reason(person({}), id, nil)
+				expect(ActivityLibrary.reasons[why] ~= nil).toBe(true)
+			end
 		end)
 
 		it("sends sociable people to the tavern to eat and quiet ones home", function()
@@ -244,7 +326,7 @@ return function(t: any)
 		end)
 
 		it("practises in the domain they're strongest in", function()
-			for _, domain in { "energy", "earth", "water" } do
+			for _, domain in DOMAINS do
 				local npc = person({ magic = { mastery = { [rootBranch(domain)] = 40 }, unlocked = { [rootBranch(domain)] = true } } })
 				local def = ActivityRules.pick(npc, "practice", 1)
 				expect(def and def.id).toBe("practice_" .. domain)

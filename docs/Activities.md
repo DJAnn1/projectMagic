@@ -61,9 +61,27 @@ Before this work, NPCBrain picked one of 16 actions and NPCService routed the NP
 
 Fast-forward time with `timescale`.
 
+## Stage 2: every action covered (built 2026-11-07, not yet run)
+
+The library grew from 15 to 54 activities, so `actreport` should list no "no activity in the library yet" rows.
+
+| Action | Activities |
+|---|---|
+| work | mining (rubble heap), building (a timber frame going up), gathering herbs (the patch thins), preparing remedies (desk, else the home table), lighting the lamps (lantern on the patrol round), blessing the waters (altar), reading the weather, copying manuscripts (desk, else the home table), selling wares (a cloth that empties), hunting (bow) |
+| socialize · trade · teach | chatting (mug), haggling (purse), teaching (book, pointing) |
+| attend · play | lessons (sitting on the ground with a slate), playing (ball tossed and caught) |
+| idle · wander · shelter | resting (sitting back on the hands) or passing the time (arms folded), taking a walk (stick), cowering |
+| hobby | one per hobby quirk: plants, broken tools, verses, strays (birds pecking), candles, stones (a cairn rising), the sea, maps, feathers, whittling (shavings), letters, scrubbing |
+| practice | the other nine domains: Air (leaf whirlwind), Life (a sprout that flowers), Mind (runes round the head, sitting), Spirit (wisps), Void (a dark sphere drinking light), Space (a pebble through two rings), Time (a falling pebble that stops and rises), Gravity (stones in orbit), Reality (a shape that keeps changing) |
+
+- Hobbies use a new `quirks` field: only someone with that quirk does it (`ActivityRules.candidates`).
+- 27 new procedural poses, each with an empty clip slot in `ActivityPoses.slots`; 22 new held props; 17 new set pieces; 6 new effects (grit, shavings, leaves, spray, wind, suds).
+- Every magic set piece scales with mastery (a novice's leaves scatter, flower wilts, wisps flicker, pebble jitters) and takes the NPC's signature colours.
+- Ground sitting (lessons, resting, whittling, meditating) lowers the drawn body about a stud where they stand; nothing moves on the server.
+- Specs: an activity for every brain action, work for every trade, one hobby activity per hobby quirk, practice for all 12 domains, a reason for every action.
+
 ## Still to build (later stages)
 
-- The other 45+ activities: merchants, healers, scholars at work, teaching, children, trade, socialising, wander, idle.
 - Audio: the licensed libraries have no activity sounds yet.
 - Icons and speech bubbles.
 - The town activity overview and contact cards.

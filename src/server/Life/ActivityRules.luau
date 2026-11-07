@@ -62,6 +62,16 @@ function ActivityRules.candidates(npc: any, action: string): { Activity }
 		if table.find(def.actions, action) then
 			local jobOk = def.occupations == nil or table.find(def.occupations, npc.occupation) ~= nil
 			local domainOk = def.domain == nil or def.domain == domain
+			-- Hobbies: the one this person actually has (their hobby quirk), nobody else's.
+			local quirkOk = true
+			if def.quirks then
+				quirkOk = false
+				for _, q in (npc.quirks or {}) :: { string } do
+					if table.find(def.quirks, q) then
+						quirkOk = true
+					end
+				end
+			end
 			-- Eating: sociable people eat at the tavern, the rest at home (ScheduleService.districtFor's rule).
 			local eatOk = true
 			if def.id == "eating_tavern" then
@@ -69,7 +79,7 @@ function ActivityRules.candidates(npc: any, action: string): { Activity }
 			elseif def.id == "eating_home" then
 				eatOk = not ((npc.traits and npc.traits.extraversion or 0.5) > 0.65)
 			end
-			if jobOk and domainOk and eatOk then
+			if jobOk and domainOk and quirkOk and eatOk then
 				table.insert(out, def)
 			end
 		end
@@ -109,6 +119,8 @@ function ActivityRules.reason(npc: any, action: string, block: string?): string
 	elseif action == "work" then
 		if npc.occupation == "guard" then
 			return "watch"
+		elseif npc.occupation == "lamplighter" then
+			return "lamps"
 		end
 		return if block == "work" or block == nil then "shift" else "overtime"
 	elseif action == "study" then
@@ -120,6 +132,24 @@ function ActivityRules.reason(npc: any, action: string, block: string?): string
 		return if (needs.safety or 1) < 0.6 then "frightened" else "prayers"
 	elseif action == "help" then
 		return "helping"
+	elseif action == "socialize" then
+		return "company"
+	elseif action == "trade" then
+		return "bargain"
+	elseif action == "teach" then
+		return "teaching"
+	elseif action == "attend" then
+		return "lessons"
+	elseif action == "play" then
+		return "playing"
+	elseif action == "idle" then
+		return "resting"
+	elseif action == "wander" then
+		return "walking"
+	elseif action == "hobby" then
+		return "pastime"
+	elseif action == "shelter" then
+		return "afraid"
 	end
 	return "told"
 end

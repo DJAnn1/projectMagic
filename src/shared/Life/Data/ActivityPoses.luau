@@ -151,6 +151,197 @@ local poses: { [string]: Pose } = {
 		},
 		period = 3.2, variants = TWO, simple = { RS, LS },
 	},
+
+	-- ── Stage 2 (2026-11-07): the other trades, everyday life, hobbies, the other domains ──
+	-- Ground-sitting poses use body "sit" with `lower` and no station: the legs go straight out (hips +90)
+	-- and the body drops about a stud onto the ground where they stand.
+	gather = { -- crouched, one hand reaching into the plants, the basket in the other
+		joints = { [RS] = { 70, 0, -5 }, [LS] = { 30, 0, 10 }, [NECK] = { -35, 0, 0 }, [ROOT] = { -25, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 20, shape = "sine" },
+			{ joint = RS, axis = "y", amp = 12, shape = "circle" },
+		},
+		period = 2.4, body = "crouch", lower = 0.9, variants = THREE, simple = { RS },
+	},
+	grind = { -- pestle going round in a mortar at chest height
+		joints = { [RS] = { 50, 0, -15 }, [LS] = { 42, 0, 15 }, [NECK] = { -25, 0, 0 }, [ROOT] = { -8, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 14, shape = "circle" },
+			{ joint = RS, axis = "x", amp = 6, shape = "sine" },
+		},
+		period = 1.2, variants = TWO, simple = { RS },
+	},
+	lantern = { -- a lamp held out ahead, looking along the street
+		joints = { [RS] = { 85, 0, -8 }, [NECK] = { 6, 0, 0 } },
+		motion = { { joint = NECK, axis = "y", amp = 22, shape = "sine" } },
+		period = 6, variants = TWO, simple = {},
+	},
+	bless = { -- both arms raised and open, face lifted
+		joints = { [RS] = { 128, 0, 20 }, [LS] = { 128, 0, -20 }, [NECK] = { 14, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "z", amp = 10, shape = "sine" },
+			{ joint = LS, axis = "z", amp = -10, shape = "sine" },
+			{ joint = NECK, axis = "x", amp = 4, shape = "sine", phase = 0.25 },
+		},
+		period = 4, variants = TWO, simple = { RS, LS },
+	},
+	skyread = { -- one hand up feeling the wind, head turning across the sky
+		joints = { [RS] = { 158, 0, 10 }, [LS] = { 20, 0, 0 }, [NECK] = { 24, 0, 0 } },
+		motion = {
+			{ joint = NECK, axis = "y", amp = 24, shape = "sine" },
+			{ joint = RS, axis = "z", amp = 12, shape = "sine", phase = 0.3 },
+		},
+		period = 5, variants = TWO, simple = {},
+	},
+	write = { -- hunched, the writing hand moving in short strokes
+		joints = { [RS] = { 58, 0, -12 }, [LS] = { 45, 0, 14 }, [NECK] = { -34, 0, 0 }, [ROOT] = { -16, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 9, shape = "sine" },
+			{ joint = RS, axis = "x", amp = 4, shape = "sine", phase = 0.5 },
+		},
+		period = 1.3, variants = TWO, simple = { RS },
+	},
+	hawk = { -- calling out wares: one arm sweeping over the goods, head turning to passers-by
+		joints = { [RS] = { 65, 0, -28 }, [LS] = { 18, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 30, shape = "sine" },
+			{ joint = RS, axis = "x", amp = 15, shape = "sine", phase = 0.25 },
+			{ joint = NECK, axis = "y", amp = 16, shape = "sine", phase = 0.5 },
+		},
+		period = 3, variants = THREE, simple = { RS },
+	},
+	aim = { -- bow held out in the left hand, the right drawing back and loosing
+		joints = { [LS] = { 90, 0, 0 }, [RS] = { 90, 0, -30 }, [NECK] = { 0, -10, 0 } },
+		motion = { { joint = RS, axis = "z", amp = 22, shape = "strike" } },
+		period = 4.5, variants = TWO, simple = { RS },
+	},
+	chat = { -- talking with the hands, a mug in the other
+		joints = { [RS] = { 35, 0, -15 }, [LS] = { 30, 0, 10 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 25, shape = "sine" },
+			{ joint = RS, axis = "y", amp = 15, shape = "circle" },
+			{ joint = NECK, axis = "y", amp = 10, shape = "sine", phase = 0.4 },
+			{ joint = ROOT, axis = "y", amp = 5, shape = "sine" },
+		},
+		period = 2.8, variants = THREE, simple = { RS },
+	},
+	lecture = { -- pointing at something, book open in the other hand
+		joints = { [RS] = { 82, 0, -20 }, [LS] = { 42, 0, 15 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 25, shape = "sine" },
+			{ joint = NECK, axis = "y", amp = 20, shape = "sine", phase = 0.5 },
+		},
+		period = 4.5, variants = TWO, simple = { RS },
+	},
+	sit_listen = { -- a child sitting on the ground at lessons, slate on their lap, a hand up now and then
+		joints = { [RH] = { 90, 0, 0 }, [LH] = { 90, 0, 0 }, [LS] = { 35, 0, 10 }, [RS] = { 20, 0, 0 }, [NECK] = { 4, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 130, shape = "strike" },
+			{ joint = NECK, axis = "y", amp = 8, shape = "sine" },
+		},
+		period = 9, body = "sit", lower = 1, variants = THREE, simple = {},
+	},
+	toss = { -- throwing a ball up and catching it
+		joints = { [RS] = { 60, 0, -10 }, [LS] = { 60, 0, 10 }, [NECK] = { 10, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 40, shape = "strike" },
+			{ joint = LS, axis = "x", amp = 40, shape = "strike" },
+			{ joint = NECK, axis = "x", amp = 18, shape = "sine" },
+		},
+		period = 1.6, variants = TWO, simple = { RS, LS },
+	},
+	rest_sit = { -- sitting on the ground leaning back on their hands
+		joints = { [RH] = { 90, 0, 8 }, [LH] = { 90, 0, -8 }, [RS] = { -30, 0, 15 }, [LS] = { -30, 0, -15 }, [NECK] = { 10, 0, 0 }, [ROOT] = { 8, 0, 0 } },
+		motion = { { joint = NECK, axis = "y", amp = 15, shape = "sine" } },
+		period = 8, body = "sit", lower = 1, variants = TWO, simple = {},
+	},
+	fold = { -- standing with arms folded, weight shifting
+		joints = { [RS] = { 80, 0, -45 }, [LS] = { 75, 0, 45 } },
+		motion = {
+			{ joint = ROOT, axis = "z", amp = 3, shape = "sine" },
+			{ joint = NECK, axis = "y", amp = 18, shape = "sine", phase = 0.3 },
+		},
+		period = 6, variants = THREE, simple = {},
+	},
+	stroll = { -- hands clasped behind the back, looking about
+		joints = { [RS] = { -25, 0, 8 }, [LS] = { -25, 0, -8 } },
+		motion = { { joint = NECK, axis = "y", amp = 14, shape = "sine" } },
+		period = 6, variants = TWO, simple = {},
+	},
+	cower = { -- crouched low, arms over the head, trembling
+		joints = { [RS] = { 115, 0, -35 }, [LS] = { 115, 0, 35 }, [NECK] = { -35, 0, 0 }, [ROOT] = { -25, 0, 0 } },
+		motion = { { joint = ROOT, axis = "z", amp = 2, shape = "sine" } },
+		period = 0.5, body = "crouch", lower = 1.2, variants = TWO, simple = {},
+	},
+	whittle = { -- sitting, knife paring at a block on the knee
+		joints = { [RH] = { 90, 0, 0 }, [LH] = { 90, 0, 0 }, [RS] = { 55, 0, -20 }, [LS] = { 50, 0, 20 }, [NECK] = { -30, 0, 0 }, [ROOT] = { -10, 0, 0 } },
+		motion = { { joint = RS, axis = "x", amp = 14, shape = "strike" } },
+		period = 0.9, body = "sit", lower = 1, variants = TWO, simple = { RS },
+	},
+	scrub = { -- kneeling, scrubbing in hard circles
+		joints = { [RH] = { -88, 0, 0 }, [LH] = { -88, 0, 0 }, [RS] = { 70, 0, -5 }, [LS] = { 40, 0, 15 }, [NECK] = { -30, 0, 0 }, [ROOT] = { -30, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 25, shape = "circle" },
+			{ joint = RS, axis = "x", amp = 10, shape = "sine" },
+		},
+		period = 1.1, body = "kneel", lower = 1.05, variants = TWO, simple = { RS },
+	},
+	stack = { -- crouched, setting one stone carefully on another
+		joints = { [RS] = { 60, 0, -10 }, [LS] = { 60, 0, 10 }, [NECK] = { -25, 0, 0 }, [ROOT] = { -15, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 25, shape = "sine" },
+			{ joint = LS, axis = "x", amp = 25, shape = "sine" },
+		},
+		period = 3, body = "crouch", lower = 0.9, variants = TWO, simple = {},
+	},
+	feed = { -- bent over, scattering crumbs
+		joints = { [RS] = { 45, 0, -10 }, [LS] = { 30, 0, 10 }, [NECK] = { -25, 0, 0 }, [ROOT] = { -10, 0, 0 } },
+		motion = { { joint = RS, axis = "x", amp = 35, shape = "strike" } },
+		period = 2.6, variants = TWO, simple = { RS },
+	},
+	argue = { -- both arms going, shouting at the water
+		joints = { [RS] = { 60, 0, -20 }, [LS] = { 50, 0, 20 }, [NECK] = { 10, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 40, shape = "sine" },
+			{ joint = LS, axis = "x", amp = 30, shape = "sine", phase = 0.5 },
+			{ joint = NECK, axis = "x", amp = 8, shape = "sine" },
+		},
+		period = 2, variants = THREE, simple = { RS, LS },
+	},
+	inspect = { -- something held up close, turned over, looked at
+		joints = { [RS] = { 55, 0, -15 }, [LS] = { 45, 0, 15 }, [NECK] = { -18, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 18, shape = "sine" },
+			{ joint = NECK, axis = "y", amp = 12, shape = "sine", phase = 0.3 },
+		},
+		period = 3.6, variants = THREE, simple = { RS },
+	},
+	water = { -- tipping a watering can over pots
+		joints = { [RS] = { 45, 0, -5 }, [NECK] = { -25, 0, 0 }, [ROOT] = { -10, 0, 0 } },
+		motion = { { joint = RS, axis = "x", amp = 18, shape = "sine" } },
+		period = 3, variants = TWO, simple = { RS },
+	},
+	meditate = { -- sitting cross-legged, hands on the knees, very still
+		joints = { [RH] = { 90, 0, 25 }, [LH] = { 90, 0, -25 }, [RS] = { 20, 0, -15 }, [LS] = { 20, 0, 15 }, [NECK] = { -6, 0, 0 } },
+		motion = { { joint = NECK, axis = "x", amp = 3, shape = "sine" } },
+		period = 5, body = "sit", lower = 1, variants = TWO, simple = {},
+	},
+	cast_lift = { -- both palms up, raising something from the ground
+		joints = { [RS] = { 100, 0, -20 }, [LS] = { 100, 0, 20 }, [NECK] = { 15, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "x", amp = 10, shape = "sine" },
+			{ joint = LS, axis = "x", amp = 10, shape = "sine", phase = 0.5 },
+		},
+		period = 4, variants = TWO, simple = {},
+	},
+	cast_ring = { -- arms held apart, holding two things at a distance
+		joints = { [RS] = { 75, 0, 30 }, [LS] = { 75, 0, -30 }, [NECK] = { -10, 0, 0 } },
+		motion = {
+			{ joint = RS, axis = "y", amp = 10, shape = "sine" },
+			{ joint = LS, axis = "y", amp = -10, shape = "sine" },
+		},
+		period = 3, variants = TWO, simple = {},
+	},
 }
 
 local ActivityPoses = {}
@@ -180,6 +371,33 @@ ActivityPoses.slots = table.freeze({
 	cast_hold = "", -- 2.6 s loop: palms cupped around something in front
 	cast_shape = "", -- 2.4 s loop: crouched, hands shaping something on the ground
 	cast_pour = "", -- 3.2 s loop: both arms guiding something side to side
+	-- Stage 2 slots (2026-11-07), all waiting for a clip.
+	gather = "", -- 2.4 s loop: crouched, reaching into plants
+	grind = "", -- 1.2 s loop: pestle circling in a mortar
+	lantern = "", -- 6 s loop over the walk: lantern held out, looking along the street
+	bless = "", -- 4 s loop: arms raised and open
+	skyread = "", -- 5 s loop: hand raised to the wind, head turning
+	write = "", -- 1.3 s loop: hunched, writing
+	hawk = "", -- 3 s loop: calling out, arm sweeping over goods
+	aim = "", -- 4.5 s: bow drawn and loosed
+	chat = "", -- 2.8 s loop: talking with the hands
+	lecture = "", -- 4.5 s loop: pointing, book in hand
+	sit_listen = "", -- 9 s loop: sitting on the ground, hand up now and then
+	toss = "", -- 1.6 s loop: ball thrown up and caught
+	rest_sit = "", -- 8 s loop: sitting back on the hands
+	fold = "", -- 6 s loop: arms folded, weight shifting
+	stroll = "", -- 6 s loop over the walk: hands behind the back
+	cower = "", -- 0.5 s loop: crouched, arms over the head, trembling
+	whittle = "", -- 0.9 s loop: sitting, paring wood
+	scrub = "", -- 1.1 s loop: kneeling, scrubbing
+	stack = "", -- 3 s loop: crouched, placing stones
+	feed = "", -- 2.6 s loop: scattering crumbs
+	argue = "", -- 2 s loop: shouting, both arms going
+	inspect = "", -- 3.6 s loop: turning something over in the hands
+	water = "", -- 3 s loop: tipping a watering can
+	meditate = "", -- 5 s loop: sitting cross-legged, still
+	cast_lift = "", -- 4 s loop: palms up, lifting
+	cast_ring = "", -- 3 s loop: arms apart, holding two things
 	-- Still Roblox's defaults.
 	wave = "rbxassetid://128777973",
 	cheer = "rbxassetid://129423030",
