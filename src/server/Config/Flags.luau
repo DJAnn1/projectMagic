@@ -43,6 +43,7 @@ return {
 	titans_enabled = { default = true, description = "Huge bosses that cross the island and leave their bones (Services/TitanService). Off cancels a walking one with no rewards. Bones already fallen stay." },
 	wild_zones_enabled = { default = true, description = "Permanent regions with broken rules (Services/WildZoneService). Off lifts every rule at once and removes their landmarks." },
 	rifts_enabled = { default = true, description = "Seeded dungeons that open in the world (Services/RiftService). Off cancels a running one with no rewards and puts everyone back." },
+	town_repair_enabled = { default = true, description = "Burned ground regrows, and towns repair charred buildings (Services/TownRepairService). Off stops new marks and repairs; what's charred stays." },
 	feral_spells_enabled = { default = true, description = "Spells that get away from their casters and go on existing for a while (Services/FeralService). Off: every loose one gutters out." },
 	feral_spells_max = { default = 6, description = "Most loose spells on this server at once." },
 	familiars_enabled = { default = true, replicate = true, description = "A small creature born from your magic, which grows and fights beside you (Services/FamiliarService). Off removes them all; saves keep them." },

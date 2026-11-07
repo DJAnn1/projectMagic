@@ -50,6 +50,11 @@ type Spread = { position: Vector3, intensity: number, source: number?, unsaved: 
 
 local FireSim = {}
 
+-- Who hears about the marks fire leaves (Services/TownRepairService): a part charred, with what it was
+-- before, and a patch of unsaved ground fire burning out.
+FireSim.onCharred = nil :: ((BasePart, Color3, number) -> ())?
+FireSim.onBurnedOut = nil :: ((Vector3) -> ())?
+
 local world: any = nil
 local worldSeed = 0
 local rng = Random.new(0)
@@ -136,8 +141,14 @@ local function endPartFire(part: BasePart, charred: boolean)
 	if part.Parent then
 		part:SetAttribute("Burning", nil)
 		if charred then
-			part.Color = part.Color:Lerp(Color3.new(0.08, 0.07, 0.06), 0.8)
+			local color = part.Color
+			local flammability = (part:GetAttribute("Flammability") :: number?) or 0
+			part.Color = color:Lerp(Color3.new(0.08, 0.07, 0.06), 0.8)
 			part:SetAttribute("Flammability", 0)
+			local hook = FireSim.onCharred
+			if hook then
+				hook(part, color, flammability)
+			end
 		end
 	end
 end
@@ -206,6 +217,12 @@ local function endGroundFire(key: string, burnedOut: boolean)
 	groundFires[key] = nil
 	EffectBudget.release("groundFires")
 	cell.part:Destroy()
+	if burnedOut and cell.unsaved then
+		local hook = FireSim.onBurnedOut
+		if hook then
+			hook(cell.part.Position)
+		end
+	end
 	if burnedOut and world and not cell.unsaved then
 		world:setVegetation(cell.x, cell.z, world:vegetationAt(cell.x, cell.z) * 0.85)
 		burnedCells += 1

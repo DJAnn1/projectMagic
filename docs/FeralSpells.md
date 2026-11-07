@@ -35,7 +35,7 @@ Flags: `feral_spells_enabled`, `feral_spells_max` (6).
 
 **Its magic.** It casts the actual spell at half strength, through `Delivery` and `DamageModel`, with no source player, so nobody is blamed for what it does. It discharges at players and NPCs alike. It isn't a hunter: it goes for whoever hit it, or whatever comes within 22 studs. It turns towards magic cast within 90 studs, so going quiet is a real way to avoid one.
 
-**The world.** Its domain carries over (`FeralData.effects`). A fire spell sets what it passes alight and burns who it hits, water puts fires out, air throws people back, and the rest land a status: earth slows, mind dazes, gravity pins, and so on. Fires it starts are never saved to the island.
+**The world.** Its domain carries over (`FeralData.effects`). A fire spell sets what it passes alight and burns who it hits, water puts fires out, air throws people back, and the rest land a status: earth slows, mind dazes, gravity pins, and so on. Fires it starts are never saved to the island, though burned grass stays bare for a while (`docs/TownRepair.md`).
 
 **Towns.** Guards and hunters within 70 studs come for it through the same `NPCCombat` as any fight, and can bring it down without you. Everyone else runs when it's within 30, and some shout. Once hurt, it lashes out at anything within 34 studs, since it can't tell who did it. This only happens for NPCs with a full body, near a player: with nobody around, the fight doesn't happen. If guards kill it, nobody learns anything from it unless a player also hurt it.
 
@@ -83,7 +83,7 @@ Flagged for the owner, given the rule above:
 
 - Its effects come from its domain, not its actual recipe, so two fire spells that did different things behave alike.
 - A burning part can still start a saved scorch through `FireSim`: only ground fires carry `unsaved`. It should be rare, but it isn't ruled out.
-- A burned town doesn't change. People remember, but the place doesn't.
+- What it burned recovers through `docs/TownRepair.md`, not through anything here.
 - A guard who brings one down gets no credit: nobody remembers it as their doing.
 - Memories are about people, not the event: someone can't say where it happened.
 - With a player offline, people call them "a traveller".
