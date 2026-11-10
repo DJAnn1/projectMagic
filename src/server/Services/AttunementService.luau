@@ -30,6 +30,8 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
 local Registry = require(Shared.Magic.Registry)
+local CastTells = require(Shared.Magic.CastTells)
+local FeatureFlags = require(Shared.Core.FeatureFlags)
 
 local Magic = script.Parent.Parent.Magic
 local T = require(Magic.Data.CastTuning)
@@ -74,6 +76,8 @@ local function clearBody(character: Model)
 	character:SetAttribute("AttunedDomain", nil)
 	character:SetAttribute("AttunedForm", nil)
 	character:SetAttribute("AttunedProperty", nil)
+	character:SetAttribute("AttunedKind", nil)
+	character:SetAttribute("AttunedPower", nil)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		StatusEffects.setWalkMultiplier(humanoid, "attuned", nil)
@@ -167,6 +171,10 @@ local function attune(player: Player, slot: number): (boolean, string?)
 	character:SetAttribute("AttunedDomain", domain)
 	character:SetAttribute("AttunedForm", recipe.form)
 	character:SetAttribute("AttunedProperty", recipe.property) -- what a charge conjures (Fx/Conjure)
+	-- What it will do and how strong, for anyone watching it form (Read the cast, Magic/CastTells).
+	local tells = FeatureFlags.get("cast_tells_enabled") == true
+	character:SetAttribute("AttunedKind", if tells then CastTells.kindOf(recipe) else nil)
+	character:SetAttribute("AttunedPower", if tells then recipe.power else nil)
 	StatusEffects.setWalkMultiplier(humanoid, "attuned", T.attunedWalkMult)
 	ActionState.set(character, "equipping", { domain = domain })
 	log:debug("attuned", { userId = player.UserId, slot = slot, key = key })

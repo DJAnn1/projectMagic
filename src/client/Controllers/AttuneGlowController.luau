@@ -20,14 +20,21 @@
 	           (AttunedDomain, AttunedProperty), in the caster's own hand (Player attribute
 	           "SpellHand": shape, rune, spin, detail by tier). When the charge ends it flashes into
 	           the cast (ActionState "casting" just after) or falls apart (anything else).
+	READING    (Read the cast, docs/ReadTheCast.md) AttunedKind and AttunedPower make the conjure
+	           move by what it will do and grow with its power; the hum deepens with power.
+	NPC MAGES  a winding-up NPC rig carries the tag "NpcConjuring" (NPC/NPCCombat) and the same
+	           attributes; its conjure is drawn here too, in its signature (ConjureSignature), with
+	           no glow, light or hum of its own. "ConjureEnd" says whether it was cast or broke.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Charge = require(Shared.Magic.Charge)
 local SpellHand = require(Shared.Magic.SpellHand)
+local CastTells = require(Shared.Magic.CastTells)
 
 local Client = script.Parent.Parent
 local SpellFx = require(Client:WaitForChild("Fx").SpellFx)
@@ -39,6 +46,8 @@ local RANGE = 150
 local CHECK = 0.5
 local SOUND_RANGE = 60
 local SHAKE = 0.09 -- studs the overcharged glow jitters
+local NPC_TAG = "NpcConjuring"
+local MAX_NPC_CONJURES = 12
 
 local AttuneGlowController = {
 	name = "AttuneGlowController",
@@ -217,6 +226,84 @@ local function watchPlayer(player: Player)
 	end
 end
 
+-- ─── NPC mages winding up (Read the cast) ───────────────────────────────────
+
+type NpcConjure = { model: Model, palm: Attachment, conjure: Conjure.Conjuring? }
+local npcConjures: { [Model]: NpcConjure } = {}
+local npcCount = 0
+
+local function startNpc(model: Model)
+	if npcConjures[model] or npcCount >= MAX_NPC_CONJURES then
+		return
+	end
+	local hand = handOf(model)
+	if not hand then
+		return
+	end
+	local palm = Instance.new("Attachment")
+	palm.Name = "NpcConjurePalm"
+	palm.CFrame = CFrame.new(0, -hand.Size.Y / 2, 0)
+	palm.Parent = hand
+	npcConjures[model] = { model = model, palm = palm, conjure = nil }
+	npcCount += 1
+end
+
+local function stopNpc(model: Model)
+	local entry = npcConjures[model]
+	if not entry then
+		return
+	end
+	npcConjures[model] = nil
+	npcCount -= 1
+	local conjure = entry.conjure
+	entry.conjure = nil
+	-- The end replicates around the tag's removal: give it a beat, as for players.
+	task.delay(0.08, function()
+		if conjure then
+			if model:GetAttribute("ConjureEnd") == "release" or model:GetAttribute("ActionState") == "casting" then
+				conjure:release()
+			else
+				conjure:cancel()
+			end
+		end
+		entry.palm:Destroy()
+	end)
+end
+
+local function updateNpcs(t: number, eye: Vector3?)
+	for model, entry in npcConjures do
+		local start = model:GetAttribute("ChargeStart")
+		local step = model:GetAttribute("ChargeStep")
+		local domain = model:GetAttribute("AttunedDomain")
+		local root = model:FindFirstChild("HumanoidRootPart")
+		local near = eye ~= nil and root ~= nil and root:IsA("BasePart") and (root.Position - eye).Magnitude <= RANGE
+		if not near or typeof(start) ~= "number" or typeof(step) ~= "number" or typeof(domain) ~= "string" then
+			continue
+		end
+		if not entry.conjure then
+			local property = model:GetAttribute("AttunedProperty")
+			local form = model:GetAttribute("AttunedForm")
+			local kind = model:GetAttribute("AttunedKind")
+			local power = model:GetAttribute("AttunedPower")
+			local signature = model:GetAttribute("ConjureSignature")
+			entry.conjure = Conjure.begin(model, entry.palm, {
+				domain = domain,
+				property = if typeof(property) == "string" then property else nil,
+				form = if typeof(form) == "string" then form else nil,
+				style = SpellFx.styleFor(nil, domain, if typeof(signature) == "string" then signature else nil),
+				hand = nil,
+				reduced = magic.settings:get().reducedEffects == true,
+				kind = if typeof(kind) == "string" then kind else nil,
+				power = if typeof(power) == "number" then power else nil,
+			})
+		end
+		local conjure = entry.conjure
+		if conjure then
+			conjure:update(SpellHand.progress(t - start, step), false, os.clock())
+		end
+	end
+end
+
 function AttuneGlowController.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
 end
@@ -225,6 +312,21 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 	Players.PlayerAdded:Connect(watchPlayer)
 	for _, player in Players:GetPlayers() do
 		watchPlayer(player)
+	end
+	CollectionService:GetInstanceAddedSignal(NPC_TAG):Connect(function(instance)
+		if instance:IsA("Model") then
+			startNpc(instance)
+		end
+	end)
+	CollectionService:GetInstanceRemovedSignal(NPC_TAG):Connect(function(instance)
+		if instance:IsA("Model") then
+			stopNpc(instance)
+		end
+	end)
+	for _, instance in CollectionService:GetTagged(NPC_TAG) do
+		if instance:IsA("Model") then
+			startNpc(instance)
+		end
 	end
 
 	-- Only nearby glows emit and light.
@@ -251,6 +353,10 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 	-- Charging glows, every frame (only nearby ones that are charging do any work).
 	RunService.RenderStepped:Connect(function()
 		local t = workspace:GetServerTimeNow()
+		if next(npcConjures) then
+			local camera = workspace.CurrentCamera
+			updateNpcs(t, if camera then camera.CFrame.Position else nil)
+		end
 		for _, glow in glows do
 			glow.trail.Enabled = glow.near and glow.character:GetAttribute("ActionState") == "slashing"
 			local start = glow.character:GetAttribute("ChargeStart")
@@ -275,13 +381,15 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 				glow.hum:Play()
 			end
 			glow.hum.Volume = 0.15 + 0.06 * index
-			glow.hum.PlaybackSpeed = 0.7 + 0.25 * (index - 1)
+			glow.hum.PlaybackSpeed = (0.7 + 0.25 * (index - 1)) * CastTells.pitchFor(glow.character:GetAttribute("AttunedPower") :: number?)
 			-- The spell itself, forming.
 			if not glow.conjure then
 				local character = glow.character
 				local domain = character:GetAttribute("AttunedDomain")
 				local property = character:GetAttribute("AttunedProperty")
 				local form = character:GetAttribute("AttunedForm")
+				local kind = character:GetAttribute("AttunedKind")
+				local power = character:GetAttribute("AttunedPower")
 				if typeof(domain) == "string" then
 					glow.conjure = Conjure.begin(character, glow.attachment, {
 						domain = domain,
@@ -290,6 +398,8 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 						style = SpellFx.styleFor(glow.player.UserId, domain),
 						hand = SpellFx.handOf(character),
 						reduced = magic.settings:get().reducedEffects == true,
+						kind = if typeof(kind) == "string" then kind else nil,
+						power = if typeof(power) == "number" then power else nil,
 					})
 				end
 			end

@@ -19,6 +19,9 @@
 		          crown of beads at Grandmaster
 	GROWTH    Grows over the safe charge stages (SpellHand.sizeAt). Overcharged, it shakes,
 	          flickers toward the accent colour and throws sparks.
+	TELLS     (Read the cast, Magic/CastTells) it moves by what it will DO (opts.kind: an attack
+	          spins fast and spits sparks outward, a heal breathes slowly and drifts up, a ward is
+	          still...) and forms bigger the stronger it is (opts.power). No label: people learn it.
 	ENDINGS   release(): a flash, gone in a blink (the real cast's visuals take over).
 	          cancel(): it falls apart in a puff.
 
@@ -34,6 +37,7 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local SpellHand = require(Shared.Magic.SpellHand)
+local CastTells = require(Shared.Magic.CastTells)
 
 local DomainFx = require(script.Parent.DomainFx)
 local KenneyTextures = require(script.Parent.KenneyTextures)
@@ -49,6 +53,8 @@ export type Opts = {
 	style: FxLayers.Style,
 	hand: SpellHand.Hand?,
 	reduced: boolean,
+	kind: string?, -- what it will do (AttunedKind): how it moves
+	power: number?, -- how strong (AttunedPower): how big it forms
 }
 
 export type Conjuring = {
@@ -158,7 +164,9 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 	local domainLook = DomainFx.look(opts.domain)
 	local shape = SpellHand.shapeName(hand)
 	local detail = if hand and not opts.reduced then SpellHand.detail(hand.tier) else { motes = 0, secondRing = false, crown = false }
-	local spin = if hand then hand.spin * hand.speed else 0.8
+	local tell = CastTells.tellFor(opts.kind)
+	local scale = CastTells.scaleFor(opts.power)
+	local spin = (if hand then hand.spin * hand.speed else 0.8) * tell.spin
 	local runeTexture = if hand then KenneyTextures[Data.runes[hand.rune]] or TEX.rune else TEX.rune
 	local mat = material(look.material)
 	local pieceMat = if look.solid then mat else Enum.Material.Glass
@@ -195,10 +203,10 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 		size = FxLayers.seq(0, 0.08, 0.5, 0.18, 1, 0.02),
 		transparency = FxLayers.seq(0, 0.6, 0.5, 0.1, 1, 1),
 		lifetime = NumberRange.new(0.35, 0.5),
-		speed = NumberRange.new(4, 6),
+		speed = NumberRange.new(4 * tell.pullSpeed, 6 * tell.pullSpeed),
 		emission = 1,
 		shape = Enum.ParticleEmitterShape.Sphere,
-		inOut = Enum.ParticleEmitterShapeInOut.Inward,
+		inOut = if tell.pull == "out" then Enum.ParticleEmitterShapeInOut.Outward else Enum.ParticleEmitterShapeInOut.Inward,
 		style = Enum.ParticleEmitterShapeStyle.Surface,
 		rate = if opts.reduced then 6 else 18,
 	})
@@ -281,9 +289,13 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 		if finished or not root.Parent then
 			return
 		end
-		local size = SpellHand.sizeAt(mode, progress)
+		local size = SpellHand.sizeAt(mode, progress) * scale
 		local turn = now * spin * math.pi * 2
-		local jitter = if overcharged then Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * size * 0.15 else Vector3.zero
+		local shake = (if overcharged then 0.15 else 0) + tell.jitter
+		local jitter = if shake > 0 then Vector3.new(math.random() - 0.5, math.random() - 0.5, math.random() - 0.5) * size * shake else Vector3.zero
+		-- Read the cast: a breath, and a drift up (heals) or down (heavy land magic) as it charges.
+		local breath = if tell.pulseRate > 0 then 1 + tell.pulseDepth * math.sin(now * tell.pulseRate * math.pi * 2) else 1
+		local drift = Vector3.new(0, tell.rise * math.clamp(progress / 2, 0, 1), 0)
 		local facing = root.CFrame.LookVector
 
 		-- Where it forms.
@@ -300,12 +312,12 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 			discCFrame = CFrame.new(feet) * CFrame.Angles(0, turn * 0.5, 0)
 			rune.Size = Vector3.new(size, 0.02, size)
 			coreSize = 0.3 + size * 0.12
-			center = feet + Vector3.new(0, 0.6 + progress * 0.5, 0)
+			center = feet + Vector3.new(0, 0.6 + progress * 0.5, 0) + drift
 		else
 			local origin = if mode == "overhead" and head and head:IsA("BasePart")
 				then head.Position + Vector3.new(0, Data.overheadHeight, 0)
 				else palm.WorldPosition + facing * Data.handReach
-			center = origin + jitter
+			center = origin + jitter + drift
 			coreSize = size * coreScale
 			-- The rune stands behind a hand spell (facing out) and lies under an overhead one.
 			local base = if mode == "overhead"
@@ -324,7 +336,7 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 
 		-- The core and its light.
 		local flicker = if overcharged then 0.85 + math.random() * 0.3 else 1
-		core.Size = Vector3.one * coreSize * flicker
+		core.Size = Vector3.one * coreSize * flicker * breath
 		core.CFrame = CFrame.new(center) * CFrame.Angles(turn * 0.3, turn, 0)
 		core.Color = if overcharged and math.random() < 0.35 then style.accent else style.primary
 		if swirl then
@@ -338,7 +350,7 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 		end
 		local l = light
 		if l then
-			l.Brightness = 0.6 + progress * 0.8
+			l.Brightness = (0.6 + progress * 0.8) * tell.light
 			l.Range = 6 + size * 2
 		end
 

@@ -46,6 +46,8 @@ local Guard = require(Server.Magic.Cast.Guard)
 local ActionRules = require(Shared.Magic.ActionRules)
 local Charge = require(Shared.Magic.Charge)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
+local CastTells = require(Shared.Magic.CastTells)
+local CollectionService = game:GetService("CollectionService")
 local NPCMagicLife = require(script.Parent.NPCMagicLife)
 local Navigation = require(script.Parent.NavigationService)
 
@@ -345,6 +347,43 @@ local function launchBolt(npc: any, rig: any, recipe: any, stats: any, applied: 
 	end)
 end
 
+--[[
+	Read the cast (docs/ReadTheCast.md): an NPC's wind-up forms a visible spell in its hand, as a
+	player's charge does, so you can read what's coming. Clients find it by the tag and draw it
+	(AttuneGlowController); the attributes say what to draw. "ConjureEnd" tells them how it ended.
+]]
+local CONJURE_TAG = "NpcConjuring"
+
+local function beginConjure(npc: any, rig: any, recipe: any, stats: any): boolean
+	if FeatureFlags.get("cast_tells_enabled") ~= true then
+		return false
+	end
+	local model: Model = rig.model
+	model:SetAttribute("AttunedDomain", stats.domains[1])
+	model:SetAttribute("AttunedForm", recipe.form)
+	model:SetAttribute("AttunedProperty", recipe.property)
+	model:SetAttribute("AttunedKind", CastTells.kindOf(recipe))
+	model:SetAttribute("AttunedPower", recipe.power)
+	model:SetAttribute("ConjureSignature", npc.signatureJson)
+	model:SetAttribute("ChargeStart", workspace:GetServerTimeNow())
+	model:SetAttribute("ChargeStep", Charge.step(stats.castTime))
+	model:SetAttribute("ConjureEnd", nil)
+	CollectionService:AddTag(model, CONJURE_TAG)
+	return true
+end
+
+local function endConjure(rig: any, began: boolean, how: string)
+	if not began then
+		return
+	end
+	local model: Model = rig.model
+	model:SetAttribute("ConjureEnd", how)
+	CollectionService:RemoveTag(model, CONJURE_TAG)
+	for _, name in { "AttunedDomain", "AttunedForm", "AttunedProperty", "AttunedKind", "AttunedPower", "ConjureSignature", "ChargeStart", "ChargeStep" } do
+		model:SetAttribute(name, nil)
+	end
+end
+
 -- Telegraphed charge (Casting.md §8): the NPC winds up (the frozen CastSpell pose, "charging")
 -- for its stage's hold time, then fires. Stage by a seeded roll; skilled casters charge fuller.
 -- NPCs never overcharge (no backlash for them to suffer). The charge is dropped if the NPC or its
@@ -368,9 +407,11 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 	local hold = if stage.castTime then 0.2 else Charge.step(stats.castTime) * stage.at
 	ActionState.set(rig.model, "charging", { duration = hold + 0.5, domain = stats.domains[1] })
 	local healthAtStart = rig.humanoid.Health
+	local conjuring = beginConjure(npc, rig, recipe, stats)
 	task.delay(hold, function()
 		local alive = rig.model.Parent ~= nil and rig.humanoid.Health > 0 and npc.rig == rig
 		if not alive or ActionState.get(rig.model) ~= "charging" or not targetRoot.Parent or npc.combat ~= c then
+			endConjure(rig, conjuring, "cancel")
 			return -- knocked down, despawned, the target is gone, or the NPC stopped fighting mid-charge
 		end
 		-- Hurt enough during the wind-up and the focus breaks, as it does for players
@@ -380,8 +421,10 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 			and Charge.focusBreaks(lost, rig.humanoid.MaxHealth, stats.masteryTier or 0, false)
 		then
 			ActionState.clear(rig.model, "charging")
+			endConjure(rig, conjuring, "cancel")
 			return
 		end
+		endConjure(rig, conjuring, "release")
 		local applied = Charge.apply(stats, index, hold)
 		launchBolt(npc, rig, recipe, stats, applied, targetModel, targetRoot)
 	end)
