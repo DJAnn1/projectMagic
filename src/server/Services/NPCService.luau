@@ -409,6 +409,22 @@ local function leaveBy(npc: any, lotId: string)
 	npc.position = door
 end
 
+-- Who the door fallback may let in: residents, workers and shelter guests carry a key to their own
+-- lot, and anyone may enter an unlocked building. A locked building that isn't theirs stays shut —
+-- the fallback used to open any lock (npc_building_path_failed reason="path crosses a locked door"),
+-- which put people inside locked houses that weren't theirs.
+local function mayEnter(npc: any, lotId: string, door: Vector3): boolean
+	if (npc.home and npc.home.lot == lotId) or (npc.work and npc.work.lot == lotId) or (npc.shelter and npc.shelter.lot == lotId) then
+		return true
+	end
+	for _, leaf in Doors.near(door, 8) do
+		if leaf:GetAttribute("KeyId") == lotId and leaf:GetAttribute("Locked") == true then
+			return false
+		end
+	end
+	return true
+end
+
 local function route(npc: any)
 	local def = NeedsActions.actions[npc.action]
 	if not def or def.district == "here" then
@@ -443,6 +459,12 @@ local function route(npc: any)
 	-- the door to an outdoor spot, in a loop (actphases 2026-11-07: 36 of 40 Travelling at 22:00).
 	local standingOnIt = target ~= nil and Vector3.new(target.X - npc.position.X, 0, target.Z - npc.position.Z).Magnitude <= 4
 	if target and not standingOnIt and Navigation.RecentlyFailed(npc, target) then
+		-- Already inside the building that holds it (the door fallback brought them in): stay, rather
+		-- than walking back out through the door to an outdoor spot (sleepers were leaving their own
+		-- homes: npc_left_by_door action=sleep, 2026-11-07).
+		if npc.insideLot and target and settlementSvc:lotAt(npc.settlementId, target) == npc.insideLot then
+			return
+		end
 		target = nil
 	end
 	local place = target or spotFor(npc, district)
@@ -2436,7 +2458,7 @@ function NPCService.init(_self: any, ctx: any)
 					log:info("npc_building_path_failed", { npc = npc.id, lot = lot, home = npc.home ~= nil and npc.home.lot == lot, action = tostring(npc.action), reason = reason })
 				end
 				local door = settlementSvc:anchor(lot, "Entrance")
-				if door then
+				if door and mayEnter(npc, lot, door) then
 					npc.enterHome = { action = npc.action, lot = lot, door = door, spot = goal, giveUp = os.clock() + 60 }
 					LOD.setDestination(npc, door)
 				end

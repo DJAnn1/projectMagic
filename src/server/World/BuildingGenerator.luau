@@ -1263,6 +1263,38 @@ function BuildingGenerator.supports(kind: string): boolean
 	return KINDS[kind] ~= nil
 end
 
+--[[
+	A PathfindingLink's ends must sit on the walkable surface or the link does nothing. They're
+	placed at fixed local heights, but a lot with `drop` has outside ground lower than local Y=1,
+	leaving the outside end in the air — that building stays sealed on sloped lots. Terrain can
+	arrive after the building (the foundation checks hit the same timing), so the snap waits 2 s,
+	then pulls any floating end down onto whatever is really underneath it. Ends already on the
+	surface stay where they are.
+]]
+local snapParams = RaycastParams.new()
+snapParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function snapLinkEnds(model: Model, primary: BasePart)
+	if not model.Parent then
+		return -- torn down (regen) before the snap ran
+	end
+	local exclude: { Instance } = {}
+	local npcFolder = workspace:FindFirstChild("NPCs")
+	if npcFolder then
+		table.insert(exclude, npcFolder)
+	end
+	snapParams.FilterDescendantsInstances = exclude
+	for _, child in primary:GetChildren() do
+		if child:IsA("Attachment") and string.sub(child.Name, 1, 8) == "PathLink" then
+			local at = child.WorldPosition
+			local hit = workspace:Raycast(at + Vector3.new(0, 2, 0), Vector3.new(0, -14, 0), snapParams)
+			if hit and hit.Position.Y < at.Y - 0.75 then
+				child.WorldPosition = Vector3.new(at.X, hit.Position.Y + 0.5, at.Z)
+			end
+		end
+	end
+end
+
 function BuildingGenerator.build(spec: any): (Model?, number, string?)
 	local kind = KINDS[spec.kind]
 	if not kind then
@@ -1320,6 +1352,9 @@ function BuildingGenerator.build(spec: any): (Model?, number, string?)
 	tag(model, kind.tags)
 	if spec.parent then
 		model.Parent = spec.parent
+		if #b.links > 0 then
+			task.delay(2, snapLinkEnds, model, primary)
+		end
 	end
 	return model, b.parts, nil
 end
