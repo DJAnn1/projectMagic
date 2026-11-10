@@ -162,12 +162,14 @@ return function(admin: any, deps: any)
 	end
 
 	-- Solid parts crowding a standing spot within the agent's radius (body height, above the floor).
-	local function crowding(pos: Vector3, radius: number, exclude: { Instance }): (number, string)
+	-- The box turns with the building: a world-aligned box over-counted in rotated lots (a turned bed's
+	-- world bounds are far bigger than the bed).
+	local function crowding(pos: Vector3, radius: number, exclude: { Instance }, turn: CFrame): (number, string)
 		local overlap = OverlapParams.new()
 		overlap.FilterType = Enum.RaycastFilterType.Exclude
 		overlap.FilterDescendantsInstances = exclude
 		local feet = grounded(pos)
-		local box = CFrame.new(feet + Vector3.new(0, 2.75, 0))
+		local box = CFrame.new(feet + Vector3.new(0, 2.75, 0)) * turn
 		local names: { string } = {}
 		local n = 0
 		for _, part in workspace:GetPartBoundsInBox(box, Vector3.new(radius * 2, 4.5, radius * 2), overlap) do
@@ -231,7 +233,9 @@ return function(admin: any, deps: any)
 				local gapA, onA = under(aPos)
 				local gapB, onB = under(bPos)
 				local gapH = under(hPos)
-				local crowd, crowdNames = crowding(hPos, radius, exclude)
+				local lotFrame = model:GetAttribute("LotCFrame")
+				local turn = if typeof(lotFrame) == "CFrame" then lotFrame.Rotation else CFrame.identity
+				local crowd, crowdNames = crowding(hPos, radius, exclude, turn)
 				local results: { [string]: boolean } = { out = out, door = door, room = room, home = toHome, homeFree = homeFree, full = full, grounded = fullGrounded }
 				for key, ok in results do
 					if not ok then

@@ -51,7 +51,7 @@ Interact/Doors).
 
 ## Rank 2 — The first minute (felt once, by everyone, first)
 
-- ☑ **Spawned at the world origin, then rescued** (3 of the last 4 runs; `character_rescued`).
+- ☐ **Spawned at the world origin, then rescued** (REOPENED 2026-11-10: `character_rescued fromX=-2 fromY=6` in two later runs; the first clean run was luck) (3 of the last 4 runs; `character_rescued`).
   Cause verified in code: `WorldStateService.init` turns `CharacterAutoLoads` off, but in Studio
   the character can load at the origin *before* init runs, and nothing cleaned it up. Fixed: any
   character already loaded when init runs is removed; `start()` reloads everyone at the real
@@ -79,7 +79,7 @@ Interact/Doors).
 - ☑ **"Gear" filter chip truncated to "Gea".** (Owner, 2026-11-10: reads in full.) Verified in code: the chips use `AutomaticSize.X`
   with `TextWrapped = true`, so the text wraps at measure time and the second line clips. Fixed:
   chips don't wrap.
-- ◐ **Inventory grid's ninth column cut off.** (Owner, 2026-11-10: still cut off after the inset fix too. Third fix: the screen's UIScale throws off UIGridLayout's wrapping, so `FillDirectionMaxCells` is computed from the visible width in screen pixels.) Verified in code: the grid's scroll frame pads 2 px
+- ☑ **Inventory grid's ninth column cut off.** (Owner's screenshot 2026-11-10: 8 whole columns after the UIScale fix.) (Owner, 2026-11-10: still cut off after the inset fix too. Third fix: the screen's UIScale throws off UIGridLayout's wrapping, so `FillDirectionMaxCells` is computed from the visible width in screen pixels.) Verified in code: the grid's scroll frame pads 2 px
   while the scrollbar overlays 6 px of the canvas, so the last column sits under the bar. Fixed:
   the right padding reserves the scrollbar's width and the grid wraps a column earlier.
 - ☐ **Hover card above its own text** and **toasts overlapping event cards**: both fixed earlier
@@ -118,7 +118,16 @@ Interact/Doors).
 1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1037/1037 · magic examples 33/33`
    (the 2026-11-10 run gave 1035/1036: the one failure was 7 Reality statuses missing from `StatusInfo`, now fixed. "34 examples" was a miscount: SpellExamples feeds Cast.spec, not the magic-examples check.)
 2. ~~First minute: `character_rescued`~~: gone in the 2026-11-10 run (☑).
-3. **Sealed rooms, fix built 2026-11-10** from the first `navaudit Glenhold` (21 buildings: outside → door 0 failures,
+3. **Sealed rooms, second pass 2026-11-10** (second `navaudit`: through the door 5 → 0, home spot boxed in 3 → 0,
+   but door → bed still 15 of 21, and specs 1035/1037). Fixed: the clearance matches the real villager (1.3, not 1.6);
+   medium houses keep only the table (with one stool, so it stays a table station) in the shallow living room, and
+   the fireplace, chest and wardrobe move into the bedroom (the old chimney stood through the partition, the living-room
+   wardrobe left a 2.5-stud gap, the table blocked the hearth: 18 invalid stations); small houses put the door left of
+   centre, the table front right with one chair facing the room, the chest beside the pillow. Also: house "for sale"
+   signs now follow `OwnerNPCId` (a household moving in after the build left the sign up: "Someone lives here").
+   Still open: large houses and the tavern (bed upstairs) fail door → bed; next to look at is the stair link.
+   Expected `specs 1037/1037`, `activity_stations` invalid back near 3.
+3a. **Sealed rooms, fix built 2026-11-10** from the first `navaudit Glenhold` (21 buildings: outside → door 0 failures,
    through the door 5, door → bed 20, whole walk 19). Causes: bed spots 0.5–0.7 studs from bed frames (a villager
    needs 1.5) or on top of another bed (large houses); the medium house's bedroom doorway opened onto a bed's foot;
    5 door links' inside ends sat among tables. Fix: `freeSpot` moves every NPCHome and inside link end to the

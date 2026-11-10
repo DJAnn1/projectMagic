@@ -472,7 +472,9 @@ local function houseSmall(b: Builder, spec: any): BasePart
 	interior(b, w, d, h)
 
 	-- Front wall: the door off-centre, a window on the wider side (two when there's room).
-	local doorU = rng:NextNumber(-w / 4, w / 4)
+	-- The door is always in the left half: the table takes the front right (see Furniture below), so a
+	-- door on the right opened straight onto it.
+	local doorU = -math.abs(rng:NextNumber(-w / 4, w / 4))
 	local front: { Opening } = { { u = doorU, w = DOOR.w, bottom = 0, top = DOOR.h, door = true } }
 	local roomLeft = (doorU - DOOR.w / 2) - (-w / 2 + T)
 	local roomRight = (w / 2 - T) - (doorU + DOOR.w / 2)
@@ -550,20 +552,22 @@ local function houseSmall(b: Builder, spec: any): BasePart
 	part(b, "Mattress", Vector3.new(3.4, 0.6, 6.2), CFrame.new(bx, FLOOR_Y + 1.5, bz + 0.2), Enum.Material.Fabric, fabric, { small = true })
 	part(b, "Pillow", Vector3.new(2.4, 0.5, 1.2), CFrame.new(bx, FLOOR_Y + 2, bz + 2.6), Enum.Material.Fabric, Color3.fromRGB(230, 226, 214), { collide = false, small = true })
 	bedSeat(b, CFrame.new(bx, FLOOR_Y + 2, bz))
-	-- The chest goes at the foot of the bed when the room is deep enough, else beside the pillow.
-	local footZ = bz - 3.5 - 0.9
-	local chestAt = if footZ - 0.8 >= -d / 2 + T + 0.3 then CFrame.new(bx, 0, footZ) else CFrame.new(bx + 2.9, 0, bz + 2.4) * CFrame.Angles(0, math.pi / 2, 0)
-	chest(b, chestAt, FLOOR_Y)
-
-	local tx, tz = rng:NextNumber(0, w / 6), -rng:NextNumber(0, d / 8)
+	-- The chest stands beside the pillow, against the back wall: at the foot of the bed it walled off
+	-- the walk from the door. The table takes the front right with one chair on its room side, leaving
+	-- a lane from the door (always left of centre) past the bed's foot to the standing room beside it.
+	-- (Two chairs either side put the left one inside the bed on narrow lots: navaudit, 2026-11-10.)
+	chest(b, CFrame.new(bx + 2.9, 0, bz + 2.4) * CFrame.Angles(0, math.pi / 2, 0), FLOOR_Y)
+	-- The table used to take two seeded draws here; keep drawing them so every later seeded choice
+	-- (shelf books, rug colour) comes out the same as before.
+	rng:NextNumber()
+	rng:NextNumber()
+	local tx, tz = w / 2 - T - 2.2, -d / 2 + T + 1.7
 	part(b, "TableTop", Vector3.new(4, 0.4, 3), CFrame.new(tx, FLOOR_Y + 3, tz), wood, woodColor)
 	part(b, "TableLeg", Vector3.new(0.8, 2.8, 0.8), CFrame.new(tx, FLOOR_Y + 1.4, tz), wood, woodColor, { small = true })
-	for _, sideSign in { -1, 1 } do
-		local chairX = tx + sideSign * 2.8
-		part(b, "ChairSeat", Vector3.new(1.6, 0.3, 1.6), CFrame.new(chairX, FLOOR_Y + 1.8, tz), wood, woodColor, { small = true })
-		part(b, "ChairLeg", Vector3.new(0.5, 1.65, 0.5), CFrame.new(chairX, FLOOR_Y + 0.83, tz), wood, woodColor, { small = true })
-		part(b, "ChairBack", Vector3.new(0.3, 2, 1.6), CFrame.new(chairX + sideSign * 0.65, FLOOR_Y + 2.9, tz), wood, woodColor, { small = true })
-	end
+	local chairZ = tz + 2.4
+	part(b, "ChairSeat", Vector3.new(1.6, 0.3, 1.6), CFrame.new(tx, FLOOR_Y + 1.8, chairZ), wood, woodColor, { small = true })
+	part(b, "ChairLeg", Vector3.new(0.5, 1.65, 0.5), CFrame.new(tx, FLOOR_Y + 0.83, chairZ), wood, woodColor, { small = true })
+	part(b, "ChairBack", Vector3.new(1.6, 2, 0.3), CFrame.new(tx, FLOOR_Y + 2.9, chairZ + 0.65), wood, woodColor, { small = true })
 
 	local shelfX = if hasChimney then -w / 6 else w / 4
 	bookshelf(b, part(b, "Shelf", Vector3.new(4, 0.3, 1.2), CFrame.new(shelfX, FLOOR_Y + 5, d / 2 - T - 0.6), wood, woodColor, { small = true }))
@@ -574,11 +578,10 @@ local function houseSmall(b: Builder, spec: any): BasePart
 	part(b, "Rug", Vector3.new(5, 0.1, 3.6), CFrame.new(tx, FLOOR_Y + 0.25, tz), Enum.Material.Fabric, vary(rng, fabric, 0.1), { collide = false, small = true })
 
 	lamp(b, CFrame.new(0, top - 1.6, 0))
-	table.insert(b.seats, CFrame.new(tx - 2.8, FLOOR_Y + 2, tz))
-	table.insert(b.seats, CFrame.new(tx + 2.8, FLOOR_Y + 2, tz))
+	table.insert(b.seats, CFrame.new(tx, FLOOR_Y + 2, chairZ))
 
 	-- Anchors for the NPC and quest systems.
-	anchor(b, foundation, "NPCHome", "NPCHome", Vector3.new(bx + 2.6, FLOOR_Y + 3, bz), spec.lotId)
+	anchor(b, foundation, "NPCHome", "NPCHome", Vector3.new(bx + 3.3, FLOOR_Y + 3, bz - 1), spec.lotId)
 	anchor(b, foundation, "Entrance", "BuildingEntrance", Vector3.new(doorU, FLOOR_Y + 3, -d / 2 - 3), spec.lotId)
 	return foundation
 end
@@ -755,14 +758,18 @@ local function shell(b: Builder, o: ShellOptions): Shell
 end
 
 -- A chimney through the roof at (x, z), with a hearth facing `inward` (+1 / -1 along X) and embers.
-local function chimney(b: Builder, s: Shell, x: number, z: number, inward: number)
+-- `inward` (+1 or -1) points from the chimney into the room: along X, or along Z when `alongZ`.
+local function chimney(b: Builder, s: Shell, x: number, z: number, inward: number, alongZ: boolean?)
 	local stone = b.style.foundation
 	local stack = s.top - FLOOR_Y + s.rise + 3
 	part(b, "Chimney", Vector3.new(2.4, stack, 2.4), CFrame.new(x, FLOOR_Y + stack / 2, z), stone.material, vary(b.rng, stone.color, 0.05))
 	part(b, "ChimneyCap", Vector3.new(3, 0.5, 3), CFrame.new(x, FLOOR_Y + stack + 0.25, z), stone.material, vary(b.rng, stone.color, 0.08), { small = true })
-	local hearth = part(b, "Hearth", Vector3.new(1.2, 2.6, 2.6), CFrame.new(x + inward * 1.8, FLOOR_Y + 1.3, z), stone.material, vary(b.rng, stone.color, 0.05))
+	local turn = if alongZ then CFrame.Angles(0, math.pi / 2, 0) else CFrame.identity
+	local step = if alongZ then Vector3.new(0, 0, inward) else Vector3.new(inward, 0, 0)
+	local at = Vector3.new(x, 0, z)
+	local hearth = part(b, "Hearth", Vector3.new(1.2, 2.6, 2.6), CFrame.new(at + step * 1.8 + Vector3.new(0, FLOOR_Y + 1.3, 0)) * turn, stone.material, vary(b.rng, stone.color, 0.05))
 	interact(b, hearth, "hearth")
-	fireplaceEmbers(b, CFrame.new(x + inward * 2.5, FLOOR_Y + 0.35, z))
+	fireplaceEmbers(b, CFrame.new(at + step * 2.5 + Vector3.new(0, FLOOR_Y + 0.35, 0)) * turn)
 end
 
 -- ─── Furniture and props (lot-local CFrames) ────────────────────────────────
@@ -867,23 +874,28 @@ local function houseMedium(b: Builder, spec: any): BasePart
 	wall(b, "Partition", Vector3.new(0, FLOOR_Y, pz), true, w - 2 * T, s.storyH, { { u = 0, w = 3.5, bottom = 0, top = 7.5, door = true } }, s.wallSwatch, vary(rng, s.wallColor, 0.03))
 	bed(b, CFrame.new(-w / 2 + T + 2.2, 0, d / 2 - T - 3.6), FLOOR_Y)
 	bed(b, CFrame.new(w / 2 - T - 2.2, 0, d / 2 - T - 3.6), FLOOR_Y)
-	chest(b, CFrame.new(0, 0, d / 2 - T - 0.9), FLOOR_Y) -- between the beds, against the back wall
-	-- The living room is only 3 to 6 studs deep, so it keeps a walking lane from the front door to the
-	-- bedroom doorway: the table stands against the side wall away from the door, the wardrobe on the
-	-- door's side of the bedroom doorway, facing the living room.
-	local inner = w / 2 - T
-	local livingFront, livingBack = -d / 2 + T, pz - T / 2
+	-- The living room is only 4 to 6 studs deep, so it holds just the table (against the side wall away
+	-- from the door, its stool on the room side) and keeps a lane from the front door to the bedroom
+	-- doorway. The rest lives in the bedroom: the fireplace in the middle of the back wall between the
+	-- beds, the chest beside it, the wardrobe against the partition by the doorway. (The old chimney at
+	-- -d/8 stood through the partition, and a wardrobe in the living room left a 2.5-stud gap: navaudit
+	-- 2026-11-10.)
+	local inner, innerD = w / 2 - T, d / 2 - T
+	local livingFront, livingBack = -innerD, pz - T / 2
 	local livingMid = (livingFront + livingBack) / 2
 	local tableSide = if s.door.u >= 0 then -1 else 1
-	wardrobe(b, CFrame.new(-tableSide * (1.75 + 0.15 + 1.5), 0, livingBack - 0.75), FLOOR_Y)
+	local hasChimney = rng:NextNumber() < b.style.chimney
+	if hasChimney then
+		chimney(b, s, 0, innerD - 1.2, -1, true)
+		chest(b, CFrame.new(1.2 + 0.15 + 0.8, 0, innerD - 1.5) * CFrame.Angles(0, -math.pi / 2, 0), FLOOR_Y)
+	else
+		chest(b, CFrame.new(0, 0, innerD - 0.9), FLOOR_Y) -- between the beds, against the back wall
+	end
+	wardrobe(b, CFrame.new(1.75 + 0.15 + 0.7, 0, pz + T / 2 + 1.5) * CFrame.Angles(0, math.pi / 2, 0), FLOOR_Y)
 	lamp(b, CFrame.new(0, FLOOR_Y + s.storyH - 1.6, livingMid))
 	lamp(b, CFrame.new(0, FLOOR_Y + s.storyH - 1.6, pz + 3.5))
-	-- A stool at the front only when the room is deep enough to sit at it.
-	tableSet(b, CFrame.new(tableSide * (inner - 2.1), 0, livingMid), FLOOR_Y, if livingBack - livingFront >= 6.2 then { 3 } else 0)
+	tableSet(b, CFrame.new(tableSide * (inner - 2.1), 0, livingMid), FLOOR_Y, { if tableSide > 0 then 1 else 2 })
 	shelf(b, CFrame.new(-w / 2 + T + 0.6, 0, livingMid) * CFrame.Angles(0, math.pi / 2, 0), FLOOR_Y, 3)
-	if rng:NextNumber() < b.style.chimney then
-		chimney(b, s, w / 2 - 2.2, -d / 8, -1)
-	end
 	anchor(b, s.foundation, "NPCHome", "NPCHome", Vector3.new(-w / 2 + T + 4.8, FLOOR_Y + 3, d / 2 - T - 3.6), spec.lotId)
 	anchor(b, s.foundation, "NPCHome2", "NPCHome", Vector3.new(w / 2 - T - 4.8, FLOOR_Y + 3, d / 2 - T - 3.6), spec.lotId)
 	anchor(b, s.foundation, "Entrance", "BuildingEntrance", Vector3.new(s.door.u, FLOOR_Y + 3, -d / 2 - 3), spec.lotId)
@@ -1292,7 +1304,7 @@ end
 	is moved to the nearest spot that really is clear. Pure geometry over the building's own parts, in
 	its local frame, so it works before the model is in the workspace and the specs can check it.
 ]]
-local CLEAR_HALF = 1.6 -- Navigation.T.agentMaxRadius (1.5) plus a little
+local CLEAR_HALF = 1.3 -- an ordinary villager's agent radius (Navigation.agentRadius(2) = 1.25) plus a little
 local CLEAR_LOW, CLEAR_HIGH = 0.35, 5.2 -- above the floor: a step's height up to a body's height
 local FLOOR_REACH = 1.0 -- the floor must also be under these corners (stairwells, edges)
 

@@ -647,6 +647,8 @@ end
 
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
+local watchingOwner: { [Model]: boolean } = {}
+
 function HousingService.init(_self: any, ctx: any)
 	log, bus, flags = ctx.log, ctx.bus, ctx.flags
 	playerData = ctx.get("PlayerDataService")
@@ -660,6 +662,18 @@ function HousingService.init(_self: any, ctx: any)
 		local model = settlements:modelOf(payload.lotId)
 		if model then
 			applyHouse(model)
+			-- A household moves in AFTER the house is built (NPCService gives it an owner on BuildingBuilt too),
+			-- so the sign follows the owner: up for sale when nobody lives there, down when someone does.
+			-- (Owner, 2026-11-10: "for sale" signs on houses where "Someone lives here".)
+			if not watchingOwner[model] then
+				watchingOwner[model] = true
+				model:GetAttributeChangedSignal("OwnerNPCId"):Connect(function()
+					applyHouse(model)
+				end)
+				model.Destroying:Connect(function()
+					watchingOwner[model] = nil
+				end)
+			end
 			local c = claims[payload.lotId]
 			local owner = c and Players:GetPlayerByUserId(c.u)
 			if owner then

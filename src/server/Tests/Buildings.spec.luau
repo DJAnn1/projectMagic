@@ -420,7 +420,7 @@ return function(t: any)
 			for _, kind in { "house_small", "house_medium", "house_large", "tavern" } do
 				local fp = SettlementStyles.footprints[kind]
 				for seed = 1, 6 do
-					for _, shrink in { 0, 3 } do
+					for _, shrink in { 0, 1 } do -- real lots are the footprint; 1 stud less covers rounding
 						local at = CFrame.new(10, 50, -20) * CFrame.Angles(0, math.rad(35), 0)
 						local model = BuildingGenerator.build({
 							kind = kind, cframe = at, w = fp.w - shrink, d = fp.d - shrink, seed = seed,
@@ -444,7 +444,7 @@ return function(t: any)
 				end
 			end
 			if #bad > 0 then
-				error(string.format("%d of %d spots boxed in: %s", #bad, checked, table.concat(bad, "; ", 1, math.min(#bad, 8))))
+				error(string.format("%d of %d spots boxed in: %s", #bad, checked, table.concat(bad, "; ", 1, math.min(#bad, 12))))
 			end
 			expect(checked > 40).toBe(true)
 		end)
