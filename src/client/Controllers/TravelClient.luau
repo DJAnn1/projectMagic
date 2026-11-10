@@ -80,9 +80,17 @@ local function toggle()
 	Net.send("TravelIntent", riding:get() == "")
 end
 
--- The ground under a point: a surface height, and whether it's water.
+-- The ground under a point: a surface height, and whether it's water. The check starts RAY_ABOVE
+-- up so low walls count as ground to rise over — but indoors that puts it above the roof, and the
+-- roof then reads as the ground (the ride yanked riders to roof height). So: find any ceiling
+-- first, and start the ground check just below it.
 local function groundAt(position: Vector3, params: RaycastParams): (number?, boolean)
-	local hit = workspace:Raycast(position + Vector3.new(0, RAY_ABOVE, 0), Vector3.new(0, -RAY_LENGTH, 0), params)
+	local above = RAY_ABOVE
+	local ceiling = workspace:Raycast(position, Vector3.new(0, RAY_ABOVE, 0), params)
+	if ceiling then
+		above = math.max(ceiling.Position.Y - position.Y - 0.5, 0.5)
+	end
+	local hit = workspace:Raycast(position + Vector3.new(0, above, 0), Vector3.new(0, -RAY_LENGTH, 0), params)
 	if not hit then
 		return nil, false
 	end

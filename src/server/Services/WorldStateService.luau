@@ -1355,8 +1355,18 @@ function WorldStateService.init(_self: any, ctx: any)
 	settlementStore = dataService:openStore(Schemas.SettlementState)
 	registerAdmin(ctx.get("AdminService"))
 	Scheduler.setBudgetMs(flags.get("world_build_budget_ms") or 4)
-	-- Characters wait until the spawn area's terrain exists (re-enabled in :start).
+	-- Characters wait until the spawn area's terrain exists (re-enabled in :start). In Studio a
+	-- character can load at the world origin BEFORE this line runs; it used to stay there until the
+	-- rescue net moved it (character_rescued near 0,0 in 3 of 4 runs). Remove it: start() reloads
+	-- every characterless player at the real spawn.
 	Players.CharacterAutoLoads = false
+	for _, player in Players:GetPlayers() do
+		local early = player.Character
+		if early then
+			player.Character = nil
+			early:Destroy()
+		end
+	end
 
 	game:BindToClose(function()
 		flushDeltas()
