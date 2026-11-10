@@ -78,6 +78,7 @@ local C = require(MagicFolder.Data.CombatTuning)
 local CastTypes = require(MagicFolder.Cast.CastTypes)
 local Targeting = require(MagicFolder.Cast.Targeting)
 local Delivery = require(MagicFolder.Cast.Delivery)
+local LightningRods = require(MagicFolder.Cast.LightningRods)
 local Damage = require(MagicFolder.Cast.Damage)
 local DamageModel = require(MagicFolder.Cast.DamageModel)
 local EffectBudget = require(MagicFolder.Cast.EffectBudget)
@@ -116,6 +117,7 @@ type Pending = {
 	noBacklash: boolean?,
 	charge: Charge.Applied?, -- the hold-to-charge stage this cast was released at
 	channel: Channel?, -- a client-held channelled spell (release or ChannelAim steer it)
+	bent: LightningRods.Bend?, -- metal drew this lightning somewhere else (the first bend, for SpellResolved)
 }
 
 -- Hold-to-charge (Casting.md §8): when the server saw "begin", on its own clock.
@@ -425,6 +427,8 @@ local function aftermath(
 		borrowed = (stats :: any).borrowed == true,
 		weatherFactor = stats.weatherFactor,
 		weatherRule = stats.weatherRule,
+		bentTo = if p.bent then p.bent.kind else nil,
+		bentOnto = if p.bent and p.bent.hit then p.bent.hit.model else nil,
 	})
 
 	-- Borrowed power teaches nothing: it isn't yours to learn from.
@@ -599,6 +603,29 @@ local function strike(
 			end
 		end
 		extra = { projectileId = flight.id, normal = impact.normal, expired = impact.expired }
+	end
+	-- Metal draws lightning (Cast/LightningRods): the bolt jumps to a rod or to someone in armour.
+	if not ctx.backfire and FeatureFlags.get("lightning_rods_enabled") == true then
+		local direct = ctx.delivered ~= nil and #ctx.delivered > 0
+		local bent = LightningRods.bend(ctx, direct)
+		if bent then
+			cue(player, stats, bent.from, bent.to, "chain", false, false, { points = { bent.from, bent.to } })
+			ctx.point = bent.to
+			if bent.hit then
+				ctx.target = bent.hit.model
+				if ctx.delivered then
+					ctx.delivered = { bent.hit }
+				end
+			else
+				-- Grounded: no one is struck directly; Conduction runs it along the metal.
+				ctx.target = nil
+				ctx.onSurface = true
+				if ctx.delivered then
+					ctx.delivered = {}
+				end
+			end
+			p.bent = p.bent or bent
+		end
 	end
 	cue(player, stats, ctx.origin, ctx.point, "resolve", p.heavy, ctx.backfire, extra)
 	local recording = Damage.record()
