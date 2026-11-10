@@ -42,6 +42,14 @@ local StatusInfo: { [string]: Info } = {
 	gravity_heavy = { name = "Anchor Weight", harmful = false, description = "Slower, but you resist damage, shrug off pushes and your spells hit harder." },
 	gravity_light = { name = "Featherweight", harmful = false, description = "Faster, and you jump enormous distances." },
 	foreseeing = { name = "Future Sight", harmful = false, description = "You see where spells are aimed, and some hits miss you." },
+	-- Reality (Cast/RealityRuntime, docs/Reality.md); harmful must match StatusEffects' defs (Combat.spec).
+	reality_favored = { name = "Favored", harmful = false, description = "Luck is with you: your hits crit more, some blows graze off you, and you backfire less." },
+	reality_doomed = { name = "Doomed", harmful = true, description = "Luck has left you: hits on you crit more, your blows sometimes miss, and you backfire more." },
+	reality_sealed = { name = "Fate-sealed", harmful = true, description = "Your fate is fixed: the next hits from whoever sealed it are certain to crit." },
+	reality_fated = { name = "Twist of Fate", harmful = false, description = "A direct blow on you is cancelled, and part of it lands on whoever dealt it." },
+	reality_undying = { name = "Undying", harmful = false, description = "Nothing can take you below 1 health." },
+	reality_frayed = { name = "Frayed", harmful = true, description = "You're coming apart at the edges: you take more damage." },
+	reality_polymorphed = { name = "Polymorphed", harmful = true, description = "You're a small creature for now: no casting, attacks or dashes, and slower." },
 	surging = { name = "Surging", harmful = false, description = "You hit harder, resist damage, move faster and cast for less. Press K to end it with a blast." },
 }
 

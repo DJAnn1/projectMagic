@@ -51,7 +51,7 @@ Interact/Doors).
 
 ## Rank 2 — The first minute (felt once, by everyone, first)
 
-- ◐ **Spawned at the world origin, then rescued** (3 of the last 4 runs; `character_rescued`).
+- ☑ **Spawned at the world origin, then rescued** (3 of the last 4 runs; `character_rescued`).
   Cause verified in code: `WorldStateService.init` turns `CharacterAutoLoads` off, but in Studio
   the character can load at the origin *before* init runs, and nothing cleaned it up. Fixed: any
   character already loaded when init runs is removed; `start()` reloads everyone at the real
@@ -88,13 +88,13 @@ Interact/Doors).
 
 ## Rank 5 — Dead content (felt the moment a player trusts a suggestion)
 
-- ◐ **Guided cards that do nothing.** `pebble_nudge` and `shape_stone` routed to `manifest`
+- ☑ **Guided cards that do nothing.** (☑ by specs, 2026-11-10 run; not yet clicked in play.) `pebble_nudge` and `shape_stone` routed to `manifest`
   (glow, cost, no effect). Fixed with a real route: `stonetouch` (Terrain `op=stone`, touch form
   raises a hand-sized stone where you touch; earth-branch `contour` + `generate` only, so
   Amplify-Hardness-as-Touch stays honestly dead). `forge_hand` (alloycraft purity transmute
   touch) had no honest route — refining metal by hand already exists as the ✦ Mend action — so
   the card is removed rather than left lying.
-- ◐ **"Try something" could suggest dead spells.** Verified in code: `Experiment.suggest`
+- ☑ **"Try something" could suggest dead spells.** Verified in code: `Experiment.suggest`
   validated grammar but never the route. Fixed: suggestions must pass `SpellOutcome.of(...).useful`.
 - ◐ **Expert tier text promised summons** ("Give your magic a body") while the summon form casts
   an area blast. Text now says what really happens. True summons stay an open design idea.
@@ -115,9 +115,9 @@ Interact/Doors).
 
 ## Playtest requests outstanding (in one run, if possible)
 
-1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1037/1037 · magic examples 34/34`
-   (2 new specs: dead-content routes in EarlyGame.spec, useful-only suggestions in Experiment.spec; 1 new magic example: Pebble Rise).
-2. First minute: watch for `character_rescued` (should be gone).
+1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1036/1036 · magic examples 33/33`
+   (the 2026-11-10 run gave 1035/1036: the one failure was 7 Reality statuses missing from `StatusInfo`, now fixed. "34 examples" was a miscount: SpellExamples feeds Cast.spec, not the magic-examples check.)
+2. ~~First minute: `character_rescued`~~: gone in the 2026-11-10 run (☑).
 3. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
    watch `npc_went_indoors how=walked` vs `how=door`, `npc_left_by_door action=sleep`, locked-door
    path failures.
