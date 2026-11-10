@@ -6,6 +6,9 @@ to fix. Each item says how it was verified: *in code* means the cause is confirm
 source; *playtest* means only a Studio run can settle it. When the owner says "continue the shine
 pass", start at the top unfixed item.
 
+**📌 Pinned by the owner 2026-11-10, after phase 1's first six batches.** Resume only when asked,
+starting with the playtest below, then the top ☐ item.
+
 Status key: ☐ open · ◐ fixed in code, not yet run · ☑ confirmed fixed in play · ✎ needs the owner's decision.
 
 ## Rank 1 — NPCs look fake (felt every minute in any town)
