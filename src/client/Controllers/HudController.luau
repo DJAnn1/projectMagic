@@ -45,6 +45,7 @@ local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local SideCards = require(UI.SideCards)
 
 type Scope = Kit.Scope
 
@@ -1266,17 +1267,29 @@ local function buildFeedback(scope: Scope, root: Frame, compact: boolean)
 	end))
 end
 
+-- Order of the toasts in the right-hand column (UI/SideCards): below every event card (1..4), so a
+-- card never jumps down when a toast appears, and the two can't draw over each other.
+local TOAST_COLUMN_ORDER = 100
+
 local function buildToasts(scope: Scope, root: Frame, compact: boolean)
-	local stack: Frame = Kit.create(nil, "Frame", {
-		Name = "Toasts",
-		BackgroundTransparency = 1,
-		AnchorPoint = if compact then Vector2.new(0.5, 0) else Vector2.new(1, 0),
-		Position = if compact then UDim2.new(0.5, 0, 0, 64) else UDim2.new(1, -Theme.space.m, 0, 110),
-		Size = UDim2.fromOffset(if compact then 340 else 320, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		Parent = root,
-	})
-	C.list("y", Theme.space.xs).Parent = stack
+	local stack: Frame
+	if compact then
+		-- Phones: centred at the top, two at most (the column is the desktop layout).
+		stack = Kit.create(nil, "Frame", {
+			Name = "Toasts",
+			BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 64),
+			Size = UDim2.fromOffset(340, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			Parent = root,
+		})
+		C.list("y", Theme.space.xs).Parent = stack
+	else
+		-- Desktop: in the same column as the event cards. They used to be two columns in the same
+		-- place (toasts at 110, cards at 120), drawn over each other (owner's screenshot, 2026-11-10).
+		stack = SideCards.holder(scope, root, TOAST_COLUMN_ORDER, "Toasts")
+	end
 
 	Kit.dynamic(scope, { toasts }, function(s)
 		for index, t in toasts:get() do
