@@ -19,6 +19,14 @@
 		ActivityPoser.clear(rp)
 		ActivityPoser.step()      PreSimulation (ActivityController binds it)
 		ActivityPoser.restore()   PreAnimation
+
+	CAST POSES (Controllers/CastPoseController, docs/CastPoses.md) share this machinery:
+		ActivityPoser.setPose(rp, pose, t, weight, owner)   a Pose table, REPLACING the clip on the
+		                          joints it names (blended by weight) instead of adding to it, so a
+		                          spell's pose isn't stacked on CastSpell's raised arm
+		ActivityPoser.release(rp, owner)                    hand the body back
+	A body has one RigPose (prepare caches it), and an owner: while "cast" holds it, activity
+	set/clear calls leave it alone. Each body is stepped once per frame, whoever calls step().
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -42,13 +50,23 @@ export type RigPose = {
 	q: { [string]: CFrame },
 	base: { [string]: CFrame }, -- the Animator's Transform this frame, before the pose
 	target: { [string]: CFrame }?, -- per joint D (parent axes), or nil = not posed
+	owner: string?, -- "cast" while a cast pose holds the body (activities wait)
+	replace: boolean?, -- target replaces the Animator's Transform (blended by `blend`)
+	blend: number?,
+	frame: number?, -- the frame this body was last stepped
 }
 
 local active: { [RigPose]: boolean } = {}
+local rigs: { [Model]: RigPose } = setmetatable({}, { __mode = "k" }) :: any
+local frame = 0
 
 local ActivityPoser = {}
 
 function ActivityPoser.prepare(model: Model): RigPose?
+	local cached = rigs[model]
+	if cached and cached.root.Parent then
+		return cached
+	end
 	local root = model:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
 		return nil
@@ -66,7 +84,9 @@ function ActivityPoser.prepare(model: Model): RigPose?
 	if not motors["Right Shoulder"] or not motors["RootJoint"] then
 		return nil -- not R6
 	end
-	return { model = model, root = root, motors = motors, q = q, base = {}, target = nil }
+	local rp: RigPose = { model = model, root = root, motors = motors, q = q, base = {}, target = nil }
+	rigs[model] = rp
+	return rp
 end
 
 local function rotation(x: number, y: number, z: number): CFrame
@@ -80,12 +100,47 @@ end
 		simple   the medium-distance loop: only the pose's `simple` joints move
 		body     the torso's world CFrame for sit and lie (nil = in place)
 ]]
+local compute: (RigPose, ActivityPoses.Pose, number, number, number, boolean, CFrame?) -> { [string]: CFrame }
+
 function ActivityPoser.set(rp: RigPose, poseId: string, variant: number, t: number, weight: number, simple: boolean, body: CFrame?)
+	if rp.owner then
+		return -- a cast pose holds this body for now
+	end
 	local pose = ActivityPoses.poses[poseId]
 	if not pose or weight <= 0 then
 		ActivityPoser.clear(rp)
 		return
 	end
+	rp.target = compute(rp, pose, variant, t, weight, simple, body)
+	rp.replace = nil
+	active[rp] = true
+end
+
+-- A cast pose: replaces the clip on the joints it names, blended in by `weight`.
+function ActivityPoser.setPose(rp: RigPose, pose: ActivityPoses.Pose, t: number, weight: number, owner: string)
+	if rp.owner and rp.owner ~= owner then
+		return
+	end
+	if weight <= 0 then
+		ActivityPoser.release(rp, owner)
+		return
+	end
+	rp.owner = owner
+	rp.target = compute(rp, pose, 1, t, 1, false, nil)
+	rp.replace = true
+	rp.blend = math.clamp(weight, 0, 1)
+	active[rp] = true
+end
+
+function ActivityPoser.release(rp: RigPose, owner: string)
+	if rp.owner ~= owner then
+		return
+	end
+	rp.owner = nil
+	ActivityPoser.clear(rp)
+end
+
+compute = function(rp: RigPose, pose: ActivityPoses.Pose, variant: number, t: number, weight: number, simple: boolean, body: CFrame?): { [string]: CFrame }
 	local v = pose.variants[math.clamp(variant, 1, #pose.variants)] or pose.variants[1]
 	local mirror = v.mirror == true
 	local angles: { [string]: { number } } = {}
@@ -125,12 +180,16 @@ function ActivityPoser.set(rp: RigPose, poseId: string, variant: number, t: numb
 	elseif lower > 0 then
 		rootD = CFrame.new(0, -lower * weight, 0) * rootD
 	end
-	target["RootJoint"] = rootD
-	rp.target = target
-	active[rp] = true
+	if target["RootJoint"] or rootD ~= CFrame.new() then
+		target["RootJoint"] = rootD
+	end
+	return target
 end
 
 function ActivityPoser.clear(rp: RigPose)
+	if rp.owner then
+		return -- the cast pose lets go through release()
+	end
 	if rp.target then
 		-- Hand the joints back as the Animator left them.
 		for name, base in rp.base do
@@ -141,11 +200,13 @@ function ActivityPoser.clear(rp: RigPose)
 		end
 	end
 	rp.target = nil
+	rp.replace = nil
 	table.clear(rp.base)
 	active[rp] = nil
 end
 
 function ActivityPoser.restore()
+	frame += 1
 	for rp in active do
 		for name, base in rp.base do
 			local motor = rp.motors[name]
@@ -163,13 +224,22 @@ function ActivityPoser.step()
 			active[rp] = nil
 			continue
 		end
+		if rp.frame == frame then
+			continue -- already stepped this frame (two controllers call step)
+		end
+		rp.frame = frame
+		local blend = rp.blend or 1
 		for name, d in target do
 			local motor = rp.motors[name]
 			if motor and motor.Parent then
 				local base = motor.Transform
 				rp.base[name] = base
 				local q = rp.q[name]
-				motor.Transform = q:Inverse() * d * q * base
+				if rp.replace then
+					motor.Transform = base:Lerp(q:Inverse() * d * q, blend)
+				else
+					motor.Transform = q:Inverse() * d * q * base
+				end
 			end
 		end
 	end

@@ -49,6 +49,7 @@ return {
 	feral_spells_max = { default = 6, description = "Most loose spells on this server at once." },
 	familiars_enabled = { default = true, replicate = true, description = "A small creature born from your magic, which grows and fights beside you (Services/FamiliarService). Off removes them all; saves keep them." },
 	familiars_max_alive = { default = 60, description = "Most familiars out at once on this server." },
+	cast_poses_enabled = { default = true, replicate = true, description = "Bodies cast differently by what the spell does: an attack is drawn back and thrust, a heal cupped and offered, a ward braced... (Data/CastPoses, Controllers/CastPoseController). Off: every cast plays the one CastSpell clip." },
 	cast_tells_enabled = { default = true, description = "Read the cast: a forming spell moves by what it does (attack, heal, ward...) and grows with its power, and NPC mages' wind-ups conjure visibly (Magic/CastTells, Fx/Conjure). Off: every conjure looks neutral and NPCs show none." },
 	charge_break_enabled = { default = true, description = "Hurt enough while holding a charge and your focus breaks: the spell is lost (players and NPC mages). Mastery steadies you; overcharged is fragile (Magic/Charge.focusBreaks)." },
 	lightning_rods_enabled = { default = true, description = "Metal draws lightning: a charge spell landing near a lamp post, an anvil or someone in chain mail jumps to it (Cast/LightningRods, Services/LightningRodService). Off lands every bolt where it was aimed." },
