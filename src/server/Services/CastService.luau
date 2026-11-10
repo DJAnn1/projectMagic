@@ -68,12 +68,12 @@ local Aim = require(Shared.Magic.Aim)
 local Charge = require(Shared.Magic.Charge)
 local Reservoir = require(Shared.Magic.Reservoir)
 local Seed = require(Shared.Magic.Seed)
-local Strike = require(Shared.Magic.Strike)
+local SpellRoute = require(Shared.Magic.SpellRoute)
+local EffectLibrary = require(Shared.Magic.Data.EffectLibrary)
 
 local MagicFolder = script.Parent.Parent.Magic
 local T = require(MagicFolder.Data.CastTuning)
 local C = require(MagicFolder.Data.CombatTuning)
-local EffectLibrary = require(MagicFolder.Data.EffectLibrary)
 local CastTypes = require(MagicFolder.Cast.CastTypes)
 local Targeting = require(MagicFolder.Cast.Targeting)
 local Delivery = require(MagicFolder.Cast.Delivery)
@@ -219,50 +219,8 @@ end
 
 -- ─── Routing (Data/EffectLibrary) ───────────────────────────────────────────
 
-local function branchMatches(branch: Types.BranchDef, ids: { string }): boolean
-	local node: Types.BranchDef? = branch
-	while node do
-		if table.find(ids, node.id) then
-			return true
-		end
-		local parentId = node.parent
-		node = if parentId then Registry.branches[parentId] else nil
-	end
-	for _, d in branch.domains do
-		if table.find(ids, d) then
-			return true
-		end
-	end
-	return false
-end
-
-local function routeFor(recipe: Types.Recipe): Route
-	local branch = Registry.branches[recipe.branch]
-	local property = Registry.properties[recipe.property]
-	for _, route in EffectLibrary.routes do
-		if route.minPower and recipe.power < route.minPower then
-			continue
-		elseif route.maxPower and recipe.power > route.maxPower then
-			continue
-		elseif route.harmful ~= nil and property.harmful ~= route.harmful then
-			continue
-		elseif route.strike and Strike.routed(recipe) == nil then
-			continue
-		elseif route.properties and not table.find(route.properties, recipe.property) then
-			continue
-		elseif route.verbs and not table.find(route.verbs, recipe.verb) then
-			continue
-		elseif route.forms and not table.find(route.forms, recipe.form) then
-			continue
-		elseif route.categories and not table.find(route.categories, property.category) then
-			continue
-		elseif route.branches and not branchMatches(branch, route.branches) then
-			continue
-		end
-		return route
-	end
-	return EffectLibrary.routes[#EffectLibrary.routes] -- manifest
-end
+-- Shared/Magic/SpellRoute: the Composer's preview uses the same function.
+local routeFor = SpellRoute.find
 CastService.routeFor = routeFor -- for specs and tools
 
 -- ─── Helpers ────────────────────────────────────────────────────────────────

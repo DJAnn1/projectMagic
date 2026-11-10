@@ -198,6 +198,13 @@ Full:
 - **How spells work** (the "?" button; opens by itself the first time, hidden setting `composerHelpSeen`): five pages (spells are sentences, Guided, Full, the preview, naming and mastery), then a glossary (reservoir, overdraw, power, comfortable power, backfire, instability, mastery, ambient magic, cast time, cooldown, modifier slots, strike).
 - Nothing secret is shown: the text describes the public grammar only.
 
+**What a spell really does (2026-11-09).** A valid recipe can fall through to the `manifest` route, which only sets a hidden attribute: it glows, costs reservoir and does nothing. The Composer now tells the player, using the server's own routing (`EffectLibrary` moved to Shared; `Shared/Magic/SpellRoute` is the one route finder).
+- **Tiles:** property, verb and form choices carry a tag from `Shared/Magic/SpellOutcome` (`⚔ Attack`, `✚ Heal`, `✗ No real effect`), judged at the highest power the player can reach. A modifier the effect can't use says why: `linked` and `silent` aren't implemented, `echoing` and `channeled` need a repeatable route, `lingering` needs a route that reads the spell's duration.
+- **Preview:** the result comes first (tag and one sentence, from `Data/RouteSummaries`). A dead spell says at what power it starts working, if any, and offers up to 3 nearby spells that work, one click each (change the form first, then the verb, then the property; one per kind). A wall or summon that builds nothing says it hits an area.
+- **Power step:** lists each power where the spell becomes something else.
+- **Nothing is blocked:** a dead spell can still be saved; the button reads "Save anyway (does almost nothing)".
+- `Tests/SpellOutcome.spec` fails if a route has no summary, so a new route must say what it does.
+
 ### 4.5 Skill/Path view (designed)
 
 A zoomable, pannable graph. It's a `ScrollingFrame` canvas with a `UIScale` driven by pinch, the mouse wheel and the gamepad triggers; panning uses drag, the right stick or the arrow keys.

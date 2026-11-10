@@ -1,6 +1,8 @@
 --!strict
 --[[
-	EffectLibrary: what every spell DOES. Pure data, read by CastService.routeFor.
+	EffectLibrary: what every spell DOES. Pure data, read by Shared/Magic/SpellRoute, so the server
+	(CastService) and the Composer's preview pick the same route. A new route also needs its
+	player-facing words in Data/RouteSummaries (Tests/SpellOutcome.spec checks).
 
 	Each route names an effect resolver (Magic/Cast/Effects/<effect>) and the params it gets.
 	Routes are tried IN ORDER and the first match wins: specific routes (disasters, fields,

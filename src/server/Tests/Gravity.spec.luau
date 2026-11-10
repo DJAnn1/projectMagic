@@ -12,7 +12,7 @@ local Cast = Server.Magic.Cast
 local GravityRuntime = require(Cast.GravityRuntime)
 local StatusEffects = require(Cast.StatusEffects)
 local CastService = require(Server.Services.CastService)
-local EffectLibrary = require(Server.Magic.Data.EffectLibrary)
+local EffectLibrary = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.EffectLibrary)
 
 local Shared = ReplicatedStorage.Shared
 local Rules = require(Shared.Magic.GravityRules)

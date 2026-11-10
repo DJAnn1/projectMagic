@@ -51,15 +51,15 @@ SpellHelp.steps = {
 }
 
 SpellHelp.verbs = {
-	generate = { does = "Makes {p} out of raw power", example = "Generate + Temperature: warm your hands, light a candle, or burn an enemy." },
-	amplify = { does = "Strengthens the {p} something already has", example = "Amplify + Hardness: turn your skin to iron for a while." },
+	generate = { does = "Makes {p} out of raw power", example = "Generate + Temperature: burn whoever the spell reaches." },
+	amplify = { does = "Strengthens the {p} something already has", example = "Amplify + Vitality: heal someone's wounds." },
 	reduce = { does = "Weakens or smothers the {p} something has", example = "Reduce + Temperature: put out a fire, or chill a foe." },
-	transfer = { does = "Moves {p} from one thing to another", example = "Transfer + Temperature: pull the heat out of a fire into your hands. Cheap, but needs a source." },
-	redirect = { does = "Steers {p} that's already moving", example = "Redirect + Flow: turn a river aside, or push a wave at someone." },
-	transmute = { does = "Turns {p} into a different state or kind", example = "Transmute + Phase: freeze water into ice to walk on." },
+	transfer = { does = "Moves {p} from one thing to another", example = "Transfer + Temperature: pull the heat out of something and into what's around it. Cheap, but needs a source." },
+	redirect = { does = "Steers {p} that's already moving", example = "Redirect + Momentum: shove someone the way you aim." },
+	transmute = { does = "Turns {p} into a different state or kind", example = "Transmute + Contour as a Wall: raise the ground into a stone rampart." },
 	bind = { does = "Fixes {p} in place, or ties it to something", example = "Bind + Position: pin someone where they stand." },
-	sense = { does = "Lets you feel {p} at a distance", example = "Sense + Vitality: find the wounded nearby. Never harms." },
-	store = { does = "Captures {p} to release later", example = "Store + Charge: soak up a lightning bolt now, throw it back later." },
+	sense = { does = "Lets you feel {p} at a distance", example = "Sense + Vitality: feel how many people are nearby. Never harms." },
+	store = { does = "Captures {p} to release later", example = "Store + Charge: hold a charge now, then let it out with a Release spell." },
 	release = { does = "Unleashes {p} you stored earlier, all at once", example = "Release + Charge: let out what you stored in one blast. Needs a stored charge." },
 }
 
@@ -68,33 +68,34 @@ SpellHelp.forms = {
 	projectile = { shape = "thrown as a bolt that flies where you aim", example = "The classic attack: aim, release, and it travels to the target." },
 	beam = { shape = "as a line straight from your hand to the target", example = "Hits instantly along a line. Harder to dodge, shorter reach." },
 	burst = { shape = "as a sphere bursting out around you", example = "Hits everything close around you at once." },
-	aura = { shape = "as a field that moves with you", example = "A lasting glow around you: warmth, a ward, a slowing chill." },
-	wall = { shape = "as a barrier raised where you aim", example = "Raise stone or water between you and danger." },
+	aura = { shape = "as a field that moves with you", example = "Centred on you: a ward, a light, or a blast at everyone close." },
+	wall = { shape = "as a barrier raised where you aim", example = "Raises stone or harmless matter between you and danger. Fire and other harmful magic hit the area instead." },
 	zone = { shape = "as an area that lasts where you place it", example = "Leave a patch of fire, frost or calm behind." },
 	pillar = { shape = "as a column bursting up from the ground (or down from the sky)", example = "Strikes one spot hard from below or above." },
 	chain = { shape = "leaping from target to target", example = "Jumps between nearby enemies, weaker each hop." },
-	summon = { shape = "given a body that acts on its own", example = "An elemental, a construct, a familiar that fights or works for you." },
-	ritual = { shape = "as a long, channelled working over a huge area", example = "The only way to change the land itself: quakes, tsunamis. Takes time to cast." },
+	summon = { shape = "as a blast over the area where you aim", example = "Nothing is given a body yet: for now this only hits that area." },
+	ritual = { shape = "as a long, channelled working over a huge area", example = "Takes time to cast, reaches far. Tsunamis need one." },
 }
 
 SpellHelp.modifiers = {
 	delayed = { plain = "goes off a few seconds later, stronger for the wait", when = "Traps, or hitting where someone will be." },
 	homing = { plain = "seeks its target", when = "Fast or dodging targets. Costs a little power." },
 	piercing = { plain = "passes through targets and light cover", when = "Enemies in a line, or behind a thin wall." },
-	lingering = { plain = "lasts much longer, but gentler", when = "Healing over time, zones you want to hold." },
-	linked = { plain = "ties two targets so what happens to one echoes in the other", when = "Sharing a heal, or making one foe feel another's hurt." },
-	silent = { plain = "makes almost no sound or light", when = "Casting where you shouldn't be seen. Harder to trace." },
+	lingering = { plain = "lasts much longer, but gentler", when = "Walls, lights and zones you want to keep around." },
+	linked = { plain = "is meant to tie two targets together, but doesn't work yet", when = "Nothing yet: it costs more and does nothing." },
+	silent = { plain = "is meant to hide the spell, but doesn't work yet", when = "Nothing yet: it costs more and does nothing." },
 	efficient = { plain = "costs less and is steadier, but weaker and slower", when = "Long fights, low reservoir, learning safely." },
 	reckless = { plain = "hits harder and faster, but far less stable", when = "When you need it now and can afford a backfire." },
-	channeled = { plain = "is held while you keep casting, paying as you go", when = "Beams and fields you want to keep up." },
+	channeled = { plain = "is held while you keep casting, paying as you go", when = "Beams, attacks and heals you want to keep going." },
 	echoing = { plain = "repeats after it lands, weaker each time", when = "More hits from one cast." },
 }
 
 SpellHelp.tour = {
 	{ title = "Spells are built, not picked", body = "Every spell is a short sentence: a VERB done to a PROPERTY, in a FORM. \"Generate Temperature as a Projectile\" is a fire bolt. Change one word and you have a new spell." },
 	{ title = "Guided: start here", body = "Guided shows spells you can cast right now. Pick a power and press Save: it goes straight onto your hotbar. Then press its number (1 to 8) to ready it, and click to cast." },
-	{ title = "Full: build your own", body = "Full walks you through six steps: Branch, Property, Verb, Form, Modifiers, Power. Hover any choice (or select it on a gamepad) to read what it does. Faded choices say why they're locked." },
-	{ title = "Read the preview", body = "The right side says what your spell will do, what it costs, and how likely it is to backfire. The ≈ means it's an estimate: casting it shows the truth." },
+	{ title = "Full: build your own", body = "Full walks you through six steps: Branch, Property, Verb, Form, Modifiers, Power. Each choice is tagged with what it can lead to: ⚔ Attack, ✚ Heal, ◆ Protect and so on. Hover one (or select it on a gamepad) to read more. Faded choices say why they're locked." },
+	{ title = "Watch for ✗", body = "Not every combination does something yet. A choice marked ✗ No real effect will glow and spend your magic but won't touch anyone. You can still build it, and the preview offers nearby spells that do work." },
+	{ title = "Read the preview", body = "The right side starts with what your spell will really do, then what it costs and how likely it is to backfire. The ≈ means it's an estimate: casting it shows the truth." },
 	{ title = "Name it, use it, grow", body = "Name your spell if you like (others see a filtered version). Every cast trains its branch; mastery opens new verbs, forms and more power." },
 }
 
@@ -121,14 +122,15 @@ end
 	One plain sentence for a whole spell, e.g. "Makes temperature out of raw power, thrown as a
 	bolt that flies where you aim. Seeks its target. It can hurt what it hits."
 	Takes the verb, form and modifier ids, the property's display name, and whether the spell can
-	harm (SpellStats.harmful). Unknown ids fall back to plain wording.
+	harm (SpellStats.harmful). `shape` replaces the form's wording when this spell's effect uses
+	the form differently (SpellOutcome: no wall forms for fire). Unknown ids fall back to plain wording.
 ]]
-function SpellHelp.describe(verbId: string, propertyName: string, formId: string, modifierIds: { string }, harmful: boolean): string
+function SpellHelp.describe(verbId: string, propertyName: string, formId: string, modifierIds: { string }, harmful: boolean, shape: string?): string
 	local verb = SpellHelp.verbs[verbId]
 	local form = SpellHelp.forms[formId]
 	-- Parenthesised: gsub also returns a count, which must not leak into the expression.
 	local action = if verb then (string.gsub(verb.does, "{p}", lower(propertyName))) else ("Works on " .. lower(propertyName))
-	local text = action .. ", " .. (if form then form.shape else "in its own shape") .. "."
+	local text = action .. ", " .. (shape or (if form then form.shape else "in its own shape")) .. "."
 	for _, id in modifierIds do
 		local mod = SpellHelp.modifiers[id]
 		if mod then

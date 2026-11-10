@@ -14,8 +14,14 @@
 		About card      the hovered (or gamepad-selected, or chosen) option in full: description,
 		                an example, and for a locked one the full reason plus what to do about it
 		preview         one plain sentence for the whole spell (SpellHelp.describe) under its name
-		How spells work a walkthrough (5 pages + a glossary), opened automatically the first time
+		How spells work a walkthrough (6 pages + a glossary), opened automatically the first time
 		                (hidden setting composerHelpSeen) and from the "?" button any time
+
+	What a spell really does (Shared/Magic/SpellOutcome, the server's own routing):
+		tiles           property, verb and form choices carry a tag ("⚔ Attack", "✗ No real effect");
+		                modifiers warn when the chosen effect couldn't use them
+		preview         the result first; a dead spell says so and offers nearby spells that work
+		Nothing is blocked: a dead spell can still be saved, behind "Save anyway".
 
 	Live preview: MagicCore.computeStats on the client's estimated caster (UI/KnownCaster) at the
 	player's current location (RegionInfo). Numbers carry "≈": the server recomputes with the real
@@ -37,6 +43,7 @@ local GuardRules = require(Shared.Magic.GuardRules)
 local Strike = require(Shared.Magic.Strike)
 local Types = require(Shared.Magic.Types)
 local SpellHelp = require(Shared.UI.SpellHelp)
+local SpellOutcome = require(Shared.Magic.SpellOutcome)
 local Cantrips = require(Shared.Magic.Cantrips)
 local Net = require(Shared.Net)
 
@@ -65,7 +72,17 @@ type Option = {
 	reason: string?,
 	selected: boolean,
 	domain: string?,
+	tag: string?, -- what this choice can lead to, beside its name
+	note: string?, -- a warning that replaces the description on the tile; the choice stays available
+	result: string?, -- the About card's line on what it leads to
 }
+
+-- Fills a tile's tag, note and result from what the templates behind it can do.
+local function describeChoice(option: Option, summary: SpellOutcome.Summary, deadNote: string, result: string?)
+	option.tag = summary.tag
+	option.note = if summary.useful then nil else deadNote
+	option.result = result or ("Can lead to: " .. summary.full)
+end
 
 local HOTBAR_SLOTS = 8
 local RAIL_WIDTH = 190
@@ -298,19 +315,26 @@ local function propertyOptions(d: Draft): { Option }
 		return options
 	end
 	local usable: { [string]: boolean } = {}
-	for _, t in magic:templatesFor(branch.id) do
+	local templates: { Types.RecipeTemplate } = magic:templatesFor(branch.id)
+	for _, t in templates do
 		usable[t.property] = true
 	end
 	for _, propertyId in branch.properties do
 		local p = Registry.properties[propertyId]
-		table.insert(options, {
+		local option: Option = {
 			id = propertyId,
 			name = p.name,
 			description = p.description,
 			available = usable[propertyId] == true,
 			reason = if usable[propertyId] then nil else "Nothing you can do with it yet",
 			selected = d.property == propertyId,
-		})
+		}
+		if usable[propertyId] then
+			describeChoice(option, SpellOutcome.summarize(templates, function(t)
+				return t.property == propertyId
+			end), "Nothing you can build with it has a real effect yet")
+		end
+		table.insert(options, option)
 	end
 	return options
 end
@@ -323,7 +347,8 @@ local function verbOptions(d: Draft): { Option }
 		return options
 	end
 	local usable: { [string]: boolean } = {}
-	for _, t in magic:templatesFor(branch.id) do
+	local templates: { Types.RecipeTemplate } = magic:templatesFor(branch.id)
+	for _, t in templates do
 		if t.property == d.property then
 			usable[t.verb] = true
 		end
@@ -343,14 +368,20 @@ local function verbOptions(d: Draft): { Option }
 				reason = "No form fits this yet"
 			end
 		end
-		table.insert(options, {
+		local option: Option = {
 			id = verbId,
 			name = verb.name,
 			description = verb.description,
 			available = reason == nil,
 			reason = reason,
 			selected = d.verb == verbId,
-		})
+		}
+		if reason == nil then
+			describeChoice(option, SpellOutcome.summarize(templates, function(t)
+				return t.property == d.property and t.verb == verbId
+			end), "No shape gives this a real effect yet")
+		end
+		table.insert(options, option)
 	end
 	return options
 end
@@ -363,7 +394,8 @@ local function formOptions(d: Draft): { Option }
 		return options
 	end
 	local usable: { [string]: boolean } = {}
-	for _, t in magic:templatesFor(branch.id) do
+	local templates: { Types.RecipeTemplate } = magic:templatesFor(branch.id)
+	for _, t in templates do
 		if t.property == d.property and t.verb == d.verb then
 			usable[t.form] = true
 		end
@@ -387,14 +419,21 @@ local function formOptions(d: Draft): { Option }
 				reason = "Not available"
 			end
 		end
-		table.insert(options, {
+		local option: Option = {
 			id = formId,
 			name = form.name,
 			description = form.description,
 			available = reason == nil,
 			reason = reason,
 			selected = d.form == formId,
-		})
+		}
+		if reason == nil then
+			local summary = SpellOutcome.summarize(templates, function(t)
+				return t.property == d.property and t.verb == d.verb and t.form == formId
+			end)
+			describeChoice(option, summary, "Would only glow and spend your magic", summary.first and summary.first.text)
+		end
+		table.insert(options, option)
 	end
 	return options
 end
@@ -406,6 +445,8 @@ local function modifierOptions(d: Draft): ({ Option }, number)
 		return options, 0
 	end
 	local branch = Registry.branches[d.branch]
+	local recipe = recipeOf(d)
+	local outcome = recipe and SpellOutcome.of(recipe)
 	for _, modId in Registry.modifierIds do
 		local mod = Registry.modifiers[modId]
 		local chosen = table.find(d.modifiers, modId) ~= nil
@@ -430,6 +471,7 @@ local function modifierOptions(d: Draft): ({ Option }, number)
 			available = reason == nil,
 			reason = reason,
 			selected = chosen,
+			note = if reason == nil and outcome then SpellOutcome.modifierProblem(modId, outcome) else nil,
 		})
 	end
 	return options, template.modifierSlots
@@ -460,13 +502,13 @@ local function optionTile(option: Option, order: number, onChoose: () -> (), onF
 		Parent = inner,
 	})
 	C.list("y", 0, { VerticalAlignment = Enum.VerticalAlignment.Center }).Parent = texts
-	C.text((if option.selected then "✓ " else "") .. option.name, "label", {
+	C.text((if option.selected then "✓ " else "") .. option.name .. (if option.tag then "  ·  " .. option.tag else ""), "label", {
 		TextColor3 = if option.available then Theme.color.ink else Theme.color.inkFaint,
 		TextWrapped = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}).Parent = texts
-	C.text(option.reason or option.description, "caption", {
-		TextColor3 = if option.reason then Theme.color.warn else Theme.color.inkDim,
+	C.text(option.reason or option.note or option.description, "caption", {
+		TextColor3 = if option.reason or option.note then Theme.color.warn else Theme.color.inkDim,
 		TextWrapped = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}).Parent = texts
@@ -537,6 +579,11 @@ local function aboutCard(parent: Instance, stepId: string, option: Option?, orde
 	if example then
 		C.text("e.g. " .. example, "caption", { TextColor3 = Theme.color.inkDim, LayoutOrder = 3, Parent = card })
 	end
+	if option.note then
+		C.text("! " .. option.note, "label", { TextColor3 = Theme.color.warn, LayoutOrder = 6, Parent = card })
+	elseif option.result then
+		C.text(option.result, "label", { LayoutOrder = 6, Parent = card })
+	end
 	if option.reason then
 		C.text("✗ Locked: " .. option.reason, "label", { TextColor3 = Theme.color.warn, LayoutOrder = 4, Parent = card })
 		C.text("→ " .. nextStep(option.reason), "caption", { LayoutOrder = 5, Parent = card })
@@ -602,10 +649,41 @@ local function buildStats(parent: Instance, recipe: Types.Recipe?, brief: boolea
 
 	local stats, errors = magic:preview(recipe)
 	C.text(sentence(recipe), "heading", { LayoutOrder = o(), TextColor3 = Theme.branchColor(recipe.branch) }).Parent = parent
-	-- What it does, in plain words (Shared/UI/SpellHelp).
+
+	-- What it will really do, before anything else (Shared/Magic/SpellOutcome).
+	local outcome = SpellOutcome.of(recipe)
+	C.text(SpellOutcome.tag(outcome), "label", { LayoutOrder = o(), TextColor3 = if outcome.useful then Theme.color.good else Theme.color.danger }).Parent = parent
+	C.text(outcome.text, "body", { LayoutOrder = o() }).Parent = parent
+	if not outcome.useful then
+		-- Power first: often the same spell simply needs more force behind it.
+		local from = SpellOutcome.usefulFrom(recipe)
+		local template = templateFor(draft:get())
+		if from then
+			local reach = template ~= nil and from <= template.maxPower
+			C.text(string.format("It starts working at power %d%s", from, if reach then "." else ", more than you can reach here yet."), "caption", { LayoutOrder = o(), TextColor3 = Theme.color.warn }).Parent = parent
+		end
+		local alternatives = SpellOutcome.alternatives(recipe, magic:templatesFor(recipe.branch), if brief then 2 else 3)
+		if #alternatives > 0 then
+			C.text("Close to this, and they work:", "label", { LayoutOrder = o() }).Parent = parent
+			for _, alternative in alternatives do
+				local swap = alternative.recipe
+				C.button(sentence(swap :: any) .. "\n" .. SpellOutcome.tag(alternative.outcome), function()
+					update({ property = swap.property, verb = swap.verb, form = swap.form, power = swap.power })
+				end, { kind = "ghost", height = 56, sound = "confirm" }, { LayoutOrder = o(), Size = UDim2.new(1, 0, 0, 56), Parent = parent })
+			end
+		end
+	end
+	for _, id in recipe.modifiers do
+		local problem = SpellOutcome.modifierProblem(id, outcome)
+		if problem then
+			C.text(string.format("! %s: %s", Registry.modifiers[id].name, problem), "caption", { LayoutOrder = o(), TextColor3 = Theme.color.warn }).Parent = parent
+		end
+	end
+
+	-- How it's put together, in plain words (Shared/UI/SpellHelp).
 	local property = Registry.properties[recipe.property]
 	local harmful = if stats then stats.harmful else (property ~= nil and property.harmful == true)
-	C.text(SpellHelp.describe(recipe.verb, if property then property.name else recipe.property, recipe.form, recipe.modifiers, harmful), "body", { LayoutOrder = o() }).Parent = parent
+	C.text(SpellHelp.describe(recipe.verb, if property then property.name else recipe.property, recipe.form, recipe.modifiers, harmful, outcome.shape), "caption", { LayoutOrder = o() }).Parent = parent
 	if not brief then
 		local mods: { string } = {}
 		for _, m in recipe.modifiers do
@@ -863,8 +941,16 @@ local function buildPowerStep(parent: Instance, d: Draft)
 		button.Parent = row
 	end
 
-	C.text("Paid from", "heading", { LayoutOrder = 4 }).Parent = parent
-	local order = 5
+	-- Some spells become something else with enough force behind them (a landslide, an earthquake).
+	local recipe = recipeOf(d)
+	if recipe then
+		for i, change in SpellOutcome.steps(recipe, template.maxPower) do
+			C.text(string.format("From power %d: %s. %s", change.power, SpellOutcome.tag(change.outcome), change.outcome.text), "caption", { LayoutOrder = 3 + i }).Parent = parent
+		end
+	end
+
+	C.text("Paid from", "heading", { LayoutOrder = 20 }).Parent = parent
+	local order = 21
 	local ids: { string } = {}
 	for id in Registry.Tuning.CostProfiles do
 		table.insert(ids, id)
@@ -1034,12 +1120,14 @@ local function buildSaveArea(scope: Scope, parent: Instance)
 		C.list("y", Theme.space.s).Parent = holder
 		local recipe = recipeOf(draft:get())
 		local stats = recipe and magic:preview(recipe)
-		C.button("Save to spellbook", function()
+		-- A dead spell can still be saved (nothing is forbidden to the player), but not by accident.
+		local dead = recipe ~= nil and not SpellOutcome.of(recipe).useful
+		C.button(if dead then "Save anyway (does almost nothing)" else "Save to spellbook", function()
 			if recipe then
 				local name = string.match(spellName, "^%s*(.-)%s*$") or ""
 				save(recipe, if name ~= "" then name else nil, false) -- Full mode shows the slot picker instead
 			end
-		end, { kind = "primary", disabled = stats == nil, sound = "confirm" }, { LayoutOrder = 1, Parent = holder })
+		end, { kind = if dead then "ghost" else "primary", disabled = stats == nil, sound = "confirm" }, { LayoutOrder = 1, Parent = holder })
 
 		if recipe then
 			local normalized = MagicCore.normalizeRecipe(recipe)
