@@ -413,4 +413,40 @@ return function(t: any)
 			smithy:Destroy()
 		end)
 	end)
+	describe("Standing room (navaudit, 2026-11-10)", function()
+		it("every bed spot and every inside link end has a villager's clearance, across seeds and lot sizes", function()
+			local bad: { string } = {}
+			local checked = 0
+			for _, kind in { "house_small", "house_medium", "house_large", "tavern" } do
+				local fp = SettlementStyles.footprints[kind]
+				for seed = 1, 6 do
+					for _, shrink in { 0, 3 } do
+						local at = CFrame.new(10, 50, -20) * CFrame.Angles(0, math.rad(35), 0)
+						local model = BuildingGenerator.build({
+							kind = kind, cframe = at, w = fp.w - shrink, d = fp.d - shrink, seed = seed,
+							culture = "wayfarer", name = "Spec_room", settlementId = "settlement_t", lotId = "settlement_t_L07",
+						}) :: Model
+						local primary = model.PrimaryPart :: BasePart
+						for _, child in primary:GetChildren() do
+							local isHome = child:IsA("Attachment") and CollectionService:HasTag(child, "NPCHome")
+							-- Inside ends: every link's B, and the stairs' A (link 2 and on); link 1's A is outside.
+							local isInside = child:IsA("Attachment") and (string.match(child.Name, "^PathLink%d+B$") ~= nil
+								or (string.match(child.Name, "^PathLink(%d+)A$") ~= nil and child.Name ~= "PathLink1A"))
+							if isHome or isInside then
+								checked += 1
+								if not BuildingGenerator.standable(model, at, (child :: Attachment).WorldPosition) then
+									table.insert(bad, string.format("%s seed %d shrink %d: %s", kind, seed, shrink, child.Name))
+								end
+							end
+						end
+						model:Destroy()
+					end
+				end
+			end
+			if #bad > 0 then
+				error(string.format("%d of %d spots boxed in: %s", #bad, checked, table.concat(bad, "; ", 1, math.min(#bad, 8))))
+			end
+			expect(checked > 40).toBe(true)
+		end)
+	end)
 end

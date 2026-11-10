@@ -79,7 +79,7 @@ Interact/Doors).
 - ☑ **"Gear" filter chip truncated to "Gea".** (Owner, 2026-11-10: reads in full.) Verified in code: the chips use `AutomaticSize.X`
   with `TextWrapped = true`, so the text wraps at measure time and the second line clips. Fixed:
   chips don't wrap.
-- ◐ **Inventory grid's ninth column cut off.** (Owner, 2026-11-10: visible but still slightly cut off. Second fix: the scrollbar gets its own strip, `VerticalScrollBarInset = Always`, and the grid is centred.) Verified in code: the grid's scroll frame pads 2 px
+- ◐ **Inventory grid's ninth column cut off.** (Owner, 2026-11-10: still cut off after the inset fix too. Third fix: the screen's UIScale throws off UIGridLayout's wrapping, so `FillDirectionMaxCells` is computed from the visible width in screen pixels.) Verified in code: the grid's scroll frame pads 2 px
   while the scrollbar overlays 6 px of the canvas, so the last column sits under the bar. Fixed:
   the right padding reserves the scrollbar's width and the grid wraps a column earlier.
 - ☐ **Hover card above its own text** and **toasts overlapping event cards**: both fixed earlier
@@ -115,15 +115,22 @@ Interact/Doors).
 
 ## Playtest requests outstanding (in one run, if possible)
 
-1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1036/1036 · magic examples 33/33`
+1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1037/1037 · magic examples 33/33`
    (the 2026-11-10 run gave 1035/1036: the one failure was 7 Reality statuses missing from `StatusInfo`, now fixed. "34 examples" was a miscount: SpellExamples feeds Cast.spec, not the magic-examples check.)
 2. ~~First minute: `character_rescued`~~: gone in the 2026-11-10 run (☑).
-3. **`navaudit Glenhold`** (new): one row per building, ✓/✗ for each piece of the walk in, link-end heights and what's
+3. **Sealed rooms, fix built 2026-11-10** from the first `navaudit Glenhold` (21 buildings: outside → door 0 failures,
+   through the door 5, door → bed 20, whole walk 19). Causes: bed spots 0.5–0.7 studs from bed frames (a villager
+   needs 1.5) or on top of another bed (large houses); the medium house's bedroom doorway opened onto a bed's foot;
+   5 door links' inside ends sat among tables. Fix: `freeSpot` moves every NPCHome and inside link end to the
+   nearest clear spot at build; medium houses' bedroom doorway centred, table and wardrobe moved off the lane.
+   Run `navaudit Glenhold` again: expect "whole walk" failures near 0; then `time 22` and watch `how=walked`.
+   Expected boot line `specs 1037/1037 · magic examples 33/33` (1 new: Buildings.spec standing room).
+4. **`navaudit Glenhold`** (first run done 2026-11-10, see 3): one row per building, ✓/✗ for each piece of the walk in, link-end heights and what's
    crowding the home spot. Paste the console text or the `nav_audit` lines. This decides the sealed-rooms fix.
    (Night run of 2026-11-10 done: see ☑ above. `startOk`/`goalOk` now try 4 directions, not just +X.)
-4. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
+5. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
    watch `npc_went_indoors how=walked` vs `how=door`, `npc_left_by_door action=sleep`, locked-door
    path failures.
-5. Inventory (, key): the Gear chip label, the grid's right edge, the hover card.
-6. Ride (Y) into a building; cast while charging (poses); `markset energy 3` for marks if time allows.
-7. A strong mage NPC's belt colour under Bloom.
+6. Inventory (, key): the Gear chip label, the grid's right edge, the hover card.
+7. Ride (Y) into a building; cast while charging (poses); `markset energy 3` for marks if time allows.
+8. A strong mage NPC's belt colour under Bloom.

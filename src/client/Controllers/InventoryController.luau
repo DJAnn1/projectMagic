@@ -484,6 +484,26 @@ local function buildGrid(scope: Scope, parent: Instance, height: UDim2?)
 		PaddingTop = UDim.new(0, 2),
 		PaddingBottom = UDim.new(0, 2),
 	}).Parent = scroll
+	-- How many columns really fit. The screen's UIScale throws off UIGridLayout's own wrapping (the
+	-- ninth column still came out cut off after the padding and inset fixes, 2026-11-10), so the count
+	-- comes from the visible width in screen pixels over a cell's pitch in screen pixels.
+	local currentGrid: UIGridLayout? = nil
+	local function fitColumns()
+		local grid = currentGrid
+		if not grid or not grid.Parent then
+			return
+		end
+		local scale = 1
+		local root = scroll:FindFirstAncestorWhichIsA("LayerCollector")
+		local uiScale = root and root:FindFirstChildWhichIsA("UIScale", true)
+		if uiScale then
+			scale = (uiScale :: UIScale).Scale
+		end
+		local pitch = (CELL + Theme.space.xs) * scale
+		local usable = scroll.AbsoluteWindowSize.X - 8 * scale + Theme.space.xs * scale
+		grid.FillDirectionMaxCells = math.max(1, math.floor(usable / pitch))
+	end
+	scroll:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(fitColumns)
 	Kit.dynamic(scope, { items.view, filter, search, selected, moving }, function(s)
 		local view = items.view:get()
 		local holder: Frame = Kit.create(nil, "Frame", {
@@ -500,6 +520,8 @@ local function buildGrid(scope: Scope, parent: Instance, height: UDim2?)
 		local grid = C.grid(CELL, CELL, Theme.space.xs)
 		grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		grid.Parent = holder
+		currentGrid = grid
+		fitColumns()
 		local byRef: { [string]: ItemView } = {}
 		local highest = view.capacity
 		for _, item in view.items do

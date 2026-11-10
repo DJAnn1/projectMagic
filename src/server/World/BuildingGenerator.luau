@@ -84,7 +84,7 @@ local BuildingGenerator = {}
 type Opening = { u: number, w: number, bottom: number, top: number, door: boolean? }
 
 type Builder = {
-	links: { { a: Vector3, b: Vector3 } }, -- walkable connections the pathfinder can't see for itself
+	links: { { a: Vector3, b: Vector3, free: string? } }, -- walkable connections the pathfinder can't see for itself
 	model: Model,
 	base: CFrame,
 	rng: Random,
@@ -306,6 +306,7 @@ local function frontDoor(b: Builder, opening: Opening, d: number, color: Color3,
 	table.insert(b.links, {
 		a = Vector3.new(opening.u, 1, -d / 2 - 2.5), -- on the ground outside
 		b = Vector3.new(opening.u, FLOOR_Y + 1, -d / 2 + T + 2.5), -- on the floor inside
+		free = "b", -- the inside end is moved clear of furniture at build (freeSpot)
 	})
 end
 
@@ -718,6 +719,7 @@ local function shell(b: Builder, o: ShellOptions): Shell
 		table.insert(b.links, {
 			a = Vector3.new(x0 + stairW / 2, FLOOR_Y + 1, zStart - 1.5), -- at the foot of the stairs
 			b = Vector3.new(x0 - 1.5, y + 1, zEnd - 1), -- on the upper floor, by the top step
+			free = "ab",
 		})
 	end
 
@@ -779,13 +781,22 @@ local function bed(b: Builder, at: CFrame, y: number)
 	bedSeat(b, at * CFrame.new(0, y + 2, 0))
 end
 
--- A table with `chairs` stools around it (0-4).
-local function tableSet(b: Builder, at: CFrame, y: number, chairs: number)
+-- A table with `chairs` stools around it: a count (0-4, in the order left, right, front, back) or
+-- a list of which of those places get one.
+local function tableSet(b: Builder, at: CFrame, y: number, chairs: number | { number })
 	local wood = woodTone(b)
 	part(b, "TableTop", Vector3.new(4, 0.4, 3), at * CFrame.new(0, y + 3, 0), WOOD, wood)
 	part(b, "TableLeg", Vector3.new(0.8, 2.8, 0.8), at * CFrame.new(0, y + 1.4, 0), WOOD, wood, { small = true })
 	local seats = { Vector3.new(-2.8, 0, 0), Vector3.new(2.8, 0, 0), Vector3.new(0, 0, -2.4), Vector3.new(0, 0, 2.4) }
-	for i = 1, math.min(chairs, 4) do
+	local places: { number } = {}
+	if type(chairs) == "table" then
+		places = chairs
+	else
+		for i = 1, math.min(chairs, 4) do
+			table.insert(places, i)
+		end
+	end
+	for _, i in places do
 		part(b, "Stool", Vector3.new(1.4, 1.8, 1.4), at * CFrame.new(seats[i] + Vector3.new(0, y + 0.9, 0)), WOOD, vary(b.rng, wood, 0.05), { small = true })
 		table.insert(b.seats, at * CFrame.new(seats[i] + Vector3.new(0, y + 2, 0)))
 	end
@@ -849,17 +860,27 @@ local function houseMedium(b: Builder, spec: any): BasePart
 	local w = math.clamp(spec.w - 2 - rng:NextNumber(0, 2), 16, 20)
 	local d = math.clamp(spec.d - 2 - rng:NextNumber(0, 2), 13, 16)
 	local s = shell(b, { spec = spec, w = w, d = d, storyH = rng:NextNumber(10, 11.5), windows = { front = 2, back = 2, side = 1 }, lockChance = 0.5 })
-	-- A partition with a doorway splits off the back third as the bedroom.
+	-- A partition with a doorway splits off the back as the bedroom. The doorway is in the middle, onto
+	-- the aisle between the beds: at -w/4 it opened straight onto the left bed's foot, so nobody could
+	-- walk to bed (navaudit, 2026-11-10: 20 of 21 Glenhold houses failed door → bed).
 	local pz = d / 2 - T - 7.6
-	wall(b, "Partition", Vector3.new(0, FLOOR_Y, pz), true, w - 2 * T, s.storyH, { { u = -w / 4, w = 3.5, bottom = 0, top = 7.5, door = true } }, s.wallSwatch, vary(rng, s.wallColor, 0.03))
+	wall(b, "Partition", Vector3.new(0, FLOOR_Y, pz), true, w - 2 * T, s.storyH, { { u = 0, w = 3.5, bottom = 0, top = 7.5, door = true } }, s.wallSwatch, vary(rng, s.wallColor, 0.03))
 	bed(b, CFrame.new(-w / 2 + T + 2.2, 0, d / 2 - T - 3.6), FLOOR_Y)
 	bed(b, CFrame.new(w / 2 - T - 2.2, 0, d / 2 - T - 3.6), FLOOR_Y)
 	chest(b, CFrame.new(0, 0, d / 2 - T - 0.9), FLOOR_Y) -- between the beds, against the back wall
-	wardrobe(b, CFrame.new(0.5, 0, pz + T / 2 + 0.75) * CFrame.Angles(0, math.pi, 0), FLOOR_Y) -- bedroom side of the partition
-	lamp(b, CFrame.new(0, FLOOR_Y + s.storyH - 1.6, -d / 6))
+	-- The living room is only 3 to 6 studs deep, so it keeps a walking lane from the front door to the
+	-- bedroom doorway: the table stands against the side wall away from the door, the wardrobe on the
+	-- door's side of the bedroom doorway, facing the living room.
+	local inner = w / 2 - T
+	local livingFront, livingBack = -d / 2 + T, pz - T / 2
+	local livingMid = (livingFront + livingBack) / 2
+	local tableSide = if s.door.u >= 0 then -1 else 1
+	wardrobe(b, CFrame.new(-tableSide * (1.75 + 0.15 + 1.5), 0, livingBack - 0.75), FLOOR_Y)
+	lamp(b, CFrame.new(0, FLOOR_Y + s.storyH - 1.6, livingMid))
 	lamp(b, CFrame.new(0, FLOOR_Y + s.storyH - 1.6, pz + 3.5))
-	tableSet(b, CFrame.new(rng:NextNumber(-w / 8, w / 8), 0, -d / 6), FLOOR_Y, 4)
-	shelf(b, CFrame.new(-w / 2 + T + 0.6, 0, -d / 6) * CFrame.Angles(0, math.pi / 2, 0), FLOOR_Y, 3)
+	-- A stool at the front only when the room is deep enough to sit at it.
+	tableSet(b, CFrame.new(tableSide * (inner - 2.1), 0, livingMid), FLOOR_Y, if livingBack - livingFront >= 6.2 then { 3 } else 0)
+	shelf(b, CFrame.new(-w / 2 + T + 0.6, 0, livingMid) * CFrame.Angles(0, math.pi / 2, 0), FLOOR_Y, 3)
 	if rng:NextNumber() < b.style.chimney then
 		chimney(b, s, w / 2 - 2.2, -d / 8, -1)
 	end
@@ -1264,6 +1285,115 @@ function BuildingGenerator.supports(kind: string): boolean
 end
 
 --[[
+	Standing room. A spot an NPC is sent to (a bed's NPCHome, the inside end of a door or stair link)
+	must have a villager's clearance around it with floor underneath, or the pathfinder refuses it as a
+	goal. Fixed offsets put them 0.5 studs from bed frames, on top of other beds, and among tables by
+	the door (navaudit, 2026-11-10: 20 of 21 houses failed door → bed). After a building is built, each
+	is moved to the nearest spot that really is clear. Pure geometry over the building's own parts, in
+	its local frame, so it works before the model is in the workspace and the specs can check it.
+]]
+local CLEAR_HALF = 1.6 -- Navigation.T.agentMaxRadius (1.5) plus a little
+local CLEAR_LOW, CLEAR_HIGH = 0.35, 5.2 -- above the floor: a step's height up to a body's height
+local FLOOR_REACH = 1.0 -- the floor must also be under these corners (stairwells, edges)
+
+type Box = { min: Vector3, max: Vector3 }
+
+local function solidBoxes(model: Model, base: CFrame): { Box }
+	local boxes: { Box } = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.CanCollide then
+			local cf = base:ToObjectSpace(d.CFrame)
+			local _, _, _, r00, r01, r02, r10, r11, r12, r20, r21, r22 = cf:GetComponents()
+			local h = d.Size / 2
+			local e = Vector3.new(
+				math.abs(r00) * h.X + math.abs(r01) * h.Y + math.abs(r02) * h.Z,
+				math.abs(r10) * h.X + math.abs(r11) * h.Y + math.abs(r12) * h.Z,
+				math.abs(r20) * h.X + math.abs(r21) * h.Y + math.abs(r22) * h.Z)
+			table.insert(boxes, { min = cf.Position - e, max = cf.Position + e })
+		end
+	end
+	return boxes
+end
+
+-- The floor top under a local point: the lowest solid top between 0.5 and 3.6 studs below it.
+local function floorUnder(boxes: { Box }, p: Vector3): number?
+	local best: number? = nil
+	for _, bx in boxes do
+		local top = bx.max.Y
+		if top <= p.Y - 0.5 and top >= p.Y - 3.6 and p.X >= bx.min.X and p.X <= bx.max.X and p.Z >= bx.min.Z and p.Z <= bx.max.Z then
+			if best == nil or top < best then
+				best = top
+			end
+		end
+	end
+	return best
+end
+
+local function hasFloorAt(boxes: { Box }, x: number, z: number, floorTop: number): boolean
+	for _, bx in boxes do
+		if math.abs(bx.max.Y - floorTop) <= 0.35 and x >= bx.min.X and x <= bx.max.X and z >= bx.min.Z and z <= bx.max.Z then
+			return true
+		end
+	end
+	return false
+end
+
+local function standable(boxes: { Box }, p: Vector3, floorTop: number): boolean
+	local lo = Vector3.new(p.X - CLEAR_HALF, floorTop + CLEAR_LOW, p.Z - CLEAR_HALF)
+	local hi = Vector3.new(p.X + CLEAR_HALF, floorTop + CLEAR_HIGH, p.Z + CLEAR_HALF)
+	for _, bx in boxes do
+		if bx.min.X < hi.X and bx.max.X > lo.X and bx.min.Y < hi.Y and bx.max.Y > lo.Y and bx.min.Z < hi.Z and bx.max.Z > lo.Z then
+			return false
+		end
+	end
+	for _, c in { Vector2.new(-1, -1), Vector2.new(1, -1), Vector2.new(-1, 1), Vector2.new(1, 1), Vector2.zero } do
+		if not hasFloorAt(boxes, p.X + c.X * FLOOR_REACH, p.Z + c.Y * FLOOR_REACH, floorTop) then
+			return false
+		end
+	end
+	return true
+end
+
+-- The nearest clear spot to `want` on the same floor (straight along `prefer` first, if given, then
+-- rings out to 4 studs), keeping its height above the floor. Returns `want` unchanged, and false,
+-- when there's none.
+local function freeSpot(boxes: { Box }, want: Vector3, prefer: Vector3?): (Vector3, boolean)
+	local floorTop = floorUnder(boxes, want)
+	if not floorTop then
+		return want, false
+	end
+	if standable(boxes, want, floorTop) then
+		return want, true
+	end
+	if prefer then
+		for step = 0.5, 4, 0.5 do
+			local p = want + prefer * step
+			if floorUnder(boxes, p) == floorTop and standable(boxes, p, floorTop) then
+				return p, true
+			end
+		end
+	end
+	for ring = 0.5, 4, 0.5 do
+		for k = 0, 15 do
+			local a = k * math.pi / 8
+			local p = Vector3.new(want.X + math.cos(a) * ring, want.Y, want.Z + math.sin(a) * ring)
+			if floorUnder(boxes, p) == floorTop and standable(boxes, p, floorTop) then
+				return p, true
+			end
+		end
+	end
+	return want, false
+end
+
+-- For the specs: can someone stand at this world point in this built model?
+function BuildingGenerator.standable(model: Model, base: CFrame, at: Vector3): boolean
+	local boxes = solidBoxes(model, base)
+	local p = base:PointToObjectSpace(at)
+	local floorTop = floorUnder(boxes, p)
+	return floorTop ~= nil and standable(boxes, p, floorTop)
+end
+
+--[[
 	A PathfindingLink's ends must sit on the walkable surface or the link does nothing. They're
 	placed at fixed local heights, but a lot with `drop` has outside ground lower than local Y=1,
 	leaving the outside end in the air — that building stays sealed on sloped lots. Terrain can
@@ -1317,6 +1447,25 @@ function BuildingGenerator.build(spec: any): (Model?, number, string?)
 	}
 	local primary = kind.builder(b, spec)
 	model.PrimaryPart = primary
+	-- Standing room for the spots NPCs are sent to (see freeSpot).
+	local boxes = solidBoxes(model, b.base)
+	for _, link in b.links do
+		if link.free == "b" or link.free == "ab" then
+			-- A door's inside end moves straight into the room first, so the walk through stays straight.
+			link.b = freeSpot(boxes, link.b, if link.free == "b" then Vector3.zAxis else nil)
+		end
+		if link.free == "ab" then
+			link.a = freeSpot(boxes, link.a)
+		end
+	end
+	for _, child in primary:GetChildren() do
+		if child:IsA("Attachment") and CollectionService:HasTag(child, "NPCHome") then
+			local spot, ok = freeSpot(boxes, b.base:PointToObjectSpace(child.WorldPosition))
+			if ok then
+				child.WorldCFrame = b.base * CFrame.new(spot)
+			end
+		end
+	end
 	-- Through doors and up stairs. A doorway is narrower than the pathfinder's grid can see, so without these
 	-- every interior is a sealed island: `npcmove` showed 498 no paths and 0 doors ever opened (2026-11-07).
 	for i, link in b.links do
