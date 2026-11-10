@@ -112,7 +112,8 @@ Interact/Doors).
 
 ## Playtest requests outstanding (in one run, if possible)
 
-1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1035/1035 · magic examples 34/34`.
+1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1037/1037 · magic examples 34/34`
+   (2 new specs: dead-content routes in EarlyGame.spec, useful-only suggestions in Experiment.spec; 1 new magic example: Pebble Rise).
 2. First minute: watch for `character_rescued` (should be gone).
 3. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
    watch `npc_went_indoors how=walked` vs `how=door`, `npc_left_by_door action=sleep`, locked-door

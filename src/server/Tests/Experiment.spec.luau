@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Registry = require(ReplicatedStorage.Shared.Magic.Registry)
 local MagicCore = require(ReplicatedStorage.Shared.Magic.MagicCore)
+local SpellOutcome = require(ReplicatedStorage.Shared.Magic.SpellOutcome)
 local AudioLibrary = require(ReplicatedStorage.Shared.Audio.AudioLibrary)
 local Experiment = require(ServerScriptService.Server.Progression.Experiment)
 local T = require(ServerScriptService.Server.Progression.ProgressionTuning)
@@ -58,6 +59,19 @@ return function(t: any)
 					error(domainId .. ": nothing to suggest at Sensing")
 				end
 				t.expect((MagicCore.validateRecipe(recipe, caster))).toBe(true)
+			end
+		end)
+
+		t.it("never suggests a spell with no real effect", function()
+			-- A suggestion followed into nothing costs trust (the Shine ledger, rank 5).
+			for _, domainId in Registry.domainIds do
+				local caster = sensingCaster(domainId)
+				for seed = 1, 5 do
+					local recipe = Experiment.suggest(caster, {}, Random.new(seed))
+					if recipe then
+						t.expect(SpellOutcome.of(recipe :: any).useful).toBe(true)
+					end
+				end
 			end
 		end)
 

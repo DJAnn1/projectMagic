@@ -128,6 +128,14 @@ return function(t: any)
 			expect(route({ branch = "mind", property = "perception", verb = "sense", form = "aura", power = 1 })).toBe("sense")
 		end)
 
+		it("gives the touch stone cards a real route, and only them", function()
+			-- Pebble Nudge and Shape Stone used to fall through to manifest (the Shine ledger, rank 5).
+			expect(route({ branch = "earth", property = "contour", verb = "generate", form = "touch", power = 1 })).toBe("stonetouch")
+			expect(route({ branch = "geomancy", property = "contour", verb = "generate", form = "touch", power = 2 })).toBe("stonetouch")
+			-- The Composer's own dead example stays honestly dead.
+			expect(route({ branch = "metallurgy", property = "hardness", verb = "amplify", form = "touch", power = 2 })).toBe("manifest")
+		end)
+
 		it("matches strikes through hybrid branches' domains too", function()
 			for _, branchId in Registry.branchIds do
 				local branch = Registry.branches[branchId]
