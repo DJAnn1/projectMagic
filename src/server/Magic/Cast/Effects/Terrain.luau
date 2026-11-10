@@ -74,6 +74,10 @@ local function stone(ctx: CastTypes.EffectContext): CastTypes.Outcome
 	elseif form == "pillar" then
 		local side = math.clamp(stats.area, 4, 16)
 		table.insert(pieces, { cf = CFrame.new(ctx.point.X, base + height / 2 - 1, ctx.point.Z), size = Vector3.new(side, height, side) })
+	elseif form == "touch" then
+		-- The stonetouch route: a hand-sized working, one small stone drawn up where you touch.
+		local side = math.clamp(stats.area, 1.5, 4)
+		table.insert(pieces, { cf = CFrame.new(ctx.point.X, base + height * 0.25, ctx.point.Z), size = Vector3.new(side, math.max(height * 0.5, 1.5), side) })
 	else
 		-- Burst / zone: a ring of spikes around the point.
 		local ring = math.clamp(stats.area * 0.6, 4, 30)

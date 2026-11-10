@@ -55,23 +55,22 @@ local Techniques: { [string]: Types.TechniqueDef } = {
 	pebble_nudge = {
 		name = "Pebble Nudge", domain = "earth", tier = 1,
 		recipe = { branch = "earth", property = "contour", verb = "generate", form = "touch", power = 1 },
-		description = "Lift and roll a pebble.",
+		description = "Draw a knuckle of stone up from the ground at a touch.",
 	},
 	shape_stone = {
 		name = "Shape Stone", domain = "earth", tier = 2,
 		recipe = { branch = "geomancy", property = "contour", verb = "generate", form = "touch", power = 2 },
-		description = "Press stone like clay.",
+		description = "Pull a rough shape up out of bare stone.",
 	},
 	ore_sense = {
 		name = "Ore Sense", domain = "earth", tier = 3,
 		recipe = { branch = "metallurgy", property = "purity", verb = "sense", form = "aura", power = 3 },
 		description = "Feel veins of metal in the ground around you.",
 	},
-	forge_hand = {
-		name = "Forge Hand", domain = "earth", tier = 4,
-		recipe = { branch = "alloycraft", property = "purity", verb = "transmute", form = "touch", power = 4 },
-		description = "Refine and alloy metal in your bare hands.",
-	},
+	-- forge_hand ("refine metal in your bare hands") was removed 2026-11-10: its recipe (alloycraft
+	-- purity transmute touch) has no honest route, and a card that glows and does nothing teaches
+	-- players not to trust the cards. Refining by hand lives on as the Inventory's ✦ Mend action;
+	-- a real refining cast can bring the card back.
 	magnetic_grip = {
 		name = "Magnetic Grip", domain = "earth", tier = 5,
 		recipe = { branch = "ferromancy", property = "magnetism", verb = "redirect", form = "projectile", power = 5 },

@@ -195,6 +195,7 @@ local routes: { [string]: Summary } = {
 	tremor = { kind = "control", text = "A local shudder: people and loose things are knocked about and buildings take light damage. The land doesn't change." },
 	landslide = { kind = "land", text = "The slope where you aim slides downhill, for good." },
 	stoneshape = { kind = "land", text = "Raises temporary stone: a wall, a pillar or a ring of spikes.", lasts = true },
+	stonetouch = { kind = "land", text = "Draws a fist of stone up out of the ground where you touch; it sinks back after a while.", lasts = true },
 	metal = {
 		kind = "move",
 		text = "Pulls loose metal toward you, or chunks out of ore, and hurts whoever the spell reaches.",

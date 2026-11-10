@@ -17,6 +17,7 @@
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Registry = require(Shared.Magic.Registry)
 local MagicCore = require(Shared.Magic.MagicCore)
+local SpellOutcome = require(Shared.Magic.SpellOutcome)
 local T = require(script.Parent.ProgressionTuning)
 
 local E = T.experimentation
@@ -90,7 +91,9 @@ function Experiment.suggest(caster: any, explored: { [string]: any }, rng: Rando
 							return nil
 						end
 						local valid = MagicCore.validateRecipe(recipe, caster)
-						if valid then
+						-- A suggestion a player follows into nothing costs more trust than no
+						-- suggestion: only spells with a real effect (never the manifest fallback).
+						if valid and SpellOutcome.of(recipe).useful then
 							return recipe
 						end
 					end

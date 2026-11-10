@@ -143,6 +143,9 @@ local routes: { Route } = {
 	{ id = "tremor", effect = "Terrain", properties = { "seismicity" }, params = { op = "tremor" } },
 	{ id = "landslide", effect = "Terrain", branches = EARTH, properties = { "contour", "cohesion" }, verbs = { "reduce", "redirect" }, minPower = 4, params = { op = "landslide" }, heavy = true },
 	{ id = "stoneshape", effect = "Terrain", branches = EARTH, properties = { "contour", "hardness", "density", "cohesion" }, verbs = { "generate", "amplify", "bind", "transmute" }, forms = { "wall", "pillar", "burst", "zone" }, params = { op = "stone" } },
+	-- Contour + generate only, so the Guided cards Pebble Nudge and Shape Stone really do something
+	-- at a touch, while Amplify-Hardness-as-Touch stays honestly dead (the Composer's own example).
+	{ id = "stonetouch", effect = "Terrain", branches = EARTH, properties = { "contour" }, verbs = { "generate" }, forms = { "touch" }, params = { op = "stone" } },
 	{ id = "metal", effect = "Metal", properties = { "magnetism" } },
 
 	-- ─── General ────────────────────────────────────────────────────────────
