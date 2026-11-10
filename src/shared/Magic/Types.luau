@@ -331,6 +331,8 @@ export type SpellStats = {
 	masteryTier: number,
 	resonance: number, -- power multiplier from the place's domain resonance (ambientBias)
 	environmentFactor: number, -- multiplier on power from environmental conditions
+	weatherFactor: number, -- multiplier on power from the weather here (Data/WeatherFuel); 1 with no context
+	weatherRule: string?, -- the WeatherFuel rule that did the most, if any
 	blockedBy: string?, -- environment rule id that makes this cast impossible here
 	warnings: { string },
 }

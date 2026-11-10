@@ -21,6 +21,7 @@
 local Types = require(script.Parent.Types)
 local Registry = require(script.Parent.Registry)
 local Strike = require(script.Parent.Strike)
+local WeatherFuel = require(script.Parent.WeatherFuel)
 
 local Tuning = Registry.Tuning
 
@@ -641,9 +642,12 @@ function MagicCore.computeStats(raw: any, caster: CasterProfile, context: CastCo
 	local branchMod = caster.branchMods and caster.branchMods[recipe.branch]
 	local isSignature = caster.signatures ~= nil and caster.signatures[key] ~= nil
 	local envFactor, blockedBy = environmentFactor(recipe, branch, ctx, warnings)
+	-- The weather feeds or starves some magic (Data/WeatherFuel): power only, not area or cost.
+	local weatherFactor, weatherRule = WeatherFuel.factor(recipe.property, recipe.verb, branch.domains, ctx.environment)
 	power *= (if branchMod then branchMod.power else 1)
 		* (if isSignature then Tuning.signature.power else 1)
 		* envFactor
+		* weatherFactor
 	cost *= (if branchMod then branchMod.cost else 1) * (if isSignature then Tuning.signature.cost else 1)
 	if blockedBy then
 		table.insert(warnings, "BLOCKED_BY_ENVIRONMENT")
@@ -751,6 +755,8 @@ function MagicCore.computeStats(raw: any, caster: CasterProfile, context: CastCo
 		masteryTier = masteryTier,
 		resonance = round(resonance, 3),
 		environmentFactor = round(envFactor, 3),
+		weatherFactor = round(weatherFactor, 3),
+		weatherRule = weatherRule,
 		blockedBy = blockedBy,
 		warnings = warnings,
 	}

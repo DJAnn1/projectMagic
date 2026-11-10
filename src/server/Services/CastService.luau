@@ -61,6 +61,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
 local Topics = require(Shared.Core.Topics)
+local FeatureFlags = require(Shared.Core.FeatureFlags)
 local Types = require(Shared.Magic.Types)
 local Registry = require(Shared.Magic.Registry)
 local MagicCore = require(Shared.Magic.MagicCore)
@@ -422,6 +423,8 @@ local function aftermath(
 		harmful = stats.harmful,
 		forbidden = branchDef ~= nil and table.find(branchDef.tags or {}, "forbidden") ~= nil,
 		borrowed = (stats :: any).borrowed == true,
+		weatherFactor = stats.weatherFactor,
+		weatherRule = stats.weatherRule,
 	})
 
 	-- Borrowed power teaches nothing: it isn't yours to learn from.
@@ -955,6 +958,11 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 	local stats, statErrors = MagicCore.computeStats(recipe, casterProfile, context)
 	if not stats then
 		return refuse(player, key, statErrors[1] and statErrors[1].code or "INVALID_RECIPE")
+	end
+	if stats.weatherFactor ~= 1 and FeatureFlags.get("weather_fuel_enabled") ~= true then
+		-- The kill switch: cast as if the sky were neutral (Data/WeatherFuel).
+		stats.power /= stats.weatherFactor
+		stats.weatherFactor, stats.weatherRule = 1, nil
 	end
 	if borrowTier then
 		-- Borrowed power (Services/BorrowedPowerService): as strong as the relic says, not all-knowing.

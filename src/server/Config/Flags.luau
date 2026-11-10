@@ -49,6 +49,7 @@ return {
 	feral_spells_max = { default = 6, description = "Most loose spells on this server at once." },
 	familiars_enabled = { default = true, replicate = true, description = "A small creature born from your magic, which grows and fights beside you (Services/FamiliarService). Off removes them all; saves keep them." },
 	familiars_max_alive = { default = 60, description = "Most familiars out at once on this server." },
+	weather_fuel_enabled = { default = true, description = "The weather feeds or starves some magic: storms strengthen lightning, rain helps water and dampens fire, heat and cold lean fire and frost (Shared/Magic/WeatherFuel, Services/WeatherFuelService). Off casts as if the sky were neutral." },
 	magic_marks_enabled = { default = true, description = "The magic you use most slowly marks your body, and NPC mages carry marks of their own (Services/MarkService). Off takes every mark off and stops counting; saves keep their points." },
 	quests_enabled = { default = true, description = "Quest Director: situations, offers, quest progress and outcomes (Services/QuestDirector)." },
 	combat_anim_debug = { default = false, replicate = true, description = "Show each nearby character's and NPC's action state over its head (client labels; every client sees them, so Studio use)." },
