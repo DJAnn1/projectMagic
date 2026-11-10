@@ -96,7 +96,9 @@ local Delivery = {}
 		"stop"              the flight ends here (Orbit Shield)
 		"reflect", model    it turns back at its caster, as a parry does, turned by `model` (Bend Path)
 		"bend", velocity    it carries on with this velocity, no longer homing (Bend Path)
+		"erase"             it stops existing: it ends in the air, with no splash (a Severance edict)
 		nil                 nothing
+	Cast/RealityRuntime wraps Gravity's interceptor and asks first.
 ]]
 Delivery.interceptor = nil :: ((position: Vector3, velocity: Vector3, flight: Flight) -> (string?, any))?
 
@@ -194,6 +196,9 @@ local function step(entry: Live, dt: number)
 		local action, value = interceptor(entry.position, entry.velocity, f)
 		if action == "stop" then
 			finish(entry, entry.position, nil, true, false)
+			return
+		elseif action == "erase" then
+			finish(entry, entry.position, nil, false, true)
 			return
 		elseif action == "reflect" and value then
 			reflect(entry, value, entry.position)

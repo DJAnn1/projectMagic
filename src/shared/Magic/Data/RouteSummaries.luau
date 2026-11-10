@@ -76,6 +76,51 @@ local routes: { [string]: Summary } = {
 	},
 	stasis = { kind = "control", text = "Holds whoever it reaches in stasis." },
 
+	-- Reality
+	worldlaw = {
+		kind = "control",
+		text = "Lays a law over a whole region for minutes.",
+		byVerb = {
+			reduce = { text = "Over a whole region, for minutes: nobody you could harm may cast." },
+			amplify = { kind = "protect", text = "Over a whole region, for minutes: nobody can be hurt except by you." },
+			bind = { kind = "protect", text = "Over a whole region, for minutes: hostile projectiles stop existing." },
+			transmute = { kind = "heal", text = "Over a whole region, for minutes: harm on you and your allies heals instead." },
+		},
+	},
+	edict = {
+		kind = "control",
+		text = "Lays down a local law for a while.",
+		byVerb = {
+			reduce = { text = "Hush: nobody you could harm may cast inside." },
+			amplify = { kind = "protect", text = "Sanctuary: nobody inside can be hurt, except by you." },
+			bind = { kind = "protect", text = "Severance: hostile projectiles stop existing inside." },
+			transmute = { kind = "heal", text = "Reversal: harm on you and your allies inside heals instead." },
+		},
+	},
+	favor = { kind = "boost", text = "Your hits crit more, some hits on you graze off, and you backfire less." },
+	doom = { kind = "attack", text = "Their luck turns: you crit them more, their hits sometimes miss, and they backfire more." },
+	certainty = { kind = "attack", text = "Your next few hits on them are certain to crit." },
+	twist_of_fate = { kind = "protect", text = "The next few blows on you are cancelled and sent back at whoever dealt them." },
+	cage = { kind = "control", text = "Shuts them in a box of solid matter for a few seconds." },
+	conjure = {
+		kind = "land",
+		text = "Makes solid matter from nothing for a while.",
+		byForm = {
+			touch = { text = "A step under your feet: stand on the air." },
+			beam = { text = "A bridge from your feet to where you aim." },
+			wall = { kind = "protect", text = "A wall of solid matter where you aim." },
+			pillar = { text = "A pillar where you aim. Under your feet, it carries you up." },
+			zone = { kind = "protect", text = "A bastion: a ring of walls with a roof." },
+			burst = { kind = "protect", text = "A bastion: a ring of walls with a roof." },
+			ritual = { kind = "protect", text = "A bastion: a ring of walls with a roof." },
+		},
+	},
+	unmake = { kind = "attack", text = "Walls and things in reach stop existing for a while; people lose their wards and are hurt. Floors stay." },
+	undying = { kind = "protect", text = "For a few seconds, nothing can take you below 1 health." },
+	fray = { kind = "attack", text = "They become less real and take more damage." },
+	polymorph = { kind = "control", text = "Turns them into a small creature that can't cast or fight. With nobody there, it changes what things are made of." },
+	exchange = { kind = "heal", text = "You and your target swap how hurt you are. Only works if you'd gain." },
+
 	-- Senses and charges
 	sense = { kind = "sense", text = "Tells you what you can feel nearby, in a few words. It touches nobody." },
 	store = { kind = "utility", text = "Holds a charge for a short while. On its own that's all: a Release spell of the same property lets it out." },

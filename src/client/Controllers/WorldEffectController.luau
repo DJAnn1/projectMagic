@@ -18,6 +18,7 @@
 		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
 		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
+		reality          Fx/RealityFx: luck shells, edict boundaries, conjured matter, unmaking, polymorphs
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
 		familiar         Fx/FamiliarFx: its bites and abilities, being born, growing, a knockout
 		event, event_end world events (no visuals yet)
@@ -37,6 +38,7 @@ local DashFx = require(script.Parent.Parent.Fx.DashFx)
 local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
+local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
 local SurgeFx = require(script.Parent.Parent.Fx.SurgeFx)
 local FamiliarFx = require(script.Parent.Parent.Fx.FamiliarFx)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
@@ -126,6 +128,8 @@ local function handle(effect: { [string]: any })
 		FamiliarFx.cue(effect)
 	elseif kind == "time" then
 		TimeFx.cue(effect)
+	elseif kind == "reality" then
+		RealityFx.cue(effect)
 	elseif kind == "gravity" then
 		GravityFx.cue(effect)
 	elseif kind == "gravity_pull" then

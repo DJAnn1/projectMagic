@@ -62,6 +62,23 @@ local routes: { Route } = {
 	{ id = "future_sight", effect = "TimePower", branches = { "precognition" }, properties = { "foresight" }, verbs = { "amplify" }, forms = { "aura", "touch" }, params = { power = "sight" } },
 	{ id = "timestop", effect = "TimePower", branches = { "stasis" }, properties = { "tempo" }, verbs = { "reduce", "bind" }, forms = { "zone", "burst", "aura", "ritual" }, minPower = 7, params = { power = "timestop" }, heavy = true },
 
+	-- ─── Reality's powers (Effects/RealityPower, docs/Reality.md) ───────────
+	-- Before `stasis` (persistence), `fortune` and the old `reality` field, which would swallow them.
+	-- Each is narrow: its own branch. Verbs and forms the grammar allows for these properties only.
+	{ id = "worldlaw", effect = "RealityPower", branches = { "worldlaw" }, properties = { "law" }, verbs = { "reduce", "amplify", "bind", "transmute" }, forms = { "ritual" }, minPower = 9, params = { power = "edict", worldlaw = true }, heavy = true },
+	{ id = "edict", effect = "RealityPower", branches = { "edict" }, properties = { "law" }, verbs = { "reduce", "amplify", "bind", "transmute" }, forms = { "zone", "burst", "aura", "ritual" }, params = { power = "edict" } },
+	{ id = "favor", effect = "RealityPower", branches = { "fortune" }, properties = { "probability" }, verbs = { "amplify" }, forms = { "aura" }, params = { power = "favor" } },
+	{ id = "doom", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "reduce" }, forms = POINT_FORMS, params = { power = "doom" } },
+	{ id = "certainty", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { power = "certainty" } },
+	{ id = "twist_of_fate", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "transmute" }, forms = { "aura" }, params = { power = "twist" } },
+	{ id = "cage", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "bind" }, forms = POINT_FORMS, params = { power = "cage" } },
+	{ id = "conjure", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate" }, forms = { "touch", "beam", "wall", "pillar", "zone", "burst", "ritual" }, params = { power = "conjure" } },
+	{ id = "unmake", effect = "RealityPower", branches = { "unmaking" }, properties = { "substance" }, verbs = { "reduce" }, params = { power = "unmake" } },
+	{ id = "undying", effect = "RealityPower", branches = { "substantiation" }, properties = { "persistence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "undying" } },
+	{ id = "fray", effect = "RealityPower", branches = { "substantiation" }, properties = { "persistence" }, verbs = { "reduce" }, forms = { "touch", "projectile", "beam" }, params = { power = "fray" } },
+	{ id = "polymorph", effect = "RealityPower", branches = { "polymorphy" }, properties = { "identity" }, verbs = { "transmute" }, forms = POINT_FORMS, params = { power = "polymorph" } },
+	{ id = "exchange", effect = "RealityPower", branches = { "lawcraft" }, properties = { "identity" }, verbs = { "transfer" }, forms = { "touch", "beam", "chain" }, params = { power = "exchange" } },
+
 	-- ─── Perception and charges ─────────────────────────────────────────────
 	{ id = "sense", effect = "Sense", verbs = { "sense" } },
 	{ id = "store", effect = "Store", verbs = { "store" } },

@@ -455,6 +455,7 @@ function NPCCombat.step(npc: any, dt: number): boolean
 	if
 		humanoid:GetAttribute("KnockedDown")
 		or (root.Parent ~= nil and (root.Parent :: Instance):GetAttribute("GravityHeld")) -- held or frozen (Cast/GravityRuntime): no bolts either
+		or (root.Parent ~= nil and (root.Parent :: Instance):GetAttribute("Polymorphed")) -- turned into a creature (Cast/RealityRuntime)
 		or (typeof(flinchUntil) == "number" and flinchUntil > workspace:GetServerTimeNow())
 	then
 		Navigation.Halt(npc)

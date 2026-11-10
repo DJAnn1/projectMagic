@@ -24,6 +24,8 @@
 
 local Players = game:GetService("Players")
 
+local RealityRules = require(game:GetService("ReplicatedStorage").Shared.Magic.RealityRules)
+
 local Cast = script.Parent
 local C = require(Cast.Parent.Data.CombatTuning)
 local CastTypes = require(Cast.CastTypes)
@@ -51,6 +53,10 @@ export type Result = {
 }
 
 local DamageModel = {}
+
+-- Set by Cast/RealityRuntime: added to the crit chance of this hit (Favor, Doom); 1 or more makes it
+-- certain (Certainty). The bonus also lifts the cap. Called once per rolled hit.
+DamageModel.critBonus = nil :: ((CastTypes.EffectContext, CastTypes.Hit) -> number)?
 
 function DamageModel.base(power: number): number
 	return D.perPower * math.max(0, power) ^ D.exponent
@@ -91,7 +97,10 @@ function DamageModel.compute(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, s
 	if not o.noCrit then
 		local chance = D.critBase + D.critPerTier * stats.masteryTier + (if stats.flags.reckless then D.critReckless else 0)
 			+ StatusEffects.critTakenBonus(hit.humanoid) -- Jinxed
-		if ctx.rng:NextNumber() < math.min(D.critMax, chance) then
+		local hook = DamageModel.critBonus
+		local bonus = if hook then hook(ctx, hit) else 0
+		-- Same as min(critMax, chance) with no bonus; a bonus of 1 is certain.
+		if bonus >= 1 or ctx.rng:NextNumber() < RealityRules.critChance(chance, D.critMax, bonus) then
 			crit = true
 			amount *= D.critMult
 		end

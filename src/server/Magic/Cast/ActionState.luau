@@ -131,8 +131,9 @@ end
 
 function ActionState.can(model: Model, action: string): (boolean, string)
 	local state = ActionState.get(model)
-	-- In a gravity hold (Cast/GravityRuntime) a body does nothing: no dash out, no swing.
-	if model:GetAttribute("GravityHeld") then
+	-- In a gravity hold (Cast/GravityRuntime) a body does nothing: no dash out, no swing. Nor does a
+	-- polymorphed one (Cast/RealityRuntime): small creatures don't fight.
+	if model:GetAttribute("GravityHeld") or model:GetAttribute("Polymorphed") then
 		return false, state
 	end
 	return ActionRules.allows(state, action), state

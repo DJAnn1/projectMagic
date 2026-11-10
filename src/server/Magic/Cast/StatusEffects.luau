@@ -78,6 +78,15 @@ local DEFS: { [string]: StatusDef } = {
 	gravity_heavy = { name = "Anchor Weight", walk = 0.8, jump = 0.6, damageDealt = true },
 	gravity_light = { name = "Featherweight", walk = 1.35, jump = 2.5 },
 	foreseeing = { name = "Future Sight" }, -- Cast/TimeRuntime
+	-- Reality (Cast/RealityRuntime): the runtime holds the numbers; the status is what Dispel and
+	-- Cleanse remove, and the effect ends with it.
+	reality_favored = { name = "Favored", backfireMult = 0.4 },
+	reality_doomed = { name = "Doomed", backfireMult = 2, harmful = true },
+	reality_sealed = { name = "Fate-sealed", harmful = true },
+	reality_fated = { name = "Twist of Fate" },
+	reality_undying = { name = "Undying" },
+	reality_frayed = { name = "Frayed", harmful = true },
+	reality_polymorphed = { name = "Polymorphed", walk = 0.6, jump = 0.5, noCast = true, harmful = true },
 	surging = { name = "Surging", walk = 1.25, damageDealt = true }, -- Services/SurgeService; resist comes with the apply
 }
 
@@ -338,7 +347,8 @@ end
 -- What a Self Timeline saves (Cast/TimeRuntime). Holds aren't part of your past: they're kept out.
 export type Snapshot = { id: string, remaining: number, magnitude: number, source: number?, resist: { [string]: number }? }
 
-local NOT_SNAPSHOTTED: { [string]: boolean } = { gravity_held = true, stasis = true, knockdown = true, surging = true }
+-- A polymorph's body swap lives in Cast/RealityRuntime, so a Time recall can't bring back the status alone.
+local NOT_SNAPSHOTTED: { [string]: boolean } = { gravity_held = true, stasis = true, knockdown = true, surging = true, reality_polymorphed = true }
 
 function StatusEffects.snapshot(humanoid: Humanoid): { Snapshot }
 	local out: { Snapshot } = {}
