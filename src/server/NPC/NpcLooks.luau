@@ -342,7 +342,9 @@ local function addGarment(model: Model, garment: Garment)
 	part.Name = "Garment_" .. garment.kind
 	part.Size = def.size
 	part.Material = if garment.neon then Enum.Material.Neon elseif def.metal then Enum.Material.Metal else Enum.Material.SmoothPlastic
-	part.Color = garment.color
+	-- Bloom blows bright Neon out to white (the "cyan line" across workers): dim it toward black so
+	-- the signature colour survives, the same 0.42 the familiars use (Familiars.glowDim).
+	part.Color = if garment.neon then garment.color:Lerp(Color3.new(0, 0, 0), 0.42) else garment.color
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
