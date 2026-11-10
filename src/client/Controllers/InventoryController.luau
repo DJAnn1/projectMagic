@@ -32,7 +32,6 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Controls = require(Shared.UI.Controls)
-local Controls = require(Shared.UI.Controls)
 local ItemTypes = require(Shared.Items.ItemTypes)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local ItemInstance = require(Shared.Items.ItemInstance)
@@ -405,9 +404,11 @@ local function buildToolbar(scope: Scope, parent: Instance)
 		chips.AutomaticSize = Enum.AutomaticSize.XY
 		s:add(chips)
 		for i, f in ItemRules.filters do
+			-- TextWrapped with AutomaticSize.X measures the label at zero width: "Gear" wrapped and
+			-- clipped to "Gea". Chips never wrap.
 			local b = C.button(f.name, function()
 				filter:set(f.id)
-			end, { kind = "ghost", selected = filter:get() == f.id, height = 32 }, { Size = UDim2.fromOffset(0, 32), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = i })
+			end, { kind = "ghost", selected = filter:get() == f.id, height = 32 }, { Size = UDim2.fromOffset(0, 32), AutomaticSize = Enum.AutomaticSize.X, TextWrapped = false, LayoutOrder = i })
 			C.padding(0, Theme.space.s).Parent = b
 			b.Parent = chips
 		end
@@ -469,7 +470,14 @@ end
 
 local function buildGrid(scope: Scope, parent: Instance, height: UDim2?)
 	local scroll = C.scroll({ LayoutOrder = 5, Size = height or UDim2.new(1, 0, 1, -170), Parent = parent })
-	C.padding(2).Parent = scroll
+	-- The scrollbar overlays the canvas, so the right padding must reserve its width or the grid's
+	-- last column sits under the bar, cut off.
+	Kit.create(nil, "UIPadding", {
+		PaddingLeft = UDim.new(0, 2),
+		PaddingRight = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 2),
+		PaddingBottom = UDim.new(0, 2),
+	}).Parent = scroll
 	Kit.dynamic(scope, { items.view, filter, search, selected, moving }, function(s)
 		local view = items.view:get()
 		local holder: Frame = Kit.create(nil, "Frame", {
