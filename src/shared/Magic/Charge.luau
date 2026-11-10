@@ -8,6 +8,8 @@
 		stageIndex(held, castTime) -> 1..#stages     stage(index) -> Stage
 		releaseCastTime(index, castTime, held) -> seconds from release to effect
 		apply(stats, index, held) -> Applied         mutates a SpellStats copy for the cast
+		focusLimit(masteryTier, overcharged) -> share of max health you can take while holding
+		focusBreaks(lost, maxHealth, masteryTier, overcharged) -> boolean
 ]]
 
 local Data = require(script.Parent.Data.ChargeTuning)
@@ -83,6 +85,21 @@ function Charge.apply(stats: any, index: number, held: number): Applied
 		stage = stage,
 		speedMult = if scales.speed and stage.speed then stage.speed else 1,
 	}
+end
+
+-- Breaking the charge (docs/BreakTheCharge.md): how much of your max health you can lose while
+-- holding before your focus breaks. Steadier with mastery; half as much when overcharged.
+function Charge.focusLimit(masteryTier: number, overcharged: boolean): number
+	local f = Data.focus
+	local limit = math.min(f.shareMax, f.shareBase + f.sharePerTier * math.max(0, masteryTier))
+	return if overcharged then limit * f.overchargeMult else limit
+end
+
+function Charge.focusBreaks(lost: number, maxHealth: number, masteryTier: number, overcharged: boolean): boolean
+	if lost <= 0 or maxHealth <= 0 then
+		return false
+	end
+	return lost / maxHealth >= Charge.focusLimit(masteryTier, overcharged)
 end
 
 return Charge

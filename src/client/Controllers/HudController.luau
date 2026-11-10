@@ -80,6 +80,7 @@ local REASONS: { [string]: string } = {
 	POWER_OVER_CAP = "That's more power than you can reach yet.",
 	SILENCED = "You can't speak a working while silenced.",
 	STAGGERED = "You're knocked off your feet.",
+	FOCUS_BROKEN = "The hit breaks your focus. The spell comes apart in your hands.",
 	NOT_ATTUNED = "Ready that spell first (its hotbar key), then click to cast.",
 	GUARD_BROKEN = "Your guard is broken. Give it a moment.",
 	GUARD_SPENT = "Your guard is spent. Let it recover.",

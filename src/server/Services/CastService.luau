@@ -121,7 +121,16 @@ type Pending = {
 }
 
 -- Hold-to-charge (Casting.md §8): when the server saw "begin", on its own clock.
-type Hold = { key: string, startedAt: number, maxHold: number, character: Model }
+type Hold = {
+	key: string,
+	startedAt: number,
+	maxHold: number,
+	character: Model,
+	castTime: number, -- for the stage (overcharged focus is fragile)
+	masteryTier: number, -- steadier focus with mastery
+	lost: number, -- health lost since the charge began (heals don't give it back)
+	watch: RBXScriptConnection?, -- Humanoid.HealthChanged while holding
+}
 -- A channelled spell held by a client: released early, and where it's being swept to.
 type Channel = { released: boolean, aim: Vector3?, point: Vector3? }
 
@@ -767,6 +776,10 @@ end
 
 -- Ends a charge's visible side (attributes, slowed walk). The action state is the caller's.
 local function clearHoldBody(hold: Hold)
+	if hold.watch then
+		hold.watch:Disconnect()
+		hold.watch = nil
+	end
 	local character = hold.character
 	character:SetAttribute("ChargeStart", nil)
 	character:SetAttribute("ChargeStep", nil)
@@ -787,6 +800,23 @@ local function cancelHold(player: Player, why: string)
 		ActionState.clear(hold.character, "charging") -- idle; an attuned body goes back to holding
 	end
 	log:debug("charge_cancelled", { userId = player.UserId, why = why })
+end
+
+--[[
+	Breaking the charge (docs/BreakTheCharge.md): hurt enough while holding and the focus breaks.
+	The spell is lost (nothing paid, no cooldown), a short lockout follows, and the client drops its
+	charge on the refusal (CastClient), so letting go afterwards casts nothing. Its conjured spell
+	falls apart (AttuneGlowController sees the charge end without a cast).
+]]
+local function breakFocus(player: Player, hold: Hold)
+	if holds[player] ~= hold then
+		return
+	end
+	cancelHold(player, "focus")
+	local caster = casterStateOf(player)
+	caster.busyUntil = math.max(caster.busyUntil, now() + Charge.data.focus.lockout)
+	refuse(player, hold.key, "FOCUS_BROKEN")
+	log:info("charge_broken", { userId = player.UserId, key = hold.key, lost = math.round(hold.lost) })
 end
 
 -- The charge a release is cashing in (removed either way, so a refused cast also ends it).
@@ -849,8 +879,30 @@ local function onHold(player: Player, kind: string)
 		return -- channelled and slow spells cast on release without a charge
 	end
 	local maxHold = Charge.maxHold(shape.castTime)
-	local hold: Hold = { key = key, startedAt = t, maxHold = maxHold, character = character }
+	local hold: Hold = {
+		key = key,
+		startedAt = t,
+		maxHold = maxHold,
+		character = character,
+		castTime = shape.castTime,
+		masteryTier = shape.masteryTier,
+		lost = 0,
+	}
 	holds[player] = hold
+	-- Every kind of harm counts (spells, weapons, bites, falls): watch the health itself.
+	local lastHealth = humanoid.Health
+	hold.watch = humanoid.HealthChanged:Connect(function(health: number)
+		local drop = lastHealth - health
+		lastHealth = health
+		if drop <= 0 or holds[player] ~= hold or FeatureFlags.get("charge_break_enabled") ~= true then
+			return
+		end
+		hold.lost += drop
+		local stage = Charge.stage(Charge.stageIndex(now() - hold.startedAt, hold.castTime))
+		if Charge.focusBreaks(hold.lost, humanoid.MaxHealth, hold.masteryTier, stage.overcharge == true) then
+			breakFocus(player, hold)
+		end
+	end)
 	character:SetAttribute("ChargeStart", t)
 	character:SetAttribute("ChargeStep", Charge.step(shape.castTime))
 	StatusEffects.setWalkMultiplier(humanoid, "charging", Charge.data.walkMult)
@@ -1169,6 +1221,35 @@ end
 
 local function registerAdmin(admin: any)
 	admin:Register({
+		name = "hurt",
+		category = "Spells",
+		description = "After a delay, take a share of max health as plain damage (to test breaking a charge: run it, then hold a charge). Shows whether a charge was held and broke",
+		args = {
+			{ name = "percent", type = "number", min = 1, max = 99, default = 15 },
+			{ name = "delay", type = "number", min = 0, max = 10, default = 2 },
+			{ name = "player", type = "player", default = "me" },
+		},
+		handler = function(_ctx: any, a: any)
+			local player: Player = a.player
+			task.delay(a.delay, function()
+				local character = player.Character
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if humanoid and humanoid.Health > 0 then
+					local hold = holds[player]
+					humanoid:TakeDamage(humanoid.MaxHealth * a.percent / 100)
+					log:info("admin_hurt", {
+						userId = player.UserId,
+						percent = a.percent,
+						wasCharging = hold ~= nil,
+						broke = hold ~= nil and holds[player] == nil,
+						limit = if hold then math.round(Charge.focusLimit(hold.masteryTier, Charge.stage(Charge.stageIndex(now() - hold.startedAt, hold.castTime)).overcharge == true) * 100) else nil,
+					})
+				end
+			end)
+			return string.format("%s takes %d%% of their health in %.1f s", player.Name, a.percent, a.delay)
+		end,
+	})
+	admin:Register({
 		name = "castinfo",
 		category = "Spells",
 		description = "Reservoir, cooldowns, stored charges, statuses and active cheats",
@@ -1414,8 +1495,13 @@ function CastService.init(_self: any, ctx: any)
 			return
 		end
 		local player = Players:GetPlayerFromCharacter(model)
-		if player and holds[player] then
+		local hold = player and holds[player]
+		if player and hold then
 			cancelHold(player, state)
+			if state == "staggered" then
+				-- The client is still holding the button: tell it, or letting go would cast a tap.
+				refuse(player, hold.key, "STAGGERED")
+			end
 		end
 	end)
 	registerAdmin(ctx.get("AdminService"))

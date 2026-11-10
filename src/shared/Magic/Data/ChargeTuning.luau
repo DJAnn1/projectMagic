@@ -29,6 +29,8 @@ export type Stage = {
 	overcharge: boolean?,
 }
 
+export type Focus = { shareBase: number, sharePerTier: number, shareMax: number, overchargeMult: number, lockout: number }
+
 local ChargeTuning = {
 	stages = {
 		{ id = "tap", name = "Quick", glyph = "·", at = 0, power = 0.75, castTime = 0.5 },
@@ -43,6 +45,16 @@ local ChargeTuning = {
 	releaseTime = 0.15, -- seconds from release to effect for a charged cast (the release motion)
 	overcharge = { backfireAdd = 0.12, costMult = 1.5 },
 	walkMult = 0.6, -- walk speed while charging
+	-- Breaking the charge (docs/BreakTheCharge.md): damage taken while holding adds up; past this share
+	-- of max health the focus breaks and the spell is lost. Mastery steadies you; overcharged is fragile.
+	-- limit = min(shareMax, shareBase + sharePerTier x masteryTier) x (overchargeMult when overcharged)
+	focus = {
+		shareBase = 0.10,
+		sharePerTier = 0.015,
+		shareMax = 0.25,
+		overchargeMult = 0.5,
+		lockout = 0.8, -- seconds before you can begin another charge or cast
+	},
 	-- Which extra scalars each form takes from its stage (power always applies).
 	formScales = {
 		projectile = { speed = true },

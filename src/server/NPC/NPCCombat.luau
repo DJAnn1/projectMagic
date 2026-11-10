@@ -45,6 +45,7 @@ local ActionState = require(Server.Magic.Cast.ActionState)
 local Guard = require(Server.Magic.Cast.Guard)
 local ActionRules = require(Shared.Magic.ActionRules)
 local Charge = require(Shared.Magic.Charge)
+local FeatureFlags = require(Shared.Core.FeatureFlags)
 local NPCMagicLife = require(script.Parent.NPCMagicLife)
 local Navigation = require(script.Parent.NavigationService)
 
@@ -366,10 +367,20 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 	local stage = Charge.stage(index)
 	local hold = if stage.castTime then 0.2 else Charge.step(stats.castTime) * stage.at
 	ActionState.set(rig.model, "charging", { duration = hold + 0.5, domain = stats.domains[1] })
+	local healthAtStart = rig.humanoid.Health
 	task.delay(hold, function()
 		local alive = rig.model.Parent ~= nil and rig.humanoid.Health > 0 and npc.rig == rig
 		if not alive or ActionState.get(rig.model) ~= "charging" or not targetRoot.Parent or npc.combat ~= c then
 			return -- knocked down, despawned, the target is gone, or the NPC stopped fighting mid-charge
+		end
+		-- Hurt enough during the wind-up and the focus breaks, as it does for players
+		-- (docs/BreakTheCharge.md). NPCs never overcharge. Net loss: a heal mid-charge counts against it.
+		local lost = healthAtStart - rig.humanoid.Health
+		if FeatureFlags.get("charge_break_enabled") == true
+			and Charge.focusBreaks(lost, rig.humanoid.MaxHealth, stats.masteryTier or 0, false)
+		then
+			ActionState.clear(rig.model, "charging")
+			return
 		end
 		local applied = Charge.apply(stats, index, hold)
 		launchBolt(npc, rig, recipe, stats, applied, targetModel, targetRoot)
