@@ -469,12 +469,18 @@ local function buildQuickRow(scope: Scope, parent: Instance)
 end
 
 local function buildGrid(scope: Scope, parent: Instance, height: UDim2?)
-	local scroll = C.scroll({ LayoutOrder = 5, Size = height or UDim2.new(1, 0, 1, -170), Parent = parent })
-	-- The scrollbar overlays the canvas, so the right padding must reserve its width or the grid's
-	-- last column sits under the bar, cut off.
+	-- The scrollbar gets its own strip (inset Always) instead of overlaying the last column, and the
+	-- grid is centred, so whatever width is left over splits evenly instead of clipping the right edge
+	-- (owner, 2026-11-10: the ninth column was still slightly cut off with a 10 px right padding).
+	local scroll = C.scroll({
+		LayoutOrder = 5,
+		Size = height or UDim2.new(1, 0, 1, -170),
+		VerticalScrollBarInset = Enum.ScrollBarInset.Always,
+		Parent = parent,
+	})
 	Kit.create(nil, "UIPadding", {
-		PaddingLeft = UDim.new(0, 2),
-		PaddingRight = UDim.new(0, 10),
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 4),
 		PaddingTop = UDim.new(0, 2),
 		PaddingBottom = UDim.new(0, 2),
 	}).Parent = scroll
@@ -491,7 +497,9 @@ local function buildGrid(scope: Scope, parent: Instance, height: UDim2?)
 			C.text("Unpacking...", "body", { TextColor3 = Theme.color.inkDim, Parent = holder })
 			return
 		end
-		C.grid(CELL, CELL, Theme.space.xs).Parent = holder
+		local grid = C.grid(CELL, CELL, Theme.space.xs)
+		grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		grid.Parent = holder
 		local byRef: { [string]: ItemView } = {}
 		local highest = view.capacity
 		for _, item in view.items do

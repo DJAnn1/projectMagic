@@ -7,6 +7,7 @@
 	npcspawn [occupation] [seed] [at] [spec]   spec: "openness=0.9 pride=0.2 quirks=lucky_coin,grudge_keeper
 	                                           metallurgy=70 name=Ada_Stone age=30"
 	npcdelete · npckill · npcheal · npcfreeze [on|off] · npctier <0|1|2|auto>
+	navaudit <settlement>: every building's path tested piece by piece (the sealed-rooms hunt)
 	npcneed · npctrait · npcmastery · npcrel · npcbond · npcdo · npcgossip · npcambition
 	population <multiplier> · npcrebuild · npclist [settlement] [occupation] [domain] [minMastery]
 ]]
@@ -22,6 +23,9 @@ local NpcLooks = require(Server.NPC.NpcLooks)
 local NPCMagicLife = require(Server.NPC.NPCMagicLife)
 local WorldClock = require(Server.NPC.WorldClock)
 local Util = require(script.Parent.Parent.Util)
+local Navigation = require(Server.NPC.NavigationService)
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 
 local TOPICS = { "greet", "self", "magic", "rumor", "work", "learn", "farewell", "ambient" }
 
@@ -110,6 +114,165 @@ return function(admin: any, deps: any)
 		args = { npcArg(true) },
 		handler = function(_, a)
 			return npcs:navReport(a.npc)
+		end,
+	})
+
+	-- ─── navaudit: why are rooms sealed? (Shine Pass, 2026-11-10) ──────────────
+	-- Splits the walk into a building into pieces and tests each with an ordinary villager's agent,
+	-- so one run says WHICH piece fails and on WHICH building types, instead of guessing.
+	local auditRay = RaycastParams.new()
+	auditRay.FilterType = Enum.RaycastFilterType.Exclude
+
+	local function auditExclude(): { Instance }
+		local list: { Instance } = {}
+		local folder = workspace:FindFirstChild("NPCs")
+		if folder then
+			table.insert(list, folder)
+		end
+		for _, p in Players:GetPlayers() do
+			if p.Character then
+				table.insert(list, p.Character)
+			end
+		end
+		auditRay.FilterDescendantsInstances = list
+		return list
+	end
+
+	-- What's under a point: (its height above what was hit, the hit part's name), or nil when nothing is within 14 studs.
+	local function under(pos: Vector3): (number?, string?)
+		local hit = workspace:Raycast(pos + Vector3.new(0, 2, 0), Vector3.new(0, -16, 0), auditRay)
+		if not hit then
+			return nil, nil
+		end
+		return pos.Y - hit.Position.Y, hit.Instance.Name
+	end
+
+	local function grounded(pos: Vector3): Vector3
+		local gap = under(pos)
+		return if gap then pos - Vector3.new(0, gap - 0.5, 0) else pos
+	end
+
+	local function canWalkAway(params: any, pos: Vector3): boolean
+		for _, dir in Navigation.PROBE_DIRECTIONS do
+			if Navigation.TryPath(params, pos, pos + dir * 4) then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- Solid parts crowding a standing spot within the agent's radius (body height, above the floor).
+	local function crowding(pos: Vector3, radius: number, exclude: { Instance }): (number, string)
+		local overlap = OverlapParams.new()
+		overlap.FilterType = Enum.RaycastFilterType.Exclude
+		overlap.FilterDescendantsInstances = exclude
+		local feet = grounded(pos)
+		local box = CFrame.new(feet + Vector3.new(0, 2.75, 0))
+		local names: { string } = {}
+		local n = 0
+		for _, part in workspace:GetPartBoundsInBox(box, Vector3.new(radius * 2, 4.5, radius * 2), overlap) do
+			if part.CanCollide then
+				n += 1
+				if #names < 3 and not table.find(names, part.Name) then
+					table.insert(names, part.Name)
+				end
+			end
+		end
+		return n, table.concat(names, ",")
+	end
+
+	local function mark(ok: boolean): string
+		return if ok then "✓" else "✗"
+	end
+
+	local function gapText(g: number?, on: string?): string
+		return if g then string.format("%+.1f on %s", g, on or "?") else "nothing below"
+	end
+
+	admin:Register({
+		name = "navaudit", category = "NPCs",
+		description = "Test every building in a town for NPC paths, piece by piece (outside → door → through → room → home spot), with link-end heights and furniture crowding the home spot. Takes a few seconds; rows also go to the Output as nav_audit",
+		args = { { name = "settlement", type = "settlement" } },
+		handler = function(_, a)
+			local params = Navigation.auditParams()
+			local radius: number = params.AgentRadius
+			local exclude = auditExclude()
+			local rows: { string } = {}
+			local byType: { [string]: { n: number, full: number } } = {}
+			local fails: { [string]: number } = { out = 0, door = 0, room = 0, home = 0, homeFree = 0, full = 0, grounded = 0 }
+			local total = 0
+			for _, model in CollectionService:GetTagged("Building") do
+				if not (model:IsA("Model") and model:IsDescendantOf(workspace) and model:GetAttribute("SettlementId") == a.settlement.id) then
+					continue
+				end
+				local primary = model.PrimaryPart
+				if not primary then
+					continue
+				end
+				local entrance = primary:FindFirstChild("Entrance")
+				local linkA = primary:FindFirstChild("PathLink1A")
+				local linkB = primary:FindFirstChild("PathLink1B")
+				local home = primary:FindFirstChild("NPCHome") or primary:FindFirstChild("NPCWork") or primary:FindFirstChild("NPCSeat1")
+				if not (entrance and linkA and linkB and home and entrance:IsA("Attachment") and linkA:IsA("Attachment")
+					and linkB:IsA("Attachment") and home:IsA("Attachment")) then
+					continue -- not a building people go into
+				end
+				total += 1
+				local kind = tostring(model:GetAttribute("BuildingType"))
+				local lot = tostring(model:GetAttribute("LotId"))
+				local ePos, aPos, bPos, hPos = grounded(entrance.WorldPosition), linkA.WorldPosition, linkB.WorldPosition, home.WorldPosition
+				local out = Navigation.TryPath(params, ePos, aPos)
+				local door, via = Navigation.TryPath(params, aPos, bPos)
+				local room = canWalkAway(params, bPos)
+				local toHome = Navigation.TryPath(params, bPos, hPos)
+				local homeFree = canWalkAway(params, hPos)
+				local full = Navigation.TryPath(params, ePos, hPos)
+				local fullGrounded = full or Navigation.TryPath(params, ePos, grounded(hPos))
+				local gapA, onA = under(aPos)
+				local gapB, onB = under(bPos)
+				local gapH = under(hPos)
+				local crowd, crowdNames = crowding(hPos, radius, exclude)
+				local results: { [string]: boolean } = { out = out, door = door, room = room, home = toHome, homeFree = homeFree, full = full, grounded = fullGrounded }
+				for key, ok in results do
+					if not ok then
+						fails[key] += 1
+					end
+				end
+				local t = byType[kind] or { n = 0, full = 0 }
+				t.n += 1
+				t.full += if full then 1 else 0
+				byType[kind] = t
+				local shortLot = string.gsub(lot, "^.*_", "")
+				table.insert(rows, string.format(
+					"%s %s %s | out %s door %s%s room %s home %s homeFree %s grounded %s | link out %s, in %s | home spot %s above floor, %d solid within %.2g (%s)",
+					mark(full), shortLot, kind, mark(out), mark(door), if door and not via then "(no link)" else "",
+					mark(room), mark(toHome), mark(homeFree), mark(fullGrounded),
+					gapText(gapA, onA), gapText(gapB, onB), if gapH then string.format("%.1f", gapH) else "?", crowd, radius, crowdNames))
+				if deps.log then
+					deps.log:info("nav_audit", {
+						lot = lot, kind = kind, full = full, out = out, door = door, viaLink = via, room = room, home = toHome,
+						homeFree = homeFree, grounded = fullGrounded, gapOut = gapA, onOut = onA, gapIn = gapB, onIn = onB,
+						homeAbove = gapH, crowd = crowd, crowdBy = crowdNames,
+					})
+				end
+				task.wait()
+			end
+			table.sort(rows)
+			local types: { string } = {}
+			for kind, t in byType do
+				table.insert(types, string.format("%s %d/%d", kind, t.full, t.n))
+			end
+			table.sort(types)
+			if deps.log then
+				deps.log:info("nav_audit_summary", {
+					settlement = a.settlement.id, buildings = total, failOut = fails.out, failDoor = fails.door, failRoom = fails.room,
+					failHome = fails.home, failHomeFree = fails.homeFree, failFull = fails.full, failGrounded = fails.grounded,
+				})
+			end
+			return string.format(
+				"%d buildings, agent radius %.2g. Walk in reaches home: %s\nfailed: outside→door %d · through the door %d · room sealed %d · door→home %d · home spot boxed in %d · whole walk %d (%d even with the home spot on the floor)\n%s",
+				total, radius, table.concat(types, " · "), fails.out, fails.door, fails.room, fails.home, fails.homeFree, fails.full, fails.grounded,
+				table.concat(rows, "\n"))
 		end,
 	})
 

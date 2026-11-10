@@ -17,19 +17,19 @@ The single largest source of "the world is fake". The pinned pathfinding problem
 pass. Verified in code 2026-11-10: all causes below are still present (NPCService, BuildingGenerator,
 Interact/Doors).
 
-- ◐ **Door link endpoints float on sloped lots.** `BuildingGenerator` places each door's
+- ◐ **Door link endpoints float on sloped lots.** (2026-11-10: walked in to L17–L21 and L34 only; L22–L28 and the tavern L03 only ever by the door fallback. `navaudit Glenhold` tests each piece; run it next.) `BuildingGenerator` places each door's
   PathfindingLink ends at fixed local heights (outside end at local Y=1), but a lot with `drop`
   has outside ground lower than that — the endpoint hangs in the air and the link does nothing,
   so that building stays sealed. Fixed: link endpoints are raycast-snapped to the real surface
   2 s after the building is parented (terrain can arrive late — same timing as the foundation
   re-check). Playtest: `npcmove` `doors` should climb; `npc_went_indoors how=walked` should rise
   against `how=door`.
-- ◐ **The door fallback walks through locks.** `Doors.open` never checks `Locked`, and the
+- ☑ **The door fallback walks through locks.** (2026-11-10 night run: no `path crosses a locked door`.) `Doors.open` never checks `Locked`, and the
   enter-by-door fallback admitted any NPC into any building (`npc_building_path_failed
   reason="path crosses a locked door"`). Fixed: residents, workers and shelter guests may enter
   their own lot (they'd have the key); anyone may enter a public or unlocked building; a locked
   private house that isn't theirs now stays shut and they make do outdoors.
-- ◐ **Sleepers walk back out of their own homes.** `route()` dropped a RecentlyFailed bed target
+- ☑ **Sleepers walk back out of their own homes.** (2026-11-10 night run: `actphases` Performing 33 → 37 of 40, against 36 of 40 Travelling before.) `route()` dropped a RecentlyFailed bed target
   even when the NPC was already inside the right building, sending them out through the door to
   an outdoor district spot (`npc_left_by_door action=sleep`, #7 from their own home L18). Fixed:
   inside the lot that holds the target, they stay put.
@@ -76,10 +76,10 @@ Interact/Doors).
 
 ## Rank 4 — UI jank (felt whenever a screen opens)
 
-- ◐ **"Gear" filter chip truncated to "Gea".** Verified in code: the chips use `AutomaticSize.X`
+- ☑ **"Gear" filter chip truncated to "Gea".** (Owner, 2026-11-10: reads in full.) Verified in code: the chips use `AutomaticSize.X`
   with `TextWrapped = true`, so the text wraps at measure time and the second line clips. Fixed:
   chips don't wrap.
-- ◐ **Inventory grid's ninth column cut off.** Verified in code: the grid's scroll frame pads 2 px
+- ◐ **Inventory grid's ninth column cut off.** (Owner, 2026-11-10: visible but still slightly cut off. Second fix: the scrollbar gets its own strip, `VerticalScrollBarInset = Always`, and the grid is centred.) Verified in code: the grid's scroll frame pads 2 px
   while the scrollbar overlays 6 px of the canvas, so the last column sits under the bar. Fixed:
   the right padding reserves the scrollbar's width and the grid wraps a column earlier.
 - ☐ **Hover card above its own text** and **toasts overlapping event cards**: both fixed earlier
@@ -118,9 +118,12 @@ Interact/Doors).
 1. Clear the Output first; one `rojo serve` only. Expected boot line: `specs 1036/1036 · magic examples 33/33`
    (the 2026-11-10 run gave 1035/1036: the one failure was 7 Reality statuses missing from `StatusInfo`, now fixed. "34 examples" was a miscount: SpellExamples feeds Cast.spec, not the magic-examples check.)
 2. ~~First minute: `character_rescued`~~: gone in the 2026-11-10 run (☑).
-3. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
+3. **`navaudit Glenhold`** (new): one row per building, ✓/✗ for each piece of the walk in, link-end heights and what's
+   crowding the home spot. Paste the console text or the `nav_audit` lines. This decides the sealed-rooms fix.
+   (Night run of 2026-11-10 done: see ☑ above. `startOk`/`goalOk` now try 4 directions, not just +X.)
+4. Night in Glenhold (`time 22`, wait ~3 min): `actphases Glenhold` twice; `npcmove settlement_1#<n>`;
    watch `npc_went_indoors how=walked` vs `how=door`, `npc_left_by_door action=sleep`, locked-door
    path failures.
-4. Inventory (, key): the Gear chip label, the grid's right edge, the hover card.
-5. Ride (Y) into a building; cast while charging (poses); `markset energy 3` for marks if time allows.
-6. A strong mage NPC's belt colour under Bloom.
+5. Inventory (, key): the Gear chip label, the grid's right edge, the hover card.
+6. Ride (Y) into a building; cast while charging (poses); `markset energy 3` for marks if time allows.
+7. A strong mage NPC's belt colour under Bloom.

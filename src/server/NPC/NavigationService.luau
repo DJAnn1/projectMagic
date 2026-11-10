@@ -580,15 +580,37 @@ request = function(nav: Nav)
 	Navigation.enqueue(queue, { nav = nav, id = nextRequest, from = from, target = target, agent = agent }, T.queueMax)
 end
 
--- Can anyone walk a few studs from here? Tells a sealed-off start or goal from one that's just far away.
-local function canLeave(agent: any, position: Vector3): boolean
-	local path = PathfindingService:CreatePath(agent.params)
+-- One path test with these agent params: did it succeed, and did it go through a door link?
+local function tryPath(params: { [string]: any }, from: Vector3, to: Vector3): (boolean, boolean)
+	local path = PathfindingService:CreatePath(params)
 	local ok = pcall(function()
-		path:ComputeAsync(position, position + Vector3.new(T.probeDistance, 0, 0))
+		path:ComputeAsync(from, to)
 	end)
 	local good = ok and path.Status == Enum.PathStatus.Success
+	local viaLink = false
+	if good then
+		for _, w in path:GetWaypoints() do
+			if w.Label == "NpcDoor" then
+				viaLink = true
+				break
+			end
+		end
+	end
 	path:Destroy()
-	return good
+	return good, viaLink
+end
+
+local PROBE_DIRECTIONS = { Vector3.xAxis, -Vector3.xAxis, Vector3.zAxis, -Vector3.zAxis }
+
+-- Can anyone walk a few studs from here, in ANY direction? Tells a sealed-off start or goal from one
+-- that's just far away. (It used to try +X only, so a wall on that side read as sealed: 2026-11-10.)
+local function canLeave(agent: any, position: Vector3): boolean
+	for _, dir in PROBE_DIRECTIONS do
+		if tryPath(agent.params, position, position + dir * T.probeDistance) then
+			return true
+		end
+	end
+	return false
 end
 
 local lastProbe = 0
@@ -1261,6 +1283,23 @@ function Navigation.Step(npc: any, clock: number)
 end
 
 -- ─── Reports ────────────────────────────────────────────────────────────────
+
+-- For the admin `navaudit`: path tests with an ordinary R6 villager's agent (2-stud torso, 5 tall),
+-- the same params `measure` gives a real rig. Yields.
+Navigation.PROBE_DIRECTIONS = PROBE_DIRECTIONS
+function Navigation.auditParams(): { [string]: any }
+	return {
+		AgentRadius = Navigation.agentRadius(2),
+		AgentHeight = 5,
+		AgentCanJump = true,
+		AgentCanClimb = false,
+		WaypointSpacing = T.waypointSpacing,
+		Costs = { Water = 20, CrackedLava = math.huge, NpcDoor = 2 },
+	}
+end
+function Navigation.TryPath(params: { [string]: any }, from: Vector3, to: Vector3): (boolean, boolean)
+	return tryPath(params, from, to)
+end
 
 function Navigation.Stats(): { [string]: number }
 	return {
