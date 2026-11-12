@@ -18,11 +18,14 @@
 	          centre on a gamepad) finds the part under it; the first reachable prompt on that part
 	          or up to 6 ancestors is "hovered". It gets a soft outline (one Highlight) and a small
 	          label by the cursor: what a click does, and the second action if there is one.
-	CLICK     left mouse: begin on press, end on release, so held prompts need the click held (the
-	          label fills while you hold). Shift-click uses the second action (prompts whose server
-	          key was not E: the old F prompts). Gamepad: X uses, Y the second action (claimed ahead
-	          of the screen keys through InterfaceController:setInputClaim). Touch: tap it (held
-	          prompts are held for you).
+	CLICK     left mouse: one click starts it. Things that take a moment (searching a crate 0.5 s,
+	          opening a chest 0.3 s) then finish by themselves on the server unless you walk out of
+	          reach; the label's bar fills meanwhile. (Version 2 ended the hold on mouse release, so
+	          an ordinary 0.1 s click cancelled every crate.) Clicking the same thing again while it
+	          runs does nothing; using something else replaces it. Shift-click uses the second action
+	          (prompts whose server key was not E: the old F prompts). Gamepad: X uses, Y the second
+	          action (claimed ahead of the screen keys through InterfaceController:setInputClaim).
+	          Touch: tap it.
 	GATE      CastClient registers setGate(fn) -> (busy, armed). Busy (a readied spell, a raised
 	          guard, a charge): no hover, every click stays combat. Armed (a weapon drawn): objects
 	          still work, but a click on a person attacks; the label says to put the weapon away.
@@ -62,8 +65,8 @@ local isAlt: { [ProximityPrompt]: boolean } = setmetatable({}, { __mode = "k" })
 
 type Hover = { primary: ProximityPrompt, alt: ProximityPrompt?, person: boolean, blocked: boolean, adornee: Instance }
 local hover: Hover? = nil
--- A hold the server is timing. `input` ends it on release (nil: a tap, which ends on its own).
-type Hold = { prompt: ProximityPrompt, started: number, input: any }
+-- A hold the server is timing; it finishes by itself (endHold cancels it).
+type Hold = { prompt: ProximityPrompt, started: number }
 local holding: Hold? = nil
 
 local highlight: Highlight? = nil
@@ -390,7 +393,7 @@ local function endHold()
 end
 
 -- Uses a picked thing; returns true if it took the input.
-local function use(target: Hover?, wantAlt: boolean, input: any, tap: boolean): boolean
+local function use(target: Hover?, wantAlt: boolean): boolean
 	if not target or target.blocked or gated() then
 		return false
 	end
@@ -400,13 +403,17 @@ local function use(target: Hover?, wantAlt: boolean, input: any, tap: boolean): 
 		dialogue:greet(npcId) -- Talk is client-side; NpcTalk checks reach on the server
 		return true
 	end
-	if holding then
+	local held = holding
+	if held and held.prompt == prompt then
+		return true -- already under way: a second click doesn't restart it
+	end
+	if held then
 		endHold()
 	end
 	Net.send("UsePrompt", prompt, "begin")
 	if prompt.HoldDuration > 0 then
-		-- A tap is held for you: the server finishes it unless we say "end".
-		holding = { prompt = prompt, started = os.clock(), input = if tap then nil else input }
+		-- The server finishes it after HoldDuration unless we say "end" (or walk out of reach).
+		holding = { prompt = prompt, started = os.clock() }
 	end
 	return true
 end
@@ -462,13 +469,7 @@ function InteractClickController.start(_self: any, _ctx: any)
 		end
 		local target = pointerPick()
 		hover = target
-		use(target, shiftDown(), Enum.UserInputType.MouseButton1, false)
-	end)
-	UserInputService.InputEnded:Connect(function(input)
-		local held = holding
-		if held and held.input ~= nil and (input.UserInputType == held.input or input.KeyCode == held.input) then
-			endHold()
-		end
+		use(target, shiftDown())
 	end)
 
 	-- Gamepad X / Y: taken ahead of the screen keys only while looking at something usable.
@@ -476,7 +477,7 @@ function InteractClickController.start(_self: any, _ctx: any)
 		if not gamepadMode() or (input.KeyCode ~= Enum.KeyCode.ButtonX and input.KeyCode ~= Enum.KeyCode.ButtonY) then
 			return false
 		end
-		return use(pointerPick(), input.KeyCode == Enum.KeyCode.ButtonY, input.KeyCode, false)
+		return use(pointerPick(), input.KeyCode == Enum.KeyCode.ButtonY)
 	end)
 
 	-- Touch: a tap on the thing.
@@ -486,7 +487,7 @@ function InteractClickController.start(_self: any, _ctx: any)
 		if processed or not camera or not at or gated() then
 			return
 		end
-		use(pick(camera:ScreenPointToRay(at.X, at.Y)), false, nil, true)
+		use(pick(camera:ScreenPointToRay(at.X, at.Y)), false)
 	end)
 
 	-- Hover and the label.
