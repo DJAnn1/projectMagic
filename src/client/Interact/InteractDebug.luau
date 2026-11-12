@@ -19,6 +19,12 @@
 		state      the click state machine (idle / pending seq, age, accepted hold)
 		combat     readied spell, charging, blocking, weapon drawn, the Click to use setting
 		attempts   the last 20 clicks, keys and dialogue buttons, with the result and latency
+	TRACE (temporary, 2026-11-12: "closing menus after interacting still doesn't work", and the
+	log couldn't show why). Every record also goes to the Output as `interact_trace`, and every
+	left mouse press and release logs `interact_mouse`: the top GUI object under the cursor,
+	whether the press was game-processed, and the MouseBehavior (a locked mouse clicks the screen
+	centre, not where you aim). Remove TRACE once the close bug is understood.
+
 	Cost while off: nothing but an attribute read per record. While on: one unfiltered ray and one
 	GUI hit test 10 times a second.
 ]]
@@ -27,6 +33,10 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Logger = require(Shared.Core.Logger)
+local trace = Logger.new("InteractTrace")
 
 local GUI_NAME = "InteractDebug"
 local KEEP = 20
@@ -54,6 +64,7 @@ function InteractDebug.record(source: string, what: string, result: string, ms: 
 	while #attempts > KEEP do
 		table.remove(attempts, 1)
 	end
+	trace:info("interact_trace", { source = source, what = what, result = result, ms = if ms then math.floor(ms + 0.5) else nil, combat = combat })
 end
 
 -- The GUI hit test, as text. Our own overlay and the hint label are left out.
@@ -143,7 +154,47 @@ local function render()
 	text.Text = table.concat(out, "\n")
 end
 
+-- TRACE: what a left mouse press or release landed on.
+local function topGuiAt(at: Vector2): string
+	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if not playerGui then
+		return "(no PlayerGui)"
+	end
+	local inset = GuiService:GetGuiInset()
+	for _, object in playerGui:GetGuiObjectsAtPosition(at.X - inset.X, at.Y - inset.Y) do
+		local screen = object:FindFirstAncestorOfClass("ScreenGui")
+		if screen and (screen.Name == GUI_NAME or screen.Name == "InteractHint") then
+			continue
+		end
+		return (string.gsub(object:GetFullName(), "^Players%.[^%.]+%.PlayerGui%.", ""))
+	end
+	return "(world)"
+end
+
+local function traceMouse(phase: string, processed: boolean)
+	local at = UserInputService:GetMouseLocation()
+	trace:info("interact_mouse", {
+		phase = phase,
+		processed = processed,
+		x = math.floor(at.X),
+		y = math.floor(at.Y),
+		gui = topGuiAt(at),
+		mouse = UserInputService.MouseBehavior.Name,
+	})
+end
+
 function InteractDebug.start()
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			traceMouse("down", processed)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input, processed)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			traceMouse("up", processed)
+		end
+	end)
+
 	local gui = Instance.new("ScreenGui")
 	gui.Name = GUI_NAME
 	gui.ResetOnSpawn = false

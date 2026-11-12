@@ -42,6 +42,7 @@ local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
 local ItemWidgets = require(UI.ItemWidgets)
+local InteractDebug = require(script.Parent.Parent:WaitForChild("Interact").InteractDebug)
 
 type Scope = Kit.Scope
 type ItemView = ItemTypes.ItemView
@@ -436,7 +437,11 @@ function InteractionController.start(_self: any, _ctx: any)
 			return
 		end
 		if session ~= 0 and session <= closedSession then
+			InteractDebug.record("container", view.id, "stale view dropped (session " .. session .. ")")
 			return -- from a session already closed here: a late push must not reopen the window
+		end
+		if interface.openScreen:get() ~= "Container" then
+			InteractDebug.record("container", view.id, "window opened (session " .. session .. ")")
 		end
 		containerView:set(view, true)
 		if interface.openScreen:get() ~= "Container" then
@@ -463,6 +468,7 @@ function InteractionController.start(_self: any, _ctx: any)
 		if id ~= "Container" then
 			local view = containerView:get()
 			if view then
+				InteractDebug.record("container", view.id, "window closed -> now " .. tostring(id))
 				closedSession = math.max(closedSession, sessionOf(view))
 				containerView:set(nil)
 				task.spawn(Net.invoke, "ContainerAction", "close", view.id)
