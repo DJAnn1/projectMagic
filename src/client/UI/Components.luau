@@ -21,6 +21,9 @@ local TweenService = game:GetService("TweenService")
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
+-- TRACE (temporary, 2026-11-12: menu buttons stopped answering clicks): every button's own
+-- press, release and Activated are logged as `button_event`. Remove with the interaction trace.
+local trace = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Core.Logger).new("ButtonTrace")
 
 type Scope = Kit.Scope
 
@@ -196,6 +199,11 @@ function C.button(text: string, onActivate: (() -> ())?, opts: ButtonOptions?, p
 	local stroke = C.stroke(if o.selected then Theme.color.accent else Theme.color.line, if o.selected then 2 else 1)
 	stroke.Parent = button
 
+	for _, signal in { "MouseButton1Down", "MouseButton1Up", "Activated" } do
+		(button :: any)[signal]:Connect(function()
+			trace:info("button_event", { event = signal, button = button:GetFullName(), alive = button.Parent ~= nil })
+		end)
+	end
 	if not disabled then
 		button.MouseEnter:Connect(function()
 			stroke.Color = Theme.color.accent

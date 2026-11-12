@@ -154,21 +154,29 @@ local function render()
 	text.Text = table.concat(out, "\n")
 end
 
--- TRACE: what a left mouse press or release landed on.
+-- TRACE: everything a left mouse press or release landed on, in the order Roblox lists it,
+-- with Active (A) or not (-) and visible-with-ancestors (V) or not (h).
 local function topGuiAt(at: Vector2): string
 	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
 	if not playerGui then
 		return "(no PlayerGui)"
 	end
 	local inset = GuiService:GetGuiInset()
+	local names: { string } = {}
 	for _, object in playerGui:GetGuiObjectsAtPosition(at.X - inset.X, at.Y - inset.Y) do
-		local screen = object:FindFirstAncestorOfClass("ScreenGui")
-		if screen and (screen.Name == GUI_NAME or screen.Name == "InteractHint") then
-			continue
+		local shown = object.Visible
+		local node = object.Parent
+		while shown and node and node:IsA("GuiObject") do
+			shown = node.Visible
+			node = node.Parent
 		end
-		return (string.gsub(object:GetFullName(), "^Players%.[^%.]+%.PlayerGui%.", ""))
+		local path = string.gsub(object:GetFullName(), "^Players%.[^%.]+%.PlayerGui%.", "")
+		table.insert(names, string.format("%s[%s%s]", path, if object.Active then "A" else "-", if shown then "V" else "h"))
+		if #names >= 8 then
+			break
+		end
 	end
-	return "(world)"
+	return if #names > 0 then table.concat(names, " | ") else "(world)"
 end
 
 local function traceMouse(phase: string, processed: boolean)
@@ -180,6 +188,9 @@ local function traceMouse(phase: string, processed: boolean)
 		y = math.floor(at.Y),
 		gui = topGuiAt(at),
 		mouse = UserInputService.MouseBehavior.Name,
+		lastInput = UserInputService:GetLastInputType().Name,
+		gamepads = #UserInputService:GetConnectedGamepads(),
+		selected = if GuiService.SelectedObject then GuiService.SelectedObject:GetFullName() else nil,
 	})
 end
 
