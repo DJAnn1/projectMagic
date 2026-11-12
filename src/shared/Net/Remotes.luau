@@ -74,10 +74,10 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 4 },
 		maxBytes = 16,
 	},
-	WeaponIntent = { -- a weapon attack (Services/WeaponService): swing | draw | release | cancel, with the aim point
+	WeaponIntent = { -- a weapon attack (Services/WeaponService): swing | draw | release | cancel, with the aim point; sheathe | unsheathe put the weapon away or take it out
 		kind = "Event",
 		from = "Client",
-		args = { S.literal("swing", "draw", "release", "cancel"), S.optional(S.vector3(100000)) },
+		args = { S.literal("swing", "draw", "release", "cancel", "sheathe", "unsheathe"), S.optional(S.vector3(100000)) },
 		rate = { capacity = 6, perSecond = 5 },
 		maxBytes = 64,
 	},

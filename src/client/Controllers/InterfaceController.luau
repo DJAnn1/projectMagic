@@ -8,6 +8,8 @@
 		open(id, args?) / close() / toggle(id)
 		isInputBlocked()      true while a screen, the console or a text box has the keyboard
 		hint(screenId)        the key to show for a screen: "G" / "Y" / "" (touch shows buttons instead)
+		setInputClaim(fn)     fn(input) -> true takes a key before the screen keys see it
+		                      (InteractClickController: gamepad X / Y while looking at something usable)
 
 	Values: layout ("Wide" | "Compact"), inputMode ("Keyboard" | "Gamepad" | "Touch"), openScreen.
 
@@ -136,6 +138,12 @@ end
 -- keys (click, R, Q, Esc) are the only play input, so a click places instead of also swinging.
 local function placingFurniture(): boolean
 	return Players.LocalPlayer:GetAttribute("PlacingFurniture") == true
+end
+
+-- Something in the world can take a key ahead of the screen keys (one claimant).
+local inputClaim: ((InputObject) -> boolean)? = nil
+function I.setInputClaim(_self: any, fn: (InputObject) -> boolean)
+	inputClaim = fn
 end
 
 function I.isInputBlocked(_self: any): boolean
@@ -482,6 +490,10 @@ function InterfaceController.start(_self: any, _ctx: any)
 		end
 		if input.KeyCode == Enum.KeyCode.ButtonB and I.openScreen:get() then
 			I:close()
+			return
+		end
+		local claim = inputClaim
+		if claim and not I.openScreen:get() and claim(input) then
 			return
 		end
 		toggleFor(input.KeyCode)

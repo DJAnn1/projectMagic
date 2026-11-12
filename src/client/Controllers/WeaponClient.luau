@@ -9,9 +9,12 @@
 	             bow           hold to draw, release to loose
 	             crossbow      shoot (then it reloads)
 	             bandolier     throw a knife
-	           melee (F, gamepad B, the touch Slash button)   swing a melee weapon
-	         The guard input (right mouse, L1, touch Block) blocks with a weapon that can
+	           melee (E, gamepad B, the touch Slash button)   swing a melee weapon
+	         The guard input (F, L1, touch Block) blocks with a weapon that can
 	         (CastClient.raiseGuard asks canBlock()).
+	SHEATHE  Q with no spell readied (or the HUD's Sheathe button) puts the weapon away or takes
+	         it out (WeaponIntent sheathe / unsheathe; the server sets WeaponSheathed). While
+	         it's away, an attack press takes it out instead of attacking, and it can't block.
 	AIM      AimController.sample() when the attack is sent; the body turns to the aim for a
 	         swing and follows it while a bow is drawn.
 	PREDICT  the swing, draw and release clips play at once; WeaponResult refusals undo them and
@@ -46,6 +49,8 @@ local REASONS: { [string]: string } = {
 	STAGGERED = "You're knocked off your feet.",
 	INTERRUPTED = "Your draw was broken.",
 	SPELL_READY = "Put the spell away (Q) to use your weapon.",
+	SHEATHED = "",
+	NO_WEAPON = "Nothing in your hand to put away.",
 }
 
 local AMMO_NAMES: { [string]: string } = { arrow = "arrows", bolt = "bolts", thrown_knife = "knives" }
@@ -59,6 +64,8 @@ local WeaponClient = {
 
 -- The bow being drawn (the HUD shows it on the cast bar), or nil.
 WeaponClient.drawing = Kit.value(nil :: Drawing?)
+-- The main-hand weapon: "none" (nothing to sheathe), "out" or "away". The HUD's Sheathe button.
+WeaponClient.sheath = Kit.value("none")
 
 local castClient: any = nil
 local animation: any = nil
@@ -226,12 +233,59 @@ local function loose()
 	shoot(def.weapon, ranged)
 end
 
+-- ─── Sheathing ──────────────────────────────────────────────────────────────
+
+local function isSheathed(): boolean
+	return Players.LocalPlayer:GetAttribute("WeaponSheathed") == true
+end
+
+-- True when there's a weapon in the main hand to put away or take out.
+local function canSheathe(): boolean
+	local rec, def, class = mainHand()
+	return rec ~= nil and def ~= nil and class ~= nil
+end
+
+-- Q with no spell readied (or the HUD button): put the weapon away, or take it out. The server
+-- (WeaponService) sets WeaponSheathed and moves the model; we just stop any draw first.
+local function toggleSheathe()
+	if isSheathed() then
+		Net.send("WeaponIntent", "unsheathe")
+		return
+	end
+	if not canSheathe() then
+		return
+	end
+	if WeaponClient.drawing:get() then
+		WeaponClient.drawing:set(nil)
+		Net.send("WeaponIntent", "cancel")
+		animation:predict("idle")
+	end
+	swingLast = nil
+	Net.send("WeaponIntent", "sheathe")
+end
+
+-- The HUD's button and label read these.
+function WeaponClient.isSheathed(_self: any): boolean
+	return isSheathed()
+end
+function WeaponClient.canSheathe(_self: any): boolean
+	return canSheathe()
+end
+function WeaponClient.toggleSheathe(_self: any)
+	toggleSheathe()
+end
+
 -- ─── Hooks (called by CastClient) ───────────────────────────────────────────
 
 local function press(source: string)
 	local rec, def, class, kind = mainHand()
 	if not rec or not def or not def.weapon or not class then
 		return -- bare hands: nothing to swing
+	end
+	if isSheathed() then
+		-- Put away: the first press takes it out; the next one attacks.
+		Net.send("WeaponIntent", "unsheathe")
+		return
 	end
 	if ItemInstance.isBroken(rec) then
 		feedback(REASONS.BROKEN, "warn")
@@ -250,7 +304,7 @@ end
 
 local function canBlock(): boolean
 	local rec, def = mainHand()
-	return rec ~= nil and not ItemInstance.isBroken(rec) and WeaponRules.canBlock(def)
+	return rec ~= nil and not isSheathed() and not ItemInstance.isBroken(rec) and WeaponRules.canBlock(def)
 end
 
 local function onResult(result: any)
@@ -286,6 +340,10 @@ function WeaponClient.init(_self: any, ctx: any)
 	castClient.weapon.press = press
 	castClient.weapon.release = loose
 	castClient.weapon.canBlock = canBlock
+	castClient.weapon.sheathe = toggleSheathe
+	castClient.weapon.isOut = function(): boolean
+		return canSheathe() and not isSheathed()
+	end
 end
 
 function WeaponClient.start(_self: any, _ctx: any)
@@ -319,12 +377,18 @@ function WeaponClient.start(_self: any, _ctx: any)
 			dropDraw()
 		end
 	end)
+	local function updateSheath()
+		WeaponClient.sheath:set(if not canSheathe() then "none" elseif isSheathed() then "away" else "out")
+	end
 	items.view:observe(function()
 		local _, _, class = mainHand()
 		if class ~= "ranged" then
 			dropDraw()
 		end
+		updateSheath()
 	end)
+	Players.LocalPlayer:GetAttributeChangedSignal("WeaponSheathed"):Connect(updateSheath)
+	updateSheath()
 	Players.LocalPlayer.CharacterAdded:Connect(function()
 		WeaponClient.drawing:set(nil)
 		swingLast = nil

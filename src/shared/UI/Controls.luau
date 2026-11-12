@@ -21,9 +21,10 @@
 	traveling  riding with Domain Travel (TravelClient)
 	borrowed   during a relic's minute of mythic magic (MomentsClient)
 		placing    placing furniture (blocks all other play input)
-		menu       a screen is open                                prompt     a ProximityPrompt is
-		admin      admins only (hidden from everyone else)                    in range (Roblox gives
-		                                                                      it the key first)
+		menu       a screen is open                                prompt     the pointer is on something
+		admin      admins only (hidden from everyone else)                    usable in range
+		                                                                      (InteractClickController
+		                                                                      takes the click first)
 	owner     the controller or script that handles it ("Roblox" = the default player scripts)
 	flag      a replicated feature flag; when it's off the row shows greyed out
 ]]
@@ -90,8 +91,8 @@ local list: { Action } = {
 	{
 		id = "camera", label = "Turn the camera", group = "movement", order = 3,
 		keyboard = { "MouseButton2" }, gamepad = { "Thumbstick2" }, touch = "Drag on the right side of the screen",
-		contexts = { "always" }, owner = "Roblox", shares = { "guard" },
-		note = "Hold right mouse and drag. Holding right mouse also raises your guard.",
+		contexts = { "always" }, owner = "Roblox",
+		note = "Hold right mouse and drag.",
 	},
 	{
 		id = "run", label = "Run (toggle)", group = "movement", order = 3.5,
@@ -143,6 +144,11 @@ local list: { Action } = {
 		keyboard = { "Q" }, touch = "Stow button", contexts = { "attuned" }, owner = "CastClient",
 	},
 	{
+		id = "sheathe", label = "Sheathe / draw your weapon", group = "combat", order = 1.5,
+		keyboard = { "Q" }, touch = "Sheathe button", contexts = { "unattuned" }, owner = "WeaponClient",
+		note = "Puts the weapon in your hand away (on your back, small ones at the hip), or takes it out. Attacking while it's away takes it out first. A sheathed weapon can't block.",
+	},
+	{
 		id = "lock_on", label = "Lock on to a target", group = "casting", order = 7,
 		keyboard = { "LeftAlt", "MouseButton3" }, gamepad = { "ButtonR3" },
 		contexts = { "always" }, owner = "AimController",
@@ -170,13 +176,13 @@ local list: { Action } = {
 	},
 	{
 		id = "guard", label = "Block", group = "combat", order = 2,
-		keyboard = { "MouseButton2" }, gamepad = { "ButtonL1" }, touch = "Block button",
-		contexts = { "always" }, owner = "CastClient", shares = { "camera" },
-		note = "With a readied spell (a ward; time it to parry) or a weapon (costs stamina).",
+		keyboard = { "F" }, gamepad = { "ButtonL1" }, touch = "Block button",
+		contexts = { "always" }, owner = "CastClient",
+		note = "Hold. With a readied spell (a ward; time it to parry) or a drawn weapon (costs stamina).",
 	},
 	{
 		id = "slash", label = "Spellblade slash", group = "combat", order = 3,
-		keyboard = { "F" }, gamepad = { "ButtonB" }, touch = "Slash button",
+		keyboard = { "E" }, gamepad = { "ButtonB" }, touch = "Slash button",
 		contexts = { "attuned" }, owner = "CastClient",
 		note = "Press again in rhythm for the second swing.",
 	},
@@ -190,15 +196,15 @@ local list: { Action } = {
 	},
 	{
 		id = "interact", label = "Use / talk", group = "items", order = 2,
-		keyboard = { "E" }, gamepad = { "ButtonX" }, touch = "Tap the prompt",
-		contexts = { "prompt" }, owner = "Roblox",
-		note = "Doors, beds, chests, stations, people. Some prompts are held.",
+		keyboard = { "MouseButton1" }, gamepad = { "ButtonX" }, touch = "Tap it",
+		contexts = { "prompt" }, owner = "InteractClickController",
+		note = "Click doors, beds, chests, stations and people when you're close (they outline). Some need the click held. Lower a readied spell first; put your weapon away to talk to someone. Gamepad: look at it.",
 	},
 	{
 		id = "interact_alt", label = "Second action", group = "items", order = 3,
-		keyboard = { "F" }, gamepad = { "ButtonY" }, touch = "Tap the prompt",
-		contexts = { "prompt" }, owner = "Roblox",
-		note = "On some objects, such as lighting a fireplace.",
+		keyboard = { "LeftShift" }, gamepad = { "ButtonY" }, touch = "Tap it",
+		contexts = { "prompt" }, owner = "InteractClickController",
+		note = "Shift-click, on objects with a second use (the label says so).",
 	},
 	{
 		id = "interact_modifier", label = "Take the whole stack", group = "items", order = 4,

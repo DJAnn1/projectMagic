@@ -9,6 +9,10 @@
 		draw      a bow: start drawing (timed on the server's clock from when this arrives)
 		release   a bow: loose the drawn arrow; a crossbow or bandolier: shoot now
 		cancel    lower a drawn bow without shooting
+		sheathe   put the main-hand weapon away (on the back, small ones at the hip); unsheathe
+		          takes it out. Stored as the Player attribute WeaponSheathed (survives respawn);
+		          GearVisuals reads it when it dresses the main hand. A sheathed weapon can't
+		          attack ("SHEATHED") or block (GuardService). Clients draw it on the first attack.
 	GATES (every op)  alive; no spell attuned (with a spell readied, left click casts it and F is
 	                  the spellblade: Services/MeleeService); the main-hand item is the right kind
 	                  of weapon and not broken; the body free to act (Cast/ActionState); stamina for
@@ -46,6 +50,7 @@ local WeaponRules = require(Shared.Items.WeaponRules)
 
 local Server = script.Parent.Parent
 local Inventory = require(Server.Items.Inventory)
+local GearVisuals = require(Server.Items.GearVisuals)
 local Cast = Server.Magic.Cast
 local C = require(Server.Magic.Data.CombatTuning)
 local CastTypes = require(Cast.CastTypes)
@@ -436,6 +441,32 @@ local function onRelease(player: Player, character: Model, def: ItemTypes.ItemDe
 	Net.fire("WeaponResult", player, { ok = true, fired = true, ammo = ammoCount(player, tag) })
 end
 
+-- ─── Sheathing ──────────────────────────────────────────────────────────────
+
+-- Puts the main-hand weapon away or takes it out. Refused mid-swing (or knocked down), so a
+-- sheathe can't cut a swing short; with no weapon in the hand there's nothing to put away.
+local function setSheathed(player: Player, character: Model, s: PlayerState, sheathed: boolean)
+	if (player:GetAttribute("WeaponSheathed") == true) == sheathed then
+		return -- already so (a repeated press): nothing to do
+	end
+	local _, def, class = weaponOf(player)
+	if sheathed and (not def or not class) then
+		refuse(player, "NO_WEAPON")
+		return
+	end
+	local free, action = ActionState.can(character, "equip")
+	if not free then
+		refuse(player, if action == "staggered" then "STAGGERED" else "BUSY")
+		return
+	end
+	endDraw(character, s)
+	s.combo = nil
+	player:SetAttribute("WeaponSheathed", if sheathed then true else nil)
+	local inv = inventory:inventoryOf(player)
+	GearVisuals.dress(character, "mainHand", inv and inv.equip and inv.equip.mainHand)
+	log:debug("weapon_sheathed", { userId = player.UserId, sheathed = sheathed })
+end
+
 -- ─── Intent ─────────────────────────────────────────────────────────────────
 
 local function onIntent(player: Player, op: string, aim: Vector3?)
@@ -447,6 +478,15 @@ local function onIntent(player: Player, op: string, aim: Vector3?)
 	local s = stateOf(player)
 	if op == "cancel" then
 		endDraw(character, s)
+		return
+	end
+	if op == "sheathe" or op == "unsheathe" then
+		setSheathed(player, character, s, op == "sheathe")
+		return
+	end
+	if player:GetAttribute("WeaponSheathed") == true then
+		endDraw(character, s)
+		refuse(player, "SHEATHED") -- the client draws first; a stray attack lands here
 		return
 	end
 	if attunement:attunedKey(player) then

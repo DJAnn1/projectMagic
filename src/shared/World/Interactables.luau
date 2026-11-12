@@ -25,7 +25,8 @@
 		container         { slots, loot }: grid size and the ContainerLoot table its contents roll from
 		station           { id }: the station id recipes ask for (Data/Recipes); the part's
 		                  StationTier attribute (default 1) says how good it is
-		key               prompt key when it shares a spot with another prompt ("F")
+		key               "F" marks a second action when it shares a spot with another prompt: players
+		                  use it with Shift-click (InteractClickController), gamepad Y
 		los               false: no line-of-sight check (the prompt sits inside other geometry)
 
 	Shared so the client can name things consistently. Adding a kind: an entry here + a

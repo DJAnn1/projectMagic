@@ -14,17 +14,20 @@
 	           quick            a hotbar key casts at once (gamepad: R2 casts the selected slot).
 	           HudController calls pressSlot(slot) for slot taps. Everything is blocked while a
 	           screen, the console or a text box has focus.
-	SLASH      equip mode, a spell attuned: F (gamepad B, the touch Slash button) swings the
+	SLASH      equip mode, a spell attuned: E (gamepad B, the touch Slash button) swings the
 	           spellblade, Slash1 then Slash2 (Shared/Magic/Melee). A press before the combo window
 	           is buffered until it opens. Predicted (the clip); MeleeResult refuses or reports the
 	           first hit (a short hit-stop). Services/MeleeService decides what it hits.
-	GUARD      equip mode, a spell attuned: hold right mouse (gamepad L1, the touch Block button)
+	GUARD      equip mode, a spell attuned: hold F (gamepad L1, the touch Block button)
 	           to raise a ward, release to lower it (GuardIntent; Services/GuardService). Raising
 	           drops a charge. Predicted (guarding value, BlockStart clip); a refusal reverts it.
 	           With no spell readied, the same input blocks with a blocking main-hand weapon.
 	WEAPONS    with no spell readied, left mouse (gamepad R1, the touch Cast button) attacks with
-	           the main-hand weapon and F (B, touch Slash) swings it; Controllers/WeaponClient does
-	           the rest through CastClient.weapon.
+	           the main-hand weapon, E (B, touch Slash) swings it and Q sheathes or draws it;
+	           Controllers/WeaponClient does the rest through CastClient.weapon.
+	CLICKS     a left click on something usable in range goes to InteractClickController instead
+	           (it asks CastClient.clickGate whether we're busy: a readied spell or a raised guard
+	           keeps every click for combat, and a drawn weapon keeps clicks on people).
 	ATTUNE     predicted (attuned value, Equip clip), confirmed or reverted by AttuneSpell's answer.
 	           The server (Services/AttunementService) owns it: only the attuned spell can be cast.
 	AIM        Controllers/AimController: the mouse on keyboard, the screen centre on touch and
@@ -93,7 +96,7 @@ local CHANNEL_AIM_HZ = 10 -- how often a held channel's aim is sent
 
 local CastClient = {
 	name = "CastClient",
-	dependencies = { "InterfaceController", "MagicStateController", "AnimationController", "AimController" },
+	dependencies = { "InterfaceController", "MagicStateController", "AnimationController", "AimController", "InteractClickController" },
 }
 
 CastClient.SLOT_KEYS = SLOT_KEYS
@@ -104,19 +107,24 @@ CastClient.charging = Kit.value(nil :: Charging?)
 CastClient.guarding = Kit.value(false)
 
 -- Item weapons (Controllers/WeaponClient fills these in at init). With no spell readied, the
--- attack inputs (left mouse, R1, the touch Cast and Slash buttons, F) and the guard go to the
--- main-hand weapon instead: `primary` = left mouse / R1 / touch Cast, `melee` = F / B / touch Slash.
+-- attack inputs (left mouse, R1, the touch Cast and Slash buttons, E) and the guard go to the
+-- main-hand weapon instead: `primary` = left mouse / R1 / touch Cast, `melee` = E / B / touch Slash.
+-- `sheathe` toggles the weapon away / out (Q with nothing readied); `isOut` is true while a
+-- weapon is drawn in the hand.
 export type WeaponHooks = {
 	press: ((source: string) -> ())?,
 	release: (() -> ())?,
 	canBlock: (() -> boolean)?,
+	sheathe: (() -> ())?,
+	isOut: (() -> boolean)?,
 }
-CastClient.weapon = { press = nil, release = nil, canBlock = nil } :: WeaponHooks
+CastClient.weapon = { press = nil, release = nil, canBlock = nil, sheathe = nil, isOut = nil } :: WeaponHooks
 
 local interface: any = nil
 local magic: any = nil
 local animation: any = nil
 local aimer: any = nil
+local clicker: any = nil
 local predicted: { key: string, anchor: Part?, at: number }? = nil
 local attuneRequest = 0 -- increments per request: a late answer to an old one is ignored
 local channelHeld = false -- a channelled spell we cast is still held down (release ends it)
@@ -613,6 +621,14 @@ function CastClient.init(_self: any, ctx: any)
 	magic = ctx.get("MagicStateController")
 	animation = ctx.get("AnimationController")
 	aimer = ctx.get("AimController")
+	clicker = ctx.get("InteractClickController")
+	-- What a click on something usable may do right now: nothing while fighting with magic;
+	-- objects but not people while a weapon is out (a click on someone attacks them).
+	clicker:setGate(function(): (boolean, boolean)
+		local busy = CastClient.attuned:get() ~= nil or CastClient.guarding:get() or CastClient.charging:get() ~= nil
+		local isOut = CastClient.weapon.isOut
+		return busy, isOut ~= nil and isOut()
+	end)
 	magic.events:Connect(onEvent)
 end
 
@@ -626,6 +642,9 @@ function CastClient.start(_self: any, _ctx: any)
 		if slot then
 			CastClient:pressSlot(slot)
 		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+			if clicker:claimsClick() then
+				return -- a click on something usable in range: InteractClickController uses it
+			end
 			-- Quick mode never readies a spell, so there left click only ever swings a weapon.
 			if equipMode() or not CastClient.attuned:get() then
 				CastClient:pressCast()
@@ -635,12 +654,20 @@ function CastClient.start(_self: any, _ctx: any)
 			if press and not CastClient.attuned:get() then
 				press("primary")
 			end
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.KeyCode == Enum.KeyCode.ButtonL1 then
+		elseif Controls.matches("guard", input) then
 			CastClient:raiseGuard()
 		elseif Controls.matches("slash", input) then
 			CastClient:pressSlash()
 		elseif Controls.matches("stow", input) then
-			CastClient:stow()
+			-- Q: lowers a readied spell; with nothing readied it sheathes or draws the weapon.
+			if CastClient.attuned:get() then
+				CastClient:stow()
+			else
+				local sheathe = CastClient.weapon.sheathe
+				if sheathe then
+					sheathe()
+				end
+			end
 		elseif input.KeyCode == Enum.KeyCode.DPadLeft or input.KeyCode == Enum.KeyCode.DPadRight then
 			local nextSlot = if input.KeyCode == Enum.KeyCode.DPadLeft then (selected - 2) % SLOT_COUNT + 1 else selected % SLOT_COUNT + 1
 			CastClient.selectedSlot:set(nextSlot)
@@ -672,7 +699,7 @@ function CastClient.start(_self: any, _ctx: any)
 			or table.find(SLOT_KEYS, input.KeyCode)
 		then
 			CastClient:releaseCast()
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 or input.KeyCode == Enum.KeyCode.ButtonL1 then
+		elseif Controls.matches("guard", input) then
 			CastClient:lowerGuard()
 		end
 	end)

@@ -52,6 +52,9 @@ end
 local function weaponCanBlock(player: Player): boolean
 	local inv = inventory:inventoryOf(player)
 	local rec = inv and inv.equip and inv.equip.mainHand
+	if player:GetAttribute("WeaponSheathed") == true then
+		return false -- put away (WeaponService): it can't turn a blow on your back
+	end
 	return rec ~= nil and not ItemInstance.isBroken(rec) and WeaponRules.canBlock(ItemDatabase.get(rec.i))
 end
 

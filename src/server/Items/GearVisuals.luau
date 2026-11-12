@@ -5,6 +5,7 @@
 
 		GearVisuals.dress(character, slot, rec?)   (re)builds one slot; nil removes it
 		GearVisuals.dressAll(character, equip)      every slot (on spawn)
+	A player's main hand is drawn on the back (or hip) while their WeaponSheathed attribute is set.
 
 	Each ItemDef.model.shape names a builder below: a list of pieces, each a size, an offset from
 	the anchor, an optional part shape and colour. Held items (main hand, off hand) are placed
@@ -16,6 +17,7 @@
 	with it. Part counts are 1-5 per item; the torch, orb and hourglass add one PointLight each.
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
@@ -129,6 +131,21 @@ local BUILDERS: { [string]: { Piece } } = {
 -- Shapes held upright (no forward turn) and how far below the hand they reach.
 local uprightShapes: { [string]: boolean } = { staff = true, torch = true, hourglass = true, orb = true, tome = true }
 
+-- A sheathed main hand (the Player's WeaponSheathed attribute, set by WeaponService): long
+-- things hang across the back, grip over the right shoulder; short ones ride at the back of the
+-- waist. Frames are in the attachment's space (+Z is the back of the body on both rigs).
+local SHEATH_BACK = CFrame.new(0, 0.5, 0.45) * CFrame.Angles(0, 0, math.rad(145)) * CFrame.new(0, -1.1, 0)
+local SHEATH_HIP = CFrame.new(0.35, 0, 0.45) * CFrame.Angles(0, 0, math.rad(160)) * CFrame.new(0, -0.3, 0)
+local hipShapes: { [string]: boolean } = { dagger = true, sickle = true, wand = true }
+
+local function isSheathed(character: Model, slot: string): boolean
+	if slot ~= "mainHand" then
+		return false
+	end
+	local player = Players:GetPlayerFromCharacter(character)
+	return player ~= nil and player:GetAttribute("WeaponSheathed") == true
+end
+
 local function holderOf(character: Model): Folder
 	local folder = character:FindFirstChild(FOLDER)
 	if folder and folder:IsA("Folder") then
@@ -159,13 +176,20 @@ local function build(character: Model, slot: string, def: ItemTypes.ItemDef)
 	if not pieces then
 		return
 	end
-	local attachment = findAttachment(character, slotDef.attach)
+	local sheathed = isSheathed(character, slot)
+	local attachName = slotDef.attach
+	if sheathed then
+		attachName = if hipShapes[model.shape] then "WaistBackAttachment" else "BodyBackAttachment"
+	end
+	local attachment = findAttachment(character, attachName)
 	if not attachment then
 		return
 	end
 	local anchor = attachment.Parent :: BasePart
 	local base: CFrame
-	if HELD[slot] then
+	if sheathed then
+		base = attachment.CFrame * (if hipShapes[model.shape] then SHEATH_HIP else SHEATH_BACK)
+	elseif HELD[slot] then
 		-- From the grip point: forward like a held tool, or upright for staffs and lights.
 		base = CFrame.new(attachment.Position) * (if uprightShapes[model.shape] then CFrame.new(0, -0.3, 0) else CFrame.Angles(-math.pi / 2, 0, 0))
 	else
@@ -174,6 +198,9 @@ local function build(character: Model, slot: string, def: ItemTypes.ItemDef)
 
 	local group = Instance.new("Model")
 	group.Name = "Gear_" .. slot
+	if sheathed then
+		group:SetAttribute("Sheathed", true)
+	end
 	for i, piece in pieces do
 		local part = Instance.new("Part")
 		part.Name = def.id .. "_" .. i

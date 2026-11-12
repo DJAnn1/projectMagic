@@ -871,7 +871,25 @@ local function buildHotbar(scope: Scope, root: Frame, compact: boolean)
 		Parent = root,
 	})
 
-	Kit.dynamic(scope, { magic.hotbar, magic.spellbook, magic.known, magic.region, castClient.selectedSlot, castClient.attuned, page, movement.wantsRun }, function(s)
+	-- Sheathe / Draw: with a weapon in the main hand and no spell readied (WeaponClient; Q).
+	local function sheatheButton(s: Scope, parent: Instance, size: number, order: number)
+		local state = weaponClient.sheath:get()
+		if state == "none" or castClient.attuned:get() then
+			return
+		end
+		local away = state == "away"
+		local keyHint = if interface.inputMode:get() == "Keyboard" then " (Q)" else ""
+		local button = C.button((if away then "Draw" else "Sheathe") .. keyHint, function()
+			weaponClient:toggleSheathe()
+		end, { kind = "ghost", selected = not away }, {
+			Size = UDim2.fromOffset(size, Theme.minTouch),
+			LayoutOrder = order,
+		})
+		button.Parent = parent
+		s:add(button)
+	end
+
+	Kit.dynamic(scope, { magic.hotbar, magic.spellbook, magic.known, magic.region, castClient.selectedSlot, castClient.attuned, page, movement.wantsRun, weaponClient.sheath }, function(s)
 		table.clear(widgets)
 		local holder: Frame = Kit.create(nil, "Frame", {
 			BackgroundTransparency = 1,
@@ -910,6 +928,7 @@ local function buildHotbar(scope: Scope, root: Frame, compact: boolean)
 				Size = UDim2.fromOffset(SLOT_SIZE, Theme.minTouch),
 				LayoutOrder = 99.4,
 			}).Parent = holder
+			sheatheButton(s, holder, SLOT_SIZE, 99.6)
 			-- Touch, equip mode: with a spell attuned, Cast (at the screen centre) and Stow.
 			if castClient.attuned:get() then
 				-- Press and hold to charge (or to keep a channel going); lift to cast.
@@ -961,6 +980,7 @@ local function buildHotbar(scope: Scope, root: Frame, compact: boolean)
 				widget.frame.Parent = holder
 				widgets[slot] = widget
 			end
+			sheatheButton(s, holder, 96, SLOT_COUNT + 1)
 		end
 		updateSlots()
 	end)
