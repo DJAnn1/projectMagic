@@ -548,7 +548,9 @@ local function behave(npc: any, band: string, player: Player, clock: number)
 end
 
 local function greet(npc: any, now: number, clock: number)
-	if npc.combat or npc.leash or npc.action == "sleep" or npc.action == "shelter" then
+	-- Not while they're in a conversation (NPC/NPCConversation): a "Hello!" bubble mid-talk, or
+	-- the moment the panel closes, looked like the dialogue's Hello button firing by itself.
+	if npc.combat or npc.leash or npc.talk or npc.action == "sleep" or npc.action == "shelter" then
 		return
 	end
 	for _, player in npcs:hearers(npc.position, WHISPER_RADIUS) do

@@ -59,6 +59,7 @@ local Seed = require(Shared.Magic.Seed)
 local MagicCore = require(Shared.Magic.MagicCore)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local Interactables = require(Shared.World.Interactables)
+local Reach = require(Shared.World.Reach)
 
 local Server = ServerScriptService.Server
 local PromptRouter = require(Server.Interact.PromptRouter)
@@ -72,7 +73,7 @@ local Resistances = require(Server.Magic.Cast.Resistances)
 local WorldClock = require(Server.NPC.WorldClock)
 local Util = require(Server.Admin.Util)
 
-local TRIGGER_GAP = 0.25 -- seconds between two prompt uses by one player
+local TRIGGER_GAP = 0.15 -- seconds between two prompt uses by one player (PromptRouter has the same gap for clicks)
 local CONFIRM_SECONDS = 6
 local REST_HEAL_SHARE = 0.015
 local PICK_CHANCE = { 0.55, 0.4 }
@@ -489,23 +490,30 @@ end
 
 -- ─── Prompts ────────────────────────────────────────────────────────────────
 
-local function onTriggered(part: BasePart, player: Player)
+-- Every refusal returns a reason code (PromptRouter sends it to the client, which says it in
+-- words); nothing here fails silently any more. A sentence the player already got through
+-- Notify comes back as DENIED, so the client doesn't say it twice.
+local function onTriggered(part: BasePart, player: Player): (boolean, string?)
 	if flags.get("interact_enabled") == false then
-		return
+		return false, "DISABLED"
 	end
 	local t = os.clock()
 	if lastTrigger[player] and t - lastTrigger[player] < TRIGGER_GAP then
-		return
+		return false, "RATE_LIMITED"
 	end
 	lastTrigger[player] = t
 	local def = defOf(part)
 	local root, humanoid = aliveRoot(player)
-	if not def or not root or not humanoid or not part:IsDescendantOf(workspace) then
-		return
+	if not def or not part:IsDescendantOf(workspace) then
+		return false, "INVALID"
 	end
-	if (root.Position - part.Position).Magnitude > def.distance + 6 then
-		return
+	if not root or not humanoid then
+		return false, "DEAD"
 	end
+	if Reach.toPart(part, root.Position) > def.distance + Reach.SLACK then
+		return false, "TOO_FAR"
+	end
+	local result: string? = nil
 	local ok, err = pcall(function()
 		if def.handler == "door" then
 			useDoor(player, part)
@@ -513,8 +521,13 @@ local function onTriggered(part: BasePart, player: Player)
 			useBed(player, part, humanoid)
 		elseif def.handler == "container" then
 			local opened, why = containers:open(player, part)
-			if not opened and why then
-				notify(player, if string.match(why, "^[A-Z_]+$") then "You can't reach that." else why)
+			if not opened then
+				if why and not string.match(why, "^[A-Z_]+$") then
+					notify(player, why) -- a sentence from HousingService ("This is someone's home.")
+					result = "DENIED"
+				else
+					result = why or "REFUSED"
+				end
 			end
 		elseif def.handler == "station" then
 			crafting:open(player, part)
@@ -540,7 +553,12 @@ local function onTriggered(part: BasePart, player: Player)
 	end)
 	if not ok then
 		log:error("interact_failed", { kind = part:GetAttribute("Interactable"), id = part:GetAttribute("InteractId"), err = tostring(err) })
+		return false, "ERROR"
 	end
+	if result then
+		return false, result
+	end
+	return true, nil
 end
 
 local function setup(instance: Instance)
@@ -570,8 +588,9 @@ local function setup(instance: Instance)
 	end
 	prompt.Parent = part
 	prompts[part] = prompt
-	PromptRouter.connect(prompt, function(player: Player)
-		onTriggered(part, player)
+	PromptRouter.connect(prompt, function(player: Player): (boolean?, string?, string?)
+		local ok, reason = onTriggered(part, player)
+		return ok, reason, nil
 	end)
 	if def.handler == "door" then
 		Doors.register(part)
@@ -950,6 +969,24 @@ local function registerAdmin(admin: any)
 	})
 end
 
+-- The interaction debug overlay (InteractClickController draws it) and the server's decision log
+-- (`use_prompt` at Info for this player). A Player attribute, so it replicates to that client.
+local function registerDebugAdmin(admin: any)
+	admin:Register({
+		name = "interactdebug", category = "World",
+		description = "Toggle the click/interaction debug overlay (target, raw ray, GUI under the cursor, last 20 attempts) and log every server decision for you",
+		args = { { name = "mode", type = "enum", options = { "toggle", "on", "off" }, default = "toggle" } },
+		handler = function(ctx, a)
+			local player: Player = ctx.player
+			local on = if a.mode == "toggle" then player:GetAttribute("InteractDebug") ~= true else a.mode == "on"
+			player:SetAttribute("InteractDebug", if on then true else nil)
+			local prompt, seq = PromptRouter.holdOf(player)
+			return string.format("interaction debug %s%s", if on then "on" else "off",
+				if prompt then string.format(" (a hold is running: %s, seq %d)", prompt:GetFullName(), seq or 0) else "")
+		end,
+	})
+end
+
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 function InteractionService.init(_self: any, ctx: any)
@@ -966,9 +1003,11 @@ function InteractionService.init(_self: any, ctx: any)
 	housing = ctx.get("HousingService")
 	Doors.onChanged = doorText
 	-- Clicks on anything with a prompt (InteractClickController -> Interact/PromptRouter).
+	PromptRouter.setLog(log)
 	Net.on("UsePrompt", PromptRouter.onIntent :: any)
 	Lamps.onChanged = lightText
 	registerAdmin(ctx.get("AdminService"))
+	registerDebugAdmin(ctx.get("AdminService"))
 end
 
 function InteractionService.start(_self: any, _ctx: any)

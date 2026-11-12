@@ -166,6 +166,10 @@ local lastChapter = -1
 local pool: ParallelPool.ParallelPool? = nil
 local playerRoots: { { player: Player, position: Vector3 } } = {}
 local talkTurns: { [Player]: { [string]: number } } = {}
+-- When each player last closed a conversation with each NPC (NpcTalkEnd). A greeting asked for
+-- within REOPEN_GAP of that is refused: the click that closed the panel can't open it again.
+local talkClosedAt: { [Player]: { [string]: number } } = {}
+local REOPEN_GAP = 0.5
 local renderCache: { [string]: string } = {}
 local renderCacheSize = 0
 local stats = { brainMs = 0, brainTicks = 0, t2Ms = 0, t2Count = 0, parallel = false, bootMs = 0 }
@@ -1570,6 +1574,14 @@ local function onTalk(player: Player, npcId: string, topic: string): any
 	if (npcRoot.Position - root.Position).Magnitude > TALK_DISTANCE then
 		return { ok = false, reason = "too_far" }
 	end
+	local closedAt = talkClosedAt[player] and talkClosedAt[player][npc.id]
+	if topic == "greet" and closedAt and os.clock() - closedAt < REOPEN_GAP then
+		return { ok = false, reason = "closing" }
+	end
+	-- Talking to someone is a greeting: AmbientLifeService won't call out a hello at you right
+	-- after (it read like the panel's Hello button firing on its own).
+	npc.greeted = npc.greeted or {}
+	npc.greeted[player.UserId] = os.clock()
 	local listener = subjectOf(player.UserId)
 	local now = WorldClock.now()
 	local state = playerData:get(player)
@@ -2425,6 +2437,9 @@ function NPCService.init(_self: any, ctx: any)
 	store = dataService:openStore(Schemas.NpcTown)
 	Net.handle("NpcTalk", onTalk)
 	Net.on("NpcTalkEnd", function(player: Player, npcId: string)
+		local closed = talkClosedAt[player] or {}
+		talkClosedAt[player] = closed
+		closed[npcId] = os.clock()
 		local npc = byId[npcId]
 		if npc then
 			Conversation.Leave(npc, player)
@@ -2530,6 +2545,7 @@ function NPCService.init(_self: any, ctx: any)
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		talkTurns[player] = nil
+		talkClosedAt[player] = nil
 	end)
 	game:BindToClose(function()
 		if ready then

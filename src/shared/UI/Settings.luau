@@ -80,6 +80,14 @@ local Settings: { [string]: SettingDef } = {
 		options = { true, false },
 		labels = { "On", "Off" },
 	},
+	interactClick = {
+		order = 8.2,
+		label = "Click to use",
+		description = "What a left click on something usable does while a spell is readied. E always uses what's outlined (unless you're charging or blocking). Not while readied: the click casts, so press E. Always: the click uses it, and casts only when you're not pointing at something usable.",
+		default = "unreadied",
+		options = { "unreadied", "always" },
+		labels = { "Not while readied", "Always" },
+	},
 	lockOnMode = {
 		order = 8.5,
 		label = "Lock-on",

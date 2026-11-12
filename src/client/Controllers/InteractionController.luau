@@ -15,9 +15,16 @@
 	            and mastery requirements in words; Craft ×1 / ×5. Above the recipes, a Repair card
 	            lists your worn items this station mends (Shared/Items/Repair) with the price.
 
+	LIFECYCLE   Only a server ContainerView opens the window (a click never toggles it). Every view
+	            carries the player's open `session`; closing the window remembers that session and
+	            any later view from it (a push already on its way) is dropped, so it can't pop the
+	            window back open. Closing: the window's close button, Escape or the Roblox menu,
+	            gamepad B, walking away (the server sends { closed }), or the container going away.
+
 	Text rules: never colour alone (✓ ✗ ! glyphs and words).
 ]]
 
+local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -54,6 +61,11 @@ local containerView = Kit.value(nil :: any)
 local stationView = Kit.value(nil :: any)
 local hovered = Kit.value(nil :: ItemView?)
 local busy = false
+local closedSession = 0 -- the newest container session this client has closed (see LIFECYCLE)
+
+local function sessionOf(view: any): number
+	return if typeof(view.session) == "number" then view.session else 0
+end
 
 local function notifyFailure(result: any)
 	if typeof(result) == "table" and not result.ok then
@@ -411,7 +423,9 @@ function InteractionController.start(_self: any, _ctx: any)
 		if typeof(view) ~= "table" or typeof(view.id) ~= "string" then
 			return
 		end
+		local session = sessionOf(view)
 		if view.closed then
+			closedSession = math.max(closedSession, session)
 			local current = containerView:get()
 			if current and current.id == view.id then
 				containerView:set(nil)
@@ -420,6 +434,9 @@ function InteractionController.start(_self: any, _ctx: any)
 				end
 			end
 			return
+		end
+		if session ~= 0 and session <= closedSession then
+			return -- from a session already closed here: a late push must not reopen the window
 		end
 		containerView:set(view, true)
 		if interface.openScreen:get() ~= "Container" then
@@ -446,9 +463,16 @@ function InteractionController.start(_self: any, _ctx: any)
 		if id ~= "Container" then
 			local view = containerView:get()
 			if view then
+				closedSession = math.max(closedSession, sessionOf(view))
 				containerView:set(nil)
 				task.spawn(Net.invoke, "ContainerAction", "close", view.id)
 			end
+		end
+	end)
+	-- Escape opens the Roblox menu (games don't get the key itself): close the window with it.
+	GuiService.MenuOpened:Connect(function()
+		if interface.openScreen:get() == "Container" then
+			interface:close()
 		end
 	end)
 end

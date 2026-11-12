@@ -184,7 +184,8 @@ local list: { Action } = {
 		id = "slash", label = "Spellblade slash", group = "combat", order = 3,
 		keyboard = { "E" }, gamepad = { "ButtonB" }, touch = "Slash button",
 		contexts = { "attuned" }, owner = "CastClient",
-		note = "Press again in rhythm for the second swing.",
+		shares = { "interact_key" },
+		note = "Press again in rhythm for the second swing. Pointing at something usable (it's outlined), E uses that instead.",
 	},
 
 	-- ─── Items and the world ───────────────────────────────────────────────────
@@ -198,7 +199,13 @@ local list: { Action } = {
 		id = "interact", label = "Use / talk", group = "items", order = 2,
 		keyboard = { "MouseButton1" }, gamepad = { "ButtonX" }, touch = "Tap it",
 		contexts = { "prompt" }, owner = "InteractClickController",
-		note = "Click doors, beds, chests, stations and people when you're close (they outline). Some need the click held. Lower a readied spell first; put your weapon away to talk to someone. Gamepad: look at it.",
+		note = "Click doors, beds, chests, stations and people when you're close (they outline). Searching takes a moment; one click is enough. With a spell readied the click casts (Settings › Click to use changes that); press E instead. Put your weapon away to talk to someone. Gamepad: look at it.",
+	},
+	{
+		id = "interact_key", label = "Use / talk (key)", group = "items", order = 2.5,
+		keyboard = { "E" }, contexts = { "prompt" }, owner = "InteractClickController",
+		shares = { "slash" },
+		note = "Uses whatever is outlined, even with a spell readied. Pointing at nothing usable, E is the spellblade slash as before. Not while charging or blocking.",
 	},
 	{
 		id = "interact_alt", label = "Second action", group = "items", order = 3,

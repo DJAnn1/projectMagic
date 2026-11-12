@@ -74,12 +74,12 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 4 },
 		maxBytes = 16,
 	},
-	UsePrompt = { -- a click on something usable (InteractClickController): the prompt, begin | end. Interact/PromptRouter checks reach and times holds
+	UsePrompt = { -- a click on something usable (InteractClickController): the prompt, begin | end, seq. Interact/PromptRouter checks reach, times holds and answers UsePromptResult
 		kind = "Event",
 		from = "Client",
-		args = { S.instance("ProximityPrompt", workspace), S.literal("begin", "end") },
-		rate = { capacity = 8, perSecond = 6 },
-		maxBytes = 64,
+		args = { S.instance("ProximityPrompt", workspace), S.literal("begin", "end"), S.integer(1, 2 ^ 30) },
+		rate = { capacity = 8, perSecond = 6 }, -- its own bucket: never shared with casting
+		maxBytes = 80,
 	},
 	WeaponIntent = { -- a weapon attack (Services/WeaponService): swing | draw | release | cancel, with the aim point; sheathe | unsheathe put the weapon away or take it out
 		kind = "Event",
@@ -503,7 +503,8 @@ local Remotes: { [string]: RemoteDef } = {
 	NpcSpeech = { kind = "Event", from = "Server" }, -- { npcId, text }: a speech bubble over an NPC (nearby players only)
 	JournalChanged = { kind = "Event", from = "Server" }, -- { kind, text, questId? }: a new journal entry (owner only)
 	InventoryChanged = { kind = "Event", from = "Server" },
-	ContainerView = { kind = "Event", from = "Server" }, -- the container you have open (or { id, closed = true }); viewers only
+	UsePromptResult = { kind = "Event", from = "Server" }, -- { seq, ok, reason?, text?, pending?, hold? }: the answer to a UsePrompt begin (Interact/PromptRouter)
+	ContainerView = { kind = "Event", from = "Server" }, -- the container you have open, with its session number (or { id, session, closed = true }); viewers only
 	StationView = { kind = "Event", from = "Server" },
 	HousingState = { kind = "Event", from = "Server" }, -- your house: { lot, name, home, town, built, lotCFrame, interiorCFrame, interiorSize, floorY, decor, decorMax, parts, partsMax } or {}
 	OpenScreen = { kind = "Event", from = "Server" }, -- { id } the world asks the client to open a screen (a notice board opens the Journal) -- { id, station, tier, name }: a crafting station you just used -- InventoryView (Shared/Items/ItemTypes): the whole inventory, owner only, once per change

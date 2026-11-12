@@ -618,28 +618,43 @@ function CastClient.init(_self: any, ctx: any)
 	animation = ctx.get("AnimationController")
 	aimer = ctx.get("AimController")
 	clicker = ctx.get("InteractClickController")
-	-- What a click on something usable may do right now: nothing while fighting with magic;
-	-- objects but not people while a weapon is out (a click on someone attacks them).
-	clicker:setGate(function(): (boolean, boolean)
-		local busy = CastClient.attuned:get() ~= nil or CastClient.guarding:get() or CastClient.charging:get() ~= nil
+	-- The combat state InteractClickController decides with (its PRIORITY WITH CASTING rules):
+	-- charging or blocking keeps every input for combat; a readied spell keeps the click unless
+	-- Settings › Click to use says otherwise (E still uses); a drawn weapon makes a click on a
+	-- person an attack.
+	clicker:setGate(function()
 		local isOut = CastClient.weapon.isOut
-		return busy, isOut ~= nil and isOut()
+		return {
+			attuned = CastClient.attuned:get() ~= nil,
+			charging = CastClient.charging:get() ~= nil,
+			guarding = CastClient.guarding:get() == true,
+			armed = isOut ~= nil and isOut(),
+		}
 	end)
 	magic.events:Connect(onEvent)
 end
 
 function CastClient.start(_self: any, _ctx: any)
+	-- THE input router for play: world interaction is asked first (InteractClickController), so
+	-- one press is either a use or combat, never both.
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed or interface:isInputBlocked() then
 			return
+		end
+		if Controls.matches("interact_key", input) and clicker:tryKey() then
+			return -- E used what's outlined; otherwise it falls through to the slash below
+		end
+		if input.KeyCode == Enum.KeyCode.ButtonB and clicker:dialogueOpen() then
+			return -- B closes the conversation (NpcDialogueController), not a slash
 		end
 		local slot = table.find(SLOT_KEYS, input.KeyCode)
 		local selected = CastClient.selectedSlot:get()
 		if slot then
 			CastClient:pressSlot(slot)
 		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-			if clicker:claimsClick() then
-				return -- a click on something usable in range: InteractClickController uses it
+			local shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+			if clicker:tryClick(shift) then
+				return -- used something (or said why not): no cast, no swing
 			end
 			-- Quick mode never readies a spell, so there left click only ever swings a weapon.
 			if equipMode() or not CastClient.attuned:get() then

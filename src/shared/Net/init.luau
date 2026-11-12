@@ -282,12 +282,15 @@ local function clientAllowed(name: string, d: RemoteDef): boolean
 	return limiter:take("self")
 end
 
-function Net.send(name: string, ...: any)
+-- Returns false when the client-side limiter dropped it (callers that care can say so).
+function Net.send(name: string, ...: any): boolean
 	local d = def(name)
 	assert(not isServer and d.from == "Client" and d.kind ~= "Function", "Net.send: " .. name .. " is not a client event")
 	if clientAllowed(name, d) then
 		clientRemote(name):FireServer(...)
+		return true
 	end
+	return false
 end
 
 -- Returns (true, results...) or (false, reason). Never errors.

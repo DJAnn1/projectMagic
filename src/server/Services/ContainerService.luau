@@ -16,12 +16,16 @@
 	duplicated across servers; anyone else is refused.
 
 	REMOTES
-		ContainerView (server -> client)   the open container: { id, name, owner, theft, capacity,
-		                                   coins, items = { ItemView } } or { id, closed = true }
+		ContainerView (server -> client)   the open container: { id, session, name, owner, theft,
+		                                   capacity, coins, items = { ItemView } } or { id, session, closed = true }.
+		                                   `session` grows by one every time this player opens
+		                                   something: the client drops any view from a session it has
+		                                   already closed, so a late push can't reopen the window.
 		ContainerAction(op, id, ref?, n?)  op: take | put | takeall | coins | close -> { ok, reason? }
 		    take   container "sK" -> your inventory     put   your "sK" -> the container
 	Every action re-checks that the player is alive, beside the container (its prompt distance +
-	6 studs) and has it open. Taking what you didn't put there from a building you aren't allowed
+	6 studs, to the container's nearest surface: Shared/World/Reach) and has it open. Several
+	players may have one container open at once; there is no "in use" lock to get stuck. Taking what you didn't put there from a building you aren't allowed
 	to use is theft (Interact/Access): Topics.CrimeCommitted with the item value's severity.
 
 	API (InteractionService, admin): open(player, part) · peek(part) -> Inv · reset(part) · count()
@@ -40,6 +44,7 @@ local ItemTypes = require(Shared.Items.ItemTypes)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local ItemInstance = require(Shared.Items.ItemInstance)
 local Interactables = require(Shared.World.Interactables)
+local Reach = require(Shared.World.Reach)
 
 local Server = ServerScriptService.Server
 local Inventory = require(Server.Items.Inventory)
@@ -77,6 +82,7 @@ local worldService: any = nil
 local housing: any = nil
 local containers: { [string]: Container } = {}
 local openBy: { [Player]: string } = {}
+local sessionOf: { [Player]: number } = {} -- grows on every open (see ContainerView)
 local serial = 0
 local serverKey = "c" .. Inventory.base36(Seed.derive(0, game.JobId ~= "" and game.JobId or HttpService:GenerateGUID(false), "containers") % 1679616)
 
@@ -151,6 +157,7 @@ end
 -- ─── Views ──────────────────────────────────────────────────────────────────
 
 local function viewFor(c: Container, player: Player): { [string]: any }
+	local session = sessionOf[player] or 0
 	local building = Access.buildingOf(c.part)
 	local def = defOf(c.part) :: Interactables.Def
 	local items: { ItemTypes.ItemView } = {}
@@ -160,6 +167,7 @@ local function viewFor(c: Container, player: Player): { [string]: any }
 	local kind, ownerId = Access.ownerOf(building)
 	return {
 		id = c.id,
+		session = session,
 		name = if c.personal then "Your storage" else def.object .. (if building then " · " .. Access.describe(building) else ""),
 		owner = if kind == "player" then (if ownerId == player.UserId then "yours" else "another adventurer's") elseif kind == "npc" then "a local household's" else nil,
 		theft = not c.personal and not Access.permits(player, building),
@@ -185,7 +193,7 @@ local function close(player: Player)
 	local c = id and containers[id]
 	if c then
 		c.viewers[player] = nil
-		Net.fire("ContainerView", player, { id = c.id, closed = true })
+		Net.fire("ContainerView", player, { id = c.id, session = sessionOf[player] or 0, closed = true })
 	end
 end
 
@@ -199,7 +207,7 @@ local function inReach(player: Player, part: BasePart): boolean
 	if not root or not humanoid or humanoid.Health <= 0 or not def or not part:IsDescendantOf(workspace) then
 		return false
 	end
-	return (root.Position - part.Position).Magnitude <= def.distance + REACH_SLACK
+	return Reach.toPart(part, root.Position) <= def.distance + REACH_SLACK
 end
 
 -- Severity of taking `rec` (count n) from c, after the player's own deposits are used up.
@@ -261,7 +269,10 @@ end
 local function onAction(player: Player, op: string, id: string, ref: string?, n: number?): { ok: boolean, reason: string? }
 	local c = containers[id]
 	if op == "close" then
-		close(player)
+		-- Only the container it names: a close that arrives late can't shut one opened since.
+		if openBy[player] == id then
+			close(player)
+		end
 		return { ok = true }
 	end
 	if not c or openBy[player] ~= id or not c.viewers[player] then
@@ -376,6 +387,7 @@ function ContainerService.open(_self: any, player: Player, part: BasePart): (boo
 	local opened = c :: Container
 	maybeRestock(opened)
 	openBy[player] = opened.id
+	sessionOf[player] = (sessionOf[player] or 0) + 1
 	opened.viewers[player] = true
 	Net.fire("ContainerView", player, viewFor(opened, player))
 	return true, nil
@@ -421,6 +433,7 @@ function ContainerService.start(_self: any, _ctx: any)
 	Players.PlayerRemoving:Connect(function(player)
 		local id = openBy[player]
 		openBy[player] = nil
+		sessionOf[player] = nil
 		local c = id and containers[id]
 		if c then
 			c.viewers[player] = nil
