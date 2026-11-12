@@ -23,7 +23,7 @@
 	           drops a charge. Predicted (guarding value, BlockStart clip); a refusal reverts it.
 	           With no spell readied, the same input blocks with a blocking main-hand weapon.
 	WEAPONS    with no spell readied, left mouse (gamepad R1, the touch Cast button) attacks with
-	           the main-hand weapon, E (B, touch Slash) swings it and Q sheathes or draws it;
+	           the main-hand weapon and Q sheathes or draws it (E is the spellblade only);
 	           Controllers/WeaponClient does the rest through CastClient.weapon.
 	CLICKS     a left click on something usable in range goes to InteractClickController instead
 	           (it asks CastClient.clickGate whether we're busy: a readied spell or a raised guard
@@ -107,8 +107,8 @@ CastClient.charging = Kit.value(nil :: Charging?)
 CastClient.guarding = Kit.value(false)
 
 -- Item weapons (Controllers/WeaponClient fills these in at init). With no spell readied, the
--- attack inputs (left mouse, R1, the touch Cast and Slash buttons, E) and the guard go to the
--- main-hand weapon instead: `primary` = left mouse / R1 / touch Cast, `melee` = E / B / touch Slash.
+-- attack inputs (left mouse, R1, the touch Cast button) and the guard go to the main-hand
+-- weapon instead (`primary`). E / B / touch Slash are the spellblade only.
 -- `sheathe` toggles the weapon away / out (Q with nothing readied); `isOut` is true while a
 -- weapon is drawn in the hand.
 export type WeaponHooks = {
@@ -401,11 +401,7 @@ end
 function CastClient.pressSlash(self: any)
 	local held = CastClient.attuned:get()
 	if not held then
-		local press = CastClient.weapon.press
-		if press and not CastClient.guarding:get() then
-			press("melee") -- nothing readied: swing the weapon itself
-		end
-		return
+		return -- E is the spellblade only; a weapon attacks with left click (owner, 2026-11-12)
 	end
 	if not equipMode() or CastClient.guarding:get() or CastClient.charging:get() then
 		return

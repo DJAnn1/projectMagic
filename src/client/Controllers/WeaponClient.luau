@@ -9,7 +9,6 @@
 	             bow           hold to draw, release to loose
 	             crossbow      shoot (then it reloads)
 	             bandolier     throw a knife
-	           melee (E, gamepad B, the touch Slash button)   swing a melee weapon
 	         The guard input (F, L1, touch Block) blocks with a weapon that can
 	         (CastClient.raiseGuard asks canBlock()).
 	SHEATHE  Q with no spell readied (or the HUD's Sheathe button) puts the weapon away or takes

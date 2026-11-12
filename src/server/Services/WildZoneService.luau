@@ -38,6 +38,7 @@ local Seed = require(Shared.Magic.Seed)
 local W = require(Shared.World.WildZones)
 
 local Server = script.Parent.Parent
+local PromptRouter = require(Server.Interact.PromptRouter)
 local Rules = require(Server.World.WildZoneRules)
 local WildZoneBuilder = require(Server.World.WildZoneBuilder)
 local WorldConfig = require(Server.World.WorldConfig)
@@ -191,7 +192,7 @@ local function wake(zone: ZoneState)
 	prompt.MaxActivationDistance = 16
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = heart
-	prompt.Triggered:Connect(function(player: Player)
+	PromptRouter.connect(prompt, function(player: Player)
 		touchHeart(zone, player)
 	end)
 	log:info("wild_zone_awake", { zone = zone.placed.id })

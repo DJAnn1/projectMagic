@@ -40,6 +40,7 @@ local GravityRules = require(Shared.Magic.GravityRules)
 local T = require(Shared.Titans.Data.Titans)
 
 local Server = script.Parent.Parent
+local PromptRouter = require(Server.Interact.PromptRouter)
 local Rules = require(Server.Titans.TitanRules)
 local TitanBodies = require(Server.Titans.Data.TitanBodies)
 local TitanBuilder = require(Server.Titans.TitanBuilder)
@@ -356,7 +357,7 @@ local function landmarkTick()
 				prompt.MaxActivationDistance = 18
 				prompt.RequiresLineOfSight = false
 				prompt.Parent = ember
-				prompt.Triggered:Connect(function(player: Player)
+				PromptRouter.connect(prompt, function(player: Player)
 					readBones(fall, player)
 				end)
 			end

@@ -52,6 +52,7 @@ local Seed = require(Shared.Magic.Seed)
 local R = require(Shared.Rifts.Data.RiftData)
 
 local Server = script.Parent.Parent
+local PromptRouter = require(Server.Interact.PromptRouter)
 local RiftRules = require(Server.Rifts.RiftRules)
 local RiftBuilder = require(Server.Rifts.RiftBuilder)
 local RiftEnemies = require(Server.Rifts.Data.RiftEnemies)
@@ -1357,7 +1358,7 @@ local function startRun(run: Run)
 		prompt.MaxActivationDistance = 12
 		prompt.RequiresLineOfSight = false
 		prompt.Parent = gate
-		prompt.Triggered:Connect(function(player: Player)
+		PromptRouter.connect(prompt, function(player: Player)
 			if current == run then
 				putBack(run, player)
 			end
@@ -1437,7 +1438,7 @@ local function tryPortal(run: Run)
 	prompt.MaxActivationDistance = 16
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = core
-	prompt.Triggered:Connect(function(player: Player)
+	PromptRouter.connect(prompt, function(player: Player)
 		enter(run, player)
 	end)
 end

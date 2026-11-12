@@ -4,7 +4,7 @@
 
 	Generators tag parts "Interactable" with an Interactable kind (Shared/World/Interactables).
 	This service gives each one a ProximityPrompt from that registry and routes the server-side
-	Triggered event to the kind's handler; clients never send anything for prompts, and every
+	Triggered event (and UsePrompt clicks, through Interact/PromptRouter) to the kind's handler; every
 	handler re-checks that the player is alive and in reach.
 
 	HANDLERS
@@ -61,6 +61,7 @@ local ItemDatabase = require(Shared.Items.ItemDatabase)
 local Interactables = require(Shared.World.Interactables)
 
 local Server = ServerScriptService.Server
+local PromptRouter = require(Server.Interact.PromptRouter)
 local Inventory = require(Server.Items.Inventory)
 local Access = require(Server.Interact.Access)
 local Doors = require(Server.Interact.Doors)
@@ -569,7 +570,7 @@ local function setup(instance: Instance)
 	end
 	prompt.Parent = part
 	prompts[part] = prompt
-	prompt.Triggered:Connect(function(player)
+	PromptRouter.connect(prompt, function(player: Player)
 		onTriggered(part, player)
 	end)
 	if def.handler == "door" then
@@ -964,6 +965,8 @@ function InteractionService.init(_self: any, ctx: any)
 	progression = ctx.get("ProgressionService")
 	housing = ctx.get("HousingService")
 	Doors.onChanged = doorText
+	-- Clicks on anything with a prompt (InteractClickController -> Interact/PromptRouter).
+	Net.on("UsePrompt", PromptRouter.onIntent :: any)
 	Lamps.onChanged = lightText
 	registerAdmin(ctx.get("AdminService"))
 end

@@ -74,6 +74,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 4 },
 		maxBytes = 16,
 	},
+	UsePrompt = { -- a click on something usable (InteractClickController): the prompt, begin | end. Interact/PromptRouter checks reach and times holds
+		kind = "Event",
+		from = "Client",
+		args = { S.instance("ProximityPrompt", workspace), S.literal("begin", "end") },
+		rate = { capacity = 8, perSecond = 6 },
+		maxBytes = 64,
+	},
 	WeaponIntent = { -- a weapon attack (Services/WeaponService): swing | draw | release | cancel, with the aim point; sheathe | unsheathe put the weapon away or take it out
 		kind = "Event",
 		from = "Client",

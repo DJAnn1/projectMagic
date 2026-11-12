@@ -182,6 +182,11 @@ local function watchDistance()
 	end
 end
 
+-- A click on someone (InteractClickController): greet them, as the Talk prompt does.
+function NpcDialogueController.greet(_self: any, npcId: string)
+	task.spawn(talk, npcId, "greet")
+end
+
 function NpcDialogueController.init(_self: any, ctx: any)
 	log = ctx.log
 	ctx.get("InterfaceController"):registerLayer({ id = "NpcDialogue", build = build })
