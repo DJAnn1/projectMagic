@@ -12,11 +12,23 @@
 		C.tween(instance, kind, props)             TweenService with reduced-motion support
 		C.sound(key)                               UI sound from Theme.sounds ("" = silent)
 
+	CLICK FALLBACK (2026-11-12)  A trace showed clicks on the container window's ✕ and on the
+	NPC dialogue's buttons reaching no button event at all (not even MouseButton1Down), although
+	that button was the topmost, visible, Active object under the cursor in the PlayerGui and the
+	input was marked game-processed: something outside the PlayerGui swallowed them. So every
+	C.button registers here, and one listener hit-tests the PlayerGui on press and release. When
+	the press and the release both land on the same topmost button and its Activated hasn't fired
+	two frames later, the same handler runs once (logged as `button_fallback`). Buttons that work
+	normally are never fired twice: Activated marks them as answered.
+
 	Props tables follow Kit.create (Values bind, functions connect events).
 	Sizes are in pixels at UIScale 1; InterfaceController's UIScale handles the screen size.
 ]]
 
+local GuiService = game:GetService("GuiService")
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
@@ -171,6 +183,89 @@ local function buttonColors(kind: string, selected: boolean): (Color3, Color3)
 	return if selected then Theme.color.panelRaised else Theme.color.bg, Theme.color.ink
 end
 
+-- ─── Click fallback (see CLICK FALLBACK) ────────────────────────────────────
+
+type Registered = { fire: () -> (), answeredAt: number }
+local registered: { [GuiButton]: Registered } = setmetatable({}, { __mode = "k" }) :: any
+local pressedOn: GuiButton? = nil
+local pressedAt = 0
+local dispatcherReady = false
+
+-- The topmost GuiButton under the mouse in the PlayerGui, if it's one of ours and really shown.
+local function ourButtonAt(): GuiButton?
+	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if not playerGui then
+		return nil
+	end
+	local at = UserInputService:GetMouseLocation()
+	local inset = GuiService:GetGuiInset()
+	for _, object in playerGui:GetGuiObjectsAtPosition(at.X - inset.X, at.Y - inset.Y) do
+		if object:IsA("GuiButton") then
+			if not registered[object] then
+				return nil -- another button is on top: leave it to the engine
+			end
+			local shown = object.Visible
+			local node = object.Parent
+			while shown and node do
+				if node:IsA("GuiObject") then
+					shown = node.Visible
+				elseif node:IsA("ScreenGui") then
+					shown = node.Enabled
+					break
+				end
+				node = node.Parent
+			end
+			return if shown then object else nil
+		end
+	end
+	return nil
+end
+
+local function startDispatcher()
+	if dispatcherReady then
+		return
+	end
+	dispatcherReady = true
+	UserInputService.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressedOn = ourButtonAt()
+			pressedAt = os.clock()
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+			return
+		end
+		local pressed, since = pressedOn, pressedAt
+		pressedOn = nil
+		if not pressed or ourButtonAt() ~= pressed then
+			return
+		end
+		task.defer(function()
+			task.wait() -- give the engine's own Activated two frames to arrive
+			task.wait()
+			local entry = registered[pressed]
+			if entry and entry.answeredAt < since and pressed.Parent then
+				entry.answeredAt = os.clock()
+				trace:info("button_fallback", { button = pressed:GetFullName() })
+				entry.fire()
+			end
+		end)
+	end)
+end
+
+-- Any other GuiButton gets the same protection: fn runs on Activated, or through the fallback.
+-- Returns the Activated connection (add it to a scope if the button outlives it).
+function C.clickable(button: GuiButton, fn: () -> ()): RBXScriptConnection
+	local entry: Registered = { fire = fn, answeredAt = -math.huge }
+	registered[button] = entry
+	startDispatcher()
+	return button.Activated:Connect(function()
+		entry.answeredAt = os.clock()
+		fn()
+	end)
+end
+
 function C.button(text: string, onActivate: (() -> ())?, opts: ButtonOptions?, props: { [string]: any }?): TextButton
 	local o: ButtonOptions = opts or {}
 	local kind = o.kind or "secondary"
@@ -211,17 +306,24 @@ function C.button(text: string, onActivate: (() -> ())?, opts: ButtonOptions?, p
 		button.MouseLeave:Connect(function()
 			stroke.Color = if o.selected then Theme.color.accent else Theme.color.line
 		end)
-		button.Activated:Connect(function()
-			C.sound(o.sound or "select")
-			if onActivate then
-				onActivate()
-			end
-		end)
-	else
-		button.Activated:Connect(function()
-			C.sound("deny")
-		end)
 	end
+	local function fire()
+		if disabled then
+			C.sound("deny")
+			return
+		end
+		C.sound(o.sound or "select")
+		if onActivate then
+			onActivate()
+		end
+	end
+	local entry: Registered = { fire = fire, answeredAt = -math.huge }
+	registered[button] = entry
+	button.Activated:Connect(function()
+		entry.answeredAt = os.clock()
+		fire()
+	end)
+	startDispatcher()
 	return button
 end
 
