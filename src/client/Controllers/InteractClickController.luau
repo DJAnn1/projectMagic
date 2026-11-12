@@ -822,6 +822,15 @@ function InteractClickController.tryKey(_self: any): boolean
 	return use(target, false, "E", why)
 end
 
+-- CastClient: Roblox marked a left click as handled by a GUI. Was it really ours (a menu,
+-- a button or a panel in the PlayerGui under the cursor)? If not, something invisible outside
+-- the PlayerGui swallowed a click meant for the world (a trace on 2026-11-12 showed clicks on
+-- NPCs arriving "processed" with nothing of ours there), and CastClient still offers it to
+-- tryClick, never to casting.
+function InteractClickController.guiTookClick(_self: any): boolean
+	return overGui(UserInputService:GetMouseLocation())
+end
+
 -- CastClient: a dialogue is open (gamepad B closes it instead of slashing).
 function InteractClickController.dialogueOpen(_self: any): boolean
 	return dialogue:isOpen()

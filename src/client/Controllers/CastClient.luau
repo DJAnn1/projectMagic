@@ -638,7 +638,17 @@ function CastClient.start(_self: any, _ctx: any)
 	-- THE input router for play: world interaction is asked first (InteractClickController), so
 	-- one press is either a use or combat, never both.
 	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed or interface:isInputBlocked() then
+		if interface:isInputBlocked() then
+			return
+		end
+		if processed then
+			-- Only our own UI counts as having taken a click. A left click swallowed by something
+			-- invisible (a world billboard over an NPC) still uses what's under the cursor, but it
+			-- never casts or swings.
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and not clicker:guiTookClick() then
+				local shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+				clicker:tryClick(shift)
+			end
 			return
 		end
 		if Controls.matches("interact_key", input) and clicker:tryKey() then
