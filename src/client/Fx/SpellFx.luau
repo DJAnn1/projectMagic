@@ -48,6 +48,7 @@ local SpellHand = require(Shared.Magic.SpellHand)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
+local PropertyFx = require(script.Parent.PropertyFx)
 local Recipes = require(script.Parent.FxRecipes)
 local KenneyTextures = require(script.Parent.KenneyTextures)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
@@ -505,8 +506,9 @@ local castExtras: { [Part]: Part } = {} -- circle anchor -> chest glow anchor
 	chest, a swelling light and the cast sound. Returns the circle anchor (CastClient cancels it on
 	a refused prediction).
 ]]
-function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement, castTime: number, lod: any, domain: string?, power: number?): Part?
-	local look = DomainFx.look(domain)
+function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement, castTime: number, lod: any, domain: string?, power: number?, property: string?): Part?
+	local look = DomainFx.look(domain, property)
+	style = PropertyFx.tint(style, property)
 	local p = power or 3
 	local hold = math.clamp(castTime, 0.3, 8)
 	local q = SpellFx.quality() * (LOD_FACTOR[lod or 2] or 1)
@@ -616,8 +618,9 @@ function SpellFx.launch(cue: { [string]: any })
 	if not key or typeof(cue.origin) ~= "Vector3" or typeof(cue.velocity) ~= "Vector3" then
 		return
 	end
-	local style = SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature)
-	local look = DomainFx.look(cue.domain)
+	-- The property's layer over the domain (Data/PropertyLooks): its colour pull, particles, light.
+	local style = PropertyFx.tint(SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), cue.property)
+	local look = DomainFx.look(cue.domain, cue.property)
 	local tier = tierOf(cue.masteryTier)
 	local lod = lodOf(cue)
 	local p = powerOf(cue)
@@ -1081,8 +1084,9 @@ local function impactRadius(form: string, cue: { [string]: any }, power: number)
 end
 
 function SpellFx.spell(cue: { [string]: any })
-	local style = SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature)
-	local look = DomainFx.look(cue.domain)
+	local property: string? = if typeof(cue.property) == "string" then cue.property else nil
+	local style = PropertyFx.tint(SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), property)
+	local look = DomainFx.look(cue.domain, property)
 	local tier = tierOf(cue.masteryTier)
 	local tIndex = tierIndex(cue.masteryTier)
 	local form: string = if typeof(cue.form) == "string" then cue.form else "touch"
@@ -1093,7 +1097,7 @@ function SpellFx.spell(cue: { [string]: any })
 	local stage = cue.stage
 
 	if stage == "begin" then
-		SpellFx.casting(origin, style, tier, cue.castTime or 0.5, lod, cue.domain, p)
+		SpellFx.casting(origin, SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), tier, cue.castTime or 0.5, lod, cue.domain, p, property)
 		return
 	elseif stage == "launch" then
 		SpellFx.launch(cue)
@@ -1103,7 +1107,7 @@ function SpellFx.spell(cue: { [string]: any })
 		local points = cue.points
 		if typeof(points) == "table" and lod >= 1 then
 			local width = 0.25 + p * 0.05
-			local electric = cue.property == "charge"
+			local electric = look.beam == "lightning" or cue.property == "charge"
 			for i = 1, #points - 1 do
 				local a, b = points[i], points[i + 1]
 				if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
@@ -1112,6 +1116,9 @@ function SpellFx.spell(cue: { [string]: any })
 							SpellFx.lightning(a, b, style, tier, width, 0.32)
 						else
 							SpellFx.beam(a, b, style, tier, width, 0.3, look)
+							if look.beam == "ripple" then
+								PropertyFx.ripples(a, b, style, width)
+							end
 						end
 						SpellFx.impact({ position = b, radius = 0.9 + p * 0.12, power = math.max(1, p - i), style = style, look = look, tier = tier, tierIndex = tIndex, lod = lod, sound = false })
 					end)
@@ -1168,10 +1175,13 @@ function SpellFx.spell(cue: { [string]: any })
 		local model = casterModel(cue.caster)
 		local hand = model and (model:FindFirstChild("RightHand") or model:FindFirstChild("Right Arm"))
 		local from = if hand and hand:IsA("BasePart") then hand.Position else origin + Vector3.new(0, 1.5, 0)
-		if cue.property == "charge" then
+		if look.beam == "lightning" or cue.property == "charge" then
 			SpellFx.lightning(from, point, style, tier, width, 0.35 + p * 0.04)
 		else
 			SpellFx.beam(from, point, style, tier, width, 0.35 + p * 0.04, look)
+			if look.beam == "ripple" then
+				PropertyFx.ripples(from, point, style, width)
+			end
 		end
 		SpellFx.burstAt(from, 0.4, style, tier, count(8, p, tier, lod), { lifetime = 0.25, texture = TEX.glow, speedMult = 0.5 })
 		impactOpts.radius = 0.8 + p * 0.22
@@ -1210,6 +1220,20 @@ function SpellFx.spell(cue: { [string]: any })
 		SpellFx.impact(impactOpts)
 	else -- burst
 		SpellFx.impact(impactOpts)
+	end
+
+	-- What the property adds on top (Fx/PropertyFx): shards, rings, forks, wisps, a lingering mist...
+	if look.flourish or look.linger then
+		PropertyFx.flourish(look, {
+			position = point,
+			origin = origin,
+			radius = impactOpts.radius,
+			power = p,
+			style = style,
+			lod = lod,
+			lightning = SpellFx.lightning,
+			tier = tier,
+		})
 	end
 end
 

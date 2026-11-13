@@ -59,6 +59,15 @@ local UPLOADED: { [string]: string } = {
 	slash4 = "slash_04",
 	streak = "trace_01_rotated", -- projectile trail texture (runs along the trail)
 	muzzle = "muzzle_02", -- launch flash, standing along the shot
+	-- Property looks (Shared/Magic/Data/PropertyLooks, spell overhaul stage 2, 2026-11-13). First
+	-- picks from the pack's names, not yet seen in play: change the name to try another.
+	shard = "star_06", -- ice and crystal shards
+	ring = "circle_03", -- sound ripples, a ringing ring
+	mote = "light_02", -- soft motes (radiation, breath, essence)
+	wisp = "twirl_03", -- soul wisps
+	spore = "circle_04", -- rot and sickness spores
+	dust = "dirt_01", -- age and cohesion dust
+	crackle = "spark_01", -- electric crackle
 }
 
 local P = "rbxasset://textures/particles/"
@@ -106,6 +115,13 @@ local TEX = {
 	slash4 = pick("slash4", P .. "explosion01_shockwave_main.dds"),
 	streak = pick("streak", ""),
 	muzzle = pick("muzzle", P .. "fire_main.dds"),
+	shard = pick("shard", P .. "sparkles_main.dds"),
+	ring = pick("ring", P .. "explosion01_shockwave_main.dds"),
+	mote = pick("mote", P .. "sparkles_main.dds"),
+	wisp = pick("wisp", P .. "smoke_main.dds"),
+	spore = pick("spore", P .. "sparkles_main.dds"),
+	dust = pick("dust", P .. "smoke_main.dds"),
+	crackle = pick("crackle", P .. "sparkles_main.dds"),
 }
 
 local S = "rbxasset://sounds/"
@@ -130,6 +146,11 @@ export type Look = {
 	mark: string?,
 	shake: number,
 	sounds: { cast: Sound, launch: Sound, impact: Sound },
+	-- From the property layer (Shared/Magic/Data/PropertyLooks); nil on a plain domain look.
+	property: string?,
+	beam: string?, -- "lightning" | "ripple"
+	flourish: { string }?,
+	linger: { kind: string, seconds: number }?,
 }
 
 local GREY = Color3.fromRGB(70, 66, 62)
@@ -277,9 +298,75 @@ local DomainFx = {
 	looks = looks,
 }
 
--- The look for a domain id (falls back to energy, so a new domain still renders).
-function DomainFx.look(domain: string?): Look
-	return looks[domain or ""] or looks.energy
+local PropertyLooks = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Magic.Data.PropertyLooks)
+local FeatureFlags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Core.FeatureFlags)
+
+-- A role name from PropertyLooks to a texture (unknown roles keep `fallback`).
+local function role(name: any, fallback: string): string
+	return if typeof(name) == "string" and (TEX :: any)[name] then (TEX :: any)[name] else fallback
+end
+
+local function merged(base: { [string]: any }, over: { [string]: any }?): any
+	if not over then
+		return base
+	end
+	local out = table.clone(base)
+	for k, v in over do
+		out[k] = if k == "texture" then role(v, base.texture) else v
+	end
+	return out
+end
+
+-- The domain look with the property's layer on top (docs/SpellOverhaul.md §2C). Cached per pair.
+local cache: { [string]: Look } = {}
+local function withProperty(base: Look, property: string): Look
+	local over = PropertyLooks.looks[property]
+	if not over then
+		return base
+	end
+	local look: Look = {
+		body = merged(base.body, over.body),
+		sparks = merged(base.sparks, over.sparks),
+		smoke = base.smoke,
+		core = { dark = if over.dark ~= nil then over.dark else base.core.dark },
+		light = merged(base.light, over.light),
+		mark = base.mark,
+		shake = over.shake or base.shake,
+		sounds = base.sounds, -- per-property sounds come last (owner, 2026-11-13)
+		property = property,
+		beam = over.beam,
+		flourish = over.flourish,
+		linger = over.linger,
+	}
+	if over.smoke == false then
+		look.smoke = nil
+	elseif typeof(over.smoke) == "table" then
+		local smoke = over.smoke :: any
+		local from = base.smoke or { texture = TEX.smoke, tint = GREY, size = 3, lifetime = 1.4 }
+		look.smoke = { texture = from.texture, tint = smoke.tint or from.tint, size = smoke.size or from.size, lifetime = smoke.lifetime or from.lifetime }
+	end
+	if over.mark == false then
+		look.mark = nil
+	elseif typeof(over.mark) == "string" then
+		look.mark = over.mark
+	end
+	return look
+end
+
+-- The look for a domain id (falls back to energy, so a new domain still renders), with the
+-- property's layer when one is given and the flag is on (property_looks_enabled).
+function DomainFx.look(domain: string?, property: string?): Look
+	local base = looks[domain or ""] or looks.energy
+	if not property or FeatureFlags.get("property_looks_enabled") == false then
+		return base
+	end
+	local key = (domain or "energy") .. "." .. property
+	local hit = cache[key]
+	if not hit then
+		hit = withProperty(base, property)
+		cache[key] = hit
+	end
+	return hit
 end
 
 return DomainFx

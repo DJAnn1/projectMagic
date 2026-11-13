@@ -161,7 +161,7 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 	local hand = opts.hand
 	local mode = SpellHand.modeFor(opts.form)
 	local look = SpellHand.lookFor(opts.domain, opts.property)
-	local domainLook = DomainFx.look(opts.domain)
+	local domainLook = DomainFx.look(opts.domain, opts.property)
 	local shape = SpellHand.shapeName(hand)
 	local detail = if hand and not opts.reduced then SpellHand.detail(hand.tier) else { motes = 0, secondRing = false, crown = false }
 	local tell = CastTells.tellFor(opts.kind)

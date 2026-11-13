@@ -25,6 +25,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
@@ -103,6 +104,9 @@ local DEFS: { [string]: StatusDef } = {
 type Active = { expires: number, magnitude: number, source: number?, resist: { [string]: number }? }
 
 local StatusEffects = {}
+
+-- CollectionService tag on a Humanoid while it carries any status (see StatusEffects.apply).
+StatusEffects.TAG = "MagicStatused"
 StatusEffects.defs = DEFS
 -- hook(humanoid, id, duration, sourceUserId?) for a NEW status (not a refresh), set by EffectRunner:
 -- Topics.StatusApplied and the floating status word nearby clients see.
@@ -251,6 +255,9 @@ function StatusEffects.apply(humanoid: Humanoid, id: string, opts: ApplyOptions)
 		end
 	else
 		statuses[id] = { expires = expires, magnitude = opts.magnitude or 0, source = opts.source, resist = if opts.resist then table.clone(opts.resist) else nil }
+		-- Tagged while anything is on them, so every client can draw it on the body
+		-- (Client/Controllers/StatusLookController, Data/StatusLooks) without scanning the world.
+		CollectionService:AddTag(humanoid, StatusEffects.TAG)
 		cueClient(humanoid, id, true, opts.duration)
 		local hook = StatusEffects.onApplied
 		if hook then
@@ -290,6 +297,7 @@ function StatusEffects.remove(humanoid: Humanoid, id: string)
 		cueClient(humanoid, id, false, 0)
 		if next(statuses) == nil then
 			active[humanoid] = nil
+			CollectionService:RemoveTag(humanoid, StatusEffects.TAG)
 		end
 		recompute(humanoid)
 	end
@@ -477,6 +485,7 @@ function StatusEffects.tick(dt: number, damage: (Humanoid, number, number?, stri
 		if not humanoid.Parent or humanoid.Health <= 0 then
 			active[humanoid] = nil
 			fadedParts[humanoid] = nil
+			CollectionService:RemoveTag(humanoid, StatusEffects.TAG)
 			continue
 		end
 		local anim = 1

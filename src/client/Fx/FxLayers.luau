@@ -316,6 +316,14 @@ function FxLayers.groundMark(kind: string, position: Vector3, normal: Vector3, r
 			transparency = FxLayers.seq(0, 0.1, 0.7, 0.4, 1, 1),
 			duration = 4, emission = 1, rotSpeed = 60,
 		})
+	elseif kind == "stain" then
+		-- A sickly patch in the spell's own colour (radiation, rot, drained life: Data/PropertyLooks).
+		FxLayers.flat(position, normal, {
+			texture = TEX.glow, color = FxLayers.solid(style.primary:Lerp(Color3.new(0, 0, 0), 0.35)),
+			size = FxLayers.seq(0, d * 0.4, 0.15, d, 1, d * 1.15),
+			transparency = FxLayers.seq(0, 0.3, 0.6, 0.5, 1, 1),
+			duration = 7, emission = 0.5, influence = 0.5, rotSpeed = 8,
+		})
 	elseif kind == "void" then
 		FxLayers.flat(position, normal, {
 			texture = TEX.implode, color = FxLayers.solid(Color3.fromRGB(20, 12, 30)),

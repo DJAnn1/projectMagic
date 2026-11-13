@@ -157,10 +157,25 @@ Each stage gets specs (behaviour data valid, every harmful property has a behavi
 - **Old saves:** recipes don't change shape, so no `RECIPE_VERSION` bump. Routes are resolved at cast time.
 - **The world-over-game rule:** behaviours are physical (frost freezes, sound shakes, age wears), told by how they look and the Composer's words, with no new UI.
 
-## 5. Open questions
+## 5. Decisions (owner, 2026-11-13)
 
-1. Is the health curve right: about 260 at Master, 330 at the very top? Or should health grow more slowly than damage, so fights stay short?
-2. Should the domain ultimates (stage 5) be the bosses' exact moves, or "inspired by"?
-3. Unlife raising a brief ally, and summon conjuring one: do you want player-summoned allies at all?
-4. Should area warnings show for **your own** big spells to enemies in PvP (fair), or only for boss and NPC attacks?
-5. New sounds per property need licensed picks (ProSoundEffects). Now, or in a later sound pass?
+1. **Health:** about **1000 at the very top**. Now `Data/MagicHealth.byTier`, a curve that climbs faster near the top: Novice ~160, Adept ~210, Master ~380, Transcendent ~940, ~1000 with full breadth, ~1100 with Life affinity. NPC mages follow the same rule. Damage per hit is still 9 (P1) to 36 (P10), so top-level fights now take far more hits: see the open question below.
+2. **Domain ultimates (stage 5):** inspired by the boss moves and borrowing from them, not exact copies.
+3. **Player-summoned allies: yes, as elementals that depend on the branch** (stage 3's `summon` shape).
+4. **Ground warnings for players' own big spells: yes**, as the bosses have (stage 3).
+5. **The water freeze route stays crowd control** (no damage).
+6. **Per-property sounds: yes, but last**, after the other stages. Stage 2 keeps each domain's sounds.
+
+### Open questions
+
+1. With health at ~1000 at the top and damage unchanged, should damage also grow with mastery (so fights between high-level players don't take 30+ hits), or is a long fight what you want at the top?
+2. Is a 1.4 s freeze after three chills too strong for PvP?
+
+## 6. Stage 2 as built (2026-11-13, not yet run)
+
+- `Shared/Magic/Data/PropertyLooks`: a layer per property (all 23 with a behaviour) over the domain look: colour pull, body and spark particles, smoke, light, ground mark, beam style (`lightning`, `ripple`), impact flourishes and a lingering effect.
+- `Client/Fx/DomainFx.look(domain, property)` merges it (cached); SpellFx uses it for casting, flight, impact, beams and chains; Fx/Conjure for the spell forming in your hand. New texture roles: shard, ring, mote, wisp, spore, dust, crackle (first picks from the Kenney names, in `DomainFx.UPLOADED`).
+- `Client/Fx/PropertyFx`: tint, flourishes (shards, rings, fork, flare, motes, gust, crush, dust, warp, splash, drain, spores, wisps, embers), lingering effects (mist, embers, motes, spores, dust), ripples along beams.
+- Statuses on bodies: `Cast/StatusEffects` tags a Humanoid `MagicStatused` while it carries any status; `Shared/Magic/Data/StatusLooks` + `Client/Controllers/StatusLookController` + `Fx/StatusFx` draw them on everyone nearby (140 studs, 40 bodies): frost, an ice shell for frozen, flames, green motes, rot, stars for dazed, and the rest.
+- New ground mark `stain`. Flag `property_looks_enabled` (replicated). Spec `Tests/PropertyLooks.spec` (6).
+- Test: `fxpreview <domain> 6 <property>` for each property; then real casts at `dummy spawn` to see body statuses.

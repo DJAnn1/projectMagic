@@ -229,7 +229,7 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 	local domain = if branch then branch.domains[1] else "energy"
 	local style = SpellFx.styleFor(Players.LocalPlayer.UserId, domain)
 	local tier = FxRecipes.tiers[math.clamp(if stats then stats.masteryTier else 2, 0, 8)]
-	local anchor = SpellFx.casting(root.Position, style, tier, castTime, 2, domain, spell.recipe.power)
+	local anchor = SpellFx.casting(root.Position, style, tier, castTime, 2, domain, spell.recipe.power, spell.recipe.property)
 	animation:predict("casting", math.max(castTime, MIN_CAST_ANIMATION), domain)
 	local prediction = { key = key, anchor = anchor, at = os.clock() }
 	predicted = prediction
