@@ -8,6 +8,7 @@
 		certainty    your next hits on a target are guaranteed crits
 		twist        charges that cancel a hit and send it back
 		conjure      matter from nothing (shape by form: step, bridge, wall, pillar, bastion)
+		summon       conjured beings: any elemental, Reality's own giants, doubles (Cast/Conjuring)
 		cage         a solid box around a target
 		unmake       matter in reach stops existing for a while; people lose wards and are hit
 		undying      nothing takes you below 1 health for a few seconds
@@ -33,6 +34,7 @@ local DamageModel = require(Cast.DamageModel)
 local Targeting = require(Cast.Targeting)
 local RealityRuntime = require(Cast.RealityRuntime)
 local Field = require(script.Parent.Field)
+local Conjuring = require(Cast.Conjuring)
 
 local RealityPower = {}
 
@@ -45,6 +47,8 @@ function RealityPower.precheck(params: { [string]: any }, _stats: Types.SpellSta
 		return RealityRuntime.cooldownRefusal(power, player.UserId)
 	elseif power == "edict" then
 		return RealityRuntime.edictRefusal(player.UserId, params.worldlaw == true)
+	elseif power == "summon" and FeatureFlags.get("elementals_enabled") == false then
+		return "WORLD_STRAINED"
 	end
 	return nil
 end
@@ -91,6 +95,10 @@ function RealityPower.resolve(ctx: CastTypes.EffectContext, params: { [string]: 
 	elseif power == "unmake" then
 		local parts, hits = RealityRuntime.unmake(ctx)
 		return { effective = parts > 0 or hits > 0, hits = hits }
+	elseif power == "summon" then
+		-- Conjured beings (Cast/Conjuring): whatever the wish asks for, or what the aim finds.
+		local raised, note = Conjuring.summon(ctx)
+		return { effective = raised > 0, hits = 0, note = note }
 	end
 
 	local hit = pickTarget(ctx)

@@ -76,7 +76,7 @@ function SpellOutcome.of(recipe: RecipeLike): Outcome
 		text = text .. " " .. played
 	end
 	local shape: string? = nil
-	if (recipe.form == "summon" and not (spellShape and spellShape.kind == "elemental")) or (recipe.form == "wall" and not Summaries.builds[route.id]) then
+	if (recipe.form == "summon" and route.id ~= "conjure_being" and not (spellShape and spellShape.kind == "elemental")) or (recipe.form == "wall" and not Summaries.builds[route.id]) then
 		shape = Summaries.areaShape
 	end
 	local outcome: Outcome = {

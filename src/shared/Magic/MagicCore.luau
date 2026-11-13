@@ -244,6 +244,8 @@ local function innateCostFactor(recipe: Recipe, domainCost: number, costWeight: 
 end
 
 function MagicCore.recipeKey(recipe: Recipe): string
+	-- A wish (Magic/Wishes) is appended only when present, so every older key stays the same.
+	local wish = if recipe.wish then "|w=" .. recipe.wish else ""
 	return string.format(
 		"%d|%s|%s|%s|%s|%d|%s|%s",
 		recipe.v,
@@ -254,7 +256,7 @@ function MagicCore.recipeKey(recipe: Recipe): string
 		recipe.power,
 		recipe.costProfile,
 		table.concat(recipe.modifiers, ",")
-	)
+	) .. wish
 end
 
 --[[
@@ -316,6 +318,11 @@ function MagicCore.normalizeRecipe(raw: any): (Recipe?, { ValidationError })
 		addError(errors, "BAD_TYPE", "costProfile must be an id string")
 	end
 
+	local wish = working.wish
+	if wish ~= nil and not (isId(wish) and #wish <= 32) then
+		addError(errors, "BAD_TYPE", "wish must be a short id string")
+	end
+
 	if #errors > 0 then
 		return nil, errors
 	end
@@ -345,6 +352,7 @@ function MagicCore.normalizeRecipe(raw: any): (Recipe?, { ValidationError })
 		modifiers = cleanMods,
 		power = power,
 		costProfile = Registry.resolveAlias("costProfiles", costProfile),
+		wish = wish,
 	}
 	return recipe, errors
 end

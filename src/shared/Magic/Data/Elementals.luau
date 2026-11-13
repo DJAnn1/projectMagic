@@ -97,6 +97,21 @@ local byBranch: { [string]: Elemental } = {
 	fortune = { name = "a gambler's shade", style = "bolt", material = "Foil", tint = 2, accent = 1, walk = 18 },
 }
 
+-- Beings only Reality's Conjuration makes (docs/Reality.md "Conjured beings"; owner, 2026-11-13:
+-- "a complete reality warper on a god-tier scale"). Chosen by wish in the Composer (Magic/Wishes),
+-- never by a branch. `domain` gives the palette.
+local conjured: { [string]: Elemental & { domain: string } } = {
+	colossus = { name = "a stone colossus", style = "slam", material = "Slate", tint = 1, accent = 2, scale = 2.2, walk = 12, health = 2.5, domain = "earth" },
+	seraph = { name = "a seraph", style = "bolt", material = "Glass", transparency = 0.15, color = rgb(255, 236, 190), accent = 2, scale = 1.3, walk = 20, health = 1.4, domain = "energy" },
+	leviathan = { name = "a leviathan of the deep", style = "slam", material = "Glass", transparency = 0.25, tint = 1, accent = 3, scale = 2, walk = 14, health = 2.2, domain = "water" },
+	tempest = { name = "a living tempest", style = "bolt", material = "SmoothPlastic", transparency = 0.5, tint = 3, accent = 2, scale = 1.7, walk = 22, health = 1.6, domain = "air" },
+	worldtree = { name = "a walking worldtree", style = "slam", material = "Wood", tint = 3, accent = 1, scale = 2.4, walk = 10, health = 2.8, domain = "life" },
+	horror = { name = "a nameless horror", style = "strike", material = "Basalt", color = rgb(10, 6, 16), accent = 1, scale = 1.8, walk = 19, health = 2, domain = "void" },
+	knight = { name = "a conjured knight", style = "strike", material = "Foil", tint = 1, accent = 2, scale = 1.1, walk = 17, health = 1.3, domain = "reality" },
+	paradox = { name = "a paradox", style = "bolt", material = "Glass", transparency = 0.1, tint = 2, accent = 1, scale = 1.2, walk = 20, health = 1.3, domain = "reality" },
+	sunborn = { name = "a sunborn giant", style = "slam", material = "CrackedLava", tint = 1, accent = 2, scale = 2.3, walk = 13, health = 2.4, domain = "energy" },
+}
+
 local styles: { [string]: { reach: number, every: number, share: number, radius: number?, speed: number? } } = {
 	-- share: each blow as a share of the spell's base hit (DamageModel.base), before mastery.
 	strike = { reach = 5.5, every = 1.2, share = 0.45 },
@@ -107,13 +122,14 @@ local styles: { [string]: { reach: number, every: number, share: number, radius:
 return table.freeze({
 	domains = domains,
 	byBranch = byBranch,
+	conjured = conjured,
 	styles = styles,
 	tuning = table.freeze({
 		seconds = 25, -- how long it lasts, unless killed first (default said to the owner, 2026-11-13)
 		perPlayer = 1, -- at once; `perPlayerMaster` from Master (tier index masterTier) up
 		perPlayerMaster = 2,
 		masterTier = 6,
-		maxAlive = 40, -- the whole server
+		maxAlive = 60, -- the whole server (40 before Reality's hosts, 2026-11-13)
 		-- Health: (base + power x perPower + tier x perTier) x the elemental's `health`.
 		health = { base = 60, perPower = 20, perTier = 30 },
 		-- Each blow's share grows with mastery: x (1 + tier x perTier).

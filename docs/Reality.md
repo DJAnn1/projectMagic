@@ -91,3 +91,27 @@ realitystate
 ```
 
 Use an NPC or `creature spawn` for a target (a dummy is anchored). For Exchange, take some damage first. For Unmake, stand next to a house wall. For Reversal and Sanctuary, stand in the edict and let something hit you.
+
+## Conjured beings (built 2026-11-13)
+
+The owner's brief (2026-11-13): "reality should be able to summon every kind of elemental and more through conjuration ... as if you're a genie that can do whatever they want to the world", and "make the player feel like a complete reality warper on a god-tier scale". Choices: the Composer picks a being *and* "What I aim at" reads the world; summons and world wishes.
+
+**Recipe:** `conjuration, substance, generate | bind | transmute, summon`. Route `conjure_being` → `Effects/RealityPower` (power `summon`) → `Cast/Conjuring` → `Cast/Elementals.summon(ctx, nil, opts)`.
+
+**The wish:** recipes have an optional `wish` field (`Types.Recipe`, checked in `MagicCore.normalizeRecipe`, appended to `recipeKey` only when present, so older keys don't move). The Composer shows a **Conjure** picker on these spells (power step):
+- **What I aim at** (the default): a body at the aim (creature, Wildborn, townsperson, player, elemental) gives **a double of it** (its own look, size and gear; scripts, tags and attributes stripped; capped at 160 parts). Otherwise the ground decides (`Data/Wishes.materials`): lava/basalt a magma golem, water a wave spirit, ice an ice wight, snow a frost wight, sand a sand wight, grass a thorn walker, wood a treant, stone an earth golem, metal an iron golem, glass a crystal golem, neon a light wight. A burning part gives an ember wight; open sky a gale spirit (a shadow wight at night).
+- **Myself:** a double of you that fights with magic.
+- **Any elemental** of the 12 domains and their branches (~45), and **Reality's own**: a stone colossus, a seraph, a leviathan of the deep, a living tempest, a walking worldtree, a sunborn giant, a nameless horror, a paradox, a conjured knight (`Data/Elementals.conjured`).
+
+**The verb (`Wishes.plan`, `RealityTuning.summon`):**
+| Verb | What rises | Tier 1 → 8 |
+|---|---|---|
+| generate | a host that fights beside you | 1 → 4 bodies (+1 at power 8, +1 at 9, +2 at 10, within your limit); from power 9 they grow (×1.2, ×1.4) |
+| bind | guardians that hold the spot you aimed at (leash from the spot, don't follow) | 1 → 5 bodies, lasting ×1.5 |
+| transmute | one colossus | scale 1.6 + 0.16 × power (×3.2 at power 10), health ×4, blows ×2.2 |
+
+Everything: lasts 30 → 120 s, health ×1.2 → ×3.2, blows ×1.1 → ×2, and up to 2 → 8 of yours alive at once (the oldest goes). Reach, slam radius and sight grow with size. Server cap `Data/Elementals.tuning.maxAlive` raised 40 → 60.
+
+**Test:** `testmage 8 all`, `cheat all`, Composer Full mode → Reality → Conjuration → Substance → Generate → Summon, power 10. Try the picker (Myself, a seraph, What I aim at on lava, water, a tree, a dummy, a Wildborn), then Bind and Transmute. `elementals` lists them. Log `elemental_summoned` now carries `scale`, `guard`, `copy`.
+
+**Unverified:** cloning a player's character on the server (Archivable toggled) and how a double animates (R6 bodies get the elemental clips, creatures slide); `ScaleTo` at ×3+ on R6 rigs; 8 bodies × several Reality players against `maxAlive` 60. Generate on Metaphysical is an awkward combination in the grammar (0.4 efficiency), so generate hosts cost more than bind or transmute; raising `substance` generate in `Compatibility.propertyVerb` would also strengthen the older Conjure shapes.

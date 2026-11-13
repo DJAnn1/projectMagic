@@ -5,7 +5,10 @@
 	strong it is: Shared/Magic/Elemental over Data/Elementals. Called from Cast/Shapes (shape kind
 	"elemental", once per cast, after the spell's own hit lands where it was aimed).
 
-		Elementals.summon(ctx, behaviour) -> Live?     raise one where the spell landed
+		Elementals.summon(ctx, behaviour, opts?) -> Live?   raise one where the spell landed;
+		                                               opts (Reality's wishes, Cast/Conjuring): a
+		                                               chosen being, a double of a body, scale,
+		                                               multipliers, guard a spot, lifetime, limit
 		Elementals.noteThreat(ownerId, model)          someone fought this summoner (or its
 		                                               elemental), or the summoner fought them
 		Elementals.dismiss(live, reason)               let it go (fades)
@@ -34,6 +37,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -87,6 +91,26 @@ export type Live = {
 	nextBlow: number,
 	target: Model?,
 	gone: boolean,
+	scale: number, -- overall body scale (the being's own x a wish's)
+	reach: number, -- strike/slam reach, grown with scale
+	radius: number, -- slam radius, grown with scale
+	guardAt: Vector3?, -- a guardian holds this spot instead of following
+}
+
+-- Reality's wishes (Cast/Conjuring): everything optional.
+export type SummonOpts = {
+	def: Data.Elemental?, -- this being instead of the branch's
+	domain: string?, -- its palette (defaults to the spell's first domain)
+	copyOf: Model?, -- a double of this body instead of an elemental's
+	copyName: string?,
+	copyStyle: string?,
+	scale: number?, -- x the being's own scale
+	healthMult: number?,
+	shareMult: number?,
+	seconds: number?,
+	limit: number?, -- yours alive at once (else Elemental.limit)
+	guardAt: Vector3?,
+	at: CFrame?, -- where it rises (else the ground under the spell's landing point)
 }
 
 local Elementals = {}
@@ -170,7 +194,117 @@ local function glowPart(name: string, size: Vector3, color: Color3, parent: Base
 	part.Parent = parent.Parent
 end
 
-local function buildRig(def: Data.Elemental, domain: string, health: number, at: CFrame, ownerId: number): (Model?, Humanoid?, BasePart?, { [string]: AnimationTrack })
+local function setupHumanoid(humanoid: Humanoid, health: number, walk: number)
+	humanoid.MaxHealth = health
+	humanoid.Health = health
+	humanoid.WalkSpeed = walk
+	humanoid.BreakJointsOnDeath = false
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	for _, state in DISABLED_STATES do
+		humanoid:SetStateEnabled(state, false)
+	end
+end
+
+-- Idle, walk and the two combat clips, on an R6 body only (a creature's body has no arms to swing).
+local function loadTracks(model: Model, humanoid: Humanoid): { [string]: AnimationTrack }
+	local tracks: { [string]: AnimationTrack } = {}
+	if not (model:FindFirstChild("Torso") and model:FindFirstChild("Left Arm")) then
+		return tracks
+	end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then
+		local a = Instance.new("Animator")
+		a.Parent = humanoid
+		animator = a
+	end
+	local function load(name: string, id: string, looped: boolean, priority: Enum.AnimationPriority)
+		local animation = Instance.new("Animation")
+		animation.AnimationId = id
+		local ok2, track = pcall(function()
+			return (animator :: Animator):LoadAnimation(animation)
+		end)
+		if ok2 and track then
+			track.Looped = looped
+			track.Priority = priority
+			tracks[name] = track
+		end
+	end
+	load("idle", AMBIENT.idle, true, Enum.AnimationPriority.Idle)
+	load("walk", AMBIENT.walk, true, Enum.AnimationPriority.Movement)
+	for _, clip in { "CastSpell", "Slash1" } do
+		local anim = (CombatAnimations.animations :: any)[clip]
+		if anim then
+			load(clip, "rbxassetid://" .. tostring(anim.id), false, Enum.AnimationPriority.Action2)
+		end
+	end
+	return tracks
+end
+
+-- A double: the body copied as it is (looks, size, gear), with everything that made it someone
+-- stripped (scripts, tags, attributes, prompts, name boards), so nothing else treats it as the
+-- original (a copied Wildborn isn't hunted as one, a copied townsperson has no brain).
+local STRIP_CLASSES = { "BaseScript", "ModuleScript", "ProximityPrompt", "BillboardGui", "SurfaceGui", "Highlight", "ForceField", "Sound", "ClickDetector" }
+
+local function copyRig(source: Model, health: number, at: CFrame, ownerId: number, name: string, scale: number): (Model?, Humanoid?, BasePart?, { [string]: AnimationTrack })
+	local was = source.Archivable
+	source.Archivable = true -- characters aren't archivable by default
+	local ok, made = pcall(function()
+		return source:Clone()
+	end)
+	source.Archivable = was
+	if not ok or not made then
+		return nil, nil, nil, {}
+	end
+	local model = made :: Model
+	local function strip(instance: Instance)
+		for _, tag in CollectionService:GetTags(instance) do
+			CollectionService:RemoveTag(instance, tag)
+		end
+		for key in instance:GetAttributes() do
+			instance:SetAttribute(key, nil)
+		end
+	end
+	strip(model)
+	for _, d in model:GetDescendants() do
+		local dead = false
+		for _, class in STRIP_CLASSES do
+			if d:IsA(class) then
+				dead = true
+				break
+			end
+		end
+		if dead then
+			d:Destroy()
+		elseif d.Parent then
+			strip(d)
+			if d:IsA("BasePart") then
+				d.Anchored = false
+			end
+		end
+	end
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root or not root:IsA("BasePart") then
+		model:Destroy()
+		return nil, nil, nil, {}
+	end
+	model.PrimaryPart = root
+	model.Name = name
+	model:SetAttribute("ElementalOwner", ownerId)
+	model:SetAttribute("Elemental", name)
+	model:PivotTo(at)
+	if scale ~= 1 then
+		pcall(function()
+			model:ScaleTo(model:GetScale() * scale)
+		end)
+	end
+	humanoid.DisplayName = ""
+	setupHumanoid(humanoid, health, 16)
+	return model, humanoid, root, loadTracks(model, humanoid)
+end
+
+local function buildRig(def: Data.Elemental, domain: string, health: number, at: CFrame, ownerId: number, extraScale: number?): (Model?, Humanoid?, BasePart?, { [string]: AnimationTrack })
 	local ok, made = pcall(function()
 		return Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R6)
 	end)
@@ -230,50 +364,16 @@ local function buildRig(def: Data.Elemental, domain: string, health: number, at:
 			glowPart("ElementEye", Vector3.new(0.2, 0.12, 0.05), accent, head, CFrame.new(side * 0.2, 0.15, -0.6))
 		end
 	end
-	if def.scale and def.scale ~= 1 then
+	local scale = (def.scale or 1) * (extraScale or 1)
+	if scale ~= 1 then
 		pcall(function()
-			model:ScaleTo(def.scale :: number)
+			model:ScaleTo(scale)
 		end)
 	end
 
-	humanoid.MaxHealth = health
-	humanoid.Health = health
-	humanoid.WalkSpeed = def.walk or 16
-	humanoid.BreakJointsOnDeath = false
-	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
-	for _, state in DISABLED_STATES do
-		humanoid:SetStateEnabled(state, false)
-	end
-
-	local animator = humanoid:FindFirstChildOfClass("Animator")
-	if not animator then
-		local a = Instance.new("Animator")
-		a.Parent = humanoid
-		animator = a
-	end
-	local tracks: { [string]: AnimationTrack } = {}
-	local function load(name: string, id: string, looped: boolean, priority: Enum.AnimationPriority)
-		local animation = Instance.new("Animation")
-		animation.AnimationId = id
-		local ok2, track = pcall(function()
-			return (animator :: Animator):LoadAnimation(animation)
-		end)
-		if ok2 and track then
-			track.Looped = looped
-			track.Priority = priority
-			tracks[name] = track
-		end
-	end
-	load("idle", AMBIENT.idle, true, Enum.AnimationPriority.Idle)
-	load("walk", AMBIENT.walk, true, Enum.AnimationPriority.Movement)
-	for _, clip in { "CastSpell", "Slash1" } do
-		local anim = (CombatAnimations.animations :: any)[clip]
-		if anim then
-			load(clip, "rbxassetid://" .. tostring(anim.id), false, Enum.AnimationPriority.Action2)
-		end
-	end
-	return model, humanoid, root, tracks
+	-- Giants walk a little faster, so a colossus can keep up with its summoner.
+	setupHumanoid(humanoid, health, (def.walk or 16) * (1 + math.max(0, (extraScale or 1) - 1) * 0.3))
+	return model, humanoid, root, loadTracks(model, humanoid)
 end
 
 -- Where it stands up: the ground under the spell's landing point.
@@ -329,18 +429,28 @@ function Elementals.dismiss(e: Live, reason: string)
 	end
 end
 
-function Elementals.summon(ctx: Ctx, behaviour: string?): Live?
+function Elementals.summon(ctx: Ctx, behaviour: string?, opts: SummonOpts?): Live?
 	if not enabled() or not ctx.player or ctx.backfire then
 		return nil
 	end
+	local o: SummonOpts = opts or {}
 	local owner = ctx.player
 	local stats = ctx.stats
 	local tier = stats.masteryTier or 0
 	local power = stats.recipe.power
 	local def, style = Elemental.forBranch(stats.recipe.branch)
-	-- One at a time (two from Master): a new one replaces the oldest.
+	if o.copyOf then
+		def = { name = o.copyName or "a double", style = o.copyStyle or "strike", material = "SmoothPlastic" }
+		style = Data.styles[def.style] or Data.styles.strike
+	elseif o.def then
+		def = o.def
+		style = Data.styles[def.style] or Data.styles.strike
+	end
+	local extraScale = o.scale or 1
+	local scale = (if o.copyOf then 1 else (def.scale or 1)) * extraScale
+	-- One at a time (two from Master), or a wish's limit: a new one replaces the oldest.
 	local mine = ownedBy(owner.UserId)
-	local limit = Elemental.limit(tier)
+	local limit = o.limit or Elemental.limit(tier)
 	while #mine >= limit do
 		Elementals.dismiss(table.remove(mine, 1) :: Live, "replaced")
 	end
@@ -349,8 +459,14 @@ function Elementals.summon(ctx: Ctx, behaviour: string?): Live?
 		return nil
 	end
 
-	local health = Elemental.health(def, power, tier)
-	local model, humanoid, root, tracks = buildRig(def, stats.domains[1], health, standAt(ctx), owner.UserId)
+	local health = math.floor(Elemental.health(def, power, tier) * (o.healthMult or 1))
+	local at = o.at or standAt(ctx)
+	local model, humanoid, root, tracks
+	if o.copyOf then
+		model, humanoid, root, tracks = copyRig(o.copyOf, health, at, owner.UserId, def.name, extraScale)
+	else
+		model, humanoid, root, tracks = buildRig(def, o.domain or stats.domains[1], health, at, owner.UserId, extraScale)
+	end
 	if not model or not humanoid or not root then
 		emit("elemental_refused", { userId = owner.UserId, reason = "no rig" })
 		return nil
@@ -369,18 +485,22 @@ function Elementals.summon(ctx: Ctx, behaviour: string?): Live?
 		ctx = base,
 		def = def,
 		style = style,
-		share = Elemental.share(style, tier),
+		share = Elemental.share(style, tier) * (o.shareMult or 1),
 		behaviour = behaviour,
 		model = model,
 		humanoid = humanoid,
 		root = root,
 		tracks = tracks,
 		born = now,
-		ends = now + T.seconds,
+		ends = now + (o.seconds or T.seconds),
 		nextThink = now + 0.4, -- a moment to rise
 		nextBlow = now + 0.8,
 		target = nil,
 		gone = false,
+		scale = scale,
+		reach = style.reach * (if style.speed then 1 else math.max(1, scale * 0.8)),
+		radius = (style.radius or 8) * math.max(1, scale),
+		guardAt = o.guardAt,
 	}
 	model.Parent = folderOf()
 	pcall(function()
@@ -399,7 +519,7 @@ function Elementals.summon(ctx: Ctx, behaviour: string?): Live?
 	if ctx.target and ctx.target ~= ctx.character then
 		Elementals.noteThreat(owner.UserId, ctx.target)
 	end
-	send(e, { stage = "rise", spots = { root.Position }, radius = 3 * (def.scale or 1) }, root.Position, true)
+	send(e, { stage = "rise", spots = { root.Position }, radius = 3 * scale }, root.Position, true)
 	emit("elemental_summoned", {
 		userId = owner.UserId,
 		name = def.name,
@@ -409,6 +529,9 @@ function Elementals.summon(ctx: Ctx, behaviour: string?): Live?
 		tier = tier,
 		health = health,
 		share = math.floor(e.share * 100) / 100,
+		scale = if scale ~= 1 then math.floor(scale * 100) / 100 else nil,
+		guard = if o.guardAt then true else nil,
+		copy = if o.copyOf then true else nil,
 	})
 	return e
 end
@@ -450,7 +573,7 @@ local function ownerRoot(e: Live): BasePart?
 end
 
 -- Everyone this elemental may fight right now, nearest first.
-local function candidates(e: Live, home: BasePart): { Hit }
+local function candidates(e: Live, homeAt: Vector3): { Hit }
 	local out: { Hit } = {}
 	local seen: { [Model]: boolean } = {}
 	local now = os.clock()
@@ -464,7 +587,7 @@ local function candidates(e: Live, home: BasePart): { Hit }
 			return
 		end
 		local hit = hitOf(model)
-		if not hit or (hit.root.Position - home.Position).Magnitude > T.leash or not Targeting.canHarm(e.owner, model) then
+		if not hit or (hit.root.Position - homeAt).Magnitude > T.leash or not Targeting.canHarm(e.owner, model) then
 			return
 		end
 		hit.distance = (hit.root.Position - e.root.Position).Magnitude
@@ -480,7 +603,7 @@ local function candidates(e: Live, home: BasePart): { Hit }
 			end
 		end
 	end
-	for _, hit in Targeting.inRadius(e.root.Position, T.sight, 8, { [e.model] = true, [e.ownerCharacter] = true }) do
+	for _, hit in Targeting.inRadius(e.root.Position, T.sight * math.max(1, e.scale * 0.6), 8, { [e.model] = true, [e.ownerCharacter] = true }) do
 		if hit.model:GetAttribute("Wildborn") ~= nil then
 			consider(hit.model)
 		end
@@ -538,18 +661,19 @@ local function blow(e: Live, target: Hit, all: { Hit }): boolean
 		if not clear then
 			return false
 		end
+		from = e.root.Position + Vector3.new(0, 1.5 * e.scale, 0)
 		play(e, "CastSpell")
 		send(e, { stage = "split", from = from, spots = { to - Vector3.new(0, 2.5, 0) } }, from)
 		local travel = math.clamp((to - from).Magnitude / (e.style.speed or 90), 0.05, 0.6)
 		task.delay(travel, function()
-			if (target.root.Position - e.root.Position).Magnitude <= e.style.reach * 1.3 then
+			if (target.root.Position - e.root.Position).Magnitude <= e.reach * 1.3 then
 				land(e, c, target)
 			end
 		end)
 	elseif kind == "slam" then
 		play(e, "CastSpell")
-		local radius = e.style.radius or 8
-		local at = e.root.Position - Vector3.new(0, 2.5 * (e.def.scale or 1), 0)
+		local radius = e.radius
+		local at = e.root.Position - Vector3.new(0, 2.5 * e.scale, 0)
 		send(e, { stage = "hit", shape = "nova", spots = { at }, radius = radius }, at)
 		for _, hit in all do
 			if (hit.root.Position - e.root.Position).Magnitude <= radius then
@@ -558,7 +682,7 @@ local function blow(e: Live, target: Hit, all: { Hit }): boolean
 		end
 	else
 		play(e, "Slash1")
-		send(e, { stage = "hit", spots = { target.root.Position }, radius = 1.6 }, target.root.Position)
+		send(e, { stage = "hit", spots = { target.root.Position }, radius = 1.6 * e.scale }, target.root.Position)
 		land(e, c, target)
 	end
 	return true
@@ -596,13 +720,15 @@ local function think(e: Live, now: number)
 		return -- held in a Timestop
 	end
 	local fromHome = (e.root.Position - home.Position).Magnitude
-	if fromHome > T.teleport then
+	local guardAt = e.guardAt
+	if not guardAt and fromHome > T.teleport then
 		e.model:PivotTo(home.CFrame * CFrame.new(3, 0, 3))
 		e.target = nil
 		return
 	end
 
-	local all = candidates(e, home)
+	-- A guardian measures its leash from the spot it holds, not from its summoner.
+	local all = candidates(e, if guardAt then guardAt else home.Position)
 	local target: Hit? = nil
 	if e.target then
 		for _, hit in all do
@@ -617,7 +743,7 @@ local function think(e: Live, now: number)
 
 	if target then
 		local d = Vector3.new(target.root.Position.X - e.root.Position.X, 0, target.root.Position.Z - e.root.Position.Z).Magnitude
-		local reach = e.style.reach
+		local reach = e.reach
 		local inReach = d <= reach + 0.5
 		if inReach then
 			e.humanoid:MoveTo(e.root.Position)
@@ -632,8 +758,14 @@ local function think(e: Live, now: number)
 		else
 			e.humanoid:MoveTo(target.root.Position)
 		end
-	elseif fromHome > T.follow then
-		local side = home.CFrame * CFrame.new(3, 0, 2)
+	elseif guardAt then
+		if (e.root.Position - guardAt).Magnitude > T.follow * 0.5 then
+			e.humanoid:MoveTo(guardAt)
+		else
+			e.humanoid:MoveTo(e.root.Position)
+		end
+	elseif fromHome > T.follow * math.max(1, e.scale * 0.7) then
+		local side = home.CFrame * CFrame.new(3 * e.scale, 0, 2 * e.scale)
 		e.humanoid:MoveTo(side.Position)
 	else
 		e.humanoid:MoveTo(e.root.Position)

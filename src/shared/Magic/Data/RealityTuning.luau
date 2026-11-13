@@ -52,6 +52,28 @@ return table.freeze({
 		maxPerCaster = 4, -- conjured shapes alive at once; making one more removes the oldest
 	},
 
+	-- Conjured beings (docs/Reality.md "Conjured beings"; owner, 2026-11-13: "a genie that can do
+	-- whatever they want to the world"). A Conjuration Summon spell: the verb picks the summoning.
+	--   generate   a host that walks beside you
+	--   bind       guardians that hold the spot you aimed at (they last longer, and don't follow)
+	--   transmute  one colossal being, bigger with power
+	-- Each is an elemental (Cast/Elementals) with these multipliers on top of its own numbers.
+	summon = {
+		seconds = { 30, 35, 40, 50, 60, 75, 90, 120 },
+		host = { 1, 1, 1, 2, 2, 3, 3, 4 }, -- generate: bodies per cast
+		guardians = { 1, 1, 2, 2, 3, 3, 4, 5 }, -- bind: bodies per cast
+		extraFromPower = { [8] = 1, [9] = 1, [10] = 2 }, -- more bodies at these powers (generate and bind)
+		limit = { 2, 2, 3, 3, 4, 5, 6, 8 }, -- yours alive at once; the oldest goes
+		health = { 1.2, 1.3, 1.5, 1.7, 2, 2.3, 2.7, 3.2 }, -- x its health
+		blow = { 1.1, 1.15, 1.25, 1.35, 1.5, 1.65, 1.8, 2 }, -- x each blow
+		guardSeconds = 1.5, -- x seconds for guardians
+		growFromPower = 9, -- generate and bind bodies grow from this power: x(1 + (power - 8) x growPerPower)
+		growPerPower = 0.2,
+		colossus = { scaleBase = 1.6, scalePerPower = 0.16, health = 4, blow = 2.2, maxScale = 3.4 }, -- transmute
+		copyMaxParts = 160, -- a double is refused for anything with more parts than this
+		spread = 5, -- studs between bodies raised together
+	},
+
 	cage = {
 		seconds = { 2, 2.5, 3, 4, 5, 6, 8, 10 },
 		size = 7, -- inside width

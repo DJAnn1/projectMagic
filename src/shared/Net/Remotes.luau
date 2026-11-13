@@ -36,6 +36,7 @@ local recipe = S.struct({
 	power = S.integer(1, 10),
 	modifiers = S.optional(S.array(ID, 4)),
 	costProfile = S.optional(ID),
+	wish = S.optional(S.string(1, 32)), -- a Reality wish (Magic/Wishes); MagicCore checks it
 })
 
 -- Every value any setting allows. PreferencesService then checks the value against its own setting.

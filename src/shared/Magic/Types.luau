@@ -193,6 +193,9 @@ export type Recipe = {
 	modifiers: { string }, -- sorted, unique
 	power: number, -- integer PowerLevel 1..10
 	costProfile: string,
+	-- What a Reality wish asks for (Magic/Wishes): a being to conjure, a material to remake the
+	-- land into. Optional; only Conjuration's wish routes read it. Not part of the grammar.
+	wish: string?,
 }
 
 -- Aggregated innate modifiers (temperaments x innate reservoir). Every field is neutral at 1

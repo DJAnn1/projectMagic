@@ -71,6 +71,8 @@ local routes: { Route } = {
 	{ id = "doom", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "reduce" }, forms = POINT_FORMS, params = { power = "doom" } },
 	{ id = "certainty", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { power = "certainty" } },
 	{ id = "twist_of_fate", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "transmute" }, forms = { "aura" }, params = { power = "twist" } },
+	-- Conjured beings (docs/Reality.md): the recipe's `wish` picks what rises; the verb how (host, guard, colossus).
+	{ id = "conjure_being", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate", "bind", "transmute" }, forms = { "summon" }, params = { power = "summon" }, heavy = true },
 	{ id = "cage", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "bind" }, forms = POINT_FORMS, params = { power = "cage" } },
 	{ id = "conjure", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate" }, forms = { "touch", "beam", "wall", "pillar", "zone", "burst", "ritual" }, params = { power = "conjure" } },
 	{ id = "unmake", effect = "RealityPower", branches = { "unmaking" }, properties = { "substance" }, verbs = { "reduce" }, params = { power = "unmake" } },

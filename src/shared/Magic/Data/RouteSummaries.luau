@@ -105,6 +105,15 @@ local routes: { [string]: Summary } = {
 	doom = { kind = "attack", text = "Their luck turns: you crit them more, their hits sometimes miss, and they backfire more." },
 	certainty = { kind = "attack", text = "Your next few hits on them are certain to crit." },
 	twist_of_fate = { kind = "protect", text = "The next few blows on you are cancelled and sent back at whoever dealt them." },
+	conjure_being = {
+		kind = "attack",
+		text = "Conjures beings out of nothing: any elemental there is, Reality's own giants, or a double of whatever you aim at.",
+		byVerb = {
+			generate = { text = "Conjures a host out of nothing that fights beside you: any elemental there is, Reality's own giants, or a double of whatever you aim at." },
+			bind = { kind = "protect", text = "Conjures guardians out of nothing that hold the ground you aim at: any elemental there is, Reality's own giants, or a double of whatever you aim at." },
+			transmute = { text = "Conjures one colossal being out of nothing, bigger with power: any elemental there is, Reality's own giants, or a double of whatever you aim at." },
+		},
+	},
 	cage = { kind = "control", text = "Shuts them in a box of solid matter for a few seconds." },
 	conjure = {
 		kind = "land",
