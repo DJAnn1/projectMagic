@@ -6,7 +6,7 @@
 
 		MagicHealth.of(caster) -> Parts
 			best      tier of your best branch (0..8)
-			tierFlat  best x perTier
+			tierFlat  byTier[best]
 			breadth   other branches at breadthMinTier or above
 			breadthFlat  breadth x breadthPerBranch, at most breadthCap
 			flat      tierFlat + breadthFlat (added to health)
@@ -39,7 +39,7 @@ function MagicHealth.of(caster: any?): Parts
 			breadth += 1
 		end
 	end
-	local tierFlat = best * Data.perTier
+	local tierFlat = Data.byTier[best] or 0
 	local breadthFlat = math.min(Data.breadthCap, breadth * Data.breadthPerBranch)
 	local life = if caster and caster.affinities then (caster.affinities.life or 0) else 0
 	return {

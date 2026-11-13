@@ -2,7 +2,7 @@
 --[[
 	MagicHealth.spec: your health grows with your magic (docs/SpellOverhaul.md §2F), and the spell
 	audit counts every recipe (§2G). What matters most: no magic = no bonus; the best tier pays
-	perTier each; breadth counts only OTHER branches at Novice+, capped; Life affinity adds a share;
+	its byTier step; breadth counts only OTHER branches at Novice+, capped; Life affinity adds a share;
 	more mastery never means less health; and the audit's counts add up.
 ]]
 
@@ -28,13 +28,13 @@ return function(t: any)
 	local ids = Registry.branchIds
 
 	describe("Health from magic", function()
-		it("no magic gives nothing; the best tier pays perTier each", function()
+		it("no magic gives nothing; the best tier pays its byTier step", function()
 			local none = MagicHealth.of(caster({}))
 			expect(none.flat).toBe(0)
 			expect(none.pct).toBe(0)
 			local master = MagicHealth.of(caster({ [ids[1]] = 70 }))
 			expect(master.best).toBe(MagicCore.tierForMastery(70))
-			expect(master.tierFlat).toBe(master.best * Data.perTier)
+			expect(master.tierFlat).toBe(Data.byTier[master.best])
 			expect(master.breadth).toBe(0) -- the best branch never counts as breadth
 		end)
 
@@ -59,7 +59,13 @@ return function(t: any)
 				expect(hp >= last).toBe(true)
 				last = hp
 			end
-			expect(last).toBe(100 + 8 * Data.perTier) -- Transcendent, no breadth
+			expect(last).toBe(100 + Data.byTier[8]) -- Transcendent, no breadth
+			-- The owner's target (2026-11-13): about 1000 at the very top, with breadth.
+			local top = 100 + Data.byTier[8] + Data.breadthCap
+			expect(top >= 950 and top <= 1050).toBe(true)
+			for tier = 1, 8 do
+				expect(Data.byTier[tier] > Data.byTier[tier - 1]).toBe(true)
+			end
 		end)
 	end)
 
