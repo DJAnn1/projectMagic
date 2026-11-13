@@ -9,6 +9,8 @@
 		twist        charges that cancel a hit and send it back
 		conjure      matter from nothing (shape by form: step, bridge, wall, pillar, bastion)
 		summon       conjured beings: any elemental, Reality's own giants, doubles (Cast/Conjuring)
+		remake       the ground in an area becomes the wished material, saved (Cast/WorldWishes)
+		things       wished things appear for a while: forest, fire, lights... (Cast/WorldWishes)
 		cage         a solid box around a target
 		unmake       matter in reach stops existing for a while; people lose wards and are hit
 		undying      nothing takes you below 1 health for a few seconds
@@ -35,6 +37,7 @@ local Targeting = require(Cast.Targeting)
 local RealityRuntime = require(Cast.RealityRuntime)
 local Field = require(script.Parent.Field)
 local Conjuring = require(Cast.Conjuring)
+local WorldWishes = require(Cast.WorldWishes)
 
 local RealityPower = {}
 
@@ -49,6 +52,8 @@ function RealityPower.precheck(params: { [string]: any }, _stats: Types.SpellSta
 		return RealityRuntime.edictRefusal(player.UserId, params.worldlaw == true)
 	elseif power == "summon" and FeatureFlags.get("elementals_enabled") == false then
 		return "WORLD_STRAINED"
+	elseif power == "remake" then
+		return WorldWishes.remakeRefusal(player.UserId)
 	end
 	return nil
 end
@@ -99,6 +104,12 @@ function RealityPower.resolve(ctx: CastTypes.EffectContext, params: { [string]: 
 		-- Conjured beings (Cast/Conjuring): whatever the wish asks for, or what the aim finds.
 		local raised, note = Conjuring.summon(ctx)
 		return { effective = raised > 0, hits = 0, note = note }
+	elseif power == "remake" then
+		local ops, note = WorldWishes.remake(ctx)
+		return { effective = ops > 0, hits = 0, note = note }
+	elseif power == "things" then
+		local made, note = WorldWishes.things(ctx)
+		return { effective = made > 0, hits = 0, note = note }
 	end
 
 	local hit = pickTarget(ctx)

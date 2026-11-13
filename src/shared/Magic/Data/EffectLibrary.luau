@@ -73,6 +73,9 @@ local routes: { Route } = {
 	{ id = "twist_of_fate", effect = "RealityPower", branches = { "fatebending" }, properties = { "probability" }, verbs = { "transmute" }, forms = { "aura" }, params = { power = "twist" } },
 	-- Conjured beings (docs/Reality.md): the recipe's `wish` picks what rises; the verb how (host, guard, colossus).
 	{ id = "conjure_being", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate", "bind", "transmute" }, forms = { "summon" }, params = { power = "summon" }, heavy = true },
+	-- World wishes (docs/Reality.md): the ground becomes what you wish (saved), or things appear for a while.
+	{ id = "remake_land", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "transmute" }, forms = { "zone", "burst", "ritual" }, params = { power = "remake" }, heavy = true },
+	{ id = "conjure_things", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "amplify" }, forms = { "zone", "burst", "ritual" }, params = { power = "things" }, heavy = true },
 	{ id = "cage", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "bind" }, forms = POINT_FORMS, params = { power = "cage" } },
 	{ id = "conjure", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate" }, forms = { "touch", "beam", "wall", "pillar", "zone", "burst", "ritual" }, params = { power = "conjure" } },
 	{ id = "unmake", effect = "RealityPower", branches = { "unmaking" }, properties = { "substance" }, verbs = { "reduce" }, params = { power = "unmake" } },

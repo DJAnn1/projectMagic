@@ -115,3 +115,18 @@ Everything: lasts 30 → 120 s, health ×1.2 → ×3.2, blows ×1.1 → ×2, and
 **Test:** `testmage 8 all`, `cheat all`, Composer Full mode → Reality → Conjuration → Substance → Generate → Summon, power 10. Try the picker (Myself, a seraph, What I aim at on lava, water, a tree, a dummy, a Wildborn), then Bind and Transmute. `elementals` lists them. Log `elemental_summoned` now carries `scale`, `guard`, `copy`.
 
 **Unverified:** cloning a player's character on the server (Archivable toggled) and how a double animates (R6 bodies get the elemental clips, creatures slide); `ScaleTo` at ×3+ on R6 rigs; 8 bodies × several Reality players against `maxAlive` 60. Generate on Metaphysical is an awkward combination in the grammar (0.4 efficiency), so generate hosts cost more than bind or transmute; raising `substance` generate in `Compatibility.propertyVerb` would also strengthen the older Conjure shapes.
+
+## World wishes (built 2026-11-13)
+
+Same brief. `Cast/WorldWishes`, through `Effects/RealityPower` (powers `remake` and `things`). The Composer's picker shows the choices for each.
+
+**Remake the land:** `conjuration, substance, transmute, zone | burst | ritual` (route `remake_land`). The ground around where you aim becomes the wished material: green grass (the default), a wild meadow, bare stone, cooling lava, black basalt, open water, ice, glacier, deep snow, sand, a salt flat, mud, white limestone, a cobbled square (`Data/Wishes.lands`).
+- Radius 10 → 42 studs by tier at power 5, ×(0.6 + 0.08 × power): at Transcendent, power 10, about 59 studs. A rough circle (three overlapping boxes), from just above the highest ground sampled down to 10 studs below (water: 6, a lake not a pit). Wishing land onto the sea fills it: an island.
+- **Permanent and saved for every server** (`TerrainDeform.commit` → `WorldStateService:edit`, cause `wish`), like quakes and craters. Hence the guards: refused if the centre or the rim touches a town; only natural materials actually found there (5×5 rays) plus Ground and Rock are rewritten, never Granite; ops come from `EffectBudget`; a cooldown of 30 → 6 s per caster.
+- Log `wish_remade` (land, radius, ops, x, z).
+
+**Conjure things:** `conjuration, substance, amplify, zone | burst | ritual` (route `conjure_things`). For 30 → 180 s across a 8 → 30 stud radius: a forest (3 → 16 trees whose canopies burn), floating lights (6 → 32 bobbing lights), crystal spires, boulders (cover), a spring (temporary water), or a field of fire (2 → 9 fires through `FireSim`, unsaved, and they spread). Every part is charged to `EffectBudget.takeParts`, at most 160 per cast; they fade when their time is up. Log `wish_conjured`. Admin `wishclear` removes the parts.
+
+**Test:** `testmage 8 all`, `cheat all`, Composer: Conjuration → Substance → Transmute → Zone, power 10, pick lava, cast it out in the wilds (then water, then stone on the water). In a town it should refuse. Then Amplify → Zone: a forest, then a field of fire next to it.
+
+**Unverified:** how `replace` boxes read on steep ground (the rim may show straight edges); the forest's canopies and lights in Future lighting; how much saved terrain heavy use adds (about a dozen ops a cast).

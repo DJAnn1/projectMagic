@@ -1,6 +1,6 @@
 --!strict
 --[[
-	Wishes.spec: Reality's conjured beings (docs/Reality.md "Conjured beings"). What matters: every
+	Wishes.spec: Reality's conjured beings and world wishes (docs/Reality.md). What matters: every
 	being the Composer offers is real and looks valid; the world's materials all raise a real being;
 	a Conjuration Summon spell routes to the wish, and only it takes one; a recipe's wish survives
 	normalizing, is checked, and changes the key only when present (older keys never move); and the
@@ -87,6 +87,34 @@ return function(t: any)
 			expect(bad).toBe(nil)
 			local ok = MagicCore.validateRecipe(recipe("generate", "seraph"))
 			expect(ok).toBe(true)
+		end)
+	end)
+
+	describe("World wishes", function()
+		it("every land is a real terrain material and every thing has a name; transmute and amplify areas route to them", function()
+			for id, land in WishData.lands do
+				local ok, value = pcall(function()
+					return (Enum.Material :: any)[land.material]
+				end)
+				expect(ok and value ~= nil).toBe(true)
+				expect(Wishes.isValid("land", id)).toBe(true)
+				expect(table.find(WishData.landSources, "Granite")).toBe(nil)
+			end
+			for id in WishData.things do
+				expect(Wishes.isValid("thing", id)).toBe(true)
+			end
+			expect(Wishes.land(WishData.landDefault) ~= nil and Wishes.thing(WishData.thingDefault) ~= nil).toBe(true)
+			for _, form in { "zone", "burst", "ritual" } do
+				local land = { branch = "conjuration", property = "substance", verb = "transmute", form = form, power = 6 }
+				local thing = { branch = "conjuration", property = "substance", verb = "amplify", form = form, power = 6 }
+				expect(SpellRoute.find(land).id).toBe("remake_land")
+				expect(SpellRoute.find(thing).id).toBe("conjure_things")
+				expect(Wishes.kindOf(land)).toBe("land")
+				expect(Wishes.kindOf(thing)).toBe("thing")
+				expect(SpellOutcome.of(land).useful and SpellOutcome.of(thing).useful).toBe(true)
+				expect(#Wishes.words(land, 5) > 0 and #Wishes.words(thing, 5) > 0).toBe(true)
+			end
+			expect(Wishes.remakeRadius(10, 8) > Wishes.remakeRadius(1, 1)).toBe(true)
 		end)
 	end)
 

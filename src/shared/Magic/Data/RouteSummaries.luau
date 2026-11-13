@@ -114,6 +114,8 @@ local routes: { [string]: Summary } = {
 			transmute = { text = "Conjures one colossal being out of nothing, bigger with power: any elemental there is, Reality's own giants, or a double of whatever you aim at." },
 		},
 	},
+	remake_land = { kind = "land", text = "The ground where you aim becomes whatever you wish: lava, water, ice, stone, grass, sand and more. For good, on every server; never inside a town." },
+	conjure_things = { kind = "land", text = "Whatever you wish appears where you aim for a while: a forest, a field of fire, floating lights, a spring, crystal spires, boulders." },
 	cage = { kind = "control", text = "Shuts them in a box of solid matter for a few seconds." },
 	conjure = {
 		kind = "land",

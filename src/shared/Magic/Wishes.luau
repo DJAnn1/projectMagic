@@ -3,14 +3,16 @@
 	Wishes: the rules behind Reality's wishes (docs/Reality.md "Conjured beings"). Pure and shared,
 	so the server (Cast/Conjuring), the Composer and Tests/Wishes.spec always agree.
 
-		Wishes.kindOf(recipe) -> "being"?             does this recipe take a wish?
+		Wishes.kindOf(recipe) -> "being"|"land"|"thing"?   does this recipe take a wish, and which
 		Wishes.being(id) -> (Elemental?, domain?)     a being by wish id (nil for "aim"/"self")
 		Wishes.isValid(kind, id) -> boolean
 		Wishes.fromMaterial(name) -> id               what "aim" raises from a material
 		Wishes.plan(verb, power, tier) -> Plan        how many, how big, how strong, how long
-		Wishes.name(id) -> string                     "a frost wight", "what you aim at"...
+		Wishes.name(id, kind?) -> string              "a frost wight", "what you aim at", "lava"...
 		Wishes.words(recipe, tier) -> string          the Composer's line
-		Wishes.choices() -> { {name, ids} }           the Composer's groups
+		Wishes.choices(kind?) -> { {name, ids} }      the Composer's groups (beings by default)
+		Wishes.land(id) / Wishes.thing(id)            a land or thing wish's data (nil if unknown)
+		Wishes.remakeRadius(power, tier) / Wishes.default(kind)
 
 	Tiers are mastery in the spell's branch, 1 (Sensing) to 8 (Transcendent); 0 counts as 1.
 ]]
@@ -36,6 +38,8 @@ local Wishes = {}
 
 local ROUTE_KINDS: { [string]: string } = {
 	conjure_being = "being",
+	remake_land = "land",
+	conjure_things = "thing",
 }
 
 function Wishes.kindOf(recipe: any): string?
@@ -62,11 +66,32 @@ function Wishes.being(id: string): (Elementals.Elemental?, string?)
 	return nil, nil
 end
 
+function Wishes.land(id: string?): { name: string, material: string }?
+	return if id then (Data.lands :: any)[id] else nil
+end
+
+function Wishes.thing(id: string?): { name: string }?
+	return if id then (Data.things :: any)[id] else nil
+end
+
+function Wishes.default(kind: string): string
+	return if kind == "land" then Data.landDefault elseif kind == "thing" then Data.thingDefault else "aim"
+end
+
 function Wishes.isValid(kind: string, id: string): boolean
 	if kind == "being" then
 		return id == "aim" or id == "self" or (Wishes.being(id)) ~= nil
+	elseif kind == "land" then
+		return Wishes.land(id) ~= nil
+	elseif kind == "thing" then
+		return Wishes.thing(id) ~= nil
 	end
 	return false
+end
+
+function Wishes.remakeRadius(power: number, tier: number): number
+	local base = R.remake.radius[math.clamp(math.floor(math.max(1, tier)), 1, #R.remake.radius)]
+	return base * (0.6 + math.clamp(power, 1, 10) * 0.08)
 end
 
 function Wishes.fromMaterial(name: string): string
@@ -114,7 +139,14 @@ function Wishes.plan(verb: string, power: number, tier: number): Plan
 	}
 end
 
-function Wishes.name(id: string?): string
+function Wishes.name(id: string?, kind: string?): string
+	if kind == "land" then
+		local land = Wishes.land(id or Data.landDefault)
+		return if land then land.name else "green grass"
+	elseif kind == "thing" then
+		local thing = Wishes.thing(id or Data.thingDefault)
+		return if thing then thing.name else "a forest"
+	end
 	if id == nil or id == "aim" then
 		return "what you aim at"
 	elseif id == "self" then
@@ -131,6 +163,18 @@ local MODE_WORDS: { [string]: string } = {
 }
 
 function Wishes.words(recipe: any, tier: number): string
+	local kind = Wishes.kindOf(recipe)
+	if kind == "land" then
+		local r = Wishes.remakeRadius(recipe.power or 1, tier)
+		return string.format(
+			"The ground for %d studs around where you aim becomes %s, for good, on every server. Never inside a town; once every %d s.",
+			math.floor(r), Wishes.name(recipe.wish, "land"), R.remake.cooldown[math.clamp(math.max(1, tier), 1, 8)]
+		)
+	elseif kind == "thing" then
+		local t = math.clamp(math.max(1, tier), 1, 8)
+		return string.format("%s appears for %d studs around where you aim, for %d s.",
+			(string.gsub(Wishes.name(recipe.wish, "thing"), "^%l", string.upper)), R.things.radius[t], R.things.seconds[t])
+	end
 	local plan = Wishes.plan(recipe.verb, recipe.power or 1, tier)
 	local wish = recipe.wish or "aim"
 	local who: string
@@ -150,7 +194,21 @@ function Wishes.words(recipe: any, tier: number): string
 	return line
 end
 
-function Wishes.choices(): { { name: string, ids: { string } } }
+local function sortedIds(map: { [string]: any }): { string }
+	local ids: { string } = {}
+	for id in map do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	return ids
+end
+
+function Wishes.choices(kind: string?): { { name: string, ids: { string } } }
+	if kind == "land" then
+		return { { name = "The ground becomes", ids = sortedIds(Data.lands) } }
+	elseif kind == "thing" then
+		return { { name = "What appears", ids = sortedIds(Data.things) } }
+	end
 	return Data.groups :: any
 end
 

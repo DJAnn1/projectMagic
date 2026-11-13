@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 
 local Server = script.Parent.Parent
 local RealityRuntime = require(Server.Magic.Cast.RealityRuntime)
+local WorldWishes = require(Server.Magic.Cast.WorldWishes)
 
 local RealityService = {
 	name = "RealityService",
@@ -23,6 +24,19 @@ local RealityService = {
 
 function RealityService.init(_self: any, ctx: any)
 	RealityRuntime.start(ctx.get("EffectRunner"), ctx.log)
+	local log = ctx.log
+	WorldWishes.onEvent = function(event: string, fields: { [string]: any })
+		log:info(event, fields)
+	end
+	ctx.get("AdminService"):Register({
+		name = "wishclear",
+		category = "Spells",
+		description = "Remove every thing conjured by a world wish (forests, lights, spires, boulders). Remade land is saved terrain: undo it with another wish",
+		args = {},
+		handler = function()
+			return string.format("removed %d conjured parts", WorldWishes.clear())
+		end,
+	})
 	ctx.get("AdminService"):Register({
 		name = "realitystate",
 		category = "Spells",

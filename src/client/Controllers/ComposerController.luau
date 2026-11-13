@@ -920,10 +920,13 @@ end
 -- Reality's wishes (docs/Reality.md "Conjured beings"): what a Conjuration Summon spell raises.
 -- Every choice is a word on a button (colour is never the only cue); the line above says what the
 -- chosen wish does at this power and your mastery.
-local function buildWishPicker(parent: Instance, recipe: Types.Recipe)
+local WISH_HEADINGS: { [string]: string } = { being = "Conjure", land = "The ground becomes", thing = "Conjure" }
+
+local function buildWishPicker(parent: Instance, recipe: Types.Recipe, kind: string)
 	local tier = tierOf(recipe.branch)
-	local current = recipe.wish or "aim"
-	C.text("Conjure", "heading", { LayoutOrder = 10 }).Parent = parent
+	local fallback = Wishes.default(kind)
+	local current = recipe.wish or fallback
+	C.text(WISH_HEADINGS[kind] or "Wish", "heading", { LayoutOrder = 10 }).Parent = parent
 	C.text(Wishes.words(recipe, tier), "caption", { LayoutOrder = 11 }).Parent = parent
 	local order = 12
 	local function row(title: string?, ids: { string })
@@ -941,18 +944,20 @@ local function buildWishPicker(parent: Instance, recipe: Types.Recipe)
 		order += 1
 		C.list("x", Theme.space.xs, { Wraps = true }).Parent = frame
 		for i, id in ids do
-			local label = if id == "aim" then "What I aim at" elseif id == "self" then "Myself" else Wishes.name(id)
+			local label = if id == "aim" then "What I aim at" elseif id == "self" then "Myself" else Wishes.name(id, kind)
 			C.button(label, function()
-				update({ wish = if id == "aim" then nil else id })
+				update({ wish = if id == fallback then nil else id })
 			end, {
 				kind = "ghost",
 				selected = current == id,
 			}, { Size = UDim2.fromOffset(0, Theme.minTouch), AutomaticSize = Enum.AutomaticSize.X, LayoutOrder = i }).Parent = frame
 		end
 	end
-	row(nil, { "aim", "self" })
-	for _, group in Wishes.choices() do
-		row(group.name, group.ids)
+	if kind == "being" then
+		row(nil, { "aim", "self" })
+	end
+	for _, group in Wishes.choices(kind) do
+		row(if kind == "being" then group.name else nil, group.ids)
 	end
 end
 
@@ -994,8 +999,9 @@ local function buildPowerStep(parent: Instance, d: Draft)
 		for i, change in SpellOutcome.steps(recipe, template.maxPower) do
 			C.text(string.format("From power %d: %s. %s", change.power, SpellOutcome.tag(change.outcome), change.outcome.text), "caption", { LayoutOrder = 3 + i }).Parent = parent
 		end
-		if Wishes.kindOf(recipe) == "being" then
-			buildWishPicker(parent, recipe)
+		local wishKind = Wishes.kindOf(recipe)
+		if wishKind then
+			buildWishPicker(parent, recipe, wishKind)
 		end
 	end
 

@@ -74,6 +74,24 @@ return table.freeze({
 		spread = 5, -- studs between bodies raised together
 	},
 
+	-- Remake the land (docs/Reality.md "World wishes"): the ground in the area becomes the wished
+	-- material, for good (saved, every server), never inside a town.
+	remake = {
+		radius = { 10, 12, 15, 18, 22, 28, 34, 42 }, -- at power 5; x(0.6 + power x 0.08)
+		depth = 10, -- studs of ground rewritten under the surface (water: 6, a lake not a pit)
+		waterDepth = 6,
+		cooldown = { 30, 26, 22, 18, 14, 10, 8, 6 }, -- per caster (saved terrain is forever)
+	},
+
+	-- Conjure things: what appears in the area, for a while.
+	things = {
+		seconds = { 30, 40, 50, 60, 80, 100, 130, 180 },
+		count = { 3, 4, 5, 6, 8, 10, 12, 16 }, -- trees, lights, spires, boulders (x2 for lights)
+		fires = { 2, 3, 3, 4, 5, 6, 7, 9 },
+		radius = { 8, 10, 12, 14, 17, 20, 24, 30 },
+		maxParts = 160, -- one cast
+	},
+
 	cage = {
 		seconds = { 2, 2.5, 3, 4, 5, 6, 8, 10 },
 		size = 7, -- inside width
