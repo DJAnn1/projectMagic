@@ -165,6 +165,12 @@ local function closeWheel()
 		hoverConnection = nil
 	end
 	if wheel then
+		-- Modal off first: destroyed while Modal, it kept the mouse freed (no right-drag camera).
+		for _, d in wheel:GetDescendants() do
+			if d:IsA("GuiButton") then
+				d.Modal = false
+			end
+		end
 		wheel:Destroy()
 		wheel = nil
 	end

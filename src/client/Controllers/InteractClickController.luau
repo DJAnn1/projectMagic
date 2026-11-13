@@ -33,8 +33,9 @@
 		   person, a dummy) or PrimaryPart (not for buildings). The walk STOPS at that model. The
 		   old walk scanned every child of every ancestor, so a click on a floor, wall or table
 		   beside a barrel picked whichever door, bed or lamp in the building came first.
-		3. Missed? The usable thing in reach nearest the cursor within NEAR_PIXELS on screen, if
-		   the camera can see it.
+		3. Gamepad and touch only: missed? The usable thing in reach nearest the aim point within
+		   NEAR_PIXELS on screen, if the camera can see it. The mouse never uses this: a click
+		   (and E, and the outline) is only ever what's really under the cursor.
 		Reach is to the thing's nearest surface (Shared/World/Reach, the server's rule too). Out
 		of reach but under the cursor within FAR_SHOW studs extra: the label says "too far" and a
 		click says so, instead of falling through to a swing or a cast.
@@ -455,7 +456,10 @@ local function nearCursor(at: Vector2, from: Vector3, camera: Camera): Target?
 end
 
 -- THE pick: everything that shows or uses a target goes through here. (target, why)
-local function pickAt(at: Vector2): (Target?, string)
+-- `exact`: the mouse. Only what the ray under the cursor hits, never the near-cursor fallback
+-- (2026-11-12, owner: "I click things even though I'm not hovering over it"). The fallback
+-- stays for the gamepad's screen centre and touch taps, which can't point that precisely.
+local function pickAt(at: Vector2, exact: boolean?): (Target?, string)
 	local from = rootPosition()
 	local camera = workspace.CurrentCamera
 	if not from or not camera then
@@ -471,7 +475,7 @@ local function pickAt(at: Vector2): (Target?, string)
 			end
 		end
 	end
-	local near = nearCursor(at, from, camera)
+	local near = if exact then nil else nearCursor(at, from, camera)
 	if near then
 		return near, near.how
 	end
@@ -800,7 +804,7 @@ function InteractClickController.tryClick(_self: any, shift: boolean): boolean
 		InteractDebug.record("click", "-", "passed on: " .. how, nil, combatText(combat()))
 		return false
 	end
-	local target, why = pickAt(at)
+	local target, why = pickAt(at, true)
 	hover, hoverWhy = target, why
 	return use(target, shift, "click", why)
 end
@@ -817,7 +821,7 @@ function InteractClickController.tryKey(_self: any): boolean
 		InteractDebug.record("E", "-", "passed on: " .. how, nil, combatText(combat()))
 		return false
 	end
-	local target, why = pickAt(at)
+	local target, why = pickAt(at, not gamepadMode())
 	hover, hoverWhy = target, why
 	return use(target, false, "E", why)
 end
@@ -896,7 +900,7 @@ function InteractClickController.start(_self: any, _ctx: any)
 			if ok then
 				local at, how = pointer()
 				if at then
-					hover, hoverWhy = pickAt(at)
+					hover, hoverWhy = pickAt(at, not gamepadMode()) -- the outline matches what a click uses
 				else
 					hover, hoverWhy = nil, how
 				end

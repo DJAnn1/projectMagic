@@ -27,7 +27,7 @@
 	player's current location (RegionInfo). Numbers carry "≈": the server recomputes with the real
 	profile on every cast and its result is the only one that counts.
 
-	Opening with args { recipe, key? } (from the Grimoire or a hotbar right-click) loads the
+	Opening with args { recipe, key? } (from the Grimoire) loads the
 	recipe into Full mode for editing.
 
 	Wide:     [ steps rail ] [ options for the current step ] [ preview + name + save + slots ]

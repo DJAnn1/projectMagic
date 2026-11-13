@@ -720,10 +720,8 @@ local function buildSlot(index: number, slot: number, size: number): SlotWidget
 		LayoutOrder = index,
 		BackgroundTransparency = Theme.glass,
 	})
-	-- Right-click opens the spell in the Composer for editing.
-	button.MouseButton2Click:Connect(function()
-		interface:open("Composer", if spell then { recipe = spell.recipe, key = spell.key } else nil)
-	end)
+	-- No right-click action: right mouse turns the camera (2026-11-12). Edit a spell from the
+	-- Grimoire or the Composer (C).
 
 	local widget: SlotWidget = {
 		key = key,

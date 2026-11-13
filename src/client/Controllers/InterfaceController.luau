@@ -192,6 +192,12 @@ local function renderScreen()
 		Parent = root,
 	})
 	scope:add(backdrop)
+	-- Modal OFF before the backdrop is destroyed (cleanups run before the instance goes). A
+	-- Modal button destroyed while still Modal kept the mouse freed for a second or two after a
+	-- menu closed, so right-drag couldn't turn the camera (owner, 2026-11-12).
+	scope:add(function()
+		backdrop.Modal = false
+	end)
 
 	local panel: Frame = Kit.create(nil, "Frame", {
 		Name = def.id,

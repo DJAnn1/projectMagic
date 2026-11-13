@@ -14,8 +14,9 @@
 		        (Equip/Unequip, Use, Split, Move, Quick 1-4, Favourite, Lock, Drop)
 
 	INPUT
-		mouse     click selects; drag drops onto any cell (grid, equipment, quickslot); right-click
-		          equips, unequips or uses; hovering shows a floating tooltip with comparison
+		mouse     click selects; drag drops onto any cell (grid, equipment, quickslot); the action
+		          buttons equip, unequip or use; Shift-click clears a quickslot; hovering shows a
+		          floating tooltip with comparison. Right mouse does nothing here: it turns the camera.
 		touch     tap selects; Move then tap the destination; the action buttons do the rest
 		gamepad   cells are selectable (A selects); the action buttons do the rest
 	QUICKBAR     4 slots: Z X V B on keyboard; on gamepad tap D-pad down to use the selected slot,
@@ -123,22 +124,6 @@ local function useRef(ref: string)
 	act("use", ref, nil, nil, aim)
 end
 
--- Right-click / double purpose: unequip worn items, equip gear, use consumables.
-local function defaultAction(ref: string)
-	local view = items:find(ref)
-	local def = defOf(view)
-	if not view or not def then
-		return
-	end
-	if string.sub(ref, 1, 2) == "e:" then
-		act("unequip", ref)
-	elseif def.equip then
-		act("equip", ref)
-	elseif def.use then
-		useRef(ref)
-	end
-end
-
 local function useQuick(key: number)
 	local view = items:quickRef(tostring(key))
 	local def = defOf(view)
@@ -168,7 +153,12 @@ local function onCellActivated(ref: string)
 	end
 	local q = string.match(ref, "^q(%d)$")
 	if q then
-		-- A quickslot: assign the selected item to it.
+		-- A quickslot: Shift-click clears it (right mouse is the camera's, 2026-11-12);
+		-- otherwise assign the selected item to it.
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift) then
+			act("quick", q, nil)
+			return
+		end
 		local sel = selected:get()
 		if sel and string.sub(sel, 1, 1) == "s" then
 			act("quick", q, sel)
@@ -223,15 +213,9 @@ local function hookCell(scope: Scope, cell: TextButton, ref: string)
 		end
 	end))
 	scope:add(cell.InputBegan:Connect(function(input)
+		-- Left mouse only: right mouse belongs to the camera and never does anything to an item.
 		if input.UserInputType == Enum.UserInputType.MouseButton1 and string.sub(ref, 1, 1) ~= "q" and items:find(ref) then
 			dragging = { ref = ref, start = Vector2.new(input.Position.X, input.Position.Y), ghost = nil }
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			local q = string.match(ref, "^q(%d)$")
-			if q then
-				act("quick", q, nil)
-			else
-				defaultAction(ref)
-			end
 		end
 	end))
 	scope:add(cell.MouseEnter:Connect(function()
@@ -441,7 +425,7 @@ end
 
 local function buildQuickRow(scope: Scope, parent: Instance)
 	local holder = column(parent, 3, 2)
-	C.text("Quickslots: drag an item here, or select it and tap a slot. Right-click clears.", "caption", { TextColor3 = Theme.color.inkFaint, LayoutOrder = 0, Parent = holder })
+	C.text("Quickslots: drag an item here, or select it and tap a slot. Shift-click clears.", "caption", { TextColor3 = Theme.color.inkFaint, LayoutOrder = 0, Parent = holder })
 	Kit.dynamic(scope, { items.view, moving }, function(s)
 		local r = row(holder, 1)
 		s:add(r)
@@ -710,7 +694,7 @@ local function buildDetails(scope: Scope, parent: Instance)
 		local view = ref and items:find(ref)
 		if not view then
 			C.text(if interface.inputMode:get() == "Keyboard"
-				then "Select an item to see it here. Drag to move or equip; right-click to use, equip or unequip."
+				then "Select an item to see it here. Drag to move or equip; the buttons below use, equip or unequip."
 				else "Tap an item to see it here, then use the buttons. Move, then tap where it should go.",
 				"body", { TextColor3 = Theme.color.inkDim, Parent = body })
 			return
