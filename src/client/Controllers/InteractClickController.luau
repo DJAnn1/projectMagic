@@ -840,6 +840,43 @@ function InteractClickController.dialogueOpen(_self: any): boolean
 	return dialogue:isOpen()
 end
 
+-- ─── World GUIs never take input ───────────────────────────────────────────
+-- 2026-11-12: world clicks kept arriving game-processed with nothing of ours under the cursor,
+-- and the NPC dialogue's buttons got no engine events at all (only the Components fallback
+-- answered). The suspect: world BillboardGuis/SurfaceGuis (name tags, Observe and activity
+-- labels, dummy readouts, damage numbers, the reticle) catching the mouse. None of them is
+-- meant to be clicked, so on this client every one of them, and everything inside, ignores
+-- input. A world GUI that should be clickable one day gets the tag ClickableWorldGui.
+local quietCount = 0
+local function quiet(object: Instance)
+	local holder = if object:IsA("LayerCollector") then object else object:FindFirstAncestorWhichIsA("LayerCollector")
+	if not holder or not (holder:IsA("BillboardGui") or holder:IsA("SurfaceGui")) or CollectionService:HasTag(holder, "ClickableWorldGui") then
+		return
+	end
+	pcall(function()
+		if object:IsA("BillboardGui") or object:IsA("SurfaceGui") then
+			(object :: any).Active = false
+			quietCount += 1
+		elseif object:IsA("GuiObject") then
+			object.Active = false
+			object.Interactable = false
+		end
+	end)
+end
+
+local function quietAll(root: Instance)
+	for _, d in root:GetDescendants() do
+		if d:IsA("LayerCollector") or d:IsA("GuiObject") then
+			quiet(d)
+		end
+	end
+	root.DescendantAdded:Connect(function(d)
+		if d:IsA("LayerCollector") or d:IsA("GuiObject") then
+			quiet(d)
+		end
+	end)
+end
+
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 function InteractClickController.init(_self: any, ctx: any)
@@ -863,6 +900,13 @@ function InteractClickController.start(_self: any, _ctx: any)
 
 	buildLook()
 	Net.listen("UsePromptResult", onResult)
+
+	-- World GUIs ignore input (see "World GUIs never take input"); the count shows it ran.
+	quietAll(workspace)
+	quietAll(Players.LocalPlayer:WaitForChild("PlayerGui"))
+	task.delay(20, function()
+		require(Shared.Core.Logger).new("InteractTrace"):info("world_gui_quieted", { worldGuis = quietCount })
+	end)
 
 	-- Gamepad X / Y: taken ahead of the screen keys only while looking at something usable.
 	interface:setInputClaim(function(input: InputObject): boolean
