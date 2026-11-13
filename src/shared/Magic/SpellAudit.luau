@@ -16,6 +16,7 @@
 
 local Registry = require(script.Parent.Registry)
 local SpellRoute = require(script.Parent.SpellRoute)
+local Behaviours = require(script.Parent.Data.PropertyBehaviours)
 
 export type Report = {
 	power: number,
@@ -88,10 +89,18 @@ function SpellAudit.lines(report: Report, top: number): { string }
 	local total = report.total
 	local harm = report.byRoute.harm or 0
 	local manifest = report.byRoute.manifest or 0
+	local plain = 0 -- harm with no property behaviour: still nothing but damage
+	for propertyId, n in report.harmByProperty do
+		if not Behaviours[propertyId] then
+			plain += n
+		end
+	end
 	local lines = {
 		string.format("%d recipes the grammar allows at power %d (any mastery)", total, report.power),
 		string.format("plain damage (harm): %d (%s) · no real effect (manifest): %d (%s) · everything else: %s",
 			harm, pct(harm, total), manifest, pct(manifest, total), pct(total - harm - manifest, total)),
+		string.format("of the harm, %d (%s) have a property behaviour; still nothing but damage: %d (%s)",
+			harm - plain, pct(harm - plain, total), plain, pct(plain, total)),
 		"routes, most used first:",
 	}
 	for i, entry in sorted(report.byRoute) do
@@ -102,9 +111,9 @@ function SpellAudit.lines(report: Report, top: number): { string }
 	end
 	local harmList = {}
 	for _, entry in sorted(report.harmByProperty) do
-		table.insert(harmList, string.format("%s %d", entry.id, entry.n))
+		table.insert(harmList, string.format("%s %d%s", entry.id, entry.n, if Behaviours[entry.id] then "" else " (no behaviour)"))
 	end
-	table.insert(lines, "plain damage by property: " .. (if #harmList > 0 then table.concat(harmList, ", ") else "none"))
+	table.insert(lines, "harm by property: " .. (if #harmList > 0 then table.concat(harmList, ", ") else "none"))
 	local deadList = {}
 	for i, entry in sorted(report.manifestByProperty) do
 		if i > top then

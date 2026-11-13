@@ -25,6 +25,7 @@ local CastTypes = require(Cast.CastTypes)
 local Targeting = require(Cast.Targeting)
 local Damage = require(Cast.Damage)
 local StatusEffects = require(Cast.StatusEffects)
+local PropertyBehaviour = require(Cast.PropertyBehaviour)
 local ThermalSim = require(Cast.ThermalSim)
 local FireSim = require(Cast.FireSim)
 local EffectBudget = require(Cast.EffectBudget)
@@ -77,10 +78,8 @@ local function heat(ctx: CastTypes.EffectContext, energy: number): CastTypes.Out
 	if stats.harmful then
 		for _, hit in Targeting.select(ctx) do
 			if Targeting.canHarm(ctx.player, hit.model) then
-				DamageModel.hit(ctx, hit, 0.8, "heat")
-				if stats.recipe.power >= 3 then
-					StatusEffects.apply(hit.humanoid, "burning", { duration = 2, magnitude = Impact.damageFor(ctx.power) * 0.1, source = ctx.player.UserId })
-				end
+				local dealt, result = DamageModel.hit(ctx, hit, 0.8, "heat")
+				PropertyBehaviour.apply(ctx, hit, dealt, result, "heat") -- scalds (Data/PropertyBehaviours)
 				hits += 1
 			end
 		end
@@ -100,9 +99,12 @@ local function chill(ctx: CastTypes.EffectContext, energy: number): CastTypes.Ou
 	local hits = 0
 	for _, hit in Targeting.select(ctx) do
 		if Targeting.canHarm(ctx.player, hit.model) then
-			StatusEffects.apply(hit.humanoid, "slow", { duration = 3 + stats.recipe.power * 0.5, source = ctx.player.UserId })
 			if stats.harmful then
-				DamageModel.hit(ctx, hit, 0.6, "cold")
+				-- Chills that build into a freeze (Data/PropertyBehaviours "cold").
+				local dealt, result = DamageModel.hit(ctx, hit, 0.6, "cold")
+				PropertyBehaviour.apply(ctx, hit, dealt, result, "cold")
+			else
+				StatusEffects.apply(hit.humanoid, "slow", { duration = 3 + stats.recipe.power * 0.5, source = ctx.player.UserId })
 			end
 			hits += 1
 		end
@@ -127,8 +129,8 @@ local function ignite(ctx: CastTypes.EffectContext): CastTypes.Outcome
 	local hits = 0
 	for _, hit in Targeting.select(ctx) do
 		if Targeting.canHarm(ctx.player, hit.model) then
-			DamageModel.hit(ctx, hit, 0.6, "fire")
-			StatusEffects.apply(hit.humanoid, "burning", { duration = T.fire.burnStatusSeconds, magnitude = Impact.damageFor(ctx.power) * 0.15, source = ctx.player.UserId })
+			local dealt, result = DamageModel.hit(ctx, hit, 0.6, "fire")
+			PropertyBehaviour.apply(ctx, hit, dealt, result, "combustion") -- burning; strong fire spreads
 			hits += 1
 		end
 	end

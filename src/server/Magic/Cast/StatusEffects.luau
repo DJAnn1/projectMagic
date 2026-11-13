@@ -88,6 +88,16 @@ local DEFS: { [string]: StatusDef } = {
 	reality_frayed = { name = "Frayed", harmful = true },
 	reality_polymorphed = { name = "Polymorphed", walk = 0.6, jump = 0.5, noCast = true, harmful = true },
 	surging = { name = "Surging", walk = 1.25, damageDealt = true }, -- Services/SurgeService; resist comes with the apply
+	-- Property behaviours (Cast/PropertyBehaviour, Shared/Magic/Data/PropertyBehaviours: docs/SpellOverhaul.md §2A)
+	chilled = { name = "Chilled", walk = 0.75, harmful = true }, -- a chill stack; three freeze you
+	frozen = { name = "Frozen", walk = 0, jump = 0, harmful = true },
+	suffocating = { name = "Suffocating", walk = 0.75, dot = true, harmful = true },
+	irradiated = { name = "Irradiated", dot = true, harmful = true },
+	crumbling = { name = "Crumbling", damageTaken = 1.2, harmful = true },
+	soulmarked = { name = "Soul-marked", damageTaken = 1.12, harmful = true },
+	withering = { name = "Withering", dot = true, harmful = true }, -- its damage grows each second (PropertyBehaviour "grow")
+	aged = { name = "Aged", walk = 0.8, damageDealt = true, harmful = true }, -- magnitude is negative: they deal less
+	sapped = { name = "Sapped", walk = 0.85, dot = true, harmful = true },
 }
 
 type Active = { expires: number, magnitude: number, source: number?, resist: { [string]: number }? }

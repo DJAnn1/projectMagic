@@ -2,7 +2,7 @@
 
 Written 2026-11-12 on the owner's request: "expand on the current spell system to make it similar to those bosses we just did. The spells need to be more fun, a lot of them feel generic in what they do and how they look. Audit the potential spells and what they can do and design a plan on improving them. I also want health to increase with skill increasing as your magic gets stronger."
 
-Stages are at the end, smallest and safest first. **Stage 0 built 2026-11-13** (health from magic: `Shared/Magic/MagicHealth`; the audit: `Shared/Magic/SpellAudit`, admin `spellaudit`, `magichealth`), not yet run. The rest is design only.
+Stages are at the end, smallest and safest first. **Stage 0 built and confirmed 2026-11-13** (baseline `spellaudit`, power 5: 40,622 recipes; harm 7,496 = 18.5%; manifest 10,683 = 26.3%; power 8 the same). **Stage 1 built 2026-11-13, not yet run:** every harmful property that reached `harm` now has a behaviour (`Shared/Magic/Data/PropertyBehaviours`, `Server/Magic/Cast/PropertyBehaviour`, applied in `Effects/Impact` and `Effects/Thermal`; 9 new statuses). A new stage is needed for the **manifest** pile (26%: presence, density, humidity, perception, warding, growth, hardness, viscosity, distance, emotion, aether, buoyancy, contour, purity), the non-harmful properties with no effect; not in the original plan. Earlier note: (health from magic: `Shared/Magic/MagicHealth`; the audit: `Shared/Magic/SpellAudit`, admin `spellaudit`, `magichealth`), not yet run. The rest is design only.
 
 ## 1. Audit: what a spell can be, and what it actually does
 
@@ -141,6 +141,7 @@ That's 100 at the start, about 180 at Adept, about 260 at Master, and about 330 
 |---|---|---|---|
 | 0 | F (health from magic) + G (`spellaudit`) | S | Independent, quick, and the audit numbers measure everything after |
 | 1 | A (property behaviours) for the 14 generic properties, plus fire and cold | M | The biggest "feels generic" fix, server-only, no new visuals needed to work |
+| 1b | Utility for the "no real effect" pile (26% of recipes, non-harmful properties) | M | Found by the stage 0 audit; not in the first plan |
 | 2 | C (per-property looks) for the same 16 | M | Makes stage 1 visible |
 | 3 | B (shapes from a shared move library) | L | The deepest change: touches CastService, Delivery, Targeting and SpellFx |
 | 4 | D (mastery evolutions) + verb flavours | M | Builds on 1–3 |

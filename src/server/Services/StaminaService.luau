@@ -165,6 +165,8 @@ local function registerAdmin(admin: any)
 end
 
 function StaminaService.init(_self: any, ctx: any)
+	-- Breath magic drains stamina (Cast/PropertyBehaviour, docs/SpellOverhaul.md §2A).
+	require(script.Parent.Parent.Magic.Cast.PropertyBehaviour).setStamina(StaminaService)
 	inventory = ctx.get("InventoryService")
 	registerAdmin(ctx.get("AdminService"))
 end

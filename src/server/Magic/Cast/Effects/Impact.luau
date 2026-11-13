@@ -11,6 +11,10 @@
 	Conducting magic (charge) runs on through metal and water (Cast/Conduction); strong area harm
 	of a blasting category throws loose and breakable parts (Cast/Explosion).
 
+	Every hit that lands also gets its property's behaviour (Cast/PropertyBehaviour, data in
+	Shared/Magic/Data/PropertyBehaviours): sound throws, cold chills into a freeze, resonance hits
+	again, essence burns reservoir, unlife withers... So no harmful property is plain damage.
+
 	Impact.damageFor(power) is the base curve, kept for resolvers that size statuses from it.
 ]]
 
@@ -23,6 +27,7 @@ local DamageModel = require(Cast.DamageModel)
 local ThermalSim = require(Cast.ThermalSim)
 local Conduction = require(Cast.Conduction)
 local Explosion = require(Cast.Explosion)
+local PropertyBehaviour = require(Cast.PropertyBehaviour)
 
 local POINT_FORMS: { [string]: boolean } = { touch = true, projectile = true, beam = true, chain = true }
 
@@ -66,7 +71,9 @@ function Impact.resolve(ctx: CastTypes.EffectContext, _params: { [string]: any }
 	for index, hit in Targeting.select(ctx) do
 		if Targeting.canHarm(ctx.player, hit.model) then
 			local falloff = if stats.recipe.form == "chain" then C.damage.chainFalloff ^ (index - 1) else nil
-			DamageModel.hit(ctx, hit, 1, stats.recipe.property, { falloff = falloff })
+			local amount, result = DamageModel.hit(ctx, hit, 1, stats.recipe.property, { falloff = falloff })
+			-- What this property does besides damage (Data/PropertyBehaviours, docs/SpellOverhaul.md §2A).
+			PropertyBehaviour.apply(ctx, hit, amount, result, nil)
 			dealt += 1
 			table.insert(struck, hit)
 		end

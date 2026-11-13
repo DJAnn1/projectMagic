@@ -28,6 +28,7 @@ export type Summary = {
 }
 
 local SenseSight = require(script.Parent.SenseSight)
+local Behaviours = require(script.Parent.PropertyBehaviours)
 
 local RouteSummaries = {}
 
@@ -180,12 +181,12 @@ local routes: { [string]: Summary } = {
 
 	-- Energy
 	light = { kind = "utility", text = "Makes a light that stays with you for a while.", lasts = true },
-	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight." },
+	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
 		kind = "attack",
-		text = "Burns whoever it reaches and heats what it lands on.",
-		byVerb = { reduce = { kind = "control", text = "Chills: people slow down, things cool, fires go out and water freezes." } },
+		text = "Burns whoever it reaches (they keep burning a moment) and heats what it lands on.",
+		byVerb = { reduce = { kind = "control", text = "Chills: people slow more with every hit and three chills freeze them solid; things cool, fires go out and water freezes." } },
 	},
 
 	-- Water
@@ -217,9 +218,18 @@ local routes: { [string]: Summary } = {
 			redirect = { text = "Shoves whoever it reaches the way you aim." },
 		},
 	},
-	harm = { kind = "attack", text = "Damages whoever it reaches." },
+	harm = { kind = "attack", text = "Damages whoever it reaches." }, -- byProperty: Data/PropertyBehaviours (below)
 	manifest = { kind = "none", text = "Almost nothing happens. It shows its light and spends your magic, but it won't hurt, help or move anyone." },
 }
+-- Harmful spells say what their property does besides damage (docs/SpellOverhaul.md §2A).
+do
+	local byProperty: { [string]: Variant } = {}
+	for propertyId, behaviour in Behaviours do
+		byProperty[propertyId] = { text = "Damages whoever it reaches. " .. behaviour.summary }
+	end
+	routes.harm.byProperty = byProperty
+end
+
 -- Sense spells whose property SHOWS something (Data/SenseSight) say what they show.
 do
 	local byProperty: { [string]: Variant } = {}
