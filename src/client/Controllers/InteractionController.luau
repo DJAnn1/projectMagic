@@ -113,7 +113,7 @@ local function cellFor(s: Scope, parent: Instance, view: ItemView?, ref: string,
 	cell.LayoutOrder = order
 	cell.Parent = parent
 	if onClick then
-		s:add(C.clickable(cell, onClick)) -- Activated, or the click fallback (UI/Components)
+		s:add(C.clickable(cell, onClick))
 	end
 	s:add(cell.MouseEnter:Connect(function()
 		hovered:set(view)

@@ -642,14 +642,7 @@ function CastClient.start(_self: any, _ctx: any)
 			return
 		end
 		if processed then
-			-- Only our own UI counts as having taken a click. A left click swallowed by something
-			-- invisible (a world billboard over an NPC) still uses what's under the cursor, but it
-			-- never casts or swings.
-			if input.UserInputType == Enum.UserInputType.MouseButton1 and not clicker:guiTookClick() then
-				local shift = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
-				clicker:tryClick(shift)
-			end
-			return
+			return -- a menu, a button or a text box took it
 		end
 		if Controls.matches("interact_key", input) and clicker:tryKey() then
 			return -- E used what's outlined; otherwise it falls through to the slash below

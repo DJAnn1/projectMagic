@@ -152,18 +152,7 @@ end
 
 -- ─── Open / close ───────────────────────────────────────────────────────────
 
--- TRACE (temporary, 2026-11-12): every rebuild, with what asked for it.
-local rebuildTrace = require(Shared.Core.Logger).new("RebuildTrace")
-local rebuildCount = 0
-local function traceRebuild(what: string, why: string)
-	rebuildCount += 1
-	if rebuildCount <= 40 or rebuildCount % 50 == 0 then
-		rebuildTrace:info("ui_rebuild", { what = what, why = why, n = rebuildCount })
-	end
-end
-
 local function renderScreen()
-	traceRebuild("screen", tostring(I.openScreen:get()))
 	if screenScope then
 		screenScope:destroy()
 		screenScope = nil
@@ -314,7 +303,6 @@ end
 -- ─── Roots, scale and rebuilds ──────────────────────────────────────────────
 
 local function renderLayers()
-	traceRebuild("layers", "rebuildAll")
 	if layerScope then
 		layerScope:destroy()
 		layerScope = nil
@@ -481,16 +469,13 @@ function InterfaceController.start(_self: any, _ctx: any)
 
 	Theme.apply(magic.settings:get())
 	magic.settings:observe(function(settings)
-		traceRebuild("all", "settings changed")
 		Theme.apply(settings)
 		rebuildAll()
 	end)
-	I.layout:observe(function(layout)
-		traceRebuild("all", "layout=" .. tostring(layout))
+	I.layout:observe(function()
 		rebuildAll()
 	end)
-	I.inputMode:observe(function(mode)
-		traceRebuild("all", "inputMode=" .. tostring(mode))
+	I.inputMode:observe(function()
 		rebuildAll()
 	end)
 	I.openScreen:observe(function(id)
