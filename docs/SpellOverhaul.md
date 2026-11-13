@@ -2,7 +2,7 @@
 
 Written 2026-11-12 on the owner's request: "expand on the current spell system to make it similar to those bosses we just did. The spells need to be more fun, a lot of them feel generic in what they do and how they look. Audit the potential spells and what they can do and design a plan on improving them. I also want health to increase with skill increasing as your magic gets stronger."
 
-Design only: nothing here is built yet. Stages are at the end, smallest and safest first.
+Stages are at the end, smallest and safest first. **Stage 0 built 2026-11-13** (health from magic: `Shared/Magic/MagicHealth`; the audit: `Shared/Magic/SpellAudit`, admin `spellaudit`, `magichealth`), not yet run. The rest is design only.
 
 ## 1. Audit: what a spell can be, and what it actually does
 

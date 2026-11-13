@@ -26,6 +26,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local ActionRules = require(Shared.Magic.ActionRules)
 local CombatAnimations = require(Shared.Magic.Data.CombatAnimations)
+local MagicHealth = require(Shared.Magic.MagicHealth)
 
 local Magic = script.Parent.Parent.Magic
 local Gear = require(Magic.Data.Gear)
@@ -70,6 +71,7 @@ local SETTLEMENT_SKIP = 1500
 local SPAWNS_PER_STEP = 6
 local HOP = 30
 local WALK_SPEED = 10
+local BASE_HEALTH = 100 -- a body with no magic (StatDefs health base)
 
 -- Rigs use the rig type the combat clips were authored for (CombatAnimations.rigType), so the
 -- ambient clips are Roblox's defaults for that rig.
@@ -266,6 +268,8 @@ local function dress(rig: Rig, npc: any)
 	LOD.applyMarks(rig.model, npc)
 	rig.label.Text = string.format("%s\n%s", npc.name, npc.occupationName)
 	rig.prompt.ObjectText = npc.name
+	-- An NPC's magic makes them harder to kill, by the same rule as players (Shared/Magic/MagicHealth).
+	rig.humanoid.MaxHealth = MagicHealth.maxFor(npc.magic and npc.magic.caster, BASE_HEALTH)
 	rig.humanoid.Health = rig.humanoid.MaxHealth
 	-- A pooled rig may still carry the last wearer's fight: clear it, then put on this NPC's gear.
 	local h = rig.humanoid

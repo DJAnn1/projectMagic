@@ -13,12 +13,17 @@
 	                              computed stats (power, cost, range, duration, area, instability...)
 	                              for you here, and for an unbound caster when you can't cast it
 	dummy <spawn|heal|clear> [hp] [at]   a target that shows the damage it takes
+	spellaudit [power] [domain]   every recipe the grammar allows, counted by where it lands: how many
+	                              are plain damage or do nothing (docs/SpellOverhaul.md §2G)
+	magichealth [player]          how much health their magic gives them, part by part
 ]]
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local Util = require(script.Parent.Parent.Util)
+local SpellAudit = require(game:GetService("ReplicatedStorage").Shared.Magic.SpellAudit)
+local MagicHealth = require(game:GetService("ReplicatedStorage").Shared.Magic.MagicHealth)
 local CombatAnimations = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.CombatAnimations)
 
 local DUMMY_TAG = "AdminTestDummy"
@@ -27,6 +32,7 @@ return function(admin: any, deps: any)
 	local cast = deps.cast
 	local world = deps.world
 	local reservoirs = deps.reservoirs
+	local playerData = deps.playerData
 
 	admin:Register({
 		name = "cheat", category = "Spells", description = "Spell cheats for you this session: infinite reservoir, no cooldowns, no backlash",
@@ -240,6 +246,38 @@ return function(admin: any, deps: any)
 				return "no character"
 			end
 			return if spawnDummy(at, a.hp) then "dummy (" .. a.hp .. " hp) at " .. Util.fmt(at) else "couldn't build a dummy rig"
+		end,
+	})
+	admin:Register({
+		name = "spellaudit", category = "Spells",
+		description = "Every recipe the grammar allows (any mastery) at one power, counted by the effect it routes to: how many are plain damage (harm) or do nothing (manifest)",
+		args = {
+			{ name = "power", type = "number", min = 1, max = 10, default = 5 },
+			{ name = "domain", type = "string", optional = true },
+		},
+		handler = function(_ctx, a)
+			local started = os.clock()
+			local report = SpellAudit.run({ power = math.floor(a.power), domain = a.domain, yield = task.wait })
+			local lines = SpellAudit.lines(report, 14)
+			table.insert(lines, string.format("(%.1f s)", os.clock() - started))
+			return table.concat(lines, "\n")
+		end,
+	})
+
+	admin:Register({
+		name = "magichealth", category = "Spells", description = "How much health a player's magic gives them: best tier, breadth, Life affinity",
+		args = { { name = "player", type = "player", default = "me" } },
+		handler = function(_ctx, a)
+			local data = playerData:get(a.player)
+			local caster = data and data.caster
+			if not caster then
+				return "no data for them yet"
+			end
+			local parts = MagicHealth.of(caster)
+			local humanoid = a.player.Character and a.player.Character:FindFirstChildOfClass("Humanoid")
+			return string.format("best tier %d: +%d · %d other branches at Novice+: +%d · Life: +%.0f%% · max health now %s",
+				parts.best, parts.tierFlat, parts.breadth, parts.breadthFlat, parts.pct * 100,
+				if humanoid then tostring(math.floor(humanoid.MaxHealth)) else "?")
 		end,
 	})
 end

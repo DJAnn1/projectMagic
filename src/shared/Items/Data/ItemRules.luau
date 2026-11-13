@@ -162,7 +162,6 @@ ItemRules.mend = {
 
 -- ─── Stats ──────────────────────────────────────────────────────────────────
 
-ItemRules.masteryHealthPerTier = 5 -- +health per tier of your best branch (Expert = +25)
 
 -- ─── Starter kit (a brand-new inventory) ───────────────────────────────────
 

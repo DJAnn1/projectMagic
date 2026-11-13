@@ -41,6 +41,7 @@ local Net = require(Shared.Net)
 local Topics = require(Shared.Core.Topics)
 local MagicCore = require(Shared.Magic.MagicCore)
 local Reservoir = require(Shared.Magic.Reservoir)
+local MagicHealth = require(Shared.Magic.MagicHealth)
 local ItemTypes = require(Shared.Items.ItemTypes)
 local ItemDatabase = require(Shared.Items.ItemDatabase)
 local ItemInstance = require(Shared.Items.ItemInstance)
@@ -177,14 +178,6 @@ end
 
 -- ─── Stats ──────────────────────────────────────────────────────────────────
 
-local function bestTier(caster: any): number
-	local best = 0
-	for branchId in (caster and caster.mastery or {}) :: { [string]: number } do
-		best = math.max(best, MagicCore.masteryTier(caster, branchId))
-	end
-	return best
-end
-
 local function applyToCharacter(player: Player, s: PlayerInv)
 	local cached = StatCache.get(player)
 	local character = player.Character
@@ -234,9 +227,11 @@ local function recompute(player: Player)
 	end
 	local caster = data.caster
 	s.lastCaster = caster
+	local magicHealth = MagicHealth.of(caster)
 	local layers: { ItemTypes.Layer } = {
 		{ source = "profile", label = "Your attunement", stats = { reservoirMax = Reservoir.maxReservoir(caster) } },
-		{ source = "mastery", label = "Mastery", stats = { health = bestTier(caster) * ItemRules.masteryHealthPerTier } },
+		-- Your magic makes you harder to kill (Shared/Magic/MagicHealth, docs/SpellOverhaul.md §2F).
+		{ source = "mastery", label = "Your magic", stats = { health = magicHealth.flat, healthPct = magicHealth.pct } },
 	}
 	local gear, focus = StatCalc.gearLayers(s.inv.equip, caster)
 	for _, layer in gear do

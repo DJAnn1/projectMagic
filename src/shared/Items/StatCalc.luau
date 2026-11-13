@@ -6,7 +6,7 @@
 	CALCULATION ORDER
 		1. base       StatDefs.base (a bare character: 100 health, 60 carry...)
 		2. profile    innate: reservoir capacity from attunement and traits (Reservoir.maxReservoir)
-		3. mastery    +health per best mastery tier (ItemRules.masteryHealthPerTier)
+		3. mastery    "Your magic": health from your best tier, breadth and Life affinity (Shared/Magic/MagicHealth)
 		4. gear       every equipped, unbroken item whose requirements are met: rolled base stats,
 		              affixes, focus domain power, and attunements the wearer qualifies for
 		5. set        set bonuses by pieces worn (cumulative)
