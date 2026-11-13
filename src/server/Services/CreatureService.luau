@@ -397,6 +397,13 @@ local function rewardKill(creature: Creature)
 	end
 end
 
+-- Another service's kill (WildbornService): paid exactly like a creature kill: XP to the branch
+-- each person last hit it with, seeded loot, the hourly anti-grind factor, party shares. `def`
+-- needs id, level, health, xp, coins and loot, as a Creatures.Def.
+function CreatureService.rewardFor(_self: any, def: any, dealt: { [number]: number }, branch: { [number]: string }, position: Vector3)
+	rewardKill({ def = def, dealt = dealt, branch = branch, root = { Position = position } } :: any)
+end
+
 local function die(creature: Creature)
 	forget(creature)
 	local def = creature.def
