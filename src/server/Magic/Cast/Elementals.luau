@@ -262,7 +262,10 @@ local function copyRig(source: Model, health: number, at: CFrame, ownerId: numbe
 			CollectionService:RemoveTag(instance, tag)
 		end
 		for key in instance:GetAttributes() do
-			instance:SetAttribute(key, nil)
+			-- Roblox's own (RBXRefinementScale after ScaleTo...) can't be cleared from a script.
+			if string.sub(key, 1, 3) ~= "RBX" then
+				pcall(instance.SetAttribute, instance, key, nil)
+			end
 		end
 	end
 	strip(model)

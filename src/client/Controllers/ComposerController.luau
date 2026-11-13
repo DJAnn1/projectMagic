@@ -946,7 +946,12 @@ local function buildWishPicker(parent: Instance, recipe: Types.Recipe, kind: str
 		for i, id in ids do
 			local label = if id == "aim" then "What I aim at" elseif id == "self" then "Myself" else Wishes.name(id, kind)
 			C.button(label, function()
-				update({ wish = if id == fallback then nil else id })
+				-- Not update(): a nil in its changes table is no change at all, so the default
+				-- ("What I aim at") could never be picked again once another wish was set.
+				local d = table.clone(draft:get())
+				d.wish = if id == fallback then nil else id
+				draft:set(prune(d))
+				status:set(nil)
 			end, {
 				kind = "ghost",
 				selected = current == id,
