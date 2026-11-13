@@ -953,6 +953,21 @@ function SharedEventService.init(_self: any, ctx: any)
 	bus:subscribe(Topics.SpellCast, onCast)
 end
 
+-- The next shared event, if it begins within `within` seconds: its type, town and when (OmenService).
+function SharedEventService.upcoming(_self: any, within: number): { id: string, typeId: string, x: number, z: number, startsAt: number }?
+	if not enabled() or #towns == 0 then
+		return nil
+	end
+	local now = os.time()
+	local slot = EventRules.slotOf(now) + 1
+	local startsAt = EventRules.timeline(slot, "elemental").startsAt -- a slot's start doesn't depend on the type
+	if startsAt - now > within then
+		return nil
+	end
+	local plan = planFor(slot)
+	return { id = "s" .. slot, typeId = plan.typeId, x = plan.x, z = plan.z, startsAt = startsAt }
+end
+
 function SharedEventService.start(_self: any, _ctx: any)
 	local parent = Instance.new("Folder")
 	parent.Name = "SharedEventEnemies"

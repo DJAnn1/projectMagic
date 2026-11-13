@@ -1080,6 +1080,32 @@ function TitanService.init(_self: any, ctx: any)
 	bus:subscribe(Topics.MagicReaction, onReaction)
 end
 
+-- The next Titan, if it begins within `within` seconds: where it wades ashore and when (OmenService).
+-- Every server computes the same answer. The plan is cached for its slot.
+local upcomingCache: { slot: number, plan: Rules.Plan }? = nil
+function TitanService.upcoming(_self: any, within: number): { id: string, kind: string, x: number, z: number, startsAt: number }?
+	if not enabled() or #towns == 0 then
+		return nil
+	end
+	local now = os.time()
+	local slot = Rules.slotOf(now) + 1
+	local startsAt = slot * T.slotSeconds
+	if startsAt - now > within then
+		return nil
+	end
+	local cached = upcomingCache
+	if not cached or cached.slot ~= slot then
+		cached = { slot = slot, plan = Rules.plan(worldService:getSeed(), slot, towns, WorldConfig.WORLD_SIZE) }
+		upcomingCache = cached
+	end
+	local plan = (cached :: { slot: number, plan: Rules.Plan }).plan
+	local first = plan.points[1]
+	if not first then
+		return nil
+	end
+	return { id = plan.id, kind = plan.kind, x = first.x, z = first.z, startsAt = startsAt }
+end
+
 function TitanService.start(_self: any, _ctx: any)
 	local parent = Instance.new("Folder")
 	parent.Name = "Titans"

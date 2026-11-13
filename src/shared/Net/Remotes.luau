@@ -503,6 +503,7 @@ local Remotes: { [string]: RemoteDef } = {
 	NpcSpeech = { kind = "Event", from = "Server" }, -- { npcId, text }: a speech bubble over an NPC (nearby players only)
 	JournalChanged = { kind = "Event", from = "Server" }, -- { kind, text, questId? }: a new journal entry (owner only)
 	InventoryChanged = { kind = "Event", from = "Server" },
+	Omens = { kind = "Event", from = "Server" }, -- { list = { { id, source, x, y, z, s } } }: the omens this player could see from where they stand (Services/OmenService -> Controllers/OmenController)
 	SenseReveal = { kind = "Event", from = "Server" }, -- { kind, center, radius, duration, bodies?, spots?, parts?, lines?, nexuses?, prints? }: what a Sense spell shows its caster (Cast/SenseSight -> Controllers/SenseController)
 	UsePromptResult = { kind = "Event", from = "Server" }, -- { seq, ok, reason?, text?, pending?, hold? }: the answer to a UsePrompt begin (Interact/PromptRouter)
 	ContainerView = { kind = "Event", from = "Server" }, -- the container you have open, with its session number (or { id, session, closed = true }); viewers only

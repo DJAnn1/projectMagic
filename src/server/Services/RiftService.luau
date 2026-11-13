@@ -1837,4 +1837,19 @@ function RiftService.start(_self: any, _ctx: any)
 	end)
 end
 
+-- The next Rift, if it opens within `within` seconds: its town and when (OmenService).
+function RiftService.upcoming(_self: any, within: number): { id: string, x: number, z: number, startsAt: number }?
+	if not enabled() or #towns == 0 then
+		return nil
+	end
+	local now = os.time()
+	local slot = RiftRules.slotOf(now) + 1
+	local startsAt = RiftRules.window(slot).startsAt
+	if startsAt - now > within then
+		return nil
+	end
+	local plan = planFor(slot)
+	return { id = plan.id, x = plan.x, z = plan.z, startsAt = startsAt }
+end
+
 return RiftService

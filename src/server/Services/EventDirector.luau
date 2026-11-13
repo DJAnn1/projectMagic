@@ -14,6 +14,12 @@
 	- ends on its timer, removing its modifiers
 
 	Events are per-server (live world state); the chronicle records the global ones.
+
+	FORESHADOWING (docs/Omens.md): an event the director rolls doesn't start at once. It waits
+	its omen's `lead` seconds (Data/Omens `world_<type>`) as a pending event, while OmenService
+	shows the signs around it, then starts. Pending events count toward the caps, so nothing is
+	rolled twice. `startEvent` (admin `startevent`, other services) still starts at once. Flag
+	`omens_enabled` off: rolled events start at once, as before.
 ]]
 
 local Players = game:GetService("Players")
@@ -23,6 +29,7 @@ local Net = require(Shared.Net)
 local Topics = require(Shared.Core.Topics)
 local World = game:GetService("ServerScriptService").Server.World
 local EventDefs = require(World.EventDefs)
+local OmenData = require(Shared.Magic.Data.Omens)
 
 export type ActiveEvent = {
 	id: string,
@@ -51,6 +58,9 @@ local flags: any = nil
 local world: any = nil
 local chronicle: any = nil
 local active: { [string]: ActiveEvent } = {}
+export type PendingEvent = { id: string, type: string, x: number, z: number, startsAt: number }
+local pending: { [string]: PendingEvent } = {}
+local pendingCount = 0
 local counter = 0
 local rng = Random.new()
 
@@ -68,13 +78,19 @@ end
 local function countActive(): ({ [string]: number }, number, number)
 	local byType: { [string]: number } = {}
 	local regional, global = 0, 0
-	for _, e in active do
-		byType[e.type] = (byType[e.type] or 0) + 1
-		if EventDefs[e.type].scope == "global" then
+	local function count(typeName: string)
+		byType[typeName] = (byType[typeName] or 0) + 1
+		if EventDefs[typeName].scope == "global" then
 			global += 1
 		else
 			regional += 1
 		end
+	end
+	for _, e in active do
+		count(e.type)
+	end
+	for _, p in pending do
+		count(p.type) -- a foreshadowed event already holds its place
 	end
 	return byType, regional, global
 end
@@ -206,6 +222,34 @@ function EventDirector.noteCast(self: any, position: Vector3, domains: { string 
 	end
 end
 
+-- A rolled event: shown by its omen for a while first, then started (see FORESHADOWING).
+local function foreshadow(typeName: string, x: number, z: number)
+	local source = OmenData.sources["world_" .. typeName]
+	if not source or flags.get("omens_enabled") ~= true then
+		EventDirector:startEvent(typeName, x, z)
+		return
+	end
+	pendingCount += 1
+	local id = string.format("pending_%s_%d", typeName, pendingCount)
+	pending[id] = { id = id, type = typeName, x = x, z = z, startsAt = os.time() + source.lead }
+	log:info("event_foreshadowed", { id = id, x = math.floor(x), z = math.floor(z), lead = source.lead })
+	task.delay(source.lead, function()
+		if pending[id] then
+			pending[id] = nil
+			EventDirector:startEvent(typeName, x, z)
+		end
+	end)
+end
+
+-- Events rolled and waiting out their omen (OmenService reads these).
+function EventDirector.pending(_self: any): { PendingEvent }
+	local out: { PendingEvent } = {}
+	for _, p in pending do
+		table.insert(out, p)
+	end
+	return out
+end
+
 local function tick()
 	local now = os.time()
 	for id, e in active do
@@ -221,7 +265,7 @@ local function tick()
 			if def.scope == "global" and rng:NextNumber() < def.weight({}) then
 				local x, z = locate(def, 0, 0)
 				if x and z then
-					EventDirector:startEvent(typeName, x, z)
+					foreshadow(typeName, x, z)
 					break
 				end
 			end
@@ -264,7 +308,7 @@ local function tick()
 		if roll <= 0 then
 			local x, z = locate(EventDefs[c.typeName], p.X, p.Z)
 			if x and z then
-				EventDirector:startEvent(c.typeName, x, z)
+				foreshadow(c.typeName, x, z)
 			end
 			return
 		end
