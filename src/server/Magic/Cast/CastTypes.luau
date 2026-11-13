@@ -44,6 +44,11 @@ export type EffectContext = {
 	runtime: any, -- EffectRunner (fields, presences, dispel, cues)
 	services: { reservoirs: any }, -- other services a resolver may need
 	speedMult: number?, -- projectile speed from the charge stage (Magic/Charge); nil = 1
+	-- The spell's shape (Cast/Shapes, Data/SpellShapes) steering its flight: a lob's higher arc,
+	-- a homing wisp, a skipping ripple. nil = the plain flight.
+	shapeGravityMult: number?,
+	shapeHoming: boolean?,
+	shapeBounces: number?,
 }
 
 export type Outcome = {

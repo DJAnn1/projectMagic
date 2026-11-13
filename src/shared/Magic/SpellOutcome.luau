@@ -17,6 +17,7 @@ local Types = require(script.Parent.Types)
 local Registry = require(script.Parent.Registry)
 local SpellRoute = require(script.Parent.SpellRoute)
 local Summaries = require(script.Parent.Data.RouteSummaries)
+local SpellShape = require(script.Parent.SpellShape)
 
 type RecipeLike = SpellRoute.RecipeLike
 
@@ -65,6 +66,11 @@ function SpellOutcome.of(recipe: RecipeLike): Outcome
 	local byForm = summary.byForm and summary.byForm[recipe.form] -- wins over the verb and the property
 	if byForm then
 		kind, text = byForm.kind or kind, byForm.text or text
+	end
+	-- How it plays (Data/SpellShapes, stage 3 of the spell overhaul): "It rains down on marked spots..."
+	local played = SpellShape.words(SpellShape.of(recipe :: any, route.id))
+	if played then
+		text = text .. " " .. played
 	end
 	local shape: string? = nil
 	if recipe.form == "summon" or (recipe.form == "wall" and not Summaries.builds[route.id]) then

@@ -179,3 +179,13 @@ Each stage gets specs (behaviour data valid, every harmful property has a behavi
 - Statuses on bodies: `Cast/StatusEffects` tags a Humanoid `MagicStatused` while it carries any status; `Shared/Magic/Data/StatusLooks` + `Client/Controllers/StatusLookController` + `Fx/StatusFx` draw them on everyone nearby (140 studs, 40 bodies): frost, an ice shell for frozen, flames, green motes, rot, stars for dazed, and the rest.
 - New ground mark `stain`. Flag `property_looks_enabled` (replicated). Spec `Tests/PropertyLooks.spec` (6).
 - Test: `fxpreview <domain> 6 <property>` for each property; then real casts at `dummy spawn` to see body statuses.
+
+## 7. Stage 3 as built (2026-11-13, not yet run)
+
+Split in two: **3a shapes** (built) and **3b elementals** (summon by branch, next: an ally that picks targets and fights needs its own step). Wildborn keep their own move library for now; moving them onto the shared shapes is a later cleanup, so nothing that works breaks.
+
+- `Shared/Magic/Data/SpellShapes` (form x property/category/"property.verb" -> shape) and `Shared/Magic/SpellShape.of` (shared by server and Composer). Only damaging routes (harm, thermal, ignite, strike) get a shape: control routes such as the water freeze stay control.
+- `Server/Magic/Cast/Shapes`: `before` (lob/homing/skip steer `Cast/Delivery` through new context fields; erupt, rain and big zones send a ground warning to everyone near and wait), `after` (echo, split, lob splash, drain, nova, linger, barrier, erupt lift, rain drops, aura pulses). Every extra hit through DamageModel + PropertyBehaviour + `Targeting.canHarm`. Caps: 16 areas, 3 per player, 9 drops.
+- `Client/Fx/ShapeFx` draws warnings (always, even far or reduced), drops, splits, drains, zones and barriers in the spell's own look; `WorldEffect` kind `shape`.
+- The Composer appends the shape's line (`SpellOutcome`). Flag `spell_shapes_enabled`. Spec `Tests/SpellShapes.spec` (7).
+- Known gaps: hits after the cast resolved aren't judged by settlement law (the pinned delayed-hits item); NPC mages don't use shapes yet (NPCCombat casts its own bolts).

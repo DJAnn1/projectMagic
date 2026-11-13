@@ -15,6 +15,7 @@
 		backlash         a burst at the caster; our own backlash also shakes the camera
 		status           our own status overlays (blind, slowed time, silence, burning...)
 		                 (+ knockdown: our character falls for the duration, then gets up)
+		shape            Fx/ShapeFx: spell shapes (ground warnings, rains, novas, lingering areas...)
 		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
 		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
@@ -38,6 +39,7 @@ local DashFx = require(script.Parent.Parent.Fx.DashFx)
 local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
+local ShapeFx = require(script.Parent.Parent.Fx.ShapeFx)
 local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
 local SurgeFx = require(script.Parent.Parent.Fx.SurgeFx)
 local FamiliarFx = require(script.Parent.Parent.Fx.FamiliarFx)
@@ -164,6 +166,8 @@ local function handle(effect: { [string]: any })
 		CombatFeedback.heal(effect)
 	elseif kind == "statusTag" then
 		CombatFeedback.statusTag(effect)
+	elseif kind == "shape" then
+		ShapeFx.handle(effect)
 	elseif kind == "combo" then
 		ComboFx.play(effect)
 	elseif kind == "combo_ready" then

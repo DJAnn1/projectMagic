@@ -79,6 +79,7 @@ local CastTypes = require(MagicFolder.Cast.CastTypes)
 local Targeting = require(MagicFolder.Cast.Targeting)
 local Delivery = require(MagicFolder.Cast.Delivery)
 local LightningRods = require(MagicFolder.Cast.LightningRods)
+local Shapes = require(MagicFolder.Cast.Shapes)
 local Damage = require(MagicFolder.Cast.Damage)
 local DamageModel = require(MagicFolder.Cast.DamageModel)
 local EffectBudget = require(MagicFolder.Cast.EffectBudget)
@@ -706,7 +707,17 @@ local function resolve(p: Pending)
 	}
 	local params = p.route.params or {}
 	local record: { Damage.RecordEntry } = {}
+	-- The spell's shape (Cast/Shapes, Data/SpellShapes): it may steer the flight, or mark the ground
+	-- and wait before landing (everyone near sees the warning), then add its follow-ups.
+	local shape = if backfire then nil else Shapes.find(stats, p.route.id)
+	local rainSpots = if shape then Shapes.before(ctx, shape) else nil
 	local outcome = strike(p, ctx, params, record)
+	if shape then
+		local ok, err = pcall(Shapes.after, ctx, shape, p.route.id, record, rainSpots)
+		if not ok then
+			warn("[CastService] shape " .. tostring(shape.kind) .. ": " .. tostring(err))
+		end
+	end
 
 	-- Losing control of a strong spell is more than the spell landing on you.
 	local riskNote: string? = nil

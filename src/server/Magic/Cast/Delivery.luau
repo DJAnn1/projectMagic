@@ -360,10 +360,13 @@ function Delivery.plan(ctx: CastTypes.EffectContext): Flight
 	-- The same maths the client's reticle arc uses (Shared/Magic/Aim).
 	local speed = Aim.projectileSpeed(power) * (ctx.speedMult or 1) -- a full charge flies faster
 	local gravity = Aim.projectileGravity(stats.domains[1])
+	if ctx.shapeGravityMult then
+		gravity = math.max(gravity, 20) * ctx.shapeGravityMult -- a lob arcs high (Cast/Shapes)
+	end
 	local muzzle = Aim.muzzle(ctx.origin)
 	local velocity = Aim.launchVelocity(muzzle, ctx.point, speed, gravity, ctx.root.CFrame.LookVector)
 	local homing: BasePart? = nil
-	if stats.flags.homing and ctx.target then
+	if (stats.flags.homing or ctx.shapeHoming) and ctx.target then
 		local hit = Targeting.characterOf(ctx.target)
 		homing = if hit then hit.root else nil
 	end
@@ -377,7 +380,7 @@ function Delivery.plan(ctx: CastTypes.EffectContext): Flight
 		homing = homing,
 		turnRate = P.homingTurn,
 		pierce = if stats.flags.piercing then pierceCount() else 0,
-		bounces = P.bounces,
+		bounces = ctx.shapeBounces or P.bounces,
 		maxDistance = Aim.flightDistance(stats.range),
 		lifetime = P.maxLifetime,
 		ownerModel = ctx.character,
