@@ -187,5 +187,5 @@ Split in two: **3a shapes** (built) and **3b elementals** (summon by branch, nex
 - `Shared/Magic/Data/SpellShapes` (form x property/category/"property.verb" -> shape) and `Shared/Magic/SpellShape.of` (shared by server and Composer). Only damaging routes (harm, thermal, ignite, strike) get a shape: control routes such as the water freeze stay control.
 - `Server/Magic/Cast/Shapes`: `before` (lob/homing/skip steer `Cast/Delivery` through new context fields; erupt, rain and big zones send a ground warning to everyone near and wait), `after` (echo, split, lob splash, drain, nova, linger, barrier, erupt lift, rain drops, aura pulses). Every extra hit through DamageModel + PropertyBehaviour + `Targeting.canHarm`. Caps: 16 areas, 3 per player, 9 drops.
 - `Client/Fx/ShapeFx` draws warnings (always, even far or reduced), drops, splits, drains, zones and barriers in the spell's own look; `WorldEffect` kind `shape`.
-- The Composer appends the shape's line (`SpellOutcome`). Flag `spell_shapes_enabled`. Spec `Tests/SpellShapes.spec` (7).
+- The Composer appends the shape's line (`SpellOutcome`). Flag `spell_shapes_enabled`. Spec `Tests/SpellShapes.spec` (6).
 - Known gaps: hits after the cast resolved aren't judged by settlement law (the pinned delayed-hits item); NPC mages don't use shapes yet (NPCCombat casts its own bolts).
