@@ -8,6 +8,8 @@
 			byVerb variant); Effects/Thermal calls it with "heat", "cold" or "combustion".
 			Nothing happens when the hit dealt nothing (warded, parried, immune): the extras ride on
 			a real hit.
+		PropertyBehaviour.applyControl(ctx, hit, id)   the same with no damage behind it (the water
+			freeze route chills people into a freeze without hurting them)
 		PropertyBehaviour.idFor(recipe)   which behaviour a recipe gets (property, then byVerb)
 		PropertyBehaviour.setStamina(service)   StaminaService registers itself (breath drains it)
 
@@ -191,6 +193,20 @@ function PropertyBehaviour.apply(ctx: CastTypes.EffectContext, hit: CastTypes.Hi
 		local ok, err = pcall(run, ctx, hit, effect, crit)
 		if not ok then
 			warn("[PropertyBehaviour] " .. tostring(behaviourId) .. " " .. tostring(effect.kind) .. ": " .. tostring(err))
+		end
+	end
+end
+
+-- For routes that hold people without hurting them (Effects/Terrain "freeze": chills that build
+-- into a freeze): the behaviour runs with no damage behind it. Never a crit.
+function PropertyBehaviour.applyControl(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, id: string)
+	if hit.humanoid.Health <= 0 or not Behaviours[id] then
+		return
+	end
+	for _, effect in Behaviours[id].effects do
+		local ok, err = pcall(run, ctx, hit, effect, false)
+		if not ok then
+			warn("[PropertyBehaviour] " .. id .. " " .. tostring(effect.kind) .. ": " .. tostring(err))
 		end
 	end
 end

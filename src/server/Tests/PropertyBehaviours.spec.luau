@@ -100,6 +100,25 @@ return function(t: any)
 			model:Destroy()
 		end)
 
+		it("the water freeze route chills with no damage behind it, and three freeze (2026-11-13)", function()
+			-- The owner hit an NPC with water / temperature / reduce many times and it only slowed:
+			-- that recipe takes the Terrain "freeze" route, which used a plain slow.
+			local route = SpellOutcome.of({ branch = "water", property = "temperature", verb = "reduce", form = "projectile", power = 5 }).route
+			expect(route).toBe("freeze")
+			local model, humanoid, root = dummy()
+			local ctx: any = {
+				power = 5, rng = Random.new(2), origin = Vector3.new(0, -400, 10), root = root, character = model,
+				player = nil, stats = { recipe = { property = "temperature", verb = "reduce" } }, services = {},
+			}
+			local hit: any = { model = model, humanoid = humanoid, root = root, distance = 0 }
+			PropertyBehaviour.applyControl(ctx, hit, "cold")
+			PropertyBehaviour.applyControl(ctx, hit, "cold")
+			expect(StatusEffects.has(humanoid, "chilled")).toBe(true)
+			PropertyBehaviour.applyControl(ctx, hit, "cold")
+			expect(StatusEffects.has(humanoid, "frozen")).toBe(true)
+			model:Destroy()
+		end)
+
 		it("the whole grammar has no recipe left that is only damage", function()
 			local report = SpellAudit.run({ power = 5 })
 			for propertyId, n in report.harmByProperty do

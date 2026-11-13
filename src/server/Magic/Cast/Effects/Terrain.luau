@@ -8,7 +8,8 @@
 		                         characters in the path are hit and shoved
 		          = "pour"       a pool of water from the air (temporary; refused where water is)
 		          = "freeze"     the water surface turns to ice (temporary); swimmers caught are
-		                         rooted, others slowed; fires go out, parts chill
+		                         rooted, others chilled (three chills freeze them: Cast/PropertyBehaviour);
+		                         fires go out, parts chill
 		          = "tremor"     a local shudder: shake cue, light structure damage, NPCs and
 		                         loose parts knocked about. No terrain change: tremors are common,
 		                         and only quakes (route `earthquake`) scar the world.
@@ -32,6 +33,7 @@ local EffectBudget = require(Cast.EffectBudget)
 local TerrainDeform = require(World.TerrainDeform)
 local Impact = require(script.Parent.Impact)
 local DamageModel = require(Cast.DamageModel)
+local PropertyBehaviour = require(Cast.PropertyBehaviour)
 
 local Terrain = {}
 
@@ -169,7 +171,12 @@ local function freeze(ctx: CastTypes.EffectContext): CastTypes.Outcome
 	for _, hit in Targeting.inRadius(ctx.point, radius, stats.maxTargets, { [ctx.character] = true }) do
 		if Targeting.canHarm(ctx.player, hit.model) then
 			local caught = hit.humanoid:GetState() == Enum.HumanoidStateType.Swimming and froze
-			StatusEffects.apply(hit.humanoid, if caught then "root" else "slow", { duration = 4, source = ctx.player.UserId })
+			if caught then
+				StatusEffects.apply(hit.humanoid, "root", { duration = 4, source = ctx.player.UserId })
+			else
+				-- A chill stack (Data/PropertyBehaviours "cold"): the third freezes them solid.
+				PropertyBehaviour.applyControl(ctx, hit, "cold")
+			end
 			affected += 1
 		end
 	end

@@ -190,7 +190,7 @@ local routes: { [string]: Summary } = {
 	},
 
 	-- Water
-	freeze = { kind = "control", text = "Turns a water surface to ice. Swimmers are caught, others slowed, and fires go out.", lasts = true },
+	freeze = { kind = "control", text = "Turns a water surface to ice. Swimmers are caught; anyone else is chilled, and three chills freeze them solid. Fires go out.", lasts = true },
 	pour = { kind = "land", text = "Pours a pool of water out of the air. It won't work where water already is.", lasts = true },
 	current = { kind = "move", text = "Leaves a current that shoves everyone the way you aimed.", lasts = true },
 	wave = { kind = "attack", text = "A wave rolls from you toward your aim, knocking people down." },

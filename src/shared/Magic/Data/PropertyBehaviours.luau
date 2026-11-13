@@ -44,7 +44,8 @@ local B: { [string]: Behaviour } = {
 	},
 	cold = {
 		summary = "Chills them, slowing them more with every hit. Three chills freeze them solid.",
-		effects = { { kind = "stack", id = "chilled", duration = 3, max = 3, at = { id = "frozen", duration = 1.4 } } },
+		-- 4 s between chills (was 3: charged casts couldn't chain three in time, 2026-11-13).
+		effects = { { kind = "stack", id = "chilled", duration = 4, max = 3, at = { id = "frozen", duration = 1.4 } } },
 	},
 	temperature = {
 		summary = "Heat that lingers: they keep burning for a moment.",
@@ -52,7 +53,7 @@ local B: { [string]: Behaviour } = {
 	},
 	phase = {
 		summary = "Turns the water in them to ice: chills that build into a freeze. Amplified, it boils instead.",
-		effects = { { kind = "stack", id = "chilled", duration = 3, max = 3, at = { id = "frozen", duration = 1.2 } } },
+		effects = { { kind = "stack", id = "chilled", duration = 4, max = 3, at = { id = "frozen", duration = 1.2 } } },
 		byVerb = { amplify = "heat", generate = "heat" },
 	},
 
