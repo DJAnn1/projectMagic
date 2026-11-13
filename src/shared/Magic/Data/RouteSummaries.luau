@@ -9,7 +9,7 @@
 	routes       per route id:
 	    kind       a key of `kinds`; "none" means the spell has no real effect
 	    text       one sentence on what happens
-	    byVerb / byForm   overrides of kind and/or text (byForm wins)
+	    byVerb / byProperty / byForm   overrides of kind and/or text (applied in that order: byForm wins)
 	    lasts      the resolver reads stats.duration, so Lingering has something to extend
 	builds       routes where the wall form really raises something
 	areaShape    how a wall or summon form behaves when nothing is built
@@ -22,9 +22,12 @@ export type Summary = {
 	kind: string,
 	text: string,
 	byVerb: { [string]: Variant }?,
+	byProperty: { [string]: Variant }?,
 	byForm: { [string]: Variant }?,
 	lasts: boolean?,
 }
+
+local SenseSight = require(script.Parent.SenseSight)
 
 local RouteSummaries = {}
 
@@ -122,7 +125,7 @@ local routes: { [string]: Summary } = {
 	exchange = { kind = "heal", text = "You and your target swap how hurt you are. Only works if you'd gain." },
 
 	-- Senses and charges
-	sense = { kind = "sense", text = "Tells you what you can feel nearby, in a few words. It touches nobody." },
+	sense = { kind = "sense", text = "Tells you what you can feel nearby, in a few words. It touches nobody." }, -- byProperty: Data/SenseSight (below)
 	store = { kind = "utility", text = "Holds a charge for a short while. On its own that's all: a Release spell of the same property lets it out." },
 
 	strike = { kind = "attack", text = "Your domain's first attack: hits what it reaches and adds a small extra." },
@@ -217,6 +220,17 @@ local routes: { [string]: Summary } = {
 	harm = { kind = "attack", text = "Damages whoever it reaches." },
 	manifest = { kind = "none", text = "Almost nothing happens. It shows its light and spends your magic, but it won't hurt, help or move anyone." },
 }
+-- Sense spells whose property SHOWS something (Data/SenseSight) say what they show.
+do
+	local byProperty: { [string]: Variant } = {}
+	for _, kind in SenseSight.kinds do
+		for _, property in kind.properties do
+			byProperty[property] = { text = kind.summary }
+		end
+	end
+	routes.sense.byProperty = byProperty
+end
+
 RouteSummaries.routes = routes
 
 RouteSummaries.builds = { construct = true, stoneshape = true } :: { [string]: boolean }

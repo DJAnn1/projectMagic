@@ -88,6 +88,12 @@ end
 
 -- ─── World reads ────────────────────────────────────────────────────────────
 
+-- Is this part made of a conducting metal (CombatTuning conduction.metalMaterials)? Also used by
+-- Sense sight (Cast/SenseSight).
+function LightningRods.isMetal(part: BasePart): boolean
+	return METAL[part.Material] == true
+end
+
 -- The summed weight of metal-tagged items worn by a character (NPC gear attributes, the
 -- player provider, and a manual "MetalCarried" attribute for tests and admins).
 function LightningRods.metalWeight(model: Model): number

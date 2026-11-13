@@ -252,6 +252,33 @@ function FireSim.extinguish(position: Vector3, radius: number): number
 	return count
 end
 
+-- Burning parts and ground fires within `radius` of a point, as { position, intensity }, at most
+-- `max` (Sense sight, Cast/SenseSight). Read-only.
+function FireSim.firesNear(point: Vector3, radius: number, max: number): { { position: Vector3, intensity: number } }
+	local found: { { position: Vector3, intensity: number } } = {}
+	local r2 = radius * radius
+	for part, f in partFires do
+		if #found >= max then
+			return found
+		end
+		local d = part.Position - point
+		if d:Dot(d) <= r2 then
+			table.insert(found, { position = part.Position, intensity = f.intensity })
+		end
+	end
+	for _, g in groundFires do
+		if #found >= max then
+			break
+		end
+		local position = g.part.Position
+		local d = position - point
+		if d:Dot(d) <= r2 then
+			table.insert(found, { position = position, intensity = g.intensity })
+		end
+	end
+	return found
+end
+
 function FireSim.counts(): (number, number)
 	local parts, ground = 0, 0
 	for _ in partFires do

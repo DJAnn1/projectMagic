@@ -4,7 +4,12 @@
 	effect. The answer goes to the caster as a short line, in words rather than numbers (exact
 	numbers stay an admin tool), from what the server measured for the cast.
 
-	What you sense depends on the property's category:
+	SIGHT (docs/SenseSight.md): a property with a sight kind (SenseRules.kindFor: heat, metal, ley,
+	tracks) also SHOWS the caster those hidden things in the world for a while (Cast/SenseSight),
+	and the line says whether anything showed. Flag `sense_sight_enabled`; off, every property
+	answers in words as below.
+
+	What you sense in words depends on the property's category:
 		Vital, Mental, Spiritual    living presences within the area
 		Kinetic (seismicity)        stress stored in the ground
 		Fluid                       water nearby
@@ -15,9 +20,12 @@
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Registry = require(Shared.Magic.Registry)
+local FeatureFlags = require(Shared.Core.FeatureFlags)
+local SenseRules = require(Shared.Magic.SenseRules)
 local Cast = script.Parent.Parent
 local CastTypes = require(Cast.CastTypes)
 local Targeting = require(Cast.Targeting)
+local SenseSight = require(Cast.SenseSight)
 
 local Sense = {}
 
@@ -35,6 +43,15 @@ function Sense.resolve(ctx: CastTypes.EffectContext, _params: { [string]: any })
 	local env: { [string]: number } = ctx.context.environment or {}
 	local density = ctx.context.ambientDensity or 1
 	local note: string
+
+	local kind = SenseRules.kindFor(stats.recipe.property)
+	if kind and FeatureFlags.get("sense_sight_enabled") == true then
+		local shown, line = SenseSight.reveal(ctx, kind)
+		if kind == "ley" and shown == 0 then
+			line ..= " The ambient magic is " .. scale(density / 3, { "almost dead", "thin", "steady", "rich", "overflowing" }) .. "."
+		end
+		return { effective = true, hits = 0, note = line }
+	end
 
 	if property.category == "Vital" or property.category == "Mental" or property.category == "Spiritual" then
 		local count = #Targeting.inRadius(ctx.point, math.max(stats.area, 20), 50, { [ctx.character] = true })

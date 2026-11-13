@@ -58,7 +58,11 @@ function SpellOutcome.of(recipe: RecipeLike): Outcome
 	if byVerb then
 		kind, text = byVerb.kind or kind, byVerb.text or text
 	end
-	local byForm = summary.byForm and summary.byForm[recipe.form] -- wins over the verb
+	local byProperty = summary.byProperty and summary.byProperty[recipe.property]
+	if byProperty then
+		kind, text = byProperty.kind or kind, byProperty.text or text
+	end
+	local byForm = summary.byForm and summary.byForm[recipe.form] -- wins over the verb and the property
 	if byForm then
 		kind, text = byForm.kind or kind, byForm.text or text
 	end
