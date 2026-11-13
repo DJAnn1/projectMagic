@@ -1,0 +1,165 @@
+# Spell overhaul: audit and plan
+
+Written 2026-11-12 on the owner's request: "expand on the current spell system to make it similar to those bosses we just did. The spells need to be more fun, a lot of them feel generic in what they do and how they look. Audit the potential spells and what they can do and design a plan on improving them. I also want health to increase with skill increasing as your magic gets stronger."
+
+Design only: nothing here is built yet. Stages are at the end, smallest and safest first.
+
+## 1. Audit: what a spell can be, and what it actually does
+
+### The grammar is huge
+
+A spell is `branch + property + verb + form + power + modifiers`: 12 domains (~130 branches, 10 hybrids), 58 properties, 10 verbs, 11 forms (touch, projectile, beam, chain, burst, zone, aura, wall, pillar, ritual, summon), power 1–10. Tens of thousands of valid recipes.
+
+### But they collapse into a few behaviours
+
+`Shared/Magic/Data/EffectLibrary` sends every recipe to the **first** matching route, out of about 60. The specific routes are rich: Time, Gravity and Reality powers, disasters, fields, statuses, Siphon, Blink, Wave, Metal, Terrain. Everything else falls through to two catch-alls:
+
+- **`harm` → `Effects/Impact`**: any harmful property with an offensive verb that no earlier route claims. Impact does the same thing for all of them: damage to whatever the form reaches. Its only property-specific extras are that charge conducts through metal and water, strong area harm throws loose parts, and a heat or light beam warms the part it hits.
+- **`manifest`**: anything not harmful and not claimed. It only sets a hidden attribute; the Composer already labels these "No real effect".
+
+Harmful properties whose offensive casts land **entirely or mostly in `harm`**, and so play the same:
+
+| Property | Domain(s) | Today | What it should feel like |
+|---|---|---|---|
+| radiation | energy | plain damage | sickness that lingers and ignores armour |
+| charge | energy | damage + conduction | lightning: chains, stuns, arcs between metal |
+| sound | air, mind | plain damage (reduce = silence) | shockwave cones that knock back and deafen |
+| resonance | earth, crystal | plain damage | delayed shatter that breaks guards, wards and constructs |
+| phase | water | plain damage (reduce = freeze terrain) | freeze, melt, boil: chill that builds into a freeze |
+| breath | air | plain damage | suffocation: drains stamina, slows, stops sprinting |
+| cohesion (outside earth) | earth, void | plain damage | armour-crumbling: defence down, things fall apart |
+| weight (outside gravity) | gravity, earth | plain damage | slams: knockdown, craters |
+| soul | spirit | plain damage | pierces wards, marks the soul (bonus damage after) |
+| essence (except transfer) | spirit, life | plain damage | burns the target's reservoir |
+| unlife | spirit, void | plain damage | withering: grows worse each second, a kill feeds you |
+| age | time | plain damage | ageing: slower, weaker, wears gear out |
+| luminosity (projectile, beam, chain) | energy | plain damage | blinding lances, burning light |
+| vitality / metabolism (reduce) | life | plain damage | sapping: heal-block and slow |
+
+About **14 of the 28 harmful properties** have no identity of their own. Fire (combustion, temperature), poison, rot and hex (afflict), force (momentum, pressure, flow), seismicity and magnetism do have routes, but even those mostly mean "damage plus one status".
+
+### Verbs barely matter for harm
+
+For a harmful property, the 7 offensive verbs (generate, amplify, reduce, transfer, redirect, release, transmute) all reach the same Impact call. "Amplify fire" and "release fire" do the same thing.
+
+### Looks: domain colour × form shape
+
+`Client/Fx/SpellFx.spell` draws by **form** (an orb in flight, a beam, rings, a rune circle, a column) in the **domain's palette**, tinted by your signature, refined by mastery tier. The **property** changes the look in one place only: charge draws lightning instead of a beam. So the 12 domain looks multiplied by about 8 shapes are all the variety there is. A sound bolt, a radiation bolt and a soul bolt from the same domain look the same.
+
+### What the Wildborn have that spells don't
+
+Every Wildborn move has its own **shape** and its own **rule**: a lob that arcs, a dash with a burning trail, an eruption marching in a line, a zone that pulls, a tether that drains, a rain of warned strikes, an echo that hits twice, a rally that changes the fight. Players have one shape per form, and the rule is always "damage now".
+
+### Health
+
+Player max health is `StatDefs.health.base = 100` plus gear affixes (`Shared/Items/StatCalc`). It never grows with magic. Meanwhile spell damage grows with power (`DamageModel.base = 9 × power^0.6`: about 9 at P1, 36 at P10, before crits and modifiers), and Wildborn bosses hit for 20–77. Late-game players are glass.
+
+## 2. The plan
+
+### A. Each harmful property gets a behaviour (fixes "what it does")
+
+New data, `Shared/Magic/Data/PropertyBehaviours`: one entry per harmful property, read by `Impact` (and by the routes that already exist, so fire and frost gain too). Each behaviour is a **rule on hit** built from parts the game already has: statuses, `Damage.apply`, Conduction, knockback, terrain, Explosion.
+
+| Property | On hit | At higher power or tier |
+|---|---|---|
+| combustion | burning (a stack of damage over time); fire spreads to flammable ground | P6+: the burn spreads to people next to the target |
+| temperature (cold) | chill stacks: each slows more; 3 stacks = a short freeze (root) | ice shell: the next hit on a frozen target shatters for bonus damage |
+| charge | jumps to 1 + power/3 nearby (not only chains); a 0.3 s stun on a crit | conducts through every metal part in range, drawn arc to arc |
+| radiation | lingering sickness: damage over time that ignores wards and armour | leaves a glowing patch that ticks on whoever stands in it |
+| sound | a knockback cone from the caster; deafened (silence for 0.5 s) | P5+: breaks guards outright |
+| resonance | marks the target; 1.2 s later it shatters for a second hit (Echo) | double damage on constructs, walls, wards; breaks glass and crystal |
+| phase | chill stacks (as cold) or, with amplify, scald (burning); flips ice to water and back | boiling: a steam burst blinds |
+| breath | suffocating: drains stamina, slows, no sprint or dash | P6+: a choking zone |
+| cohesion | crumbling: defence down, the next hits deal more | breaks walls and constructs it touches |
+| weight | slam: knockdown and a small crater outside towns | P6+: crushes everyone near the target too |
+| soul | pierces wards; marks the soul (+15% damage from you for 6 s) | a kill frees a wisp that heals your reservoir |
+| essence | burns the target's reservoir (players) or stops them casting (NPCs) | drained reservoir comes back to you |
+| unlife | withering: damage that grows each second it's left | a kill lets you raise it as a brief ally (the first real "summon") |
+| age | ageing: slower and weaker; wears the target's gear | P7+: brittle (crits on them always land) |
+| luminosity | blinds on a crit; a beam burns a line on the ground | P6+: a lance that pierces everyone in line |
+| vitality / metabolism (reduce) | heal-blocked and sapped (slow) | spreads to whoever heals them |
+
+**Verbs flavour the behaviour** (data, not code per spell):
+- generate: the base rule.
+- amplify: bigger on a target already affected (detonates stacks).
+- reduce: the defensive side (chill, silence, weaken) with less damage.
+- transfer: half of it comes back to you (a tether, drawn as one).
+- redirect: knockback or pull.
+- release: everything you've stored of that property at once (ties into `store`).
+- transmute: converts one stack into another (burning into chill, etc.).
+
+### B. Forms get shapes from the boss move library (fixes "how it plays")
+
+Extract the shape parts of `Wildborn/WildbornMoves` into a shared `Magic/Cast/Shapes` used by both Wildborn and player spells, so there's **one** move library. A recipe's shape comes from **form + property category**, in data (`Data/SpellShapes`):
+
+| Form | Shape by category (examples) |
+|---|---|
+| projectile | orb (energy), arcing lob (material and earth: boulders), homing wisp (spiritual), splitting shards (cold), skipping ripple (sound) |
+| beam | lance that pierces in line (light, radiation), drain tether (vital, essence), crackling arc (charge) |
+| chain | jumping arcs (charge), hopping spores (toxin), ricochet (momentum) |
+| burst | nova rings (thermal), eruption around you (earth spikes, vines), shockwave cone (sound), frost nova |
+| zone | lingering ticking area with a look per property: fire field, whirlpool (flow), static field (charge), blizzard (cold), rot bog (decay) |
+| pillar | eruption under the target after a warning: flame pillar, geyser, stone spike, lightning strike |
+| wall | a barrier whose property acts on whoever crosses it: burning, freezing, shocking, repelling |
+| ritual | a rain on warned spots across the area: meteors (fire), skyfall (charge), hail (cold), boulders (earth), at power 8+ |
+| touch | echo strike: the hit lands again 0.6 s later (the Chrono Phantom's move) |
+| aura | pulses around you every second while it lasts |
+| summon | a short-lived conjured ally shaped by the property (an ember sprite, a stone fist, a frost wisp): finally gives summon a body |
+
+Big area shapes (pillar, ritual, wide zones) **show a ground warning to everyone** first, as the bosses do. That's fair in PvP, and readable.
+
+### C. Every property looks like itself (fixes "how it looks")
+
+Extend `Client/Fx/FxRecipes`, which today is per domain, to **per-property looks** layered on the domain palette and your signature tint. Each one has a cast, a flight or trail, an impact and a lingering effect: flames and embers, frost shards and mist, forked lightning, sound ripples bending the air, crystal shards and a hum, green radiation motes, a dark gravity warp, ghostly soul wisps, dust and sand for age, rot spores. Built from the Kenney textures already uploaded; any new sounds need licensed picks. Mastery tier still refines it (more layers, a second rune at Expert, a crown at Grandmaster), and the Spell Hand still shapes your cast.
+
+### D. Spells evolve with mastery (like boss phases)
+
+Per behaviour, data unlocks at tiers: Adept is the base; Expert adds a second effect (a projectile volley of 3, a second ring, a bigger patch); Master adds the "higher power" column of table A; Grandmaster adds a finisher (a shatter on frozen targets, a detonation of stacks). You see and feel your spells grow, the way a boss changes at half health.
+
+### E. Domain ultimates
+
+Ritual form at power 8+ in a domain's signature property becomes that domain's **ultimate**, taken straight from the bosses: Meteor Cascade (fire), Skyfall Tempest (charge), Maelstrom Crucible (flow), Forge of Tyrants (metal), Verdant Storm (growth), Eclipse Erasure (shadow), Causal Collapse (time). Each costs a lot, gets a long cooldown, and is warned to everyone in reach. Time, Gravity and Reality keep the powers they already have.
+
+### F. Health grows with your magic
+
+Add a **"magic" layer** to `StatCalc` (it already gets the caster), so it shows in the Inventory stat breakdown as its own line ("Your magic: +120"):
+
+- **+20 per tier of your best branch** (Sensing +20 … Transcendent +160)
+- **+4 per other branch at Novice or above**, at most +60 (breadth matters a little)
+- **Life domain affinity:** up to +10% on top
+
+That's 100 at the start, about 180 at Adept, about 260 at Master, and about 330 at Transcendent with breadth. Health keeps its current share when the maximum moves (InventoryService already does this). NPC mages get the same rule from their tier (`NPC/NPCMagicLife`), so fights stay even. The 60% PvP per-hit cap stays.
+
+### G. Tools so we can measure it
+
+- Admin `spellaudit`: enumerate every valid recipe the grammar allows and count them by route and behaviour. It's the number we watch go from "about half land in harm" to "none are plain damage".
+- `spellpreview <recipe>`: cast any recipe at a dummy and show its shape, behaviour and look.
+
+## 3. Stages
+
+| Stage | What | Size | Why this order |
+|---|---|---|---|
+| 0 | F (health from magic) + G (`spellaudit`) | S | Independent, quick, and the audit numbers measure everything after |
+| 1 | A (property behaviours) for the 14 generic properties, plus fire and cold | M | The biggest "feels generic" fix, server-only, no new visuals needed to work |
+| 2 | C (per-property looks) for the same 16 | M | Makes stage 1 visible |
+| 3 | B (shapes from a shared move library) | L | The deepest change: touches CastService, Delivery, Targeting and SpellFx |
+| 4 | D (mastery evolutions) + verb flavours | M | Builds on 1–3 |
+| 5 | E (domain ultimates) | M | The capstone, reusing the boss moves |
+
+Each stage gets specs (behaviour data valid, every harmful property has a behaviour, shapes routed, health curve), Composer words (`RouteSummaries` says what a spell really does), `SpellExamples` entries, and a playtest before the next.
+
+## 4. Risks
+
+- **Balance:** statuses and shapes add damage on top of `DamageModel`. Each behaviour's extra is budgeted as a share of the base curve, and PvP still caps a hit at 60% of max health.
+- **Server cost:** lingering patches, zones and rains are capped like the bosses' (`maxZones`, `EffectBudget`). Shapes reuse the budget slots spells already use.
+- **Exploits:** nothing changes on the client side: casts stay intents, every shape is server-decided, and clients only draw cues.
+- **Old saves:** recipes don't change shape, so no `RECIPE_VERSION` bump. Routes are resolved at cast time.
+- **The world-over-game rule:** behaviours are physical (frost freezes, sound shakes, age wears), told by how they look and the Composer's words, with no new UI.
+
+## 5. Open questions
+
+1. Is the health curve right: about 260 at Master, 330 at the very top? Or should health grow more slowly than damage, so fights stay short?
+2. Should the domain ultimates (stage 5) be the bosses' exact moves, or "inspired by"?
+3. Unlife raising a brief ally, and summon conjuring one: do you want player-summoned allies at all?
+4. Should area warnings show for **your own** big spells to enemies in PvP (fair), or only for boss and NPC attacks?
+5. New sounds per property need licensed picks (ProSoundEffects). Now, or in a later sound pass?
