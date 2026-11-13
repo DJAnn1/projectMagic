@@ -11,6 +11,9 @@
 		stage "drain"    life drawn back to the caster
 		stage "drop"     one drop of a rain falling onto its marked spot
 		stage "zone"     a lingering area or barrier, kept until "zoneEnd" (or its time runs out)
+		stage "rise"     an elemental standing up out of the ground (Server/Magic/Cast/Elementals)
+		stage "fade"     an elemental coming apart
+		(an elemental's blows reuse "hit" and "split")
 
 	Warnings are always drawn, even at far LOD and with Reduce effects on: they're how people
 	read what is about to land.
@@ -255,6 +258,23 @@ handlers.zoneEnd = function(cue, _kit)
 			TweenService:Create(instance, TweenInfo.new(0.4), { Transparency = 1 }):Play()
 			Debris:AddItem(instance, 0.45)
 		end
+	end
+end
+
+handlers.rise = function(cue, kit)
+	local radius = math.clamp(tonumber(cue.radius) or 3, 1, 12)
+	for _, spot in spotsOf(cue) do
+		local ground = spot - Vector3.new(0, 3, 0)
+		FxLayers.shockwave(ground, Vector3.yAxis, radius * 2.2, kit.style.accent, 0.5)
+		SpellFx.burstAt(spot, radius, kit.style, kit.tier, math.floor(24 + kit.power * 3), { lifetime = 0.9, speedMult = 1.6 })
+		impactAt(kit, ground, radius)
+	end
+end
+
+handlers.fade = function(cue, kit)
+	local radius = math.clamp(tonumber(cue.radius) or 3, 1, 12)
+	for _, spot in spotsOf(cue) do
+		SpellFx.burstAt(spot, radius, kit.style, kit.tier, math.floor(16 + kit.power * 2), { lifetime = 0.8, speedMult = 0.8 })
 	end
 end
 

@@ -18,6 +18,7 @@ local Registry = require(script.Parent.Registry)
 local SpellRoute = require(script.Parent.SpellRoute)
 local Summaries = require(script.Parent.Data.RouteSummaries)
 local SpellShape = require(script.Parent.SpellShape)
+local Elemental = require(script.Parent.Elemental)
 
 type RecipeLike = SpellRoute.RecipeLike
 
@@ -68,12 +69,14 @@ function SpellOutcome.of(recipe: RecipeLike): Outcome
 		kind, text = byForm.kind or kind, byForm.text or text
 	end
 	-- How it plays (Data/SpellShapes, stage 3 of the spell overhaul): "It rains down on marked spots..."
-	local played = SpellShape.words(SpellShape.of(recipe :: any, route.id))
+	local spellShape = SpellShape.of(recipe :: any, route.id)
+	-- A harmful Summon takes a body (stage 3b): say which elemental the branch gives.
+	local played = if spellShape and spellShape.kind == "elemental" then Elemental.words(recipe.branch) else SpellShape.words(spellShape)
 	if played then
 		text = text .. " " .. played
 	end
 	local shape: string? = nil
-	if recipe.form == "summon" or (recipe.form == "wall" and not Summaries.builds[route.id]) then
+	if (recipe.form == "summon" and not (spellShape and spellShape.kind == "elemental")) or (recipe.form == "wall" and not Summaries.builds[route.id]) then
 		shape = Summaries.areaShape
 	end
 	local outcome: Outcome = {

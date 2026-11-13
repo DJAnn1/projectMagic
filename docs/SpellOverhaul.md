@@ -189,3 +189,19 @@ Split in two: **3a shapes** (built) and **3b elementals** (summon by branch, nex
 - `Client/Fx/ShapeFx` draws warnings (always, even far or reduced), drops, splits, drains, zones and barriers in the spell's own look; `WorldEffect` kind `shape`.
 - The Composer appends the shape's line (`SpellOutcome`). Flag `spell_shapes_enabled`. Spec `Tests/SpellShapes.spec` (6).
 - Known gaps: hits after the cast resolved aren't judged by settlement law (the pinned delayed-hits item); NPC mages don't use shapes yet (NPCCombat casts its own bolts).
+
+## 8. Stage 3b as built: elementals (2026-11-13, not yet run)
+
+Owner, 2026-11-13: "player elementals by branch, yes". A harmful Summon spell (one whose route lands damage: harm, thermal, ignite, strike) still lands its hit where you aim, and then **takes a body there** and fights beside you. Other Summon spells (heals, wards, the water freeze...) keep landing over the area.
+
+- `Shared/Magic/Data/Elementals`: one per domain (ember wight, stone golem, tide spirit, gale spirit, thorn walker, phantom, wraith, hollow shade, fold walker, worn sentinel, weighted golem, conjured knight) and 31 branch overrides (frost wight, storm wight, iron golem, crystal golem, quake golem, magma golem, treant, bone servant, warden spirit...), each with a style, material, colours from the domain palette, size, speed and sturdiness. `Shared/Magic/Elemental` picks one by walking up the branch tree, and gives health, blow share, the limit and the Composer's words.
+- Styles: **strike** (walks in, hits one), **bolt** (keeps its distance, throws the spell, needs line of sight), **slam** (walks in, hits everyone it fights around it).
+- Strength: health `(60 + 20 x power + 30 x tier) x kind` (top ~800, under a top player's ~1000); each blow is 0.38–0.45 of the spell's base hit, x (1 + 0.05 x tier).
+- `Server/Magic/Cast/Elementals`: an R6 humanoid rig (owner's rule for fighters), no name or health bar. It fights only those who fought you or it, those you fought (a practice dummy you hit counts), and Wildborn it sees; never bystanders. Leash 60 studs from you, follows when idle, steps back to you past 90. Blows go through DamageModel as your spell (wards, guards, PvP caps, kill rewards to you), then the property's behaviour. Ends after 25 s, when killed, or when you die or leave. One at a time, two from Master; a new one replaces the oldest. 40 per server.
+- `ElementalOwner` attribute: your own magic never hurts it (`Targeting.canHarm`, `Damage.apply`); others can, where they may fight you.
+- `Services/ElementalService`: who's fighting whom among players (TargetDamaged); non-players through the new `Damage.listenAttacked`. Admin `elementals [list|clear] [player]`, `elementalfor <branch> [power] [tier]`. Log `elemental_summoned`, `elemental_faded`, `elemental_killed`, `elemental_refused`. Flag `elementals_enabled`.
+- Client: `Fx/ShapeFx` stages `rise` and `fade`; blows reuse `hit` and `split`.
+- Composer: "A stone golem takes shape where you aim and fights beside you for 25 s: ..."; SpellHelp and the Expert tier text now say so.
+- Spec `Tests/Elementals.spec` (7).
+- Defaults said to the owner (open): 25 s, one (two from Master), others can hurt them.
+- Known gaps: Wildborn and creatures don't attack elementals back; its hits on townspeople aren't judged by settlement law; it walks straight (no pathfinding); NPC mages don't summon.

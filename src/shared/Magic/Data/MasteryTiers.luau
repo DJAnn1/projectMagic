@@ -53,7 +53,7 @@ local MasteryTiers = {
 		{
 			index = 5, id = "expert", name = "Expert", minMastery = 55, powerCeiling = 7, breakthrough = true,
 			verbs = {}, forms = { "summon" }, vfxScale = 0.9,
-			unlocks = "Noticeably cheaper and steadier casting, and the summon form opens: for now it looses your effect over the ground around your aim.",
+			unlocks = "Noticeably cheaper and steadier casting, and the summon form opens: a harmful spell takes a body, an elemental of your branch that fights beside you.",
 			look = "Residual sparks linger after casts; your aura is visible to sensitives.",
 		},
 		{

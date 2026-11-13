@@ -56,6 +56,12 @@ Damage.onDamage = nil :: ((Humanoid, number, string, number?, Info) -> ())?
 Damage.onHeal = nil :: ((Humanoid, number, number?, Info) -> ())?
 -- Something that isn't a player hit this Humanoid: who it was (info.attacker). Services/FamiliarService.
 Damage.onAttacked = nil :: ((Humanoid, Model) -> ())?
+-- More listeners for the same moment, for anyone else who needs it (Cast/Elementals: who is
+-- fighting a summoner). Added with Damage.listenAttacked, never replaced.
+local attackListeners: { (Humanoid, Model) -> () } = {}
+function Damage.listenAttacked(fn: (Humanoid, Model) -> ())
+	table.insert(attackListeners, fn)
+end
 -- Set by Cast/TimeRuntime: gets what's about to land and returns what does (a mark saving you from
 -- death, a Borrowed Wound holding it back, Future Sight dodging it). `kind` "internal" is overdraw.
 Damage.interceptor = nil :: ((Humanoid, number, number?, string, Info?) -> number)?
@@ -90,6 +96,13 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 	if sourceUserId then
 		local victim = playerOf(humanoid)
 		if victim and not PvpRules.allowed(sourceUserId, victim.UserId) then
+			return 0
+		end
+		-- An elemental (Cast/Elementals): never hurt by its own summoner, and by others only where
+		-- the two players may fight.
+		local model = humanoid.Parent
+		local owner = if model then model:GetAttribute("ElementalOwner") else nil
+		if typeof(owner) == "number" and (owner == sourceUserId or not PvpRules.allowed(sourceUserId, owner)) then
 			return 0
 		end
 	end
@@ -137,6 +150,11 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 	local attacked = Damage.onAttacked
 	if attacked and info and info.attacker then
 		attacked(humanoid, info.attacker)
+	end
+	if info and info.attacker then
+		for _, fn in attackListeners do
+			fn(humanoid, info.attacker)
+		end
 	end
 	local hitInfo: Info = if info then table.clone(info) else {}
 	hitInfo.killed = humanoid.Health <= 0

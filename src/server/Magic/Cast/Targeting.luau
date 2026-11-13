@@ -72,6 +72,12 @@ function Targeting.canHarm(caster: Player, model: Model): boolean
 	if victim then
 		return PvpRules.allowed(caster.UserId, victim.UserId)
 	end
+	-- An elemental (Cast/Elementals) is its summoner's: never its own summoner's to hurt, and
+	-- someone else's only where the two of them may fight (parties, duels, the PvP flag).
+	local owner = model:GetAttribute("ElementalOwner")
+	if typeof(owner) == "number" then
+		return owner ~= caster.UserId and PvpRules.allowed(caster.UserId, owner)
+	end
 	return true
 end
 

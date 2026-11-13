@@ -10,7 +10,8 @@
 		                                                (erupt, rain) with a warning everyone near sees
 		Shapes.after(ctx, shape, record)                after it: echo, split, splash, drain, nova,
 		                                                a lingering area or barrier, eruption lift,
-		                                                the rain's drops, aura pulses
+		                                                the rain's drops, aura pulses, a summoned
+		                                                elemental (Cast/Elementals)
 
 	Every extra hit goes through DamageModel (wards, guards, resistances, PvP caps: Cast/Damage) and
 	then the property's behaviour (Cast/PropertyBehaviour), and only lands on people the caster may
@@ -37,6 +38,7 @@ local Damage = require(Cast.Damage)
 local DamageModel = require(Cast.DamageModel)
 local Targeting = require(Cast.Targeting)
 local PropertyBehaviour = require(Cast.PropertyBehaviour)
+local Elementals = require(Cast.Elementals)
 
 type Ctx = CastTypes.EffectContext
 type Shape = { kind: string, [string]: any }
@@ -322,6 +324,17 @@ function Shapes.after(ctx: Ctx, shape: Shape, routeId: string?, record: { Damage
 				end)
 			end
 		end
+	elseif kind == "elemental" then
+		-- The spell takes a body where it landed (stage 3b, Cast/Elementals). Building the rig can
+		-- yield, so the cast's result isn't held up by it.
+		local c = later(ctx)
+		c.target = ctx.target
+		task.spawn(function()
+			local ok, err = pcall(Elementals.summon, c, behaviour)
+			if not ok then
+				warn("[Shapes] elemental: " .. tostring(err))
+			end
+		end)
 	elseif kind == "pulse" then
 		local c = later(ctx)
 		local radius = radiusOf(ctx)

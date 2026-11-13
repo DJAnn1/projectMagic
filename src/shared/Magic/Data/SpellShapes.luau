@@ -27,6 +27,8 @@
 		rain     { warn, drops, perPower, radius, share, spread }: warned spots across the area,
 		         one drop each: `drops` + power x `perPower` of them
 		pulse    { count, every, share }: rings out around you `count` more times
+		elemental {}: the spell takes a body where it lands and fights beside its caster (stage 3b:
+		         which one and how strong in Data/Elementals, the fight in Cast/Elementals)
 
 	`share`: each extra hit as a share of the spell's base hit (DamageModel.base), like the
 	behaviours' budget. `warn`: seconds of ground warning, shown to everyone near (owner,
@@ -84,13 +86,16 @@ local forms: { [string]: FormShapes } = {
 	aura = {
 		default = { kind = "pulse", count = 2, every = 1, share = 0.3 },
 	},
+	summon = {
+		default = { kind = "elemental" },
+	},
 }
 
 return table.freeze({
 	forms = forms,
 	-- Routes whose spells get a shape (they land damage); every other route keeps its own behaviour.
 	routes = table.freeze({ harm = true, thermal = true, ignite = true, strike = true }),
-	kinds = table.freeze({ "echo", "split", "lob", "homing", "skip", "drain", "nova", "linger", "barrier", "erupt", "rain", "pulse" }),
+	kinds = table.freeze({ "echo", "split", "lob", "homing", "skip", "drain", "nova", "linger", "barrier", "erupt", "rain", "pulse", "elemental" }),
 	-- What the Composer says about each shape (Magic/SpellOutcome).
 	words = table.freeze({
 		echo = "The hit lands again a moment later.",
@@ -105,6 +110,7 @@ return table.freeze({
 		erupt = "The ground is marked first, then it erupts and throws them up.",
 		rain = "It rains down on marked spots across the area.",
 		pulse = "It rings out around you again, and again.",
+		elemental = "It takes a body where it lands and fights beside you for a while.",
 	}),
 	-- Live caps (server): lingering areas and barriers at once, drops per rain.
 	caps = table.freeze({ zones = 16, zonesPerPlayer = 3, maxDrops = 9 }),

@@ -73,7 +73,7 @@ SpellHelp.forms = {
 	zone = { shape = "as an area that lasts where you place it", example = "Leave a patch of fire, frost or calm behind." },
 	pillar = { shape = "as a column bursting up from the ground (or down from the sky)", example = "Strikes one spot hard from below or above." },
 	chain = { shape = "leaping from target to target", example = "Jumps between nearby enemies, weaker each hop." },
-	summon = { shape = "as a blast over the area where you aim", example = "Nothing is given a body yet: for now this only hits that area." },
+	summon = { shape = "as a body that rises where you aim", example = "A harmful spell takes a body: an elemental shaped by your branch that fights beside you for a while. Other spells land over the area where you aim." },
 	ritual = { shape = "as a long, channelled working over a huge area", example = "Takes time to cast, reaches far. Tsunamis need one." },
 }
 
