@@ -3,9 +3,9 @@
 	PromptRouter: one place every server ProximityPrompt's action is registered, so a click can
 	use it without going through Roblox's prompt input (InteractClickController).
 
-		PromptRouter.connect(prompt, fn)   fn(player) -> (ok?, reason?, text?) runs on prompt.Triggered
-		                                   (any prompt input Roblox still delivers) AND on a validated
-		                                   UsePrompt intent. Use this instead of prompt.Triggered.
+		PromptRouter.connect(prompt, fn)   fn(player) -> (ok?, reason?, text?) runs on a validated
+		                                   UsePrompt intent, and ONLY then (never prompt.Triggered:
+		                                   see connect). Use this instead of prompt.Triggered.
 		                                   Returning nothing counts as success; return false and a
 		                                   reason code (and optionally a sentence) to refuse.
 		PromptRouter.onIntent(player, prompt, phase, seq)   the UsePrompt handler (InteractionService)
@@ -120,9 +120,10 @@ end
 
 function PromptRouter.connect(prompt: ProximityPrompt, fn: Handler)
 	handlers[prompt] = fn
-	prompt.Triggered:Connect(function(player: Player)
-		run(player, prompt)
-	end)
+	-- No prompt.Triggered path: Roblox's own prompt input is off on every client
+	-- (InteractClickController), and when it was on it claimed every mouse button and used the
+	-- nearest prompt with none of the checks below (2026-11-12: right click and stray clicks
+	-- opened barrels). UsePrompt is the only way in.
 	prompt.Destroying:Connect(function()
 		handlers[prompt] = nil
 	end)
