@@ -159,6 +159,10 @@ local function run(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, effect: { [
 	if longer ~= 1 and effect.duration then
 		effect = table.clone(effect)
 		effect.duration *= longer
+		if effect.at then -- what the stacks turn into (the freeze) lasts longer too
+			effect.at = table.clone(effect.at)
+			effect.at.duration *= longer
+		end
 	end
 	if effect.onCrit and not crit then
 		return
@@ -223,7 +227,7 @@ local function finish(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, finisher
 	if (finishedAt[humanoid] or 0) > now then
 		return
 	end
-	finishedAt[humanoid] = now + EvolutionData.finisherGap
+	finishedAt[humanoid] = now + (finisher.gap or EvolutionData.finisherGap)
 	local mult = Evolution.finisherMult(tierOf(ctx))
 	local source = sourceOf(ctx)
 	if finisher.clear then

@@ -30,6 +30,7 @@
 
 export type Finisher = {
 	needs: string,
+	gap: number?, -- seconds before this target can be finished again (else `finisherGap`)
 	share: number?,
 	clear: boolean?,
 	status: { id: string, duration: number }?,
@@ -48,8 +49,10 @@ export type Flavour = {
 }
 
 local finishers: { [string]: Finisher } = {
-	cold = { needs = "frozen", share = 0.9, clear = true, words = "a hit on someone frozen shatters the ice for a heavy blow" },
-	phase = { needs = "frozen", share = 0.9, clear = true, words = "a hit on someone frozen shatters the ice for a heavy blow" },
+	-- The shatter no longer ends the freeze (it did, and a quick second bolt cut a freeze to half a
+	-- second; owner, 2026-11-13). Once per freeze: the gap outlasts the longest freeze (2 x 1.25).
+	cold = { needs = "frozen", share = 0.9, gap = 2.6, words = "a hit on someone frozen cracks the ice for a heavy blow, once per freeze" },
+	phase = { needs = "frozen", share = 0.9, gap = 2.6, words = "a hit on someone frozen cracks the ice for a heavy blow, once per freeze" },
 	heat = { needs = "burning", share = 0.35, spread = { radius = 7, share = 0.25 }, words = "a hit on someone burning flares up and scorches those beside them" },
 	temperature = { needs = "burning", share = 0.35, spread = { radius = 7, share = 0.25 }, words = "a hit on someone burning flares up and scorches those beside them" },
 	combustion = { needs = "burning", share = 0.45, spread = { radius = 8, share = 0.3 }, words = "a hit on someone burning explodes, scorching those beside them" },

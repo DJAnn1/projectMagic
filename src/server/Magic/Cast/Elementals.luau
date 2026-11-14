@@ -746,8 +746,8 @@ local function think(e: Live, now: number)
 		Elementals.dismiss(e, "time")
 		return
 	end
-	if e.model:GetAttribute("TimeFrozen") or e.root.Anchored then
-		return -- held in a Timestop
+	if e.model:GetAttribute("TimeFrozen") or e.root.Anchored or e.humanoid.WalkSpeed <= 0.01 then
+		return -- held in a Timestop, or frozen, rooted or in stasis (a walk-0 status)
 	end
 	local here = e.root.Position
 	if here ~= here or math.abs(here.Y) > 1e5 then

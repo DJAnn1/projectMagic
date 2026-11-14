@@ -433,7 +433,8 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		end
 	end
 
-	if humanoid:GetAttribute("KnockedDown") or actor.model:GetAttribute("GravityHeld") then
+	-- Frozen, rooted or in stasis (a walk-0 status, Cast/StatusEffects): no moves either.
+	if humanoid:GetAttribute("KnockedDown") or actor.model:GetAttribute("GravityHeld") or humanoid.WalkSpeed <= 0.01 then
 		return
 	end
 

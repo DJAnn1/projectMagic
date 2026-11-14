@@ -91,7 +91,7 @@ local DEFS: { [string]: StatusDef } = {
 	surging = { name = "Surging", walk = 1.25, damageDealt = true }, -- Services/SurgeService; resist comes with the apply
 	-- Property behaviours (Cast/PropertyBehaviour, Shared/Magic/Data/PropertyBehaviours: docs/SpellOverhaul.md §2A)
 	chilled = { name = "Chilled", walk = 0.75, harmful = true }, -- a chill stack; three freeze you
-	frozen = { name = "Frozen", walk = 0, jump = 0, harmful = true },
+	frozen = { name = "Frozen", walk = 0, jump = 0, noCast = true, harmful = true }, -- frozen solid: no moving, no casting (owner, 2026-11-13: it has to matter)
 	suffocating = { name = "Suffocating", walk = 0.75, dot = true, harmful = true },
 	irradiated = { name = "Irradiated", dot = true, harmful = true },
 	crumbling = { name = "Crumbling", damageTaken = 1.2, harmful = true },
