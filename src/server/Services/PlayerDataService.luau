@@ -32,6 +32,7 @@ export type PlayerState = {
 	innate: Types.InnateProfile,
 	caster: Types.CasterProfile,
 	joinedAt: number,
+	slot: number, -- the save file (1..3) this session is playing (Services/SaveFileService)
 }
 
 local KICK_MESSAGES: { [string]: string } = {
@@ -53,8 +54,15 @@ local world: any = nil
 local states: { [Player]: PlayerState } = {}
 local loadedSignals: { [Player]: { thread } } = {}
 
-local function keyFor(player: Player): string
-	return world:progressKey("player_" .. player.UserId) -- yields until the world record is loaded
+-- Save files (Services/SaveFileService): file 1 keeps the original key and seed, so a player's
+-- existing character becomes their File 1; files 2 and 3 are separate characters.
+local function fileKey(userId: number, slot: number): string
+	local base = if slot == 1 then "player_" .. userId else string.format("player_%d_f%d", userId, slot)
+	return world:progressKey(base) -- yields until the world record is loaded
+end
+
+local function entityFor(userId: number, slot: number): string
+	return if slot == 1 then "player:" .. userId else string.format("player:%d#f%d", userId, slot)
 end
 
 local function wakeWaiters(player: Player)
@@ -67,7 +75,7 @@ local function wakeWaiters(player: Player)
 	end
 end
 
-local function restoreProfile(player: Player, data: any): Types.InnateProfile
+local function restoreProfile(player: Player, data: any, slot: number): Types.InnateProfile
 	if data.profile ~= nil then
 		local profile, why = InnateProfile.deserialize(data.profile)
 		if profile then
@@ -76,28 +84,33 @@ local function restoreProfile(player: Player, data: any): Types.InnateProfile
 		-- Earned awakenings are lost; the base profile is regenerated identically from the seed.
 		log:error("profile_corrupt_regenerating", { userId = player.UserId, reason = why })
 	end
-	return ProfileGenerator.generate(world:getSeed(), "player:" .. player.UserId, { kind = "Player" })
+	return ProfileGenerator.generate(world:getSeed(), entityFor(player.UserId, slot), { kind = "Player" })
 end
 
-local function onJoin(player: Player)
-	local session, err = store:load(keyFor(player), { userIds = { player.UserId } })
+-- Loads one save file (called by Services/SaveFileService once the player picks it in the main
+-- menu). Returns (true) or (false, reason); a lock or DataStore failure still kicks, as before.
+local function loadFile(player: Player, slot: number): (boolean, string?)
+	if states[player] then
+		return false, "ALREADY_LOADED"
+	end
+	local session, err = store:load(fileKey(player.UserId, slot), { userIds = { player.UserId } })
 	if not session then
-		log:warn("load_failed", { userId = player.UserId, reason = err })
+		log:warn("load_failed", { userId = player.UserId, reason = err, file = slot })
 		if player.Parent then
 			player:Kick(KICK_MESSAGES[err or ""] or DEFAULT_KICK)
 		end
 		wakeWaiters(player)
-		return
+		return false, err
 	end
 	if not player.Parent then
 		session:release() -- left while loading
 		wakeWaiters(player)
-		return
+		return false, "LEFT"
 	end
 
 	local data = session.data
 	local firstJoin = data.profile == nil
-	local innate = restoreProfile(player, data)
+	local innate = restoreProfile(player, data, slot)
 	data.profile = innate -- the profile IS save data; mutations persist with the session
 	local now = os.time()
 	if firstJoin then
@@ -113,6 +126,7 @@ local function onJoin(player: Player)
 		innate = innate,
 		caster = InnateProfile.toCasterProfile(innate, data.progression),
 		joinedAt = now,
+		slot = slot,
 	}
 	states[player] = state
 
@@ -126,9 +140,12 @@ local function onJoin(player: Player)
 		end
 	end)
 
-	log:info("player_ready", { userId = player.UserId, firstJoin = firstJoin, tier = InnateProfile.getRarityTier(innate, false) })
+	log:info("player_ready", { userId = player.UserId, firstJoin = firstJoin, tier = InnateProfile.getRarityTier(innate, false), file = slot })
+	-- The client boots its controllers once this is set (src/client/init.client.luau).
+	player:SetAttribute("SaveFile", slot)
 	wakeWaiters(player)
 	bus:publish(Topics.PlayerDataLoaded, { player = player })
+	return true, nil
 end
 
 local function onLeave(player: Player)
@@ -155,11 +172,26 @@ function PlayerDataService.init(_self: any, ctx: any)
 end
 
 function PlayerDataService.start(_self: any, _ctx: any)
-	Players.PlayerAdded:Connect(onJoin)
+	-- No load on join: the player picks a save file in the main menu (Services/SaveFileService).
 	Players.PlayerRemoving:Connect(onLeave)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onJoin, player)
-	end
+end
+
+function PlayerDataService.loadFile(_self: any, player: Player, slot: number): (boolean, string?)
+	return loadFile(player, slot)
+end
+
+-- The DataStore key and the profile seed of a save file (SaveFileService resets files by key).
+function PlayerDataService.fileKey(_self: any, userId: number, slot: number): string
+	return fileKey(userId, slot)
+end
+
+function PlayerDataService.entityFor(_self: any, userId: number, slot: number): string
+	return entityFor(userId, slot)
+end
+
+-- The session store, for SaveFileService to reset a file that isn't loaded.
+function PlayerDataService.sessionStore(_self: any): any
+	return store
 end
 
 function PlayerDataService.get(_self: any, player: Player): PlayerState?

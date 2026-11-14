@@ -461,8 +461,15 @@ end
 function DataService.eraseUser(self: any, userId: number, highestGeneration: number): boolean
 	local players = self:openStore(Schemas.Player)
 	local ok = true
-	for _, key in ProgressKeys.allKeys("player_" .. userId, highestGeneration) do
-		ok = players:erase(key) and ok
+	-- Every save file (file 1 is the original "player_<id>" key) and the account record.
+	local accounts = self:openStore(Schemas.Account)
+	for _, base in { "player_" .. userId, "player_" .. userId .. "_f2", "player_" .. userId .. "_f3" } do
+		for _, key in ProgressKeys.allKeys(base, highestGeneration) do
+			ok = players:erase(key) and ok
+		end
+	end
+	for _, key in ProgressKeys.allKeys("account_" .. userId, highestGeneration) do
+		ok = accounts:erase(key) and ok
 	end
 	log:warn("user_erased", { userId = userId, ok = ok, generations = highestGeneration + 1 })
 	return ok

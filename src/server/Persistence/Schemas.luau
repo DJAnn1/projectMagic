@@ -355,6 +355,21 @@ Schemas.Housing = {
 	migrations = {},
 } :: StoreConfig
 
+-- ─── Accounts (one record per player, key progressKey("account_<userId>")) ───
+-- What the main menu shows about each save file without opening (and locking) the files
+-- themselves (Services/SaveFileService). The files are ordinary Player records under their own keys.
+Schemas.Account = {
+	name = "Accounts",
+	version = 1,
+	template = function()
+		return {
+			last = 0, -- the file played most recently (0: none yet)
+			files = {}, -- "1".."3" -> { created, lastPlayed, playtime, spells, best, bestMastery, resets }
+		}
+	end,
+	migrations = {},
+} :: StoreConfig
+
 -- Where Titans fell, one record per world (Services/TitanService). Bounded by Titans.maxFalls.
 Schemas.TitanFalls = {
 	name = "TitanFalls",

@@ -104,6 +104,8 @@ local modifiers: { [string]: Modifier } = {}
 local pressure: { [string]: { [string]: { v: number, t: number } } } = {} -- regionId -> domain -> decaying
 local lastRegionInfo: { [Player]: string } = {}
 
+local spawnIfReady: (Player) -> ()
+
 local function chunkKey(cx: number, cz: number): string
 	return cx .. "," .. cz
 end
@@ -1378,6 +1380,39 @@ function WorldStateService.init(_self: any, ctx: any)
 	end)
 end
 
+local spawnOpen = false
+
+-- Spawns a player who has a save file loaded and no body yet, once the spawn exists.
+function spawnIfReady(player: Player)
+	if not spawnOpen or not player.Parent or player.Character or not playerData or not playerData:get(player) then
+		return
+	end
+	task.spawn(function()
+		local ok, err = pcall(player.LoadCharacter, player)
+		if not ok then
+			log:warn("spawn_failed", { userId = player.UserId, reason = tostring(err) })
+		end
+	end)
+end
+
+-- Respawn after a death: CharacterAutoLoads is off (the main menu holds characters back).
+Players.PlayerAdded:Connect(function(player: Player)
+	player.CharacterAdded:Connect(function(character: Model)
+		local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+		if not humanoid then
+			return
+		end
+		humanoid.Died:Connect(function()
+			task.delay(Players.RespawnTime, function()
+				if player.Parent and player.Character == character then
+					player.Character = nil
+					spawnIfReady(player)
+				end
+			end)
+		end)
+	end)
+end)
+
 function WorldStateService.start(_self: any, _ctx: any)
 	local seed = worldService:getSeed()
 	local started = os.clock()
@@ -1429,12 +1464,16 @@ function WorldStateService.start(_self: any, _ctx: any)
 	spawn.Position = spawnAt + Vector3.new(0, 4, 0)
 	spawn.Parent = workspace
 	spawnPart = spawn
-	Players.CharacterAutoLoads = true
+	-- Characters stay off until the player picks a save file in the main menu (Services/
+	-- SaveFileService): CharacterAutoLoads stays false for good, so this spawns them and respawns
+	-- them after a death (Players.RespawnTime), only while a file is loaded.
+	spawnOpen = true
 	for _, player in Players:GetPlayers() do
-		if not player.Character then
-			task.spawn(player.LoadCharacter, player)
-		end
+		spawnIfReady(player)
 	end
+	bus:subscribe(Topics.PlayerDataLoaded, function(payload: any)
+		spawnIfReady(payload.player)
+	end)
 	log:info("spawn_ready", { x = math.floor(spawnAt.X), y = math.floor(spawnAt.Y), z = math.floor(spawnAt.Z), ms = math.floor((os.clock() - started) * 1000) })
 	CharacterSafety.guardSpawns(function(): Vector3?
 		local part = spawnPart

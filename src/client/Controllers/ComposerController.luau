@@ -1015,7 +1015,7 @@ local function buildPowerStep(parent: Instance, d: Draft)
 			for i, line in lines do
 				local label = C.text((if line.reached then "✓ " else "○ ") .. line.text, "caption", { LayoutOrder = 50 + i })
 				if not line.reached then
-					label.TextTransparency = 0.35
+					label.TextColor3 = Theme.color.inkFaint -- never TextTransparency (Theme: contrast)
 				end
 				label.Parent = parent
 			end

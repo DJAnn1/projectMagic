@@ -440,6 +440,31 @@ end
 
 -- ─── Interactions (called by InteractionService) ────────────────────────────
 
+-- A save file was reset (Services/SaveFileService): its house goes back on the market. Only the
+-- claim this account holds on that lot; the file's own storage was wiped with the file.
+function HousingService.releaseClaim(_self: any, userId: number, lotId: string): boolean
+	if lotId == "" then
+		return false
+	end
+	local result = store:update(storeKey(), function(data: any): any
+		local existing = data.claims[lotId]
+		if not existing or existing.u ~= userId then
+			return nil
+		end
+		data.claims[lotId] = nil
+		return data
+	end)
+	if result then
+		claims = result.claims
+		local model = settlements:modelOf(lotId)
+		if model then
+			applyHouse(model)
+		end
+		return true
+	end
+	return false
+end
+
 function HousingService.deed(_self: any, player: Player, part: BasePart)
 	if flags.get("housing_enabled") == false then
 		return
