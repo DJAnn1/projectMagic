@@ -76,9 +76,12 @@ return function(t: any)
 		end)
 
 		t.it("finds the power where a spell starts working, and where it changes", function()
+			-- Below power 4 the ground drops them (stage 1c's fallback); from 4 it's a landslide.
 			local slide = { branch = "earth", property = "contour", verb = "reduce", form = "burst", power = 3 }
-			t.expect(SpellOutcome.of(slide).useful).toBe(false)
-			t.expect(SpellOutcome.usefulFrom(slide)).toBe(4)
+			t.expect(SpellOutcome.of(slide).useful).toBe(true)
+			t.expect(SpellOutcome.of(slide).route).toBe("fallback_contour")
+			t.expect(SpellOutcome.usefulFrom(slide)).toBe(1)
+			t.expect(SpellOutcome.usefulFrom({ branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 3 })).toBe(nil)
 			local steps = SpellOutcome.steps(slide, 6)
 			t.expect(#steps).toBe(1)
 			t.expect(steps[1].power).toBe(4)
@@ -106,13 +109,14 @@ return function(t: any)
 		end)
 
 		t.it("summarizes a choice at the caster's best power", function()
-			local list = { template("earth", "contour", "reduce", "burst", 3) }
+			-- A dead spell (Memory has no effect yet) summarizes as dead...
+			local list = { template("mnemonics", "memory", "redirect", "touch", 3) }
 			local low = SpellOutcome.summarize(list, function()
 				return true
 			end)
 			t.expect(low.useful).toBe(false)
-			list[1].maxPower = 5
-			-- Same recipe at a power it can now reach: the key differs, so this isn't the cached answer.
+			-- ...and a spell that becomes a landslide at the power the caster reaches reads as one.
+			list[1] = template("earth", "contour", "reduce", "burst", 5)
 			local high = SpellOutcome.summarize(list, function()
 				return true
 			end)
