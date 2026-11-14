@@ -28,6 +28,7 @@ local ThermalSim = require(Cast.ThermalSim)
 local Conduction = require(Cast.Conduction)
 local Explosion = require(Cast.Explosion)
 local PropertyBehaviour = require(Cast.PropertyBehaviour)
+local Evolution = require(game:GetService("ReplicatedStorage").Shared.Magic.Evolution)
 
 local POINT_FORMS: { [string]: boolean } = { touch = true, projectile = true, beam = true, chain = true }
 
@@ -71,9 +72,12 @@ function Impact.resolve(ctx: CastTypes.EffectContext, _params: { [string]: any }
 	for index, hit in Targeting.select(ctx) do
 		if Targeting.canHarm(ctx.player, hit.model) then
 			local falloff = if stats.recipe.form == "chain" then C.damage.chainFalloff ^ (index - 1) else nil
-			local amount, result = DamageModel.hit(ctx, hit, 1, stats.recipe.property, { falloff = falloff })
+			-- The verb's flavour (stage 4, Data/Evolutions): amplify harder, reduce softer...
+			local flavour = Evolution.flavour(stats.recipe.verb, "harm")
+			local amount, result = DamageModel.hit(ctx, hit, (flavour and flavour.share) or 1, stats.recipe.property, { falloff = falloff })
 			-- What this property does besides damage (Data/PropertyBehaviours, docs/SpellOverhaul.md §2A).
 			PropertyBehaviour.apply(ctx, hit, amount, result, nil)
+			PropertyBehaviour.flavour(ctx, hit, amount, "harm")
 			dealt += 1
 			table.insert(struck, hit)
 		end

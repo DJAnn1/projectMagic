@@ -30,6 +30,7 @@ local Shared = ReplicatedStorage.Shared
 local Net = require(Shared.Net)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local SpellShape = require(Shared.Magic.SpellShape)
+local Evolution = require(Shared.Magic.Evolution)
 local Data = require(Shared.Magic.Data.SpellShapes)
 
 local Cast = script.Parent
@@ -65,7 +66,8 @@ function Shapes.find(stats: any, routeId: string?): Shape?
 	if FeatureFlags.get("spell_shapes_enabled") == false then
 		return nil
 	end
-	return SpellShape.of(stats.recipe, routeId)
+	-- Stage 4: the shape grows at Expert and again at Transcendent (Shared/Magic/Evolution).
+	return Evolution.shape(SpellShape.of(stats.recipe, routeId), stats.masteryTier or 0) :: Shape?
 end
 
 -- Which behaviour a route's hits carry: the thermal routes know better than the property.

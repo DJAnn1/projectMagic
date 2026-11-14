@@ -25,10 +25,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local Net = require(Shared.Net)
 local Behaviours = require(Shared.Magic.Data.PropertyBehaviours)
+local Evolution = require(Shared.Magic.Evolution)
+local EvolutionData = require(Shared.Magic.Data.Evolutions)
 
 local Cast = script.Parent
 local CastTypes = require(Cast.CastTypes)
 local DamageModel = require(Cast.DamageModel)
+local Damage = require(Cast.Damage)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
 
@@ -36,6 +39,7 @@ local PropertyBehaviour = {}
 
 type Stack = { count: number, expires: number }
 local stacks: { [Humanoid]: { [string]: Stack } } = setmetatable({}, { __mode = "k" }) :: any
+local finishedAt: { [Humanoid]: number } = setmetatable({}, { __mode = "k" }) :: any
 local stamina: any = nil
 
 function PropertyBehaviour.setStamina(service: any)
@@ -140,10 +144,21 @@ local function grow(hit: CastTypes.Hit, effect: { [string]: any }, start: number
 	end
 end
 
+local function tierOf(ctx: CastTypes.EffectContext): number
+	return ctx.stats.masteryTier or 0
+end
+
 local function run(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, effect: { [string]: any }, crit: boolean)
 	local power = ctx.power
-	if effect.minPower and power < effect.minPower then
+	local tier = tierOf(ctx)
+	-- Master (stage 4): "strong enough" effects work at any power, and statuses last longer.
+	if effect.minPower and power < effect.minPower and not Evolution.masterReady(tier) then
 		return
+	end
+	local longer = Evolution.durationMult(tier)
+	if longer ~= 1 and effect.duration then
+		effect = table.clone(effect)
+		effect.duration *= longer
 	end
 	if effect.onCrit and not crit then
 		return
@@ -178,6 +193,62 @@ local function run(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, effect: { [
 	end
 end
 
+local function cue(ctx: CastTypes.EffectContext, at: Vector3, radius: number)
+	local stats = ctx.stats
+	ctx.runtime:cue("shape", {
+		caster = sourceOf(ctx),
+		domain = stats.domains[1],
+		property = stats.recipe.property,
+		form = stats.recipe.form,
+		power = stats.recipe.power,
+		masteryTier = stats.masteryTier,
+		shape = "nova",
+		stage = "hit",
+		spots = { at },
+		radius = radius,
+	}, at, true)
+end
+
+local function healCaster(ctx: CastTypes.EffectContext, amount: number)
+	local own = ctx.character and ctx.character:FindFirstChildOfClass("Humanoid")
+	if own and amount > 0 then
+		Damage.heal(own, amount, sourceOf(ctx), { domain = ctx.stats.domains[1] })
+	end
+end
+
+-- Grandmaster (stage 4): a hit on someone already carrying the finisher's status sets it off.
+local function finish(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, finisher: EvolutionData.Finisher)
+	local humanoid = hit.humanoid
+	local now = os.clock()
+	if (finishedAt[humanoid] or 0) > now then
+		return
+	end
+	finishedAt[humanoid] = now + EvolutionData.finisherGap
+	local mult = Evolution.finisherMult(tierOf(ctx))
+	local source = sourceOf(ctx)
+	if finisher.clear then
+		StatusEffects.remove(humanoid, finisher.needs)
+	end
+	local dealt = 0
+	if finisher.share then
+		dealt = DamageModel.hit(ctx, hit, finisher.share * mult, "finisher", { noCrit = true, noFalloff = true })
+	end
+	if finisher.status and humanoid.Health > 0 then
+		StatusEffects.apply(humanoid, finisher.status.id, { duration = finisher.status.duration, source = source })
+	end
+	if finisher.spread then
+		for _, other in Targeting.inRadius(hit.root.Position, finisher.spread.radius, 4, { [hit.model] = true, [ctx.character] = true }) do
+			if ctx.player == nil or Targeting.canHarm(ctx.player, other.model) then
+				DamageModel.hit(ctx, other, finisher.spread.share * mult, "finisher", { noCrit = true, noFalloff = true })
+			end
+		end
+	end
+	if finisher.heal then
+		healCaster(ctx, dealt * finisher.heal)
+	end
+	cue(ctx, hit.root.Position, if finisher.spread then finisher.spread.radius else 4)
+end
+
 -- After a hit that dealt `dealt`: the behaviour's extras.
 function PropertyBehaviour.apply(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, dealt: number, result: DamageModel.Result?, id: string?)
 	if dealt <= 0 or hit.humanoid.Health <= 0 then
@@ -188,12 +259,52 @@ function PropertyBehaviour.apply(ctx: CastTypes.EffectContext, hit: CastTypes.Hi
 	if not behaviour then
 		return
 	end
+	-- The finisher looks at what they carried BEFORE this hit (its own chill can't shatter itself).
+	local finisher = if Evolution.finisherReady(tierOf(ctx)) then Evolution.finisher(behaviourId) else nil
+	local primed = finisher ~= nil and StatusEffects.has(hit.humanoid, finisher.needs)
 	local crit = result ~= nil and result.crit == true
 	for _, effect in behaviour.effects do
 		local ok, err = pcall(run, ctx, hit, effect, crit)
 		if not ok then
 			warn("[PropertyBehaviour] " .. tostring(behaviourId) .. " " .. tostring(effect.kind) .. ": " .. tostring(err))
 		end
+	end
+	if primed and finisher and hit.humanoid.Health > 0 then
+		local ok, err = pcall(finish, ctx, hit, finisher)
+		if not ok then
+			warn("[PropertyBehaviour] finisher " .. tostring(behaviourId) .. ": " .. tostring(err))
+		end
+	end
+end
+
+-- The verb's flavour on a plain-damage hit (stage 4, Data/Evolutions `verbs`). The share was
+-- already applied to the hit itself (Effects/Impact); this adds the rest.
+function PropertyBehaviour.flavour(ctx: CastTypes.EffectContext, hit: CastTypes.Hit, dealt: number, routeId: string)
+	local flavour = Evolution.flavour(ctx.stats.recipe.verb, routeId)
+	if not flavour or dealt <= 0 then
+		return
+	end
+	local ok, err = pcall(function()
+		local source = sourceOf(ctx)
+		if flavour.status and hit.humanoid.Health > 0 then
+			StatusEffects.apply(hit.humanoid, flavour.status.id, { duration = flavour.status.duration, source = source })
+		end
+		if flavour.pull and hit.humanoid.Health > 0 then
+			knock(ctx, hit, { speed = -flavour.pull.speed, perPower = 0, up = -0.15 })
+		end
+		if flavour.heal then
+			healCaster(ctx, dealt * flavour.heal)
+		end
+		if flavour.splash then
+			for _, other in Targeting.inRadius(hit.root.Position, flavour.splash.radius, 4, { [hit.model] = true, [ctx.character] = true }) do
+				if ctx.player == nil or Targeting.canHarm(ctx.player, other.model) then
+					DamageModel.hit(ctx, other, flavour.splash.share, "splash", { noCrit = true, noFalloff = true })
+				end
+			end
+		end
+	end)
+	if not ok then
+		warn("[PropertyBehaviour] flavour " .. tostring(ctx.stats.recipe.verb) .. ": " .. tostring(err))
 	end
 end
 

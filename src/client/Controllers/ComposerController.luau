@@ -46,6 +46,8 @@ local SpellHelp = require(Shared.UI.SpellHelp)
 local SpellOutcome = require(Shared.Magic.SpellOutcome)
 local Cantrips = require(Shared.Magic.Cantrips)
 local Wishes = require(Shared.Magic.Wishes)
+local Evolution = require(Shared.Magic.Evolution)
+local SpellShape = require(Shared.Magic.SpellShape)
 local Net = require(Shared.Net)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
@@ -1003,6 +1005,20 @@ local function buildPowerStep(parent: Instance, d: Draft)
 	if recipe then
 		for i, change in SpellOutcome.steps(recipe, template.maxPower) do
 			C.text(string.format("From power %d: %s. %s", change.power, SpellOutcome.tag(change.outcome), change.outcome.text), "caption", { LayoutOrder = 3 + i }).Parent = parent
+		end
+		-- How this spell grows with your mastery, and what its verb adds (stage 4). A reached
+		-- step is marked ✓ and an unreached one ○: never colour alone.
+		local outcome = SpellOutcome.of(recipe)
+		local lines = Evolution.lines(recipe, outcome.route, SpellShape.of(recipe, outcome.route), Evolution.behaviourFor(recipe, outcome.route), tierOf(recipe.branch))
+		if #lines > 0 then
+			C.text("As you master it", "heading", { LayoutOrder = 50 }).Parent = parent
+			for i, line in lines do
+				local label = C.text((if line.reached then "✓ " else "○ ") .. line.text, "caption", { LayoutOrder = 50 + i })
+				if not line.reached then
+					label.TextTransparency = 0.35
+				end
+				label.Parent = parent
+			end
 		end
 		local wishKind = Wishes.kindOf(recipe)
 		if wishKind then

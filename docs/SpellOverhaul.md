@@ -205,3 +205,23 @@ Owner, 2026-11-13: "player elementals by branch, yes". A harmful Summon spell (o
 - Spec `Tests/Elementals.spec` (7).
 - Defaults said to the owner (open): 25 s, one (two from Master), others can hurt them.
 - Known gaps: Wildborn and creatures don't attack elementals back; its hits on townspeople aren't judged by settlement law; it walks straight (no pathfinding); NPC mages don't summon.
+
+## 9. Stage 4 as built: mastery evolutions and verb flavours (2026-11-13, not yet run)
+
+Owner: "build the next stage". Data `Shared/Magic/Data/Evolutions`, rules `Shared/Magic/Evolution` (shared with the Composer), applied in `Cast/Shapes.find` (shape growth), `Cast/PropertyBehaviour` (Master, finishers, flavours) and `Effects/Impact` (the verb's damage share). Specs `Tests/Evolutions.spec` (5).
+
+**Mastery** (tier in the spell's branch):
+| Tier | What changes |
+|---|---|
+| Expert (5) | The shape grows once (`shapeGrowth`): +2 shards, +2 rain drops, +2 s linger, +3 s barrier, +1 pulse ring, +1 skip, a wider and harder nova, a wider lob splash, a harder echo, +10% beam drain, a higher eruption |
+| Master (6) | The behaviour's "strong enough" effects (`minPower`) work at any power, and its statuses last ×1.25 |
+| Grandmaster (7) | A **finisher** per behaviour (all 23): a hit on someone already carrying its status sets it off. Frozen shatters (0.9 hit), burning flares onto neighbours, dazed is arced by lightning (charge) or knocked flat (sound), sapped is drunk (you heal), crumbling shatters, knocked-down is crushed, withering blooms onto others, aged turns brittle (jinxed)... Once per target per second; checked before this hit's own effects |
+| Transcendent (8) | The shape grows a second time; finishers ×1.5 |
+
+**Verb flavours** (the plain-damage `harm` route only; elsewhere the verb already picks the spell): generate plain; amplify ×1.2; reduce ×0.9 and slows 2.5 s; transfer heals you 20% of the damage; redirect pulls them toward you; release ×0.95 and splashes 0.3 onto others within 6 studs; transmute jinxes them 4 s; bind ×0.85 and roots 1.2 s.
+
+**Composer:** the power step lists "As you master it": the verb's flavour, then each tier's change, ✓ reached or ○ not yet (text, not colour alone).
+
+**Test:** `testmage 4 energy`, then `testmage 8 energy`, comparing a cold bolt (`cast cryothermy temperature reduce projectile 6`, or the Composer) on a dummy: shards 3 then 5 then 7. At tier 7+: chill a target into a freeze, then hit it again for the shatter (a nova cue and a big number). Verbs: compare amplify, transfer (watch your health), redirect (on an NPC or `creature spawn`) and release next to two targets, all on a plain-damage property such as sound or momentum.
+
+**Unverified:** finisher balance at ~1000 health (open question 1 still stands: damage doesn't grow with mastery, only these extras do); a redirect pull on a player goes through their client like knockback, untried with a negative speed.
