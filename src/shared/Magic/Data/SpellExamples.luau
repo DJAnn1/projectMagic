@@ -163,7 +163,7 @@ local SpellExamples: { Example } = {
 	{ name = "Displace", domain = "space", effect = "blink",
 		recipe = { branch = "translocation", property = "position", verb = "transfer", form = "touch", power = 3 },
 		description = "Pull a target to stand in front of you." },
-	{ name = "Seal", domain = "space", effect = "binding",
+	{ name = "Seal", domain = "space", effect = "fallback_boundary",
 		recipe = { branch = "sealing", property = "boundary", verb = "bind", form = "zone", power = 5 },
 		description = "A prison with no doors: no one in the zone can leave it." },
 	{ name = "Fold", domain = "space", effect = "fold",
