@@ -985,6 +985,15 @@ end
 
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
+-- Loose ferals right now, for townspeople to talk about (Services/RumorService).
+function FeralService.loose(_self: any): { { id: string, domain: string, x: number, z: number } }
+	local out = {}
+	for _, feral in ferals do
+		table.insert(out, { id = feral.id, domain = feral.domain, x = feral.x, z = feral.z })
+	end
+	return out
+end
+
 function FeralService.init(_self: any, ctx: any)
 	log = ctx.log
 	runner = ctx.get("EffectRunner")

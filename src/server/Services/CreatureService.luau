@@ -789,6 +789,17 @@ local function planWorld()
 	log:info("creature_dens", { dens = #dens, towns = #towns })
 end
 
+-- Every planned den (not admin-made ones), for townspeople to talk about (Services/RumorService).
+function CreatureService.dens(_self: any): { { id: string, type: string, settlementId: string, x: number, z: number } }
+	local out = {}
+	for _, den in dens do
+		if not den.temporary then
+			table.insert(out, { id = den.id, type = den.type, settlementId = den.settlementId, x = den.x, z = den.z })
+		end
+	end
+	return out
+end
+
 function CreatureService.init(_self: any, ctx: any)
 	log = ctx.log
 	world = ctx.get("WorldStateService")

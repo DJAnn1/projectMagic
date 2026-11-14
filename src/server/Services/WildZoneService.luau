@@ -603,6 +603,15 @@ local function planWorld()
 	log:info("wild_zones_placed", { zones = #placed, wanted = #W.ids })
 end
 
+-- Where each wild zone lies, for townspeople to talk about (Services/RumorService).
+function WildZoneService.places(_self: any): { { id: string, name: string, x: number, z: number } }
+	local out = {}
+	for _, p in placed do
+		table.insert(out, { id = p.id, name = p.def.name, x = p.x, z = p.z })
+	end
+	return out
+end
+
 function WildZoneService.init(_self: any, ctx: any)
 	log = ctx.log
 	world = ctx.get("WorldStateService")

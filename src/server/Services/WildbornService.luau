@@ -734,6 +734,16 @@ local function planWorld()
 	log:info("wildborn_planned", { haunts = #homes - lairCount, lairs = lairCount })
 end
 
+-- Boss lairs, and whether their boss is beaten on this server (Services/RumorService).
+function WildbornService.lairs(_self: any): { { id: string, theme: string, x: number, z: number, beaten: boolean } }
+	local out = {}
+	for theme, home in lairByTheme do
+		local beaten = home.killedAt ~= nil and not Rules.bossBack(home.killedAt, os.time())
+		table.insert(out, { id = home.id, theme = theme, x = home.x, z = home.z, beaten = beaten })
+	end
+	return out
+end
+
 function WildbornService.init(_self: any, ctx: any)
 	log = ctx.log
 	world = ctx.get("WorldStateService")
