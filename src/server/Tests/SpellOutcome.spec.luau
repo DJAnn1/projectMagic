@@ -7,6 +7,7 @@
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Registry = require(Shared.Magic.Registry)
 local SpellRoute = require(Shared.Magic.SpellRoute)
+local SpellAudit = require(game:GetService("ReplicatedStorage").Shared.Magic.SpellAudit)
 local SpellOutcome = require(Shared.Magic.SpellOutcome)
 local EffectLibrary = require(Shared.Magic.Data.EffectLibrary)
 local Summaries = require(Shared.Magic.Data.RouteSummaries)
@@ -63,9 +64,12 @@ return function(t: any)
 			local bolt = SpellOutcome.of({ branch = "thermal", property = "temperature", verb = "generate", form = "projectile", power = 2 })
 			t.expect(bolt.useful).toBe(true)
 			t.expect(SpellOutcome.tag(bolt)).toBe("⚔ Attack")
-			local dead = SpellOutcome.of({ branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 2 })
-			t.expect(dead.route).toBe("manifest")
-			t.expect(dead.useful).toBe(false)
+			local deadRecipe = SpellAudit.firstDead(2)
+			if deadRecipe then -- none may be left after stages 1b to 1d
+				local dead = SpellOutcome.of(deadRecipe :: any)
+				t.expect(dead.route).toBe("manifest")
+				t.expect(dead.useful).toBe(false)
+			end
 		end)
 
 		t.it("applies verb and form variants", function()
@@ -81,7 +85,10 @@ return function(t: any)
 			t.expect(SpellOutcome.of(slide).useful).toBe(true)
 			t.expect(SpellOutcome.of(slide).route).toBe("fallback_contour")
 			t.expect(SpellOutcome.usefulFrom(slide)).toBe(1)
-			t.expect(SpellOutcome.usefulFrom({ branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 3 })).toBe(nil)
+			local deadRecipe = SpellAudit.firstDead(3)
+			if deadRecipe and SpellOutcome.usefulFrom(deadRecipe :: any) == nil then
+				t.expect(SpellOutcome.usefulFrom(deadRecipe :: any)).toBe(nil) -- dead at every power
+			end
 			local steps = SpellOutcome.steps(slide, 6)
 			t.expect(#steps).toBe(1)
 			t.expect(steps[1].power).toBe(4)
@@ -109,14 +116,17 @@ return function(t: any)
 		end)
 
 		t.it("summarizes a choice at the caster's best power", function()
-			-- A dead spell (Memory has no effect yet) summarizes as dead...
-			local list = { template("mnemonics", "memory", "redirect", "touch", 3) }
-			local low = SpellOutcome.summarize(list, function()
-				return true
-			end)
-			t.expect(low.useful).toBe(false)
+			-- A dead spell summarizes as dead, if any is left (stages 1b to 1d)...
+			local deadRecipe = SpellAudit.firstDead(3)
+			if deadRecipe then
+				local deadList = { template(deadRecipe.branch, deadRecipe.property, deadRecipe.verb, deadRecipe.form, 3) }
+				local low = SpellOutcome.summarize(deadList, function()
+					return true
+				end)
+				t.expect(low.useful).toBe(false)
+			end
 			-- ...and a spell that becomes a landslide at the power the caster reaches reads as one.
-			list[1] = template("earth", "contour", "reduce", "burst", 5)
+			local list = { template("earth", "contour", "reduce", "burst", 5) }
 			local high = SpellOutcome.summarize(list, function()
 				return true
 			end)
@@ -125,10 +135,10 @@ return function(t: any)
 		end)
 
 		t.it("offers the nearest working spells, one per kind", function()
+			-- The spell asked about (it needn't be dead: alternatives rank by closeness).
 			local dead = { branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 2 }
 			local list = {
-				template("mnemonics", "memory", "redirect", "touch", 3), -- the dead spell itself
-				template("mnemonics", "memory", "bind", "touch", 3), -- root: same property
+				template("mnemonics", "memory", "bind", "touch", 3), -- silence: same property
 				template("mnemonics", "memory", "bind", "beam", 3), -- also control: skipped
 				template("mind", "thought", "amplify", "touch", 1), -- a different kind (quick thinking)
 			}

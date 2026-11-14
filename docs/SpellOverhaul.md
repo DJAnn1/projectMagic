@@ -296,3 +296,13 @@ Highlights: Sequence (hurry your moments, push theirs back, stasis between momen
 The specs' dead example moved again: Amplify Hardness Touch became Stone Skin in 1b, and Void Presence Redirect Touch hides you in 1c. It is now Mnemonics Memory Redirect Touch (Memory has no route yet). Specs `Tests/Fallbacks.spec` (2): every entry and status is real; every property and verb is useful as a touch and a zone on every branch carrying it.
 
 **Still dead after 1c, by design or not yet:** memory, will, instinct, illusion (some verbs), position, volume, boundary and a few other non-harmful properties outside the 14; the `linked` and `silent` modifiers. `spellaudit` gives the numbers.
+
+## 13. Stage 1d as built: the last twelve, and the "not everything harmful" rule (2026-11-13, not yet run)
+
+Owner: "GO STAGE 1D", then mid-build: **"don't make everything harmful, just what seems necessary".** After 1c the audit showed manifest 3.6% (1,477), in boundary, foresight, illusion, persistence, instinct, purity, aether, volume, position, will, memory and distance. All 12 are in `Data/PropertyFallbacks` now (routes that already claim some of their verbs still win).
+
+**The rule, applied to all 26 fallback properties (1c's entries were revised too):** generate, amplify, transfer and release mostly help you and your allies (haste, ward, veil, luck, Featherweight); reduce, bind and sometimes redirect or transmute work against someone, where the property plainly means it (time slowed, a shadow pinned, magic drained, a will broken). Examples: Shadow Generate now veils you instead of blinding them; Thought Generate gives you luck instead of dazing them; Instinct Generate wakes the beast in you (haste) instead of frightening them.
+
+**Fixed on the way:** Calm isn't a harmful status, so the foe/friend rule sent "calm" at you and your allies. Entries can say `on = "foe"` (Effects/Status `onByVerb`), which also makes the PvP check the right one (`canHarm`).
+
+**Specs:** with (nearly) nothing dead left, the specs no longer name a dead example. `SpellAudit.firstDead(power)` finds one if any is left, and the dead-spell checks (CastTells, SpellOutcome) run only then. EarlyGame's dead check is gone.

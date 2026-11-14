@@ -298,7 +298,7 @@ do
 		local byVerb: { [string]: Variant } = {}
 		for verb, entry in verbs do
 			local info = (StatusInfo :: any)[entry.status]
-			local kind = if info and info.harmful then "control" elseif entry.status == "ward" then "protect" else "boost"
+			local kind = if (info and info.harmful) or entry.on == "foe" then "control" elseif entry.status == "ward" then "protect" else "boost"
 			byVerb[verb] = { kind = kind, text = entry.words .. "." }
 		end
 		routes["fallback_" .. property] = { kind = "utility", text = "A working of " .. property .. ".", byVerb = byVerb }

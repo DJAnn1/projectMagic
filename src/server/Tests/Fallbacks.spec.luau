@@ -41,6 +41,7 @@ return function(t: any)
 					if entry then
 						expect((StatusInfo :: any)[entry.status] ~= nil).toBe(true)
 						expect(#entry.words > 0).toBe(true)
+						expect(entry.on == nil or entry.on == "foe" or entry.on == "friend").toBe(true)
 					end
 				end
 			end

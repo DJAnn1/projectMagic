@@ -7,6 +7,7 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SpellAudit = require(ReplicatedStorage.Shared.Magic.SpellAudit)
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Shared = ReplicatedStorage.Shared
@@ -66,8 +67,11 @@ return function(t: any)
 				end
 			end
 			expect(CastTells.kindOf({ branch = "thermal", property = "temperature", verb = "generate", form = "projectile", power = 2 })).toBe("attack")
-			-- A spell that does nothing reads as hollow (the Composer's dead example).
-			expect(CastTells.kindOf({ branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 2 })).toBe("none")
+			-- A spell that does nothing reads as hollow, if any is left (stages 1b to 1d).
+			local dead = SpellAudit.firstDead(2)
+			if dead then
+				expect(CastTells.kindOf(dead :: any)).toBe("none")
+			end
 		end)
 	end)
 end

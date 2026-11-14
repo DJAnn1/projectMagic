@@ -12,6 +12,7 @@
 			opts.domain   only branches of this domain
 			opts.yield    called every few thousand recipes (an admin command passes task.wait)
 		SpellAudit.lines(report, top) -> { string }   a readable summary
+		SpellAudit.firstDead(power?) -> recipe?       a still-dead recipe, if any is left
 ]]
 
 local Registry = require(script.Parent.Registry)
@@ -68,6 +69,35 @@ function SpellAudit.run(opts: { power: number?, domain: string?, yield: (() -> (
 		end
 	end
 	return report
+end
+
+-- The first recipe the grammar allows that still does nothing (routes to `manifest`), or nil when
+-- none is left (the goal of stages 1b to 1d). The specs use it for the "dead spell" cases instead
+-- of naming one that a later stage would fix.
+function SpellAudit.firstDead(power: number?): { [string]: any }?
+	local p = power or 3
+	for _, branchId in Registry.branchIds do
+		local branch = Registry.branches[branchId]
+		for _, propertyId in branch.properties do
+			local category = Registry.properties[propertyId].category
+			for _, verbId in Registry.verbIds do
+				if Registry.verbs[verbId].minTier > branch.tier or Registry.verbPropertyEff[verbId][propertyId] <= 0 then
+					continue
+				end
+				for _, formId in Registry.formIds do
+					local form = Registry.forms[formId]
+					if form.minTier > branch.tier or Registry.formVerbEff[formId][verbId] <= 0 or Registry.formCategoryBlocked[formId][category] then
+						continue
+					end
+					local recipe = { branch = branchId, property = propertyId, verb = verbId, form = formId, power = p }
+					if SpellRoute.find(recipe :: any).id == "manifest" then
+						return recipe
+					end
+				end
+			end
+		end
+	end
+	return nil
 end
 
 local function sorted(map: { [string]: number }): { { id: string, n: number } }

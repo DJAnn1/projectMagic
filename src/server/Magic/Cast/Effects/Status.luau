@@ -13,6 +13,7 @@
 		    self    the caster
 		targetsByForm   { [form] = mode }: overrides `targets` per form (a bolt hits whoever it
 		                reaches, an aura works on you and your allies: stage 1b)
+		onByVerb        { [verb] = "foe" | "friend" }: overrides which of those a verb uses
 		foe / friend    { [form] = mode } chosen by the status itself (stage 1c fallbacks): a
 		                harmful one uses `foe`, a helpful one `friend` (and lands on the caster
 		                when it reached nobody); unlisted forms reach whoever the form reaches
@@ -139,6 +140,11 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		duration = math.min(duration, CONTROL_CAPS[statusId])
 	end
 
+	-- Against them or for you: by the status, unless the route says otherwise per verb (a calm
+	-- sent at an enemy: stage 1c/1d's `onByVerb`).
+	local side = params.onByVerb and params.onByVerb[recipe.verb]
+	local hostile = if side then side == "foe" else harmful
+
 	local targets: { Targeting.Hit }
 	if ctx.backfire then
 		if not harmful then
@@ -148,11 +154,11 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 	else
 		local mode = (params.targetsByForm and params.targetsByForm[recipe.form]) or params.targets or "hit"
 		if params.foe or params.friend then
-			local byForm = if harmful then params.foe else params.friend
+			local byForm = if hostile then params.foe else params.friend
 			mode = (byForm and byForm[recipe.form]) or "hit"
 		end
 		targets = targetsFor(ctx, mode)
-		if #targets == 0 and (params.selfIfNone or params.friend) and not harmful then
+		if #targets == 0 and (params.selfIfNone or params.friend) and not hostile then
 			targets = targetsFor(ctx, "self")
 		end
 	end
@@ -174,10 +180,10 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 
 	local affected = 0
 	for _, hit in targets do
-		if harmful and not ctx.backfire and not Targeting.canHarm(ctx.player, hit.model) then
+		if hostile and not ctx.backfire and not Targeting.canHarm(ctx.player, hit.model) then
 			continue
 		end
-		if not harmful and not Targeting.canHelp(ctx.player, hit.model) then
+		if not hostile and not Targeting.canHelp(ctx.player, hit.model) then
 			continue -- no outside help in a duel
 		end
 		if params.cleanse then

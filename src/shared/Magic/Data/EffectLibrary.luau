@@ -218,15 +218,19 @@ do
 	table.sort(ids)
 	for _, property in ids do
 		local byVerb: { [string]: string } = {}
+		local onByVerb: { [string]: string } = {}
 		for verb, entry in Fallbacks.list[property] do
 			byVerb[verb] = entry.status
+			if entry.on then
+				onByVerb[verb] = entry.on
+			end
 		end
 		table.insert(routes, at, {
 			id = "fallback_" .. property,
 			effect = "Status",
 			properties = { property },
 			verbs = Fallbacks.verbs,
-			params = { statusByVerb = byVerb, foe = FOE, friend = FRIEND },
+			params = { statusByVerb = byVerb, onByVerb = onByVerb, foe = FOE, friend = FRIEND },
 		})
 		at += 1
 	end
