@@ -34,6 +34,7 @@ local UI = script.Parent.Parent:WaitForChild("UI")
 local Kit = require(UI.Kit)
 local Theme = require(UI.Theme)
 local C = require(UI.Components)
+local ReturnToMenu = require(UI.ReturnToMenu)
 
 export type ScreenDef = {
 	id: string,
@@ -387,6 +388,9 @@ local function buildSettings(_scope: Kit.Scope, container: Frame)
 	table.sort(ids, function(a, b)
 		return UISettings[a].order < UISettings[b].order
 	end)
+
+	-- Last on the page: leave for the main menu (owner, 2026-11-13; docs/SaveFiles.md).
+	ReturnToMenu.build(scroll, #ids + 100)
 
 	local current = magic.settings:get()
 	for index, id in ids do
