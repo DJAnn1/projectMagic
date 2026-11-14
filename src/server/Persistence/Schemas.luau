@@ -111,6 +111,7 @@ Schemas.Player = {
 			wildborn = { heard = {}, slain = {} }, -- theme -> os.time() you heard its boss's story; boss id -> os.time() of your first kill of it; bounded sets (Services/WildbornService; reconcile fills old saves)
 			omens = { signs = {}, after = {} }, -- omen sign id -> os.time() first noticed; omen source -> os.time() its event arrived after you saw it; bounded sets (Services/OmenService; reconcile fills old saves)
 			sight = { noted = {} }, -- Sense sight kind (heat, metal, ley, tracks) -> os.time() you first wrote about seeing it, a bounded set (Services/SenseService; reconcile fills old saves)
+			dreams = { count = 0, lastAt = 0, lastDay = -1, seen = {}, recalled = {} }, -- dreams had in a bed: total (the seed's salt), last os.time() and WorldClock day, latent id -> dreams about it, latent id -> os.time() you wrote that it came true; bounded by the profile's latents (Services/DreamService; reconcile fills old saves)
 			weather = { noted = {} }, -- WeatherFuel rule id -> os.time() you first wrote about the weather feeding or starving your magic, a bounded set (Services/WeatherFuelService; reconcile fills old saves)
 			firstHour = {}, -- new players only: milestone -> seconds of play, casts, idle (FirstHourService; no schema bump)
 			creatureHunt = { hour = 0, total = 0, byType = {} }, -- kills this hour per type (CreatureService's anti-grind) + lifetime total (loot seed); reconcile fills old saves

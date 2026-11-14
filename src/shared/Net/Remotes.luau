@@ -513,6 +513,7 @@ local Remotes: { [string]: RemoteDef } = {
 	InventoryChanged = { kind = "Event", from = "Server" },
 	WildbornCue = { kind = "Event", from = "Server" }, -- { kind, primary, secondary, scale, style, ... }: draw a Wildborn move (Wildborn/WildbornMoves -> Controllers/WildbornController), sent only to players near it
 	Omens = { kind = "Event", from = "Server" }, -- { list = { { id, source, x, y, z, s } } }: the omens this player could see from where they stand (Services/OmenService -> Controllers/OmenController)
+	Dreaming = { kind = "Event", from = "Server" }, -- "drift" | "wake": dim the screen while you fall asleep in a bed, lift it when you wake or get up; never carries the dream (Services/DreamService -> Controllers/DreamController)
 	SenseReveal = { kind = "Event", from = "Server" }, -- { kind, center, radius, duration, bodies?, spots?, parts?, lines?, nexuses?, prints? }: what a Sense spell shows its caster (Cast/SenseSight -> Controllers/SenseController)
 	UsePromptResult = { kind = "Event", from = "Server" }, -- { seq, ok, reason?, text?, pending?, hold? }: the answer to a UsePrompt begin (Interact/PromptRouter)
 	ContainerView = { kind = "Event", from = "Server" }, -- the container you have open, with its session number (or { id, session, closed = true }); viewers only

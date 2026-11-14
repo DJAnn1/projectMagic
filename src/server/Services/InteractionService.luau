@@ -1010,6 +1010,20 @@ function InteractionService.init(_self: any, ctx: any)
 	registerDebugAdmin(ctx.get("AdminService"))
 end
 
+-- The bed this player is lying in right now, or nil (meditation mats don't count). DreamService
+-- asks this to know who is asleep.
+function InteractionService.bedOf(_self: any, player: Player): Seat?
+	for seat, who in resting do
+		if who == player and seat:GetAttribute("Interactable") == "bed" then
+			local occupant = seat.Occupant
+			if occupant and occupant.Parent == player.Character then
+				return seat
+			end
+		end
+	end
+	return nil
+end
+
 function InteractionService.start(_self: any, _ctx: any)
 	CollectionService:GetInstanceAddedSignal("Interactable"):Connect(setup)
 	CollectionService:GetInstanceRemovedSignal("Interactable"):Connect(teardown)
