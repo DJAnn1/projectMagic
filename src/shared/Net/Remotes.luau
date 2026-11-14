@@ -185,6 +185,7 @@ local Remotes: { [string]: RemoteDef } = {
 	FileChoose = { kind = "Function", from = "Client", args = { S.integer(1, 3) }, rate = { capacity = 2, perSecond = 0.5 }, maxBytes = 32 },
 	FileReset = { kind = "Function", from = "Client", args = { S.integer(1, 3), S.string(1, 8) }, rate = { capacity = 2, perSecond = 0.2 }, maxBytes = 48 },
 	FileReturn = { kind = "Event", from = "Client", args = {}, rate = { capacity = 1, perSecond = 0.1 }, maxBytes = 16 },
+	FileJoinFriend = { kind = "Function", from = "Client", args = { S.integer(1, 1e13) }, rate = { capacity = 2, perSecond = 0.2 }, maxBytes = 48 },
 
 	RequestSpellbook = {
 		kind = "Function",

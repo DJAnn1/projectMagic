@@ -12,6 +12,8 @@
 		                Continue, and Reset (a second step asks you to type RESET)
 		an empty file   "a new character": its innate magic is its own, found by playing; Begin
 	Text is never the only cue for state: an empty card says so in words, and Reset is set apart.
+	"Join a friend" lists Roblox friends on Project Magic right now; Join asks the server to send you
+	to their server (Services/SaveFileService FileJoinFriend), where you pick a file there.
 	Everything here is client-side drawing; the server decides what a file holds and loads it.
 ]]
 
@@ -42,6 +44,11 @@ local REASONS: { [string]: string } = {
 	CONFIRM = "Type RESET to confirm.",
 	DATASTORE_ERROR = "Your saves couldn't be reached. Try again in a moment.",
 	LOCKED = "That file is still open on another server. Try again in a minute.",
+	STUDIO = "Joining friends needs a live server: teleports don't work in Studio.",
+	NOT_FRIENDS = "You can only join your Roblox friends.",
+	NOT_HERE = "They aren't on a Project Magic server any more.",
+	SAME_SERVER = "They're already on this server: pick a file to play with them.",
+	TELEPORT_FAILED = "Couldn't reach their server (it may be full). Try again in a moment.",
 }
 
 local function ago(unix: number): string
@@ -142,11 +149,64 @@ function MainMenu.run()
 	end
 
 	local showFiles: () -> ()
+	local showFriends: () -> ()
 
 	local function showTitle()
 		clear()
 		C.list("y", Theme.space.s, { HorizontalAlignment = Enum.HorizontalAlignment.Center }).Parent = body
-		C.button("Play", showFiles, { kind = "primary" }, { Size = UDim2.fromOffset(220, Theme.minTouch + 8) }).Parent = body
+		C.button("Play", showFiles, { kind = "primary" }, { Size = UDim2.fromOffset(220, Theme.minTouch + 8), LayoutOrder = 1 }).Parent = body
+		C.button("Join a friend", showFriends, { kind = "secondary" }, { Size = UDim2.fromOffset(220, Theme.minTouch), LayoutOrder = 2 }).Parent = body
+	end
+
+	-- Friends on Project Magic right now (Roblox's online-friends list, read on the client; the
+	-- server checks the friendship and where they are again before teleporting).
+	showFriends = function()
+		clear()
+		C.list("y", Theme.space.s).Parent = body
+		status.Text = "Looking for your friends..."
+		local ok, online = pcall(function()
+			return player:GetFriendsOnline(200)
+		end)
+		status.Text = ""
+		local found = 0
+		if ok and typeof(online) == "table" then
+			for _, friend in online do
+				local entry: any = friend
+				if entry.PlaceId == game.PlaceId and typeof(entry.GameId) == "string" then
+					found += 1
+					local here = entry.GameId == game.JobId
+					local row = C.panel({ Size = UDim2.fromScale(1, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = found, Parent = body })
+					C.padding(Theme.space.s).Parent = row
+					C.list("x", Theme.space.s, { VerticalAlignment = Enum.VerticalAlignment.Center }).Parent = row
+					C.text(string.format("%s (@%s)%s", tostring(entry.DisplayName or entry.UserName), tostring(entry.UserName), if here then " · on this server" else ""), "body", {
+						Size = UDim2.new(1, -150, 0, 0),
+						LayoutOrder = 1,
+					}).Parent = row
+					if not here then
+						C.button("Join", function()
+							status.Text = "Joining " .. tostring(entry.DisplayName or entry.UserName) .. "..."
+							local sent, success, reason = Net.invoke("FileJoinFriend", entry.VisitorId)
+							if not sent or not success then
+								status.Text = REASONS[tostring(reason)] or "Couldn't join them. Try again."
+							end
+						end, { kind = "primary" }, { Size = UDim2.fromOffset(120, Theme.minTouch), LayoutOrder = 2 }).Parent = row
+					end
+				end
+			end
+		end
+		if found == 0 then
+			C.text(if ok then "None of your friends are playing Project Magic right now." else "Your friends list couldn't be read. Try again in a moment.", "body", {
+				TextXAlignment = Enum.TextXAlignment.Center,
+				LayoutOrder = 1,
+			}).Parent = body
+		end
+		if RunService:IsStudio() then
+			C.text("In Studio, joining a friend's server isn't possible (no teleports).", "caption", { TextXAlignment = Enum.TextXAlignment.Center, LayoutOrder = 98 }).Parent = body
+		end
+		local nav: Frame = Kit.create(nil, "Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, Theme.minTouch), LayoutOrder = 99, Parent = body })
+		C.list("x", Theme.space.s, { HorizontalAlignment = Enum.HorizontalAlignment.Center }).Parent = nav
+		C.button("Refresh", showFriends, { kind = "ghost" }, { Size = UDim2.fromOffset(120, Theme.minTouch), LayoutOrder = 1 }).Parent = nav
+		C.button("Back", showTitle, { kind = "ghost" }, { Size = UDim2.fromOffset(110, Theme.minTouch), LayoutOrder = 2 }).Parent = nav
 	end
 
 	local function choose(slot: number)

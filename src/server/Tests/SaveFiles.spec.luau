@@ -27,7 +27,7 @@ return function(t: any)
 			local account = Schemas.Account.template()
 			expect(account.last).toBe(0)
 			expect(next(account.files)).toBe(nil)
-			for _, name in { "FileList", "FileChoose", "FileReset", "FileReturn" } do
+			for _, name in { "FileList", "FileChoose", "FileReset", "FileReturn", "FileJoinFriend" } do
 				expect((Remotes :: any)[name] ~= nil).toBe(true)
 			end
 		end)

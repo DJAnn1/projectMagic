@@ -12,6 +12,8 @@
 		                                           characters spawn once it's loaded (WorldStateService)
 		FileReset(slot, "RESET")-> (ok, reason?)   wipes a file that isn't loaded; its next load
 		                                           regenerates the same innate magic from its seed
+		FileJoinFriend(userId)  -> (ok, reason?)   from the menu: teleport to a Roblox friend's server
+		                                           of this game (checked: friends, and really there)
 		FileReturn              leave for the menu: a rejoin (TeleportAsync to this place) on live
 		                        servers; in Studio, the session ends (no teleports there)
 
@@ -194,6 +196,52 @@ local function reset(player: Player, slot: number, word: string): (boolean, stri
 	return true, nil
 end
 
+-- Join a friend's server from the main menu (owner, 2026-11-13). Only Roblox friends, only a
+-- server of this game, only from the menu (no file open). The teleport lands on the main menu
+-- of their server, where a file is picked as usual.
+local function joinFriend(player: Player, friendId: number): (boolean, string?)
+	if RunService:IsStudio() then
+		return false, "STUDIO"
+	end
+	if playerData:get(player) then
+		return false, "IN_GAME"
+	end
+	if busy[player] then
+		return false, "BUSY"
+	end
+	busy[player] = true
+	local okFriends, isFriend = pcall(player.IsFriendsWith, player, friendId)
+	if not okFriends or not isFriend then
+		busy[player] = nil
+		return false, "NOT_FRIENDS"
+	end
+	local okWhere, here, _, placeId, jobId = pcall(TeleportService.GetPlayerPlaceInstanceAsync, TeleportService, friendId)
+	if not okWhere then
+		busy[player] = nil
+		return false, "NOT_HERE"
+	end
+	if here then
+		busy[player] = nil
+		return false, "SAME_SERVER"
+	end
+	if placeId ~= game.PlaceId or typeof(jobId) ~= "string" or jobId == "" then
+		busy[player] = nil
+		return false, "NOT_HERE"
+	end
+	local options = Instance.new("TeleportOptions")
+	options.ServerInstanceId = jobId
+	local okTeleport, err = pcall(function()
+		TeleportService:TeleportAsync(game.PlaceId, { player }, options)
+	end)
+	busy[player] = nil
+	log:info("file_join_friend", { userId = player.UserId, friend = friendId, ok = okTeleport })
+	if not okTeleport then
+		log:warn("file_join_friend_failed", { userId = player.UserId, reason = tostring(err) })
+		return false, "TELEPORT_FAILED"
+	end
+	return true, nil
+end
+
 local function returnToMenu(player: Player)
 	log:info("file_return", { userId = player.UserId, file = player:GetAttribute("SaveFile") })
 	if RunService:IsStudio() then
@@ -226,6 +274,9 @@ function SaveFileService.init(_self: any, ctx: any)
 	end)
 	Net.handle("FileReset", function(player: Player, slot: number, word: string)
 		return reset(player, slot, word)
+	end)
+	Net.handle("FileJoinFriend", function(player: Player, friendId: number)
+		return joinFriend(player, friendId)
 	end)
 	Net.on("FileReturn", function(player: Player)
 		returnToMenu(player)
