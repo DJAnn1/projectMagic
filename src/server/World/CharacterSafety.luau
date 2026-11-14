@@ -33,6 +33,12 @@ local CharacterSafety = {}
 
 local world: any = nil
 local strikes: { [Player]: number } = {}
+local lastSafe: { [Player]: Vector3 } = {}
+
+-- A flung body can end up at NaN or near infinity; every check below must skip such a position.
+local function finite(p: Vector3): boolean
+	return p == p and math.abs(p.X) < 1e6 and math.abs(p.Y) < 1e6 and math.abs(p.Z) < 1e6
+end
 local rescued = 0
 
 local terrainOnly = RaycastParams.new()
@@ -54,6 +60,9 @@ local PASSABLE: { [Enum.Material]: boolean } = {
 }
 
 function CharacterSafety.embedded(position: Vector3): boolean
+	if not finite(position) then
+		return false
+	end
 	local half = Vector3.new(0.1, 0.1, 0.1)
 	local region = Region3.new(position - half, position + half):ExpandToGrid(C.VOXEL)
 	local ok, materials, occupancies = pcall(function()
@@ -82,8 +91,33 @@ function CharacterSafety.rescue(player: Player, reason: string)
 		return
 	end
 	local p = root.Position
-	local y = surfaceAt(p.X, p.Z)
 	local target: Vector3
+	if not finite(p) then
+		-- Flung out of the world: back to the last place they stood safely (or the spawn).
+		local back = lastSafe[player]
+		local spawnLocation = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
+		if back then
+			target = back + Vector3.new(0, 3, 0)
+		elseif spawnLocation then
+			target = spawnLocation.Position + Vector3.new(0, 5, 0)
+		else
+			return
+		end
+		character:PivotTo(CFrame.new(target))
+		for _, part in character:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.AssemblyLinearVelocity = Vector3.zero
+				part.AssemblyAngularVelocity = Vector3.zero
+			end
+		end
+		strikes[player] = nil
+		rescued += 1
+		if world and world.logRescue then
+			world:logRescue(player, reason, target, target)
+		end
+		return
+	end
+	local y = surfaceAt(p.X, p.Z)
 	if y then
 		target = Vector3.new(p.X, y + 4, p.Z)
 	elseif world then
@@ -206,6 +240,7 @@ function CharacterSafety.start(worldService: any)
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		strikes[player] = nil
+		lastSafe[player] = nil
 	end)
 	task.spawn(function()
 		while true do
@@ -216,7 +251,9 @@ function CharacterSafety.start(worldService: any)
 					continue
 				end
 				local p = root.Position
-				if p.Y < C.BEDROCK_Y - VOID_MARGIN then
+				if not finite(p) then
+					CharacterSafety.rescue(player, "flung out of the world")
+				elseif p.Y < C.BEDROCK_Y - VOID_MARGIN then
 					CharacterSafety.rescue(player, "fell below the world")
 				elseif CharacterSafety.embedded(p) then
 					-- Two checks in a row, so a character merely brushing a wall isn't moved.
@@ -226,6 +263,7 @@ function CharacterSafety.start(worldService: any)
 					end
 				else
 					strikes[player] = nil
+					lastSafe[player] = p
 				end
 			end
 		end

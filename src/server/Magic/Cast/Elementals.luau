@@ -269,6 +269,27 @@ local function copyRig(source: Model, health: number, at: CFrame, ownerId: numbe
 		end
 	end
 	strip(model)
+	-- A joint or constraint whose other end lies outside the copy still points at the ORIGINAL's
+	-- parts: the double would be tied to (and drag, or fling) whoever it copied. Movers (a ride,
+	-- a flight, a knockback) go too: the double walks on its own.
+	local function inside(x: any): boolean
+		return x == nil or (typeof(x) == "Instance" and x:IsDescendantOf(model))
+	end
+	for _, d in model:GetDescendants() do
+		local foreign = false
+		if d:IsA("JointInstance") or d:IsA("WeldConstraint") or d:IsA("NoCollisionConstraint") then
+			foreign = not inside((d :: any).Part0) or not inside((d :: any).Part1)
+		elseif d:IsA("Constraint") then
+			local mover = d:IsA("AlignPosition") or d:IsA("AlignOrientation") or d:IsA("LinearVelocity")
+				or d:IsA("AngularVelocity") or d:IsA("VectorForce") or d:IsA("Torque") or d:IsA("LineForce")
+			foreign = mover or not inside(d.Attachment0) or not inside(d.Attachment1)
+		elseif d:IsA("BodyMover") or d:IsA("Tool") then
+			foreign = true
+		end
+		if foreign then
+			d:Destroy()
+		end
+	end
 	for _, d in model:GetDescendants() do
 		local dead = false
 		for _, class in STRIP_CLASSES do
@@ -291,6 +312,12 @@ local function copyRig(source: Model, health: number, at: CFrame, ownerId: numbe
 	if not humanoid or not root or not root:IsA("BasePart") then
 		model:Destroy()
 		return nil, nil, nil, {}
+	end
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
+		end
 	end
 	model.PrimaryPart = root
 	model.Name = name
@@ -721,6 +748,11 @@ local function think(e: Live, now: number)
 	end
 	if e.model:GetAttribute("TimeFrozen") or e.root.Anchored then
 		return -- held in a Timestop
+	end
+	local here = e.root.Position
+	if here ~= here or math.abs(here.Y) > 1e5 then
+		Elementals.dismiss(e, "lost") -- flung out of the world
+		return
 	end
 	local fromHome = (e.root.Position - home.Position).Magnitude
 	local guardAt = e.guardAt
