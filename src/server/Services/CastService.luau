@@ -380,11 +380,11 @@ local function aftermath(
 		posted a bounty in ~7 casts (docs/Improvements.md, Feel #1). Banned domains, forbidden
 		magic and towns that ban all casting still judge every cast (Settlements.judgeCast).
 	]]
-	local hurtSomeone = false
+	local hurtSomeone, killedSomeone = false, false
 	for _, entry in record do
 		if not entry.practice then
 			hurtSomeone = true
-			break
+			killedSomeone = killedSomeone or entry.killed
 		end
 	end
 	local changedLand = p.route.recordsWorld == true or p.route.effect == "Terrain"
@@ -411,6 +411,16 @@ local function aftermath(
 		power = stats.recipe.power,
 		harmful = stats.harmful,
 		casterUserId = player.UserId,
+		-- What the spell did, for people who saw it (Services/NoticeService, docs/Noticing.md).
+		recipe = stats.recipe,
+		key = stats.key,
+		form = stats.recipe.form,
+		effective = outcome.effective,
+		backfire = backfire,
+		practice = #record > 0 and not hurtSomeone,
+		hurt = hurtSomeone,
+		killed = killedSomeone,
+		changedLand = changedLand,
 	})
 	-- What the spell did, for quests (Quests/Objectives) and factions (FactionService).
 	local branchPath: { string } = {}

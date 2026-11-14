@@ -17,7 +17,7 @@ return table.freeze({
 	TerrainChanged = "TerrainChanged", -- { cause: string, position: Vector3, radius: number }
 	WorldEventStarted = "WorldEventStarted", -- { id: string, type: string, x: number, z: number, radius: number }
 	WorldEventEnded = "WorldEventEnded", -- { id: string, type: string }
-	MagicWitnessed = "MagicWitnessed", -- { position: Vector3, radius: number, domains: {string}, power: number, harmful: boolean, casterUserId: number } (NPC reactions)
+	MagicWitnessed = "MagicWitnessed", -- { position: Vector3, radius: number, domains: {string}, power: number, harmful: boolean, casterUserId: number, and from CastService only: recipe, key, form, effective, backfire, practice, hurt, killed, changedLand } (NPC reactions, Services/NoticeService)
 	MagicDamage = "MagicDamage", -- { humanoid: Humanoid, amount: number, kind: string, sourceUserId: number? }
 	-- Combat (docs/Combat.md §6)
 	SpellCast = "SpellCast", -- { casterUserId, key, route, domain, power, point } a cast was accepted and paid

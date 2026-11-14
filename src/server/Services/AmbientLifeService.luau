@@ -91,7 +91,11 @@ local townLines: { [string]: { [number]: number } } = {} -- town -> line -> when
 local playerGreeted: { [Player]: number } = {}
 local visitedLamps: { [Instance]: boolean } = {}
 local stories: { [string]: { { text: string, day: number } } } = {} -- town -> recent news (SceneDirector)
-local counters = { barks = 0, greetings = 0, whispers = 0, remarks = 0 }
+local counters = { barks = 0, greetings = 0, whispers = 0, remarks = 0, asked = 0 }
+-- Services/NoticeService: something this NPC wants to ask this player instead of a greeting ("Was
+-- that you, out north?"). Returns the line's categories, its own vars and what to do once said.
+type GreetHook = (npc: any, player: Player, close: boolean, clock: number) -> { categories: { string }, vars: { [string]: string }, lines: { any }, said: (string) -> () }?
+local greetHook: GreetHook? = nil
 local MARK_WHISPER_CHANCE = 0.35 -- of people further off, how many bother to whisper about a mark
 
 local function ground(v: Vector3): Vector3
@@ -340,6 +344,10 @@ local function contextFor(npc: any, player: Player?, rng: Random, now: number): 
 	for _, event in events:activeAt(npc.position.X, npc.position.Z) do
 		active[event.type] = true
 	end
+	local fears: { [string]: boolean } = {}
+	for _, fear in (npc.fears or {}) :: { string } do
+		fears[fear] = true
+	end
 	local deeds: { [string]: boolean } = {}
 	if player then
 		for _, memory in MemoryService.top(npc, 3, now, listener) do
@@ -371,6 +379,7 @@ local function contextFor(npc: any, player: Player?, rng: Random, now: number): 
 		child = npc.ageBand == "child",
 		mage = NPCMagicLife.best(npc) ~= nil,
 		deeds = deeds,
+		fears = fears,
 		vars = vars,
 	}
 end
@@ -561,6 +570,19 @@ local function greet(npc: any, now: number, clock: number)
 			if root and root:IsA("BasePart") then
 				local close = (root.Position - npc.position).Magnitude <= GREET_RADIUS
 				local band = GreetingRules.band(greetingInput(npc, player, now))
+				local ask = if band ~= "avoid" and greetHook then greetHook(npc, player, close, clock) else nil
+				if ask then
+					local text = AmbientLifeService:lineFor(npc, player, ask.categories, ask.lines, ask.vars)
+					if text then
+						npc.greeted[key] = clock
+						playerGreeted[player] = clock
+						counters.asked += 1
+						ask.said(text)
+						behave(npc, band, player, clock)
+						npcs:speak(npc, text, BARK_RADIUS)
+						return
+					end
+				end
 				local remark = if band ~= "avoid" then markLine(npc, player, close, now) else nil
 				if remark then
 					npc.greeted[key] = clock
@@ -642,7 +664,7 @@ local function registerAdmin(admin: any)
 			end
 			local lines = {
 				string.format("spawn town %s, all towns: %s, %s", tostring(spawnTownId), tostring(FeatureFlags.get("ambient_all_towns")), WorldClock.stamp()),
-				string.format("barks %d, greetings %d, whispers %d, mark remarks %d, %d lines", counters.barks, counters.greetings, counters.whispers, counters.remarks, #Barks),
+				string.format("barks %d, greetings %d, whispers %d, mark remarks %d, asked about magic %d, %d lines", counters.barks, counters.greetings, counters.whispers, counters.remarks, counters.asked, #Barks),
 			}
 			local keys: { string } = {}
 			for key in doing do
@@ -699,6 +721,53 @@ local function registerAdmin(admin: any)
 			)
 		end,
 	})
+end
+
+-- ─── For other services (Services/NoticeService) ────────────────────────────
+
+--[[
+	The first line that fits from the first category that has one, filled with this NPC's context
+	(mood, traits, fears, deeds toward the player) plus `vars`. Nil when nothing fits.
+]]
+function AmbientLifeService.lineFor(_self: any, npc: any, player: Player?, categories: { string }, lines: { any }, vars: { [string]: string }?): (string?, string?)
+	local rng = rngFor(npc, "notice")
+	local ctx = contextFor(npc, player, rng, WorldClock.now())
+	for name, value in (vars or {}) :: { [string]: string } do
+		ctx.vars[name] = value
+	end
+	for _, category in categories do
+		local _, text = BarkEngine.pick(category, ctx, rng, {}, nil, lines)
+		if text then
+			return text, category
+		end
+	end
+	return nil, nil
+end
+
+-- Stop, turn to `toward` for `seconds`, then walk on (as a greeting does).
+function AmbientLifeService.face(_self: any, npc: any, toward: Vector3, seconds: number)
+	if npc.talk then
+		return
+	end
+	Navigation.Pause(npc, "noticing")
+	Navigation.Face(npc, toward)
+	task.delay(seconds, function()
+		if not npc.talk then
+			Navigation.Face(npc, nil)
+		end
+		Navigation.Resume(npc, "noticing")
+	end)
+end
+
+function AmbientLifeService.setGreetHook(_self: any, fn: GreetHook)
+	greetHook = fn
+end
+
+-- So a greeting doesn't follow right on the heels of something this NPC just said to them.
+function AmbientLifeService.markGreeted(_self: any, npc: any, player: Player)
+	npc.greeted = npc.greeted or {}
+	npc.greeted[player.UserId] = os.clock()
+	playerGreeted[player] = os.clock()
 end
 
 -- ─── Boot ───────────────────────────────────────────────────────────────────

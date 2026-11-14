@@ -18,6 +18,7 @@
 		child    true = children only, false = adults only
 		deed     { memory kinds this NPC holds about the nearest hearer }
 		mage     true = has real magic, false = doesn't
+		fear     { NpcData.fears ids, any one } (fire, deep_water, void, mages, losing_control...)
 
 	VARS in {braces}; a line whose var isn't available right now is skipped.
 		{town} {name} {player} {story} {friend}
@@ -44,6 +45,7 @@ export type Line = {
 	child: boolean?,
 	deed: { string }?,
 	mage: boolean?,
+	fear: { string }?,
 }
 
 local Lines: { Line } = {

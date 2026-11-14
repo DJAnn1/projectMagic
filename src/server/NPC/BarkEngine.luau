@@ -8,7 +8,7 @@
 		BarkEngine.fill(text, vars) -> string?        nil when a var isn't available
 
 	ctx: { hour, occupation, action, mood, rel, traits, quirks = { [id] = true }, events = { [type] = true },
-	       biome, culture, child, mage, deeds = { [kind] = true }, vars = { [name] = string } }
+	       biome, culture, child, mage, deeds = { [kind] = true }, fears = { [id] = true }?, vars = { [name] = string } }
 
 	Cooldowns are the caller's: `recent` is lines this NPC said lately, `cooling` is lines someone
 	nearby said lately. Both are sets of line indices.
@@ -30,12 +30,13 @@ export type Context = {
 	child: boolean,
 	mage: boolean,
 	deeds: { [string]: boolean },
+	fears: { [string]: boolean }?, -- NpcData.fears ids (NPC/Data/NoticedLines uses them)
 	vars: { [string]: string },
 }
 
 local BarkEngine = {}
 
-local CONDITIONS = { "hours", "occ", "action", "mood", "rel", "high", "low", "quirk", "event", "biome", "culture", "child", "deed", "mage" }
+local CONDITIONS = { "hours", "occ", "action", "mood", "rel", "high", "low", "quirk", "event", "biome", "culture", "child", "deed", "mage", "fear" }
 
 local function inHours(hours: { number }, hour: number): boolean
 	local from, to = hours[1], hours[2]
@@ -98,6 +99,9 @@ function BarkEngine.eligible(line: Barks.Line, ctx: Context): boolean
 		return false
 	end
 	if not anyIn(line.quirk, ctx.quirks) or not anyIn(line.event, ctx.events) or not anyIn(line.deed, ctx.deeds) then
+		return false
+	end
+	if line.fear and not anyIn(line.fear, ctx.fears or {}) then
 		return false
 	end
 	for trait, atLeast in (line.high or {}) :: { [string]: number } do
