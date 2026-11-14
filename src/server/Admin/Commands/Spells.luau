@@ -53,6 +53,8 @@ return function(admin: any, deps: any)
 				local value = if a.on == nil then true else a.on;
 				(c :: any)[map[a.kind]] = value
 			end
+			-- Resolvers with cooldowns of their own (Effects/Ultimate) read this.
+			ctx.player:SetAttribute("CheatNoCooldown", c.noCooldown == true)
 			-- The reservoir itself knows, so everything that spends from it agrees (Shared/Magic/Reservoir).
 			local reservoir = reservoirs:get(ctx.player)
 			if reservoir then

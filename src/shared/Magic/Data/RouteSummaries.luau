@@ -252,6 +252,14 @@ do
 	routes.sense.byProperty = byProperty
 end
 
+-- Domain ultimates (Data/Ultimates, stage 5): one route each, named.
+do
+	local Ultimates = require(script.Parent.Ultimates)
+	for id, u in Ultimates.list do
+		routes["ult_" .. id] = { kind = "attack", text = string.format("%s, your domain's ultimate: %s Long to call again.", u.name, u.words) }
+	end
+end
+
 RouteSummaries.routes = routes
 
 RouteSummaries.builds = { construct = true, stoneshape = true } :: { [string]: boolean }

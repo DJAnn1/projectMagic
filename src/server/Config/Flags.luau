@@ -38,6 +38,7 @@ return {
 	surge_enabled = { default = true, description = "Fighting fills a meter that lets you transform (Services/SurgeService)." },
 	borrowed_powers_enabled = { default = true, description = "Relics give a minute of mythic magic (Services/BorrowedPowerService). Off: using one does nothing, and it isn't consumed." },
 	time_powers_enabled = { default = true, description = "Timelines, Timestop, Stored Moment, Borrowed Wound, Future Sight and Time Loop (Effects/TimePower). Off refuses new casts; what's running finishes." },
+	ultimates_enabled = { default = true, description = "Domain ultimates: a Ritual at power 8+ in a domain's own magic (Effects/Ultimate, Data/Ultimates). Off refuses new casts; what's running finishes." },
 	reality_powers_enabled = { default = true, description = "Favor, Doom, Certainty, Twist of Fate, Conjure, Cage, Unmake, Undying, Fray, Polymorph, Exchange, Edicts and Worldlaw (Effects/RealityPower). Off refuses new casts; what's running finishes." },
 	gravity_powers_enabled = { default = true, description = "Flight, Crushing Grip, wells, Lift and Slam, shields, Mass Shift and Singularity (Effects/GravityPower). Off refuses new casts; plain gravity fields still work." },
 	shared_events_enabled = { default = true, description = "Server-wide scheduled events (Services/SharedEventService). Off cancels a running one with no rewards." },

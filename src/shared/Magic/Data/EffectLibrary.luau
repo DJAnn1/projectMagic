@@ -162,4 +162,38 @@ local routes: { Route } = {
 	{ id = "manifest", effect = "Manifest", repeatable = true },
 }
 
+-- Domain ultimates (Data/Ultimates, docs/SpellOverhaul.md §10, stage 5): a Ritual at power 8+ in
+-- a domain's own magic. Placed after Time, Gravity and Reality's powers (which keep theirs, as do
+-- the earthquake and the tsunami) and before everything else that would take a ritual.
+do
+	local Ultimates = require(script.Parent.Ultimates)
+	local at = #routes
+	for i, route in routes do
+		if route.id == "sense" then
+			at = i
+			break
+		end
+	end
+	local ids: { string } = {}
+	for id in Ultimates.list do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, id in ids do
+		local u = Ultimates.list[id]
+		table.insert(routes, at, {
+			id = "ult_" .. id,
+			effect = "Ultimate",
+			branches = { u.domain },
+			properties = u.properties,
+			verbs = Ultimates.verbs,
+			forms = { "ritual" },
+			minPower = Ultimates.minPower,
+			params = { ultimate = id },
+			heavy = true,
+		})
+		at += 1
+	end
+end
+
 return table.freeze({ routes = routes })

@@ -225,3 +225,29 @@ Owner: "build the next stage". Data `Shared/Magic/Data/Evolutions`, rules `Share
 **Test:** `testmage 4 energy`, then `testmage 8 energy`, comparing a cold bolt (`cast cryothermy temperature reduce projectile 6`, or the Composer) on a dummy: shards 3 then 5 then 7. At tier 7+: chill a target into a freeze, then hit it again for the shatter (a nova cue and a big number). Verbs: compare amplify, transfer (watch your health), redirect (on an NPC or `creature spawn`) and release next to two targets, all on a plain-damage property such as sound or momentum.
 
 **Unverified:** finisher balance at ~1000 health (open question 1 still stands: damage doesn't grow with mastery, only these extras do); a redirect pull on a player goes through their client like knockback, untried with a negative speed.
+
+## 10. Stage 5 as built: domain ultimates (2026-11-13, not yet run)
+
+Owner: "go". A **Ritual at power 8+** in a domain's own magic, with an offensive verb, becomes that domain's ultimate. Inspired by the bosses' moves, not copies (owner's decision 2). Time, Gravity and Reality keep the powers they have; the earthquake and the tsunami stay what they were. Data `Shared/Magic/Data/Ultimates` (one `ult_<id>` route each, generated in `Data/EffectLibrary` and `Data/RouteSummaries`), resolver `Cast/Effects/Ultimate`, specs `Tests/Ultimates.spec` (3).
+
+| Ultimate | Domain (properties) | What happens |
+|---|---|---|
+| Meteor Cascade | Energy (combustion, temperature) | 3 waves of 5 meteors on marked ground, burning it; then the middle explodes and throws them up |
+| Skyfall Tempest | Energy (charge, luminosity, radiation, momentum) | 4 lightning strikes under everyone you can hurt, dazing; then the storm breaks over the area (knockdown) |
+| Forge of Tyrants | Earth | 3 widening rings of spikes (lift); then a stone anvil crushes the middle (knockdown) |
+| Maelstrom Crucible | Water | A 7 s whirlpool that pulls, grinds and slows; then bursts outward |
+| Cyclone Throne | Air | A 6 s cyclone that pulls and lifts; then hurls everyone away |
+| Verdant Storm | Life | 3 waves of thorns under everyone (root, poison); their life heals you |
+| Shattered Mind | Mind | 4 waves of dread: dazed, afraid, dazed, silenced |
+| Soulfire Requiem | Spirit | 5 falls of soulfire under everyone (soulmarked), healing you; a last toll |
+| Eclipse Erasure | Void | A 5 s darkness that blinds and draws in; then it collapses |
+| Fold of Worlds | Space | Everyone dragged to the middle, crushed, then thrown out |
+
+- **Warned:** every strike shows its ground marks first (Fx/ShapeFx "warn"), to everyone near.
+- **Hits:** through `DamageModel` (wards, guards, resistances, PvP cap) on people the caster may harm, each at most once per beat; the property's behaviour rides on each hit (so Grandmaster finishers apply). Roughly 2 to 4 base hits in total per target in the middle of it.
+- **Limits:** a cooldown per caster per ultimate, 240 s at low tiers down to 90 s at Transcendent (`ULTIMATE_COOLDOWN`; the admin `cheat nocooldown` skips it); at most 4 running on the server (`ULTIMATE_BUSY`). Flag `ultimates_enabled`.
+- **Not judged by settlement law** (the known delayed-hits gap).
+
+**Test:** `testmage 8 all`, `cheat all`, then in the Composer a Ritual at power 8+ in each domain (e.g. Energy Pyromancy Combustion Amplify Ritual; Energy Electric Charge Release Ritual; Water Flow Amplify Ritual; Mind Will Amplify Ritual), aimed near a few `creature spawn`s or `wildborn spawn`. The Composer names the ultimate. Without `cheat nocooldown`, a second cast should be refused with "You haven't the strength to call that again yet."
+
+**Unverified:** how the reused cues read at this scale (40+ studs of warnings, a zone the size of a whirlpool); knockback strength on players; server cost of 4 ultimates at once in a crowd (each beat at most 30 targets per spot).
