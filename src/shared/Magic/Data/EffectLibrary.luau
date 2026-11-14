@@ -199,6 +199,39 @@ local routes: { Route } = {
 	{ id = "manifest", effect = "Manifest", repeatable = true },
 }
 
+-- Stage 1c fallbacks (Data/PropertyFallbacks, docs/SpellOverhaul.md §12): what a non-harmful
+-- property does with every verb nothing more specific claims. Just before the general routes
+-- (restore, construct, binding, force, harm, manifest), after everything else.
+do
+	local Fallbacks = require(script.Parent.PropertyFallbacks)
+	local at = #routes
+	for i, route in routes do
+		if route.id == "restore" then
+			at = i
+			break
+		end
+	end
+	local ids: { string } = {}
+	for id in Fallbacks.list do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	for _, property in ids do
+		local byVerb: { [string]: string } = {}
+		for verb, entry in Fallbacks.list[property] do
+			byVerb[verb] = entry.status
+		end
+		table.insert(routes, at, {
+			id = "fallback_" .. property,
+			effect = "Status",
+			properties = { property },
+			verbs = Fallbacks.verbs,
+			params = { statusByVerb = byVerb, foe = FOE, friend = FRIEND },
+		})
+		at += 1
+	end
+end
+
 -- Domain ultimates (Data/Ultimates, docs/SpellOverhaul.md §10, stage 5): a Ritual at power 8+ in
 -- a domain's own magic. Placed after Time, Gravity and Reality's powers (which keep theirs, as do
 -- the earthquake and the tsunami) and before everything else that would take a ritual.

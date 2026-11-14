@@ -13,6 +13,9 @@
 		    self    the caster
 		targetsByForm   { [form] = mode }: overrides `targets` per form (a bolt hits whoever it
 		                reaches, an aura works on you and your allies: stage 1b)
+		foe / friend    { [form] = mode } chosen by the status itself (stage 1c fallbacks): a
+		                harmful one uses `foe`, a helpful one `friend` (and lands on the caster
+		                when it reached nobody); unlisted forms reach whoever the form reaches
 		selfIfNone      a beneficial status lands on the caster when it reached nobody (Haste)
 		reservoir       refills each player reached by this share of their reservoir (+1% per
 		                power level): Aether (stage 1b)
@@ -44,6 +47,21 @@ local Resistances = require(Cast.Resistances)
 local FireSim = require(Cast.FireSim)
 
 local Status = {}
+
+-- Hard control from the stage 1b and 1c routes (targetsByForm, foe/friend) is short whatever the
+-- power: 3 s + 1.2 s a level would hold someone in stasis for 15 s at power 10.
+local CONTROL_CAPS: { [string]: number } = {
+	stasis = 2.5,
+	root = 3,
+	knockdown = 1.5,
+	silence = 3,
+	charm = 4,
+	fear = 4,
+	calm = 4,
+	blind = 3,
+	dazed = 4,
+	chilled = 4,
+}
 
 local function statusFor(params: { [string]: any }, recipe: any): string?
 	if params.status then
@@ -117,6 +135,9 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 	local def = if statusId then StatusEffects.defs[statusId] else nil
 	local harmful = def ~= nil and def.harmful == true
 	local duration = math.clamp(T.status.minDuration + T.status.durationPerLevel * recipe.power, T.status.minDuration, T.status.maxDuration)
+	if statusId and CONTROL_CAPS[statusId] and (params.targetsByForm or params.foe or params.friend) then
+		duration = math.min(duration, CONTROL_CAPS[statusId])
+	end
 
 	local targets: { Targeting.Hit }
 	if ctx.backfire then
@@ -126,8 +147,12 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		targets = targetsFor(ctx, "self")
 	else
 		local mode = (params.targetsByForm and params.targetsByForm[recipe.form]) or params.targets or "hit"
+		if params.foe or params.friend then
+			local byForm = if harmful then params.foe else params.friend
+			mode = (byForm and byForm[recipe.form]) or "hit"
+		end
 		targets = targetsFor(ctx, mode)
-		if #targets == 0 and params.selfIfNone and not harmful then
+		if #targets == 0 and (params.selfIfNone or params.friend) and not harmful then
 			targets = targetsFor(ctx, "self")
 		end
 	end

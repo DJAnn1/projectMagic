@@ -289,6 +289,22 @@ do
 	routes.sense.byProperty = byProperty
 end
 
+-- Stage 1c fallbacks (Data/PropertyFallbacks): one route per property, its words by verb; the kind
+-- follows the status (harmful: control, else boost).
+do
+	local Fallbacks = require(script.Parent.PropertyFallbacks)
+	local StatusInfo = require(script.Parent.StatusInfo)
+	for property, verbs in Fallbacks.list do
+		local byVerb: { [string]: Variant } = {}
+		for verb, entry in verbs do
+			local info = (StatusInfo :: any)[entry.status]
+			local kind = if info and info.harmful then "control" elseif entry.status == "ward" then "protect" else "boost"
+			byVerb[verb] = { kind = kind, text = entry.words .. "." }
+		end
+		routes["fallback_" .. property] = { kind = "utility", text = "A working of " .. property .. ".", byVerb = byVerb }
+	end
+end
+
 -- Domain ultimates (Data/Ultimates, stage 5): one route each, named.
 do
 	local Ultimates = require(script.Parent.Ultimates)

@@ -280,3 +280,19 @@ Owner: "let's look at stage 1b". The stage 0 audit put 26.3% of all valid recipe
 Specs `Tests/Utility.spec` (3): every named status is real; every targeted property and verb reaches a useful route as a touch and as a zone; and a log line (`stage 1b: N of M recipes ... still do nothing`) gives what's left of the pile. Run `spellaudit` for the whole picture against the baseline (manifest 26.3%).
 
 **Still dead on purpose (for now):** verbs that make no sense for a property (presence redirect, humidity transfer...), and `linked`/`silent` modifiers. **Unverified:** whether Evading's resist and Anchor Weight's magnitude read as intended; mist and veil look (Veiled sets transparency 0.85).
+
+## 12. Stage 1c as built: every verb of the leftover properties (2026-11-13, not yet run)
+
+Owner: "do stage 1c". After 1b the audit showed manifest 13.5% (5,486 of 40,622), mostly six untouched properties (sequence, tempo, probability, bond, shadow, thought) and the verbs 1b left alone on presence, humidity, density, perception, viscosity, contour, buoyancy and hardness.
+
+`Shared/Magic/Data/PropertyFallbacks`: for each of those 14 properties, a status and the Composer's words for **every** verb (generate, amplify, reduce, transfer, redirect, transmute, bind, release; sense and store have their own routes). One `fallback_<property>` route each is generated in `Data/EffectLibrary` just before the general routes, so everything more specific (Time's and Reality's powers, the tempo field, fortune, stage 1b) still wins. Words are generated in `Data/RouteSummaries`; the tag follows the status (harmful: control; ward: protect; else boost).
+
+`Effects/Status`:
+- `foe`/`friend`: who it reaches follows the status. A harmful one reaches whoever the form reaches (everyone around for an area), and a helpful one reaches whoever you touch or aim at (yourself if nobody), or you and your allies for an area or aura.
+- **Hard control is capped** on the stage 1b and 1c routes, whatever the power: stasis 2.5 s, root 3, knockdown 1.5, silence 3, charm, fear and calm 4, blind 3, dazed 4, chilled 4. Without the cap, 3 s + 1.2 s a level would have meant 15 s of stasis at power 10.
+
+Highlights: Sequence (hurry your moments, push theirs back, stasis between moments on bind), Tempo (quicken or slow time, stasis on bind), Probability (luck for you, jinx for them), Bond (shared ward, rallying haste, turned loyalty), Shadow (darkness blinds, shade hides you, their shadow frightens or pins them), Thought (dazed, silenced, charmed, afraid, calmed, quick thinking).
+
+The specs' dead example moved again: Amplify Hardness Touch became Stone Skin in 1b, and Void Presence Redirect Touch hides you in 1c. It is now Mnemonics Memory Redirect Touch (Memory has no route yet). Specs `Tests/Fallbacks.spec` (2): every entry and status is real; every property and verb is useful as a touch and a zone on every branch carrying it.
+
+**Still dead after 1c, by design or not yet:** memory, will, instinct, illusion (some verbs), position, volume, boundary and a few other non-harmful properties outside the 14; the `linked` and `silent` modifiers. `spellaudit` gives the numbers.

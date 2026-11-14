@@ -132,8 +132,8 @@ return function(t: any)
 			-- Pebble Nudge and Shape Stone used to fall through to manifest (the Shine ledger, rank 5).
 			expect(route({ branch = "earth", property = "contour", verb = "generate", form = "touch", power = 1 })).toBe("stonetouch")
 			expect(route({ branch = "geomancy", property = "contour", verb = "generate", form = "touch", power = 2 })).toBe("stonetouch")
-			-- A dead example stays honestly dead (Amplify Hardness as a Touch became Stone Skin in stage 1b).
-			expect(route({ branch = "void", property = "presence", verb = "redirect", form = "touch", power = 2 })).toBe("manifest")
+			-- A dead example stays honestly dead (Amplify Hardness Touch became Stone Skin in 1b, Presence Redirect a veil in 1c).
+			expect(route({ branch = "mnemonics", property = "memory", verb = "redirect", form = "touch", power = 2 })).toBe("manifest")
 		end)
 
 		it("matches strikes through hybrid branches' domains too", function()
