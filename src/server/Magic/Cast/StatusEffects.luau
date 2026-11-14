@@ -92,6 +92,7 @@ local DEFS: { [string]: StatusDef } = {
 	-- Property behaviours (Cast/PropertyBehaviour, Shared/Magic/Data/PropertyBehaviours: docs/SpellOverhaul.md §2A)
 	chilled = { name = "Chilled", walk = 0.75, harmful = true }, -- a chill stack; three freeze you
 	frozen = { name = "Frozen", walk = 0, jump = 0, noCast = true, harmful = true }, -- frozen solid: no moving, no casting (owner, 2026-11-13: it has to matter)
+	struggling = { name = "Struggling", walk = 0, jump = 0, noCast = true }, -- locked in a spell struggle (Cast/Struggle): only the struggle's own intents act
 	suffocating = { name = "Suffocating", walk = 0.75, dot = true, harmful = true },
 	irradiated = { name = "Irradiated", dot = true, harmful = true },
 	crumbling = { name = "Crumbling", damageTaken = 1.2, harmful = true },

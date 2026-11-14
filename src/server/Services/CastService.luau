@@ -78,6 +78,8 @@ local C = require(MagicFolder.Data.CombatTuning)
 local CastTypes = require(MagicFolder.Cast.CastTypes)
 local Targeting = require(MagicFolder.Cast.Targeting)
 local Delivery = require(MagicFolder.Cast.Delivery)
+local Struggle = require(MagicFolder.Cast.Struggle)
+local StruggleRules = require(Shared.Magic.StruggleRules)
 local LightningRods = require(MagicFolder.Cast.LightningRods)
 local Shapes = require(MagicFolder.Cast.Shapes)
 local Damage = require(MagicFolder.Cast.Damage)
@@ -160,6 +162,7 @@ local CastService = {
 		"EffectRunner",
 		"BacklashService",
 		"AttunementService",
+		"StruggleService",
 	},
 }
 
@@ -176,6 +179,7 @@ local events: any = nil
 local runner: any = nil
 local backlash: any = nil
 local attunement: any = nil
+local struggles: any = nil
 
 local holds: { [Player]: Hold } = {}
 local channels: { [Player]: Channel } = {}
@@ -545,6 +549,90 @@ local function channelPoint(p: Pending, root: BasePart): Vector3
 	return point
 end
 
+-- ─── Beams meeting beams (docs/SpellStruggle.md §4.2) ───────────────────────
+
+local function beamWeight(p: Pending, ctx: CastTypes.EffectContext): number
+	return StruggleRules.weight(ctx.power, "beam", p.stats.masteryTier or 0)
+end
+
+--[[
+	Before a beam resolves: it sweeps lighter bolts out of the air, and may meet a beam cast a moment
+	ago from the other side (Cast/Struggle.beam). Returns nil (nothing changed), a power multiplier
+	(shattered), or "lost" (stopped by a heavier beam, or the struggle went the other way). A struggle
+	YIELDS here; won, the beam lands on the loser.
+]]
+local function beamMeets(p: Pending, ctx: CastTypes.EffectContext): (number | string)?
+	local stats = p.stats
+	local weight = beamWeight(p, ctx)
+	local tags = InteractionMatrix.tagsFor(stats)
+	local origin = Aim.muzzle(ctx.origin)
+	Delivery.sweep(origin, ctx.point, 1.5, weight, ctx.character, { domain = stats.domains[1], tags = tags, model = ctx.character, weight = weight })
+	local met = Struggle.beam({
+		model = ctx.character,
+		player = p.player,
+		origin = origin,
+		point = ctx.point,
+		radius = 1.5,
+		weight = weight,
+		domain = stats.domains[1],
+		tags = tags,
+	}, function(a: Model, b: Model): boolean
+		return struggles:canCollide(a, b)
+	end, struggles:band())
+	if not met then
+		return nil
+	end
+	if met.kind == "stopped" then
+		ctx.point = met.at
+		return "lost"
+	elseif met.kind == "shatter" then
+		ctx.point = met.at
+		return met.mult
+	elseif met.kind == "struggle" then
+		if not met.won then
+			return "lost"
+		end
+		ctx.point = met.at
+		ctx.target = met.target
+		return met.mult
+	end
+	return nil
+end
+
+-- After a beam lands: remembered for a moment, so a beam from the other side can meet it. If it
+-- then wins a struggle, its spell lands again on the loser through this closure.
+local function rememberBeam(p: Pending, ctx: CastTypes.EffectContext, params: { [string]: any })
+	local stats = p.stats
+	local saved = table.clone(ctx)
+	local player = p.player
+	Struggle.rememberBeam({
+		model = ctx.character,
+		player = player,
+		origin = Aim.muzzle(ctx.origin),
+		point = ctx.point,
+		radius = 1.5,
+		weight = beamWeight(p, ctx),
+		domain = stats.domains[1],
+		tags = InteractionMatrix.tagsFor(stats),
+		land = function(target: Model?, at: Vector3, mult: number)
+			local c = table.clone(saved)
+			c.point, c.target, c.delivered, c.backfire = at, target, nil, false
+			c.power = saved.power * mult
+			local root = ctx.character:FindFirstChild("HumanoidRootPart")
+			if root and root:IsA("BasePart") then
+				c.origin = root.Position
+			end
+			cue(player, stats, c.origin, at, "resolve", p.heavy, false, nil)
+			local recording = Damage.record()
+			local ok, err = pcall(p.resolver.resolve, c, params)
+			Damage.stopRecord(recording)
+			if not ok then
+				warn("[CastService] struggle landing failed: " .. tostring(err))
+			end
+		end,
+	})
+end
+
 --[[
 	One delivery + resolution: the cast itself, an echo or a channel pulse. Projectile forms fly
 	first (Cast/Delivery; the "launch" cue lets clients draw the same flight), then the resolver
@@ -560,6 +648,16 @@ local function strike(
 	ctx.delivered = nil
 	local wasBackfire = ctx.backfire -- a reflected bolt sets it for this strike only
 	local extra: { [string]: any }? = nil
+	local powerBefore: number? = nil -- a collision changed this strike's power; restored after it
+	if stats.recipe.form == "beam" and not ctx.backfire and FeatureFlags.get("spell_collisions_enabled") == true then
+		local met = beamMeets(p, ctx)
+		if met == "lost" then
+			return { effective = false, hits = 0 }
+		elseif typeof(met) == "number" then
+			powerBefore = ctx.power
+			ctx.power *= met
+		end
+	end
 	if stats.recipe.form == "projectile" and not ctx.backfire and Delivery.capacity() then
 		local flight = Delivery.plan(ctx)
 		cue(player, stats, flight.origin, ctx.point, "launch", p.heavy, false, {
@@ -598,7 +696,22 @@ local function strike(
 				lifetime = hangSeconds or flight.lifetime,
 			})
 		end
+		-- Spell collisions (docs/SpellStruggle.md): who may struggle with it, and the drawn bolt
+		-- ends where it was held.
+		flight.side = { player = player }
+		flight.onHeld = function(oldId: number, at: Vector3)
+			cue(player, stats, at, at, "resolve", false, false, { projectileId = oldId, expired = true })
+		end
 		local impact = Delivery.fly(flight, { ctx.character })
+		if impact.destroyed then
+			-- Another spell destroyed it in the air (or won the struggle): nothing lands.
+			cue(player, stats, impact.point, impact.point, "resolve", false, false, { projectileId = flight.id, expired = true })
+			return { effective = false, hits = 0 }
+		end
+		if impact.powerMult and impact.powerMult ~= 1 then
+			powerBefore = ctx.power
+			ctx.power *= impact.powerMult
+		end
 		ctx.point = impact.point
 		ctx.delivered = impact.hits
 		ctx.onSurface = impact.surface
@@ -641,6 +754,12 @@ local function strike(
 	local recording = Damage.record()
 	local outcome = p.resolver.resolve(ctx, params)
 	Damage.stopRecord(recording)
+	if stats.recipe.form == "beam" and not ctx.backfire and FeatureFlags.get("spell_collisions_enabled") == true then
+		rememberBeam(p, ctx, params)
+	end
+	if powerBefore then
+		ctx.power = powerBefore
+	end
 	if ctx.backfire and not wasBackfire then
 		outcome.harmedSelf = true -- your own parried bolt came home
 	end
@@ -1471,6 +1590,7 @@ function CastService.init(_self: any, ctx: any)
 	runner = ctx.get("EffectRunner")
 	backlash = ctx.get("BacklashService")
 	attunement = ctx.get("AttunementService")
+	struggles = ctx.get("StruggleService")
 
 	-- Every route's effect must exist: a typo in EffectLibrary fails the boot, not a player's cast.
 	local effects = MagicFolder.Cast.Effects

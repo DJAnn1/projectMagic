@@ -61,6 +61,7 @@ local Registry = require(Shared.Magic.Registry)
 local ActionRules = require(Shared.Magic.ActionRules)
 local Aim = require(Shared.Magic.Aim)
 local Charge = require(Shared.Magic.Charge)
+local Net = require(Shared.Net)
 local Melee = require(Shared.Magic.Melee)
 
 local Client = script.Parent.Parent
@@ -306,7 +307,17 @@ end
 
 -- Press (left mouse, R2, the touch Cast button) in equip mode: a chargeable spell starts
 -- charging (released later); a channelled or slow spell is cast at once and held.
+-- Locked in a spell struggle (docs/SpellStruggle.md): the cast button pours more in instead.
+local function struggling(): boolean
+	local character = Players.LocalPlayer.Character
+	return character ~= nil and character:GetAttribute("Struggling") ~= nil
+end
+
 function CastClient.pressCast(self: any)
+	if struggling() then
+		Net.send("StruggleIntent", "down")
+		return
+	end
 	local held = CastClient.attuned:get()
 	if not held then
 		local press = CastClient.weapon.press
@@ -364,6 +375,10 @@ end
 
 -- Release: a charge is cast at its stage; a held channel ends.
 function CastClient.releaseCast(self: any)
+	if struggling() then
+		Net.send("StruggleIntent", "up")
+		return
+	end
 	local charge = CastClient.charging:get()
 	if charge then
 		CastClient.charging:set(nil)
@@ -536,6 +551,10 @@ end
 
 -- A hotbar key or slot tap: casts (quick mode) or attunes / swaps / stows (equip mode).
 function CastClient.pressSlot(self: any, slot: number)
+	if struggling() then
+		Net.send("StruggleIntent", "down")
+		return
+	end
 	if not equipMode() then
 		self:cast(slot)
 		return

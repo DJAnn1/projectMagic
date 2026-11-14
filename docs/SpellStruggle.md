@@ -1,6 +1,41 @@
 # Spell collisions and spell struggles (plan)
 
-Written 2026-11-14 on the owner's "I do want spells colliding with other people's spells in a spell struggle. Make a plan for that." This revives idea #31 (Spells that collide, discarded 2026-11-09) with the struggle as its heart. **Plan only; nothing is built.**
+Written 2026-11-14 on the owner's "I do want spells colliding with other people's spells in a spell struggle. Make a plan for that." This revives idea #31 (Spells that collide, discarded 2026-11-09) with the struggle as its heart. **Stages 1 and 2 built 2026-11-14 on the owner's "build it now"; stage 3 waits for the playtest.**
+
+## Built (stages 1 and 2), not yet run
+
+The open questions took their defaults: hold to feed and tap to surge; bolts and beams; allies' spells pass through each other; players and NPC mages; both spells land on the loser; no meter.
+
+- **Collisions** (`Cast/Delivery`): after every step, flights within reach of each other from people who could hurt each other (`StruggleService:canCollide`: `Targeting.canHarm` for players, anyone for NPCs and ferals) meet. They cut through, shatter, glance or are held for a struggle (`StruggleRules.outcome`). Every meeting leaves both spells' presences at the point, so `InteractionMatrix` reactions fire. A beam sweeps lighter bolts away (`Delivery.sweep`), and a beam meets a beam cast in the last 0.6 s from the other side (`Struggle.beam`, `Struggle.rememberBeam`).
+- **Weight:** the charge stage is already inside the cast's power by the time it strikes, so there is no separate charge term (`StruggleRules.weight(power, form, tier)` × matchup).
+- **The struggle** (`Cast/Struggle`, 10 Hz):
+  - Both casters get the `struggling` status (no moving, no casting) and the `Struggling` attribute.
+  - The cast button sends `StruggleIntent` "down" (a surge, and feeding) and "up" (stop feeding); routed in `CastClient.pressCast`, `releaseCast` and `pressSlot`. Jumping sends "break" (let go).
+  - Endings: overwhelmed, let go (dodge by moving 5+ studs in 0.35 s), broken, or burst at 8 s.
+  - NPC mages push by courage (`flight.side.courage` from `NPCCombat.courage`).
+- **Look** (`Controllers/StruggleController`):
+  - A flash at every clash.
+  - In a struggle, two beams to a pulsing knot that takes the winner's colour; the loser's beam thins; the camera shakes nearby.
+  - Your screen edges darken as the knot comes for you.
+- **Flags:** `spell_collisions_enabled`, `struggles_enabled`. **Admin:** `struggles`, `struggleend`, `struggletest on|off` (a 3x band, so a strong mage can struggle a weak NPC). **Log:** `spell_clash` (at most 1/s), `struggle_started`, `struggle_ended` { how, loser, seconds, wa, wb }.
+- **Spec:** `Tests/Struggle.spec` (5).
+- **Not done yet:**
+  - Ferals and Wildborn don't struggle: ferals shatter instead, and Wildborn bolts don't collide at all.
+  - Arrows have no drawn re-cue when destroyed.
+  - No sound yet.
+  - Struggles grant no XP yet.
+
+### Test
+1. Expect `specs 1116/1117` (the failure being the known Standing room).
+2. `testmage 8 all`, put a projectile spell on the hotbar, and walk up to a town guard or NPC mage. `npcfight` makes it fight you.
+3. `struggletest on`, then fire bolts straight at it as it fires at you. Head-on meetings should lock into a struggle: you can't move, and a knot sits between you.
+4. Click repeatedly to surge (the knot should move toward the NPC), stop clicking (it should drift back), and jump to let go. Dash sideways right after letting go to see if you dodge.
+5. `struggles` while one runs; `struggleend` to burst it.
+6. Without `struggletest`, cast a strong bolt into a weak NPC bolt: it should cut through (flash, the NPC's bolt gone).
+7. Two players (Test > Clients and Servers, 2 players, PvP on): beams at each other at the same moment, and bolts head-on.
+
+Look for in the log: `spell_clash`, `struggle_started`, `struggle_ended`, and any `[Delivery] collisions failed` or `[Struggle]` warnings.
+
 
 ## 1. The idea in one paragraph
 

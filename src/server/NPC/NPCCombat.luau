@@ -327,8 +327,22 @@ local function launchBolt(npc: any, rig: any, recipe: any, stats: any, applied: 
 		back.turnRate, back.lifetime = flight.turnRate, flight.lifetime
 		runner:cue("spell", back, at, false)
 	end
+	-- Spell struggles (docs/SpellStruggle.md): its nerve decides how hard it pushes and when it
+	-- lets go; the drawn bolt ends where it was held.
+	flight.side = { courage = math.clamp(NPCCombat.courage(npc, healthShare(npc)), 0, 1) }
+	flight.onHeld = function(oldId: number, at: Vector3)
+		local held = table.clone(base)
+		held.stage, held.origin, held.point, held.projectileId, held.expired = "resolve", at, at, oldId, true
+		runner:cue("spell", held, at, false)
+	end
 	task.spawn(function()
 		local impact = Delivery.fly(flight, { rig.model })
+		if impact.destroyed then
+			local gone = table.clone(base)
+			gone.stage, gone.origin, gone.point, gone.projectileId, gone.expired = "resolve", impact.point, impact.point, flight.id, true
+			runner:cue("spell", gone, impact.point, false)
+			return
+		end
 		local resolve = table.clone(base)
 		resolve.stage = "resolve"
 		resolve.origin = flight.origin
@@ -341,7 +355,7 @@ local function launchBolt(npc: any, rig: any, recipe: any, stats: any, applied: 
 		for _, hit in impact.hits do
 			-- Its own bolt only hurts it when someone parried it back.
 			if hit.model ~= rig.model or impact.reflectedBy then
-				DamageModel.hit(ctx, hit, 1, recipe.property)
+				DamageModel.hit(ctx, hit, impact.powerMult or 1, recipe.property)
 			end
 		end
 	end)

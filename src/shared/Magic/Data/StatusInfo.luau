@@ -40,6 +40,7 @@ local StatusInfo: { [string]: Info } = {
 	jinxed = { name = "Jinxed", harmful = true, description = "Luck has turned on you: hits on you crit more often." },
 	chilled = { name = "Chilled", harmful = true, description = "Cold to the bone: slower. Two more chills and you freeze." },
 	frozen = { name = "Frozen", harmful = true, description = "Frozen solid: you can't move or cast." },
+	struggling = { name = "Struggling", description = "Your spell is locked against another. Click to pour more in, jump to let go." },
 	suffocating = { name = "Suffocating", harmful = true, description = "You can't get your breath: slower, losing health and stamina." },
 	irradiated = { name = "Irradiated", harmful = true, description = "A sickness in you that keeps hurting." },
 	crumbling = { name = "Crumbling", harmful = true, description = "What holds you together is loose: you take more from every hit." },

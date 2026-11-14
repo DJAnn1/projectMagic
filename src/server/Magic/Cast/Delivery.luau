@@ -25,6 +25,14 @@
 		           back at its caster, homing, with a fresh range and a new projectile id
 		           (flight.onReflect lets the caster's side re-cue the visuals). It can then hit
 		           the caster; the Impact names who turned it (reflectedBy).
+		collide    (docs/SpellStruggle.md) after every step, flights from people who could hurt each
+		           other (Delivery.collisions.canCollide) that touch are compared by weight
+		           (StruggleRules.outcome): the heavier cuts through (the lighter is destroyed, the
+		           heavier flies on weakened), close ones shatter together at the meeting point, glance
+		           apart, or, head-on and within the band, are HELD for a spell struggle
+		           (Delivery.collisions.struggle; Cast/Struggle later calls Delivery.settle). Arrows weigh
+		           Data/Struggle.arrowWeight and never struggle. A beam's sweep destroys lighter flights
+		           it crosses (Delivery.sweep).
 
 	One Heartbeat connection steps every flight; each step is one Spherecast (a few more only when
 	passing through non-solid parts). Clients get the same launch numbers in the "launch" cue and
@@ -40,6 +48,9 @@ local C = require(Cast.Parent.Data.CombatTuning)
 local CastTypes = require(Cast.CastTypes)
 local Targeting = require(Cast.Targeting)
 local Guard = require(Cast.Guard)
+local InteractionMatrix = require(Cast.InteractionMatrix)
+local StruggleRules = require(game:GetService("ReplicatedStorage").Shared.Magic.StruggleRules)
+local StruggleData = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.Struggle)
 
 local P = C.projectile
 
@@ -61,6 +72,12 @@ export type Flight = {
 	onReflect: ((oldId: number, at: Vector3, velocity: Vector3) -> ())?, -- set by the caster's side
 	onBend: ((oldId: number, at: Vector3, velocity: Vector3, hangSeconds: number?) -> ())?, -- set by the caster's side: re-draw a curved or hanging flight
 	bent: boolean?, -- Bend Path has already had its say on this flight
+	-- Spell collisions (docs/SpellStruggle.md). A flight with no weight is an arrow or a knife.
+	weight: number?,
+	tags: { string }?,
+	domain: string?,
+	side: any?, -- who may struggle with it: { player = Player } or { courage = number } (an NPC mage)
+	onHeld: ((oldId: number, at: Vector3) -> ())?, -- set by the caster's side: the flight stopped in a struggle
 }
 
 export type Impact = {
@@ -71,6 +88,8 @@ export type Impact = {
 	expired: boolean, -- ran out of range or time in the air
 	flightTime: number,
 	reflectedBy: Model?, -- a parry turned it back (the caster may be among the hits)
+	powerMult: number?, -- a collision weakened it (cut through: < 1) or a struggle won it (> 1)
+	destroyed: boolean?, -- another spell destroyed it in the air: nothing lands
 }
 
 type Live = {
@@ -87,6 +106,8 @@ type Live = {
 	params: RaycastParams,
 	reflectedBy: Model?,
 	hanging: boolean?, -- Time holds it in the air until Delivery.release
+	held: boolean?, -- stopped in a spell struggle until Delivery.settle
+	powerMult: number,
 }
 
 local Delivery = {}
@@ -107,6 +128,21 @@ Delivery.interceptor = nil :: ((position: Vector3, velocity: Vector3, flight: Fl
 	this many seconds", until Delivery.release. A hanging flight doesn't age or check anything.
 ]]
 Delivery.hanger = nil :: ((position: Vector3, flight: Flight, age: number) -> number?)?
+
+--[[
+	Set by Services/StruggleService (docs/SpellStruggle.md). nil = flights pass through each other.
+		canCollide(ownerA, ownerB) -> boolean   people who could hurt each other
+		struggle(a, b, at) -> boolean           start a spell struggle with both flights (held)
+		clash(info)                             { at, kind, a = { domain, tags, model, weight }, b }:
+		                                        the meeting's cue and its reactions
+		band() -> number?                       a wider struggle band (admin `struggletest`)
+]]
+Delivery.collisions = nil :: {
+	canCollide: (Model, Model) -> boolean,
+	struggle: (Flight, Flight, Vector3) -> boolean,
+	clash: (any) -> (),
+	band: () -> number?,
+}?
 
 local live: { Live } = {}
 local nextId = 0
@@ -132,6 +168,24 @@ local function finish(entry: Live, point: Vector3, normal: Vector3?, surface: bo
 		expired = expired,
 		flightTime = entry.age,
 		reflectedBy = entry.reflectedBy,
+		powerMult = entry.powerMult,
+	} :: Impact)
+end
+
+-- Another spell destroyed it in the air: nothing lands.
+local function destroy(entry: Live, at: Vector3)
+	local index = table.find(live, entry)
+	if index then
+		table.remove(live, index)
+	end
+	task.spawn(entry.thread, {
+		point = at,
+		hits = {},
+		surface = false,
+		expired = true,
+		flightTime = entry.age,
+		powerMult = 0,
+		destroyed = true,
 	} :: Impact)
 end
 
@@ -169,7 +223,7 @@ end
 
 local function step(entry: Live, dt: number)
 	local f = entry.flight
-	if entry.hanging then
+	if entry.hanging or entry.held then
 		return
 	end
 	entry.age += dt
@@ -289,6 +343,131 @@ local function step(entry: Live, dt: number)
 	end
 end
 
+-- ─── Collisions (docs/SpellStruggle.md) ─────────────────────────────────────
+
+local function sideOf(entry: Live): any
+	local f = entry.flight
+	return { domain = f.domain, tags = f.tags or {}, model = f.ownerModel, weight = f.weight or StruggleData.arrowWeight }
+end
+
+local function rebend(entry: Live)
+	local f = entry.flight
+	f.homing = nil
+	local oldId = f.id
+	nextId += 1
+	f.id = nextId
+	local hook = f.onBend
+	if hook then
+		task.spawn(hook, oldId, entry.position, entry.velocity)
+	end
+end
+
+local function hold(entry: Live, at: Vector3)
+	entry.held = true
+	entry.position = at
+	local hook = entry.flight.onHeld
+	if hook then
+		task.spawn(hook, entry.flight.id, at)
+	end
+end
+
+local function meet(a: Live, b: Live, hooks: any)
+	local fa, fb = a.flight, b.flight
+	local wA, wB = fa.weight or StruggleData.arrowWeight, fb.weight or StruggleData.arrowWeight
+	if fa.tags and fb.tags and fa.weight and fb.weight then
+		wA *= StruggleRules.matchup(fa.tags, fb.tags)
+		wB *= StruggleRules.matchup(fb.tags, fa.tags)
+	end
+	local va, vb = a.velocity, b.velocity
+	local dot = if va.Magnitude > 1e-3 and vb.Magnitude > 1e-3 then va.Unit:Dot(vb.Unit) else 0
+	local canStruggle = fa.side ~= nil and fb.side ~= nil and fa.weight ~= nil and fb.weight ~= nil
+	local kind, ratio = StruggleRules.outcome(wA, wB, dot, canStruggle, hooks.band())
+	local at = (a.position + b.position) / 2
+	if kind == "glance" then
+		-- Bent apart, sideways, by glanceDegrees each.
+		local away = Vector3.new(a.position.X - b.position.X, 0, a.position.Z - b.position.Z)
+		if away.Magnitude < 1e-3 then
+			away = Vector3.new(1, 0, 0)
+		end
+		local angle = math.rad(StruggleData.glanceDegrees)
+		for _, pair in { { a, away.Unit }, { b, -away.Unit } } :: { any } do
+			local entry: Live, push: Vector3 = pair[1], pair[2]
+			local speed = entry.velocity.Magnitude
+			entry.velocity = (entry.velocity.Unit * math.cos(angle) + push * math.sin(angle)).Unit * speed
+			rebend(entry)
+		end
+		return
+	end
+	if kind == "struggle" then
+		if hooks.struggle(fa, fb, at) then
+			hold(a, at)
+			hold(b, at)
+		else
+			kind = "shatter"
+		end
+	end
+	if kind == "cut_a" then
+		a.powerMult *= 1 - 1 / ratio
+		destroy(b, at)
+	elseif kind == "cut_b" then
+		b.powerMult *= 1 - 1 / ratio
+		destroy(a, at)
+	elseif kind == "shatter" then
+		a.powerMult *= StruggleData.shatterShare
+		b.powerMult *= StruggleData.shatterShare
+		finish(a, at, nil, false, false)
+		finish(b, at, nil, false, false)
+	end
+	pcall(hooks.clash, { at = at, kind = kind, a = sideOf(a), b = sideOf(b) })
+end
+
+local CELL = 16
+
+local function collide()
+	local hooks = Delivery.collisions
+	if not hooks or #live < 2 then
+		return
+	end
+	local grid: { [Vector3]: { Live } } = {}
+	for _, entry in live do
+		if not entry.held and not entry.hanging then
+			local p = entry.position
+			local key = Vector3.new(math.floor(p.X / CELL), math.floor(p.Y / CELL), math.floor(p.Z / CELL))
+			local list = grid[key]
+			if not list then
+				list = {}
+				grid[key] = list
+			end
+			table.insert(list, entry)
+		end
+	end
+	local done: { [Live]: boolean } = {}
+	for key, list in grid do
+		for _, a in list do
+			for dx = -1, 1 do
+				for dy = -1, 1 do
+					for dz = -1, 1 do
+						for _, b in (grid[key + Vector3.new(dx, dy, dz)] or {}) :: { Live } do
+							if done[a] or done[b] or b == a or b.flight.ownerModel == a.flight.ownerModel then
+								continue
+							end
+							local reach = a.flight.radius + b.flight.radius + StruggleData.contactPad
+							if (a.position - b.position).Magnitude > reach then
+								continue
+							end
+							if not hooks.canCollide(a.flight.ownerModel, b.flight.ownerModel) then
+								continue
+							end
+							done[a], done[b] = true, true
+							meet(a, b, hooks)
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 local function ensureStepper()
 	if stepper then
 		return
@@ -301,6 +480,10 @@ local function ensureStepper()
 				warn("[Delivery] flight step failed: " .. tostring(err))
 				finish(entry, entry.position, nil, false, true)
 			end
+		end
+		local collided, collideErr = pcall(collide)
+		if not collided then
+			warn("[Delivery] collisions failed: " .. tostring(collideErr))
 		end
 		if #live == 0 and stepper then
 			stepper:Disconnect()
@@ -347,6 +530,56 @@ function Delivery.release(flight: Flight, aim: Vector3?, homing: BasePart?)
 	end
 end
 
+--[[
+	Ends a flight held in a spell struggle (Cast/Struggle): its caster's side gets `impact`
+	(the struggle decides who it hits and how hard). Missing fields are filled in.
+]]
+function Delivery.settle(flight: Flight, impact: { [string]: any })
+	for index, entry in live do
+		if entry.flight == flight and entry.held then
+			table.remove(live, index)
+			impact.point = impact.point or entry.position
+			impact.hits = impact.hits or {}
+			impact.surface = impact.surface == true
+			impact.expired = impact.expired == true
+			impact.flightTime = entry.age
+			impact.powerMult = impact.powerMult or 1
+			task.spawn(entry.thread, impact :: any)
+			return
+		end
+	end
+end
+
+--[[
+	A beam's sweep from `origin` to `point` destroys flights it crosses that weigh less than
+	`weight` / struggleBand (people who could hurt each other only). Returns how many.
+]]
+function Delivery.sweep(origin: Vector3, point: Vector3, radius: number, weight: number, owner: Model, side: any): number
+	local hooks = Delivery.collisions
+	if not hooks then
+		return 0
+	end
+	local count = 0
+	for _, entry in table.clone(live) do
+		local f = entry.flight
+		if entry.held or entry.hanging or f.ownerModel == owner then
+			continue
+		end
+		local gap = StruggleRules.lineGap(origin, point, entry.position, entry.position)
+		if gap > radius + f.radius then
+			continue
+		end
+		local w = f.weight or StruggleData.arrowWeight
+		if weight >= w * StruggleData.struggleBand and hooks.canCollide(owner, f.ownerModel) then
+			local at = entry.position
+			destroy(entry, at)
+			count += 1
+			pcall(hooks.clash, { at = at, kind = "cut_a", a = side, b = sideOf(entry) })
+		end
+	end
+	return count
+end
+
 -- A fresh projectile id for flights built outside plan() (weapon arrows: Services/WeaponService).
 function Delivery.newId(): number
 	nextId += 1
@@ -387,6 +620,9 @@ function Delivery.plan(ctx: CastTypes.EffectContext): Flight
 		property = stats.recipe.property,
 		piercing = stats.flags.piercing == true,
 		onReflect = nil,
+		weight = StruggleRules.weight(ctx.power, "projectile", stats.masteryTier or 0),
+		tags = InteractionMatrix.tagsFor(stats),
+		domain = stats.domains[1],
 	}
 end
 
@@ -407,6 +643,7 @@ function Delivery.fly(flight: Flight, ignore: { Instance }): Impact
 		hits = {},
 		excluded = table.clone(ignore),
 		params = params,
+		powerMult = 1,
 	}
 	table.insert(live, entry)
 	ensureStepper()
