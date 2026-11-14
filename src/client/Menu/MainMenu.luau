@@ -30,8 +30,8 @@ local C = require(UI.Components)
 
 local MainMenu = {}
 
--- Placeholder title until the game has its name (the owner renames it here).
-local TITLE = "projectMagic"
+-- The game's name (owner, 2026-11-13).
+local TITLE = "Project Magic"
 local SUBTITLE = "An island where everyone's magic is their own."
 local FILES = 3
 
