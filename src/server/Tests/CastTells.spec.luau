@@ -67,7 +67,7 @@ return function(t: any)
 			end
 			expect(CastTells.kindOf({ branch = "thermal", property = "temperature", verb = "generate", form = "projectile", power = 2 })).toBe("attack")
 			-- A spell that does nothing reads as hollow (the Composer's dead example).
-			expect(CastTells.kindOf({ branch = "metallurgy", property = "hardness", verb = "amplify", form = "touch", power = 2 })).toBe("none")
+			expect(CastTells.kindOf({ branch = "void", property = "presence", verb = "redirect", form = "touch", power = 2 })).toBe("none")
 		end)
 	end)
 end

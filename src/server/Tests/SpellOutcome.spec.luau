@@ -63,7 +63,7 @@ return function(t: any)
 			local bolt = SpellOutcome.of({ branch = "thermal", property = "temperature", verb = "generate", form = "projectile", power = 2 })
 			t.expect(bolt.useful).toBe(true)
 			t.expect(SpellOutcome.tag(bolt)).toBe("⚔ Attack")
-			local dead = SpellOutcome.of({ branch = "metallurgy", property = "hardness", verb = "amplify", form = "touch", power = 2 })
+			local dead = SpellOutcome.of({ branch = "void", property = "presence", verb = "redirect", form = "touch", power = 2 })
 			t.expect(dead.route).toBe("manifest")
 			t.expect(dead.useful).toBe(false)
 		end)
@@ -121,17 +121,17 @@ return function(t: any)
 		end)
 
 		t.it("offers the nearest working spells, one per kind", function()
-			local dead = { branch = "metallurgy", property = "hardness", verb = "amplify", form = "touch", power = 2 }
+			local dead = { branch = "void", property = "presence", verb = "redirect", form = "touch", power = 2 }
 			local list = {
-				template("metallurgy", "hardness", "amplify", "touch", 3), -- the dead spell itself
-				template("metallurgy", "hardness", "bind", "touch", 3), -- root: same property
-				template("metallurgy", "hardness", "bind", "beam", 3), -- also control: skipped
-				template("metallurgy", "magnetism", "generate", "touch", 1), -- a different kind
+				template("void", "presence", "redirect", "touch", 3), -- the dead spell itself
+				template("void", "presence", "reduce", "touch", 3), -- veil: same property
+				template("void", "presence", "reduce", "beam", 3), -- also protect: skipped
+				template("void", "aether", "generate", "touch", 1), -- a different kind (Void's strike)
 			}
 			local found = SpellOutcome.alternatives(dead, list, 3)
 			t.expect(#found).toBe(2)
-			t.expect(found[1].recipe.verb).toBe("bind")
-			t.expect(found[2].recipe.property).toBe("magnetism")
+			t.expect(found[1].recipe.verb).toBe("reduce")
+			t.expect(found[2].recipe.property).toBe("aether")
 			t.expect(found[2].recipe.power).toBe(1) -- clamped to what that template allows
 			t.expect(#SpellOutcome.alternatives(dead, list, 1)).toBe(1)
 		end)
