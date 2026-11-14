@@ -251,3 +251,32 @@ Owner: "go". A **Ritual at power 8+** in a domain's own magic, with an offensive
 **Test:** `testmage 8 all`, `cheat all`, then in the Composer a Ritual at power 8+ in each domain (e.g. Energy Pyromancy Combustion Amplify Ritual; Energy Electric Charge Release Ritual; Water Flow Amplify Ritual; Mind Will Amplify Ritual), aimed near a few `creature spawn`s or `wildborn spawn`. The Composer names the ultimate. Without `cheat nocooldown`, a second cast should be refused with "You haven't the strength to call that again yet."
 
 **Unverified:** how the reused cues read at this scale (40+ studs of warnings, a zone the size of a whirlpool); knockback strength on players; server cost of 4 ultimates at once in a crowd (each beat at most 30 targets per spot).
+
+## 11. Stage 1b as built: the properties that did nothing (2026-11-13, not yet run)
+
+Owner: "let's look at stage 1b". The stage 0 audit put 26.3% of all valid recipes in `manifest` (no real effect), mostly 14 non-harmful properties used with verbs no route claimed. 26 new routes in `Data/EffectLibrary` (section "Stage 1b"), placed before the general catch-alls, mostly reusing `Effects/Status` with existing statuses, plus `Dispel`, `Force`, `Restore` and `Terrain`. `Effects/Status` gained:
+- `targetsByForm`: a bolt, beam or touch reaches whoever you aim at; an area or aura reaches everyone around (harmful, `FOE`) or you and your allies (helpful, `FRIEND`);
+- `reservoir`: refills each player reached (Aether's Wellspring, 8% + 1% per power);
+- `extinguish`: fires in the area go out (Dry Air);
+- `resist` and `magnitude`: give Evading its damage resistance (Keen Senses, 8% + 2% per power, capped at 50%) and Anchor Weight its extra damage (6% + 1.5% per power).
+
+| Property | Verbs → effect |
+|---|---|
+| Presence | reduce, transmute: veiled (you; allies as an area) · generate, amplify: jinxed (exposed) |
+| Density | generate, amplify: slow on a bolt; Anchor Weight on you and allies as an area · reduce: Featherweight |
+| Humidity | generate, amplify (outside Water's pour): a mist veils you and allies · reduce: Dry Air puts out fires and burning |
+| Perception | generate, amplify: Evading (dodge part of every hit) · reduce: blind · transmute: dazed |
+| Warding | reduce, transmute: dispel · bind, transfer, redirect, release: ward on you and allies |
+| Growth | reduce: slow · transmute: rot · release, redirect: heal (Restore) |
+| Hardness | point forms (stone shapes stay for Earth's walls, pillars, bursts and zones): stone skin (ward) · reduce: crumbling |
+| Viscosity | generate, amplify: slow (a bolt, or everyone in an area) · reduce: haste |
+| Distance | generate, amplify, release, redirect, transfer: pushed (Force by verb) · reduce: pulled in |
+| Emotion | amplify: courage (haste) · generate, release: fear · transmute, transfer, redirect: charm · bind: calm (Dread and Charm branches keep theirs) |
+| Aether | generate, amplify, transfer, release: reservoir back for you and allies (reduce, transmute, bind stay Dispel) |
+| Buoyancy | generate, amplify: Featherweight · reduce: sink (slow) |
+| Contour | generate, amplify, transmute, bind as a projectile, beam, chain or touch: stone spikes rise where it lands |
+| Purity | generate, amplify, transmute: purges poison, rot, hexes, sapping, sickness, withering and burning from you and allies · reduce: crumbling (rust) |
+
+Specs `Tests/Utility.spec` (3): every named status is real; every targeted property and verb reaches a useful route as a touch and as a zone; and a log line (`stage 1b: N of M recipes ... still do nothing`) gives what's left of the pile. Run `spellaudit` for the whole picture against the baseline (manifest 26.3%).
+
+**Still dead on purpose (for now):** verbs that make no sense for a property (presence redirect, humidity transfer...), and `linked`/`silent` modifiers. **Unverified:** whether Evading's resist and Anchor Weight's magnitude read as intended; mist and veil look (Veiled sets transparency 0.85).

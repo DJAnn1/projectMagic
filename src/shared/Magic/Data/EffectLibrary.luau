@@ -46,6 +46,10 @@ local OFFENSIVE = { "generate", "amplify", "reduce", "transfer", "redirect", "re
 local AREA_FORMS = { "zone", "burst", "aura", "ritual" }
 local POINT_FORMS = { "touch", "projectile", "beam", "chain" }
 local EARTH = { "earth", "mudshaping", "magmacraft" }
+-- Stage 1b (Effects/Status targetsByForm): a harmful status reaches everyone in an area form; a
+-- helpful one covers you and your allies in an area form or an aura.
+local FOE = { zone = "area", burst = "area", ritual = "area", wall = "area", pillar = "area", aura = "area" }
+local FRIEND = { zone = "allies", burst = "allies", ritual = "allies", wall = "allies", pillar = "allies", aura = "allies", summon = "allies" }
 
 local routes: { Route } = {
 	-- ─── World-scale disasters ──────────────────────────────────────────────
@@ -152,6 +156,39 @@ local routes: { Route } = {
 	-- at a touch, while Amplify-Hardness-as-Touch stays honestly dead (the Composer's own example).
 	{ id = "stonetouch", effect = "Terrain", branches = EARTH, properties = { "contour" }, verbs = { "generate" }, forms = { "touch" }, params = { op = "stone" } },
 	{ id = "metal", effect = "Metal", properties = { "magnetism" } },
+
+	-- ─── Stage 1b: the properties that did nothing (docs/SpellOverhaul.md §11) ──
+	-- Before the general routes, so a bind here wins over the catch-all root. Status's targetsByForm:
+	-- FOE sends a harmful status at whoever the form reaches (or everyone in an area form), FRIEND
+	-- puts a helpful one on you and your allies for area forms and on whoever you touch or aim at
+	-- (yourself if nobody) for point forms.
+	{ id = "veil_presence", effect = "Status", properties = { "presence" }, verbs = { "reduce", "transmute" }, params = { status = "veiled", targets = "self", targetsByForm = FRIEND } },
+	{ id = "expose", effect = "Status", properties = { "presence" }, verbs = { "generate", "amplify" }, params = { status = "jinxed", targetsByForm = FOE } },
+	{ id = "weigh_down", effect = "Status", properties = { "density", "viscosity" }, verbs = { "generate", "amplify" }, forms = POINT_FORMS, params = { status = "slow" } },
+	{ id = "anchor_weight", effect = "Status", properties = { "density" }, verbs = { "generate", "amplify" }, params = { status = "gravity_heavy", targets = "allies", magnitude = { base = 0.06, perPower = 0.015 } } },
+	{ id = "featherweight", effect = "Status", properties = { "density", "buoyancy" }, verbs = { "reduce", "generate", "amplify" }, params = { statusByVerb = { reduce = "gravity_light", generate = "gravity_light", amplify = "gravity_light" }, selfIfNone = true, targetsByForm = FRIEND } },
+	{ id = "mist", effect = "Status", properties = { "humidity" }, verbs = { "generate", "amplify" }, params = { status = "veiled", targets = "allies" } },
+	{ id = "dry_air", effect = "Status", properties = { "humidity" }, verbs = { "reduce" }, params = { cleanse = { "burning" }, targets = "allies", extinguish = true } },
+	{ id = "keen_senses", effect = "Status", properties = { "perception" }, verbs = { "generate", "amplify" }, params = { status = "evading", selfIfNone = true, targetsByForm = FRIEND, resist = { base = 0.08, perPower = 0.02 } } },
+	{ id = "dull_senses", effect = "Status", properties = { "perception" }, verbs = { "reduce", "transmute" }, params = { statusByVerb = { reduce = "blind", transmute = "dazed" }, targetsByForm = FOE } },
+	{ id = "unward", effect = "Dispel", properties = { "warding" }, verbs = { "reduce", "transmute" } },
+	{ id = "ward_more", effect = "Status", properties = { "warding" }, verbs = { "bind", "transfer", "redirect", "release" }, params = { status = "ward", targets = "allies" } },
+	{ id = "stunt", effect = "Status", properties = { "growth" }, verbs = { "reduce", "transmute" }, params = { statusByVerb = { reduce = "slow", transmute = "rot" }, targetsByForm = FOE } },
+	{ id = "bloom", effect = "Restore", properties = { "growth" }, verbs = { "release", "redirect" }, repeatable = true },
+	{ id = "stone_skin", effect = "Status", properties = { "hardness" }, verbs = { "generate", "amplify", "bind", "transmute" }, params = { status = "ward", selfIfNone = true, targetsByForm = FRIEND } },
+	{ id = "brittle", effect = "Status", properties = { "hardness", "purity" }, verbs = { "reduce" }, params = { status = "crumbling", targetsByForm = FOE } },
+	{ id = "thicken", effect = "Status", properties = { "viscosity" }, verbs = { "generate", "amplify" }, params = { status = "slow", targets = "area" } },
+	{ id = "slick", effect = "Status", properties = { "viscosity" }, verbs = { "reduce" }, params = { status = "haste", selfIfNone = true, targetsByForm = FRIEND } },
+	{ id = "sink", effect = "Status", properties = { "buoyancy" }, verbs = { "reduce" }, params = { status = "slow", targetsByForm = FOE } },
+	{ id = "distance_pull", effect = "Force", properties = { "distance" }, verbs = { "reduce" }, params = { mode = "pull" }, repeatable = true },
+	{ id = "distance_push", effect = "Force", properties = { "distance" }, verbs = { "generate", "amplify", "release", "redirect", "transfer" }, repeatable = true },
+	{ id = "courage", effect = "Status", properties = { "emotion" }, verbs = { "amplify" }, params = { status = "haste", selfIfNone = true, targetsByForm = FRIEND } },
+	{ id = "dread", effect = "Status", properties = { "emotion" }, verbs = { "generate", "release" }, params = { status = "fear", targetsByForm = FOE } },
+	{ id = "sway", effect = "Status", properties = { "emotion" }, verbs = { "transmute", "transfer", "redirect" }, params = { status = "charm", targetsByForm = FOE } },
+	{ id = "becalm", effect = "Status", properties = { "emotion" }, verbs = { "bind" }, params = { status = "calm", targetsByForm = FOE } },
+	{ id = "wellspring", effect = "Status", properties = { "aether" }, verbs = { "generate", "amplify", "transfer", "release" }, params = { reservoir = 0.08, targets = "allies" } },
+	{ id = "raise_stone", effect = "Terrain", properties = { "contour" }, verbs = { "generate", "amplify", "transmute", "bind" }, forms = { "projectile", "beam", "chain", "touch" }, params = { op = "stone" } },
+	{ id = "purify", effect = "Status", properties = { "purity" }, verbs = { "generate", "amplify", "transmute" }, params = { cleanse = { "poison", "rot", "hexed", "sapped", "irradiated", "withering", "burning" }, targets = "allies" } },
 
 	-- ─── General ────────────────────────────────────────────────────────────
 	{ id = "restore", effect = "Restore", properties = { "vitality", "growth", "metabolism" }, verbs = { "generate", "amplify", "transfer" }, repeatable = true },

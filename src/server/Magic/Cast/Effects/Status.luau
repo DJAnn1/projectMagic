@@ -11,7 +11,15 @@
 		    area    every character within the area except the caster
 		    allies  the caster and other PLAYERS in the area (never NPCs: no factions yet)
 		    self    the caster
+		targetsByForm   { [form] = mode }: overrides `targets` per form (a bolt hits whoever it
+		                reaches, an aura works on you and your allies: stage 1b)
 		selfIfNone      a beneficial status lands on the caster when it reached nobody (Haste)
+		reservoir       refills each player reached by this share of their reservoir (+1% per
+		                power level): Aether (stage 1b)
+		extinguish      fires in the area go out (dry air: Humidity, stage 1b)
+		resist          { base, perPower }: resists all damage by this much while it lasts
+		                (Keen Senses' Evading, stage 1b)
+		magnitude       { base, perPower }: the status's magnitude (Anchor Weight's extra damage)
 		impact          share of Impact damage dealt on application (Blighted Bolt, Hex)
 		extinguishLights  magic lights in the area go out (Eclipse)
 		stopParts       loose server-owned parts in the area stop dead (Stillness)
@@ -33,6 +41,7 @@ local EffectBudget = require(Cast.EffectBudget)
 local Impact = require(script.Parent.Impact)
 local DamageModel = require(Cast.DamageModel)
 local Resistances = require(Cast.Resistances)
+local FireSim = require(Cast.FireSim)
 
 local Status = {}
 
@@ -116,7 +125,8 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		end
 		targets = targetsFor(ctx, "self")
 	else
-		targets = targetsFor(ctx, params.targets or "hit")
+		local mode = (params.targetsByForm and params.targetsByForm[recipe.form]) or params.targets or "hit"
+		targets = targetsFor(ctx, mode)
 		if #targets == 0 and params.selfIfNone and not harmful then
 			targets = targetsFor(ctx, "self")
 		end
@@ -128,8 +138,14 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 	elseif def and def.absorb then
 		magnitude = T.status.wardPerPower * math.max(1, ctx.power) ^ 0.7
 	end
+	if params.magnitude then
+		magnitude = params.magnitude.base + params.magnitude.perPower * recipe.power
+	end
 	-- A ward also resists all magic while it lasts (Cast/Resistances "ward" source).
 	local wardResist = if def and def.absorb then Resistances.wardFor(recipe.power) else nil
+	if params.resist then
+		wardResist = { all = math.min(0.5, params.resist.base + params.resist.perPower * recipe.power) }
+	end
 
 	local affected = 0
 	for _, hit in targets do
@@ -147,6 +163,16 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		if params.impact and harmful then
 			DamageModel.hit(ctx, hit, params.impact, recipe.property)
 		end
+		if params.reservoir and not ctx.backfire then
+			local player = Players:GetPlayerFromCharacter(hit.model)
+			local reservoirs = ctx.services and ctx.services.reservoirs
+			local reservoir = player and reservoirs and reservoirs:get(player)
+			if player and reservoir and reservoir.current < reservoir.max then
+				reservoir.current = math.min(reservoir.max, reservoir.current + reservoir.max * (params.reservoir + 0.01 * recipe.power))
+				reservoirs:push(player)
+				affected += 1
+			end
+		end
 	end
 
 	if not ctx.backfire then
@@ -155,6 +181,9 @@ function Status.resolve(ctx: CastTypes.EffectContext, params: { [string]: any })
 		end
 		if params.stopParts then
 			affected += stopParts(ctx.point, stats.area, ctx.character)
+		end
+		if params.extinguish then
+			affected += FireSim.extinguish(ctx.point, math.max(stats.area, 8))
 		end
 	end
 	return { effective = affected > 0, hits = affected, harmedSelf = ctx.backfire and harmful }
