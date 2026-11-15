@@ -94,7 +94,7 @@ local function dream(player: Player): Dreams.Pick?
 	if pick.latentId then
 		record.seen[pick.latentId] = (record.seen[pick.latentId] or 0) + 1
 	end
-	journal:log(player, "dream", pick.text)
+	journal:log(player, "dream", pick.text, { quiet = true })
 	log:info("dream_had", {
 		userId = player.UserId,
 		ordinary = pick.ordinary,
@@ -117,7 +117,7 @@ local function checkRecalled(player: Player)
 			for _, latent in (state.innate.latents or {}) :: { any } do
 				if latent.id == latentId and latent.revealed then
 					record.recalled[latentId] = os.time()
-					journal:log(player, "dream", Dreams.recalled(latent, worldService:getSeed(), state.innate.entityId))
+					journal:log(player, "dream", Dreams.recalled(latent, worldService:getSeed(), state.innate.entityId), { quiet = true })
 					log:info("dream_came_true", { userId = player.UserId, kind = latent.kind })
 					break
 				end

@@ -405,6 +405,17 @@ local function recordFall(run: Run)
 			return
 		end
 		log:info("titan_fell", { id = record.id, kind = record.kind, x = record.x, z = record.z, by = record.by, first = inserted })
+		-- The world remembers it (Services/ChronicleService): every fighter, the top one first.
+		local fighters: { number } = {}
+		for userId, score in run.scores do
+			if score.points > 0 and userId ~= topId then
+				table.insert(fighters, userId)
+			end
+		end
+		if topId ~= 0 then
+			table.insert(fighters, 1, topId)
+		end
+		bus:publish(Topics.DeedDone, { kind = "titan_fell", x = record.x, z = record.z, by = fighters, what = run.kind.name, first = inserted })
 		applyFalls(result.falls, true)
 		if not inserted then
 			return -- another server's Titan fell first: its bones stand, and it dug the crater

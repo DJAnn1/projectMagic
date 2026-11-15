@@ -296,6 +296,21 @@ local function finish(active: Active, result: string)
 	active.phase = "ended"
 	active.result = result
 	destroyEnemies(active)
+	if result == "won" then
+		-- The world remembers who stood in it (Services/ChronicleService), the top scorer first.
+		local by: { number } = {}
+		for userId, score in active.scores do
+			if score.points > 0 then
+				table.insert(by, userId)
+			end
+		end
+		table.sort(by, function(x, y)
+			return active.scores[x].points > active.scores[y].points
+		end)
+		if #by > 0 then
+			bus:publish(Topics.DeedDone, { kind = "shared_event_won", x = active.x, z = active.z, by = by, what = string.lower(S.types[active.typeId].name) })
+		end
+	end
 
 	local top = 0
 	for _, score in active.scores do

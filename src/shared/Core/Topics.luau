@@ -50,6 +50,7 @@ return table.freeze({
 	SharedEventEnded = "SharedEventEnded", -- { id, type, result, place, players } (Services/SharedEventService)
 	ControlLost = "ControlLost", -- { player, stats, severity, position } a strong spell got away from its caster (BacklashService; Services/FeralService)
 	TitanEnded = "TitanEnded", -- { id, kind, result, players } (Services/TitanService)
+	DeedDone = "DeedDone", -- { kind, x, z, by: { userId }? (top doer first), what: string?, power: number?, first: boolean? } something the world may remember (Services/ChronicleService; kinds in Server/Chronicle/Data/ChronicleKinds)
 	RiftEnded = "RiftEnded", -- { id, result, place, players, clever } (Services/RiftService)
 
 	-- Client

@@ -252,7 +252,7 @@ Everyone can be started fresh after big updates, and it can be undone. Code: `Pe
 
 **A reset doesn't reroll innate magic.** A profile is generated from the world seed and the user id, so each player gets the same starting magic back, without any awakenings they'd earned. A new seed (`reseed random RESEED`) rerolls it, but it also replaces the whole world.
 
-**Erasure requests:** old saves stay stored, so `DataService.eraseUser(userId, highestGeneration)` clears every generation. Pass `WorldService:getHighestProgressGeneration()`. Anything stored per player in future should use `progressKey()` and be added there. **One exception lives in a world store:** a Titan's bones carry the top fighter's name and UserId (`Schemas.TitanFalls`), so also run `titan forget any <userId>` on any server (docs/Titans.md).
+**Erasure requests:** old saves stay stored, so `DataService.eraseUser(userId, highestGeneration)` clears every generation. Pass `WorldService:getHighestProgressGeneration()`. Anything stored per player in future should use `progressKey()` and be added there. **One exception lives in a world store:** a Titan's bones carry the top fighter's name and UserId (`Schemas.TitanFalls`), so also run `titan forget any <userId>` on any server (docs/Titans.md). The world's legends (`World.legends`, docs/LivingHistory.md) also carry a name and UserId; `eraseUser` takes those off itself, and `legendforget <userId>` does it by hand.
 
 ## 4. Multi-server design
 

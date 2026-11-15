@@ -403,7 +403,7 @@ local function aftermath(
 	if not p.route.recordsWorld then
 		world:noteMagic(landedAt, stats.domains, stats.power)
 	end
-	events:noteCast(landedAt, stats.domains, stats.power)
+	events:noteCast(landedAt, stats.domains, stats.power, player.UserId)
 	bus:publish(Topics.MagicWitnessed, {
 		position = landedAt,
 		radius = stats.area,

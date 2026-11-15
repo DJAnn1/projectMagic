@@ -81,6 +81,9 @@ MemoryService.KINDS = {
 	betrayed_me = { valence = -0.9, gossip = true },
 	spared_me = { valence = 0.6, gossip = true },
 	harmed_town = { valence = -0.7, gossip = true },
+	-- Services/ChronicleService: they did something the town still talks about (valence by deed;
+	-- note = "<kind>|<what>" so a greeting can say which).
+	legend_of = { valence = 0.4, gossip = true },
 } :: { [string]: { valence: number, gossip: boolean } }
 
 local function halfLife(npc: any, valence: number): number

@@ -112,6 +112,7 @@ type Feral = {
 }
 
 local log: any = nil
+local bus: any = nil -- ctx.bus (Services/ChronicleService hears DeedDone)
 local runner: any = nil
 local journal: any = nil
 local npcs: any = nil
@@ -224,6 +225,9 @@ local function create(recipe: any, stats: any, source: string, casterName: strin
 		return nil, nil
 	end)
 	log:info("feral_escaped", { id = feral.id, source = source, domain = domain, form = recipe.form, power = recipe.power, x = math.floor(x), z = math.floor(z) })
+	if bus then -- Services/ChronicleService: a spell loose near a town is talked about
+		bus:publish(Topics.DeedDone, { kind = "feral_escaped", x = x, z = z, by = if feral.casterUserId then { feral.casterUserId } else nil, what = feral.name, power = recipe.power })
+	end
 	if subject then
 		witnesses("lost_control", subject, x, z, 0.6)
 	end
@@ -256,7 +260,7 @@ local function onControlLost(payload: any)
 	local feral = create(stats.recipe, stats, "player", player.DisplayName, userId, "u:" .. userId, position.X, position.Z, "player:" .. userId)
 	if feral then
 		-- It leaves a mark of what happened where you'd look for it, and a word over it. No announcement.
-		journal:log(player, "discovery", string.format("A spell tore loose from you and didn't go out. It moved off on its own: a %s, you'd call it.", string.lower(feral.name)))
+		journal:log(player, "discovery", string.format("A spell tore loose from you and didn't go out. It moved off on its own: a %s, you'd call it.", string.lower(feral.name)), { quiet = true })
 		runner:cue("statusTag", { status = "feral_escaped", name = "It got away", harmful = false, caster = userId }, position + Vector3.new(0, 5, 0), false)
 	end
 end
@@ -464,6 +468,17 @@ local function die(feral: Feral)
 		helpers += 1
 	end
 	log:info("feral_fell", { id = feral.id, helpers = helpers })
+	local by: { number } = {}
+	for userId in feral.dealt do
+		table.insert(by, userId)
+	end
+	table.sort(by, function(x, y)
+		return feral.dealt[x] > feral.dealt[y]
+	end)
+	if #by > 0 and bus then -- nobody to credit by name when guards or hunters saw to it
+		local at = body.root.Position
+		bus:publish(Topics.DeedDone, { kind = "feral_ended", x = at.X, z = at.Z, by = by, what = feral.name })
+	end
 end
 
 -- ─── Its magic ──────────────────────────────────────────────────────────────
@@ -881,7 +896,7 @@ local function recalled(player: Player, npc: any): string?
 				local who = if memory.subject == you then nil else npcs:nameOf(memory.subject)
 				local text = Rules.memoryLine(memory.kind, who, memory.secondhand)
 				if text then
-					journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text))
+					journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text), { quiet = true })
 					log:info("feral_remembered", { userId = player.UserId, npc = npc.id, kind = memory.kind, secondhand = memory.secondhand })
 				end
 				return text
@@ -911,7 +926,7 @@ local function rumorHook(player: Player, npc: any): string?
 	heard[found.id] = true
 	local feral = found :: any
 	local text = Rules.rumorLine(feral.source, feral.casterName, WildZoneRules.bearing(at.X, at.Z, feral.x, feral.z), rng:NextNumber())
-	journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text))
+	journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text), { quiet = true })
 	log:info("feral_rumor", { userId = player.UserId, id = feral.id, npc = npc.id })
 	return text
 end
@@ -1004,6 +1019,7 @@ function FeralService.init(_self: any, ctx: any)
 	reputation = ctx.get("ReputationService")
 	worldService = ctx.get("WorldService")
 	world = ctx.get("WorldStateService")
+	bus = ctx.bus
 	ctx.bus:subscribe(Topics.ControlLost, onControlLost)
 	ctx.bus:subscribe(Topics.TargetDamaged, onDamaged)
 	ctx.bus:subscribe(Topics.SpellResolved, onSpell)

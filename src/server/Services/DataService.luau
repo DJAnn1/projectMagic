@@ -471,6 +471,19 @@ function DataService.eraseUser(self: any, userId: number, highestGeneration: num
 	for _, key in ProgressKeys.allKeys("account_" .. userId, highestGeneration) do
 		ok = accounts:erase(key) and ok
 	end
+	-- Their name on the world's legends (docs/LivingHistory.md): the deeds stay, credited to nobody.
+	local world = self:openStore(Schemas.World)
+	local _, err = world:update("world_main", function(w)
+		local changed = false
+		for _, l in (if typeof(w.legends) == "table" then w.legends else {}) :: { any } do
+			if l.u == userId then
+				l.u, l.by = nil, nil
+				changed = true
+			end
+		end
+		return if changed then w else nil
+	end)
+	ok = (err == nil or err == "CANCELLED") and ok -- CANCELLED: nothing of theirs was there
 	log:warn("user_erased", { userId = userId, ok = ok, generations = highestGeneration + 1 })
 	return ok
 end

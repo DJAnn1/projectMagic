@@ -334,6 +334,7 @@ Schemas.World = {
 			playerGeneration = 0, -- which generation of player progress is in use (WorldService:progressKey)
 			playerGenerationMax = 0, -- the highest there's ever been: numbers are never reused
 			chronicle = {}, -- compressed; capped list of { id, kind, t, data } global events
+			legends = {}, -- the world's legends, oldest first (Chronicle/ChronicleRules.Legend + g = world generation); docs/LivingHistory.md
 			flags = {}, -- world-wide facts, e.g. { firstMythicTime = 1793600000 }
 		}
 	end,

@@ -838,6 +838,21 @@ finish = function(quest: QuestState, outcomeId: string, reason: string?)
 		table.insert(players, r.player)
 	end
 	bus:publish(Topics.QuestEnded, { questId = quest.id, template = template.id, outcome = outcomeId, success = outcome.success, status = quest.status, players = players })
+	-- A shared crisis put right is something a town remembers (Services/ChronicleService).
+	local situation = situations[quest.situation]
+	local townId = quest.slots.town or (situation and situation.settlementId)
+	if template.scope == "shared" and outcome.success and #players > 0 and typeof(townId) == "string" then
+		for _, town in npcs:towns() do
+			if town.id == townId then
+				local by: { number } = {}
+				for _, p in players do
+					table.insert(by, p.UserId)
+				end
+				bus:publish(Topics.DeedDone, { kind = "crisis_resolved", x = town.x, z = town.z, by = by })
+				break
+			end
+		end
+	end
 	log:info("quest_ended", { quest = quest.id, outcome = outcomeId, status = quest.status, recipients = #recipients })
 end
 

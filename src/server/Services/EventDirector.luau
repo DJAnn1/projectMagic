@@ -39,6 +39,7 @@ export type ActiveEvent = {
 	radius: number,
 	endsAt: number,
 	relief: number,
+	reliefBy: { [number]: number }?, -- UserId -> power they put in (Services/ChronicleService credits them)
 	hook: string,
 }
 
@@ -210,13 +211,30 @@ function EventDirector.isActive(_self: any, typeName: string): boolean
 end
 
 -- Magic cast inside an event can relieve it (water ends droughts, life ends plagues...).
-function EventDirector.noteCast(self: any, position: Vector3, domains: { string }, power: number)
+function EventDirector.noteCast(self: any, position: Vector3, domains: { string }, power: number, userId: number?)
 	for _, e in self:activeAt(position.X, position.Z) do
 		local relief = EventDefs[e.type].relief
 		if relief and table.find(domains, relief.domain) then
 			e.relief += power
+			if userId then
+				e.reliefBy = e.reliefBy or {}
+				local by = e.reliefBy :: { [number]: number }
+				by[userId] = (by[userId] or 0) + power
+			end
 			if e.relief >= relief.amount then
 				self:stopEvent(e.id, "relieved")
+				-- The world remembers who ended it (Services/ChronicleService), most magic first.
+				local list: { number } = {}
+				for id in (e.reliefBy or {}) :: { [number]: number } do
+					table.insert(list, id)
+				end
+				if #list > 0 then
+					local by = e.reliefBy :: { [number]: number }
+					table.sort(list, function(a, b)
+						return by[a] > by[b]
+					end)
+					bus:publish(Topics.DeedDone, { kind = "event_relieved", x = e.x, z = e.z, by = list, what = string.lower(EventDefs[e.type].name) })
+				end
 			end
 		end
 	end

@@ -86,6 +86,7 @@ type Actor = Moves.Actor & {
 }
 
 local log: any = nil
+local bus: any = nil -- ctx.bus (Services/ChronicleService hears DeedDone)
 local world: any = nil
 local worldService: any = nil
 local creatures: any = nil
@@ -334,7 +335,9 @@ end
 
 -- ─── Death ──────────────────────────────────────────────────────────────────
 
-local function payBoss(actor: Actor)
+-- True when someone killed this boss for the first time.
+local function payBoss(actor: Actor): boolean
+	local first = false
 	local enemy = actor.enemy
 	local theme = Data.themes[enemy.theme]
 	for userId, dealt in actor.dealt do
@@ -342,14 +345,16 @@ local function payBoss(actor: Actor)
 		local record = player and recordOf(player)
 		if player and record and dealt >= enemy.health * 0.05 and not record.slain[enemy.id] then
 			record.slain[enemy.id] = os.time()
-			journal:log(player, "wildborn", theme.slain, { wildborn = enemy.id })
+			journal:log(player, "wildborn", theme.slain, { wildborn = enemy.id, quiet = true })
 			local branch = actor.branch[userId]
 			if branch then
 				progression:awardCreatureKill(player, branch, enemy.xp * (T.firstBossXp - 1), enemy.id, enemy.level)
 			end
 			log:info("wildborn_boss_slain", { userId = userId, boss = enemy.id, first = true })
+			first = true
 		end
 	end
+	return first
 end
 
 local function die(actor: Actor)
@@ -365,7 +370,19 @@ local function die(actor: Actor)
 	end
 	creatures:rewardFor(enemy, actor.dealt, actor.branch, actor.root.Position)
 	if enemy.boss then
-		payBoss(actor)
+		local first = payBoss(actor)
+		-- The world remembers it (Services/ChronicleService): whoever did most first.
+		local by: { number } = {}
+		for userId in actor.dealt do
+			table.insert(by, userId)
+		end
+		table.sort(by, function(x, y)
+			return actor.dealt[x] > actor.dealt[y]
+		end)
+		if #by > 0 and bus then
+			local at = actor.root.Position
+			bus:publish(Topics.DeedDone, { kind = "boss_slain", x = at.X, z = at.Z, by = by, what = enemy.name, first = first })
+		end
 	end
 	local killers = 0
 	for _ in actor.dealt do
@@ -584,7 +601,7 @@ local function rumor(player: Player, npc: any): string?
 	record.heard[best.theme] = os.time()
 	map:revealArea(player, best.x, best.z, 60)
 	local text = string.gsub(string.gsub(theme.story, "{dir}", OmenRules.bearing(at.X, at.Z, best.x, best.z)), "{name}", boss.title and (string.gsub(boss.title, "^the ", "The ")) or boss.name)
-	journal:log(player, "wildborn", "I heard a story: " .. text, { wildborn = best.enemy })
+	journal:log(player, "wildborn", "I heard a story: " .. text, { wildborn = best.enemy, quiet = true })
 	log:info("wildborn_story", { userId = player.UserId, theme = best.theme })
 	return text
 end
@@ -754,6 +771,7 @@ function WildbornService.init(_self: any, ctx: any)
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
 	Moves.setPlayers(livingPlayers)
+	bus = ctx.bus
 	ctx.bus:subscribe(Topics.TargetDamaged, onDamaged)
 	ctx.get("NPCService"):setRumorHook(rumor)
 	registerAdmin(ctx.get("AdminService"))

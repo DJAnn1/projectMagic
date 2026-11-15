@@ -1895,8 +1895,10 @@ function NPCService.setLotDown(_self: any, lotId: string, down: boolean): { any 
 end
 
 -- Something this person will remember, and may gossip about (Services/FeralService).
-function NPCService.remember(_self: any, npc: any, kind: string, subject: string, intensity: number)
-	MemoryService.add(npc, kind, subject, WorldClock.now(), { intensity = intensity })
+-- `opts` (Services/ChronicleService): valence, note and secondhand, as MemoryService.add takes them.
+function NPCService.remember(_self: any, npc: any, kind: string, subject: string, intensity: number, opts: { valence: number?, note: string?, secondhand: boolean? }?)
+	local o = opts or {}
+	MemoryService.add(npc, kind, subject, WorldClock.now(), { intensity = intensity, valence = o.valence, note = o.note, secondhand = o.secondhand })
 	local town = townById[npc.settlementId]
 	if town then
 		town.dirty = true

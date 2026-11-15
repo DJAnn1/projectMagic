@@ -117,7 +117,7 @@ local function refresh(player: Player, quiet: boolean?)
 	for _, change in changes do
 		local line = MarkRules.journalLine(change.domain, change.from, change.to)
 		if line and not quiet then
-			journal:log(player, "mark", line, { domain = change.domain, stage = change.to })
+			journal:log(player, "mark", line, { domain = change.domain, stage = change.to, quiet = true })
 		end
 		log:info("marks_changed", {
 			userId = player.UserId,

@@ -646,7 +646,7 @@ function WildZoneService.init(_self: any, ctx: any)
 		end
 		record.heard[zone.id] = os.time()
 		local text = string.format(zone.def.rumor, Rules.bearing(at.X, at.Z, zone.x, zone.z))
-		journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text))
+		journal:log(player, "rumor", string.format("%s said: \"%s\"", tostring(npc.name), text), { quiet = true })
 		map:revealArea(player, zone.x, zone.z, RUMOR_REVEAL)
 		Net.fire("Notify", player, string.format("Marked on your map: %s.", zone.def.name))
 		log:info("wild_zone_rumor", { userId = player.UserId, zone = zone.id, npc = npc.id })

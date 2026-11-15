@@ -350,7 +350,10 @@ function JournalController.start(_self: any, _ctx: any)
 		if typeof(entry) ~= "table" or typeof(entry.text) ~= "string" then
 			return
 		end
-		magic.events:Fire({ kind = "notify", text = entry.text })
+		-- Quiet lines (first person: dreams, omens, rumours, legends...) are written, never toasted.
+		if entry.quiet ~= true then
+			magic.events:Fire({ kind = "notify", text = entry.text })
+		end
 		if interface.openScreen:get() == "Journal" then
 			refresh()
 		end

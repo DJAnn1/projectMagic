@@ -295,7 +295,7 @@ local function rumorHook(player: Player, npc: any): string?
 	end
 	best.asked = true
 	counts.told += 1
-	journal:log(player, "rumor", "I asked about something I'd overheard. " .. text)
+	journal:log(player, "rumor", "I asked about something I'd overheard. " .. text, { quiet = true })
 	map:revealArea(player, fact.x, fact.z, T.reveal)
 	log:info("rumor_told", { userId = player.UserId, npc = npc.id, fact = fact.id })
 	return text

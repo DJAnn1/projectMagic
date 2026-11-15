@@ -2,7 +2,7 @@
 
 The design for `docs/Prompts-LivingHistory.md`: Dwarf Fortress, Caves of Qud and Kenshi-style engagement, built mostly by connecting systems that already exist. Stage 0 (this audit and design) written 2026-11-14. Nothing is built yet.
 
-**Status:** stage 0 done, waiting for the owner before stage 1.
+**Status:** stage 0 done. Owner answered §11 2026-11-14: yes to all (§5's model, the purse instead of bandits, every first-person Journal line quiet, monuments, a free healer carry). **Stage 1 built 2026-11-14, not yet run** (see "Stage 1: built" at the end).
 
 ---
 
@@ -298,3 +298,37 @@ Built on §5.
 ## 12. Order
 
 Stage 1 (the Chronicle) is the foundation the others read. Then 3 (losing), since it's self-contained and felt early. Then 2 (things with a past, which needs legends to exist). Then 4 (agendas, the largest, which needs §5 answered). Then 5 (secrets). This differs from the prompt's 1-2-3-4-5 only in moving losing forward, because a new player meets losing in their first hour and meets legends much later.
+
+---
+
+## Stage 1: built (2026-11-14, not yet run)
+
+**Code:**
+- `Server/Chronicle/ChronicleRules`, `Data/ChronicleKinds` (12 kinds), `Data/ChronicleLines`
+- `Services/ChronicleService`
+- Topic `DeedDone`, published by:
+  - TitanService (a fall)
+  - WildbornService (a boss, first or not)
+  - FeralService (loose, ended)
+  - SharedEventService (won)
+  - QuestDirector (a shared crisis put right; its town)
+  - EventDirector (relieved; `noteCast` now takes the caster, and CastService passes it)
+- ChronicleService also hears `SpellResolved` (ultimates, earthquakes, tsunamis at power 8+) and this server's `WorldEventRecorded` (`npc_awakened`, `world_first_recipe`).
+- `World.legends` with `WorldService.legends` / `fetchLegends` / `recordLegend` / `forgetLegends`. `DataService.eraseUser` takes names off legends.
+- Memory kind `legend_of`. `NPCService.remember` takes valence, note and secondhand.
+- Greetings take a list of hooks (`AmbientLifeService.setGreetHook` appends).
+- `JournalService.log(..., { quiet = true })`: written, not toasted. Dreams, omens, weather, sight, lightning, marks, asked-for rumours (Rumor, Feral, Wildborn, WildZone), a feral tearing loose and a first boss kill are quiet now.
+
+**Flag** `chronicle_enabled`. **Admin:** `chronicle [count]`, `legends`, `chronicleadd <kind> [yes]`, `chroniclenow`, `legendforget <userId>`. **Log:** `chronicle_added`, `legend_written`, `chronicle_overheard`, `chronicle_told`, `chronicle_greeted`, `chronicle_ready`.
+
+**Expected boot line:** `specs 1131/1132` (6 new in `Tests/Chronicle.spec`, if Rumours' 1125/1126 holds).
+
+**Test:**
+1. Stand in Glenhold and run `chronicleadd boss_slain yes`. It should be a ★ legend; `chronicle` lists it. About 5 minutes later, `legend_written` shows in the log, with a quiet Journal line and no toast.
+2. Walk past townspeople: one in three or so who remembers may say "They say you killed …" (`chronicle_greeted`).
+3. Ask anyone for rumours. Once the others have nothing to say, they tell it (`chronicle_told`, a quiet Journal line).
+4. Run `chroniclenow` next to two people, then `time 20` and wait near pairs for evening talk (`chronicle_overheard`).
+5. Run `chronicleadd boss_slain yes` again: the repeat halves the score, so it's not a legend.
+6. Run `legends`, then rejoin a new server: `chronicle_ready legends=N` and the legend is there as "from before this server".
+7. A real deed: `titan start`, fight it, `titan win`. Or relieve a drought with water magic.
+8. Check a dream or omen no longer toasts.

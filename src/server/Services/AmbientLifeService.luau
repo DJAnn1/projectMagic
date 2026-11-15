@@ -95,7 +95,7 @@ local counters = { barks = 0, greetings = 0, whispers = 0, remarks = 0, asked = 
 -- Services/NoticeService: something this NPC wants to ask this player instead of a greeting ("Was
 -- that you, out north?"). Returns the line's categories, its own vars and what to do once said.
 type GreetHook = (npc: any, player: Player, close: boolean, clock: number) -> { categories: { string }, vars: { [string]: string }, lines: { any }, said: (string) -> () }?
-local greetHook: GreetHook? = nil
+local greetHooks: { GreetHook } = {} -- NoticeService, ChronicleService: the first with something to ask wins
 local MARK_WHISPER_CHANCE = 0.35 -- of people further off, how many bother to whisper about a mark
 
 local function ground(v: Vector3): Vector3
@@ -570,7 +570,15 @@ local function greet(npc: any, now: number, clock: number)
 			if root and root:IsA("BasePart") then
 				local close = (root.Position - npc.position).Magnitude <= GREET_RADIUS
 				local band = GreetingRules.band(greetingInput(npc, player, now))
-				local ask = if band ~= "avoid" and greetHook then greetHook(npc, player, close, clock) else nil
+				local ask: any = nil
+				if band ~= "avoid" then
+					for _, hook in greetHooks do
+						ask = hook(npc, player, close, clock)
+						if ask then
+							break
+						end
+					end
+				end
 				if ask then
 					local text = AmbientLifeService:lineFor(npc, player, ask.categories, ask.lines, ask.vars)
 					if text then
@@ -760,7 +768,7 @@ function AmbientLifeService.face(_self: any, npc: any, toward: Vector3, seconds:
 end
 
 function AmbientLifeService.setGreetHook(_self: any, fn: GreetHook)
-	greetHook = fn
+	table.insert(greetHooks, fn)
 end
 
 -- So a greeting doesn't follow right on the heels of something this NPC just said to them.

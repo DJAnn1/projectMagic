@@ -309,6 +309,86 @@ function WorldService.getWorldDay(_self: any): number
 	return math.floor((os.time() - world.epoch) / 86400)
 end
 
+-- ─── Legends (docs/LivingHistory.md §4; Services/ChronicleService) ──────────
+-- The world's legends: the biggest deeds, told on every server. Only this world generation's.
+
+local LEGEND_CAP = 60
+
+local function ofThisWorld(list: any): { any }
+	local out = {}
+	local generation = if world then world.generation or 0 else 0
+	for _, l in (if typeof(list) == "table" then list else {}) :: { any } do
+		if (l.g or 0) == generation then
+			table.insert(out, l)
+		end
+	end
+	return out
+end
+
+-- The legends as last read (boot, or the last fetch or write). Doesn't yield once the world is ready.
+function WorldService.legends(_self: any): { any }
+	if not world then
+		ready:Wait()
+	end
+	return ofThisWorld(world.legends)
+end
+
+-- Reads the legends again (another server may have added some). Yields.
+function WorldService.fetchLegends(self: any): { any }
+	local latest = store:read(WORLD_KEY)
+	if typeof(latest) == "table" and world then
+		world.legends = latest.legends
+	end
+	return self:legends()
+end
+
+-- Adds a legend for every server (oldest out past the cap; a retried write is ignored). Yields.
+function WorldService.recordLegend(_self: any, legend: { [string]: any }): boolean
+	if not world then
+		ready:Wait()
+	end
+	local record = table.clone(legend)
+	record.g = world.generation or 0
+	local added = false
+	local updated = store:update(WORLD_KEY, function(w)
+		w.legends = if typeof(w.legends) == "table" then w.legends else {}
+		for _, l in w.legends do
+			if l.id == record.id then
+				return nil
+			end
+		end
+		table.insert(w.legends, record)
+		while #w.legends > LEGEND_CAP do
+			table.remove(w.legends, 1)
+		end
+		added = true
+		return w
+	end)
+	if typeof(updated) == "table" then
+		world.legends = updated.legends
+	end
+	return added
+end
+
+-- Takes a player's name off every legend (DataService.eraseUser does the same on erasure). Yields.
+function WorldService.forgetLegends(_self: any, userId: number): number
+	local n = 0
+	local updated = store:update(WORLD_KEY, function(w)
+		n = 0
+		for _, l in (if typeof(w.legends) == "table" then w.legends else {}) :: { any } do
+			if l.u == userId then
+				l.u, l.by = nil, nil
+				n += 1
+			end
+		end
+		return if n > 0 then w else nil
+	end)
+	if typeof(updated) == "table" and world then
+		world.legends = updated.legends
+	end
+	return n
+end
+
 --[[
 	Records a notable global event: appended to the chronicle (deduplicated by id, capped) and
 	announced to every server. `data` must be small and JSON-safe. Yields.

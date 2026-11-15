@@ -71,7 +71,7 @@ local function note(player: Player, key: string)
 		return
 	end
 	data.weather.noted[key] = os.time()
-	journal:log(player, "weather", LINES[key], { rule = key })
+	journal:log(player, "weather", LINES[key], { rule = key, quiet = true })
 end
 
 local function onSpell(payload: any)

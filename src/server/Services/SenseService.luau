@@ -135,7 +135,7 @@ local function revealed(player: Player, kind: string, shown: number)
 		return
 	end
 	record.noted[kind] = os.time()
-	journal:log(player, "sight", def.journal, { sight = kind })
+	journal:log(player, "sight", def.journal, { sight = kind, quiet = true })
 	log:info("sense_noticed", { userId = player.UserId, kind = kind, shown = shown })
 end
 

@@ -9,6 +9,9 @@
 		log(player, kind, text, extra?)     appends an entry and pushes JournalChanged to the client
 		                                    (the HUD toasts it). kinds: quest, outcome, reputation,
 		                                    rumor, crime, faction, discovery
+	                                    extra.quiet = true: written, never toasted. The world tells
+	                                    you things through people; a toast is a card
+	                                    (docs/LivingHistory.md §3). First-person lines use it.
 		setTab(tab, provider(player, page) -> payload)   QuestDirector: "quests"; ReputationService:
 		                                    "factions"; this service: "log"
 		reveal(player, factionId) / isRevealed(player, factionId)   secret factions you know about
@@ -53,14 +56,19 @@ function JournalService.log(_self: any, player: Player, kind: string, text: stri
 		return
 	end
 	local entry: { [string]: any } = { t = os.time(), kind = kind, text = text }
+	local quiet = false
 	for k, v in (extra or {}) :: { [string]: any } do
-		entry[k] = v
+		if k == "quiet" then
+			quiet = v == true
+		else
+			entry[k] = v
+		end
 	end
 	table.insert(j.log, entry)
 	while #j.log > LOG_CAP do
 		table.remove(j.log, 1)
 	end
-	Net.fire("JournalChanged", player, { kind = kind, text = text, questId = entry.questId })
+	Net.fire("JournalChanged", player, { kind = kind, text = text, questId = entry.questId, quiet = quiet })
 end
 
 function JournalService.setTab(_self: any, tab: string, provider: (Player, number) -> any)

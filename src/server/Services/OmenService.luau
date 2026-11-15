@@ -132,7 +132,7 @@ local function notice(player: Player, omen: Omen)
 	for _, signId in Data.sources[omen.source].signs do
 		if not record.signs[signId] then
 			record.signs[signId] = os.time()
-			journal:log(player, "omen", Data.signs[signId].journal, { sign = signId })
+			journal:log(player, "omen", Data.signs[signId].journal, { sign = signId, quiet = true })
 			log:info("omen_noticed", { userId = player.UserId, sign = signId, source = omen.source })
 		end
 	end
@@ -147,7 +147,7 @@ local function arrive(omen: Omen)
 		local record = player and recordOf(player)
 		if player and record and not record.after[omen.source] then
 			record.after[omen.source] = os.time()
-			journal:log(player, "omen", source.after, { omen = omen.source })
+			journal:log(player, "omen", source.after, { omen = omen.source, quiet = true })
 		end
 		count += 1
 	end

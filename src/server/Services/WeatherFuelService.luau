@@ -64,7 +64,7 @@ local function onSpell(payload: any)
 		return
 	end
 	record.noted[ruleId] = os.time()
-	journal:log(player, "weather", rule.journal, { rule = ruleId })
+	journal:log(player, "weather", rule.journal, { rule = ruleId, quiet = true })
 	log:info("weather_noticed", { userId = player.UserId, rule = ruleId, factor = factor })
 end
 
