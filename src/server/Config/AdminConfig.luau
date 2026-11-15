@@ -15,11 +15,13 @@
 ]]
 
 return {
-	AdminUserIds = { 17476255, 489106246, 1103430971 } :: { number },
+	AdminUserIds = { 17476255, 489106246 } :: { number },
 	OwnerUserId = 17476255,
 	EnableInLiveServers = true,
 	StudioTestPlayers = true,
 	ToggleKey = "F2",
 	RateLimit = { capacity = 10, perSecond = 4 },
 	LogCapacity = 200,
+
+	--doge: 1103430971
 }
