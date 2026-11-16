@@ -86,7 +86,7 @@ return function(t: any)
 			for _, cat in { "healer_wake", "carrier_greet", "carrier_thanks", "purse_found", "purse_return", "purse_kept" } do
 				expect(hasCat(cat)).toBe(true)
 			end
-			for _, key in { "carry", "carry_nohealer", "wake", "capture", "escaped_fought", "escaped_walked", "escaped_waited", "purse_lost", "purse_own", "purse_returned", "purse_kept", "thanked" } do
+			for _, key in { "carry", "carry_nohealer", "wake", "capture", "capture_den", "escaped_fought", "escaped_walked", "escaped_waited", "purse_lost", "purse_own", "purse_returned", "purse_kept", "thanked" } do
 				expect(LineData.journal[key] ~= nil and #LineData.journal[key] > 0).toBe(true)
 			end
 			for _, line in LineData.lines do

@@ -39,6 +39,21 @@ local function pick(list: { string }, roll: number): string
 	return list[math.clamp(math.floor(roll * #list) + 1, 1, #list)]
 end
 
+-- Patterns that glue a word onto the root ("{Root}-ender", "{Root}light") only read well with a
+-- one-word root: "Thing in the test-ender" didn't (2026-11-15).
+local function fitting(list: { string }, root: string): { string }
+	if not string.find(root, " ", 1, true) then
+		return list
+	end
+	local out: { string } = {}
+	for _, pattern in list do
+		if not string.find(pattern, "{Root}[%a%-]") then
+			table.insert(out, pattern)
+		end
+	end
+	return if #out > 0 then out else list
+end
+
 local function groupOf(entry: Entry): string
 	local def = Kinds[entry.kind]
 	return if def then def.group else "feat"
@@ -60,13 +75,15 @@ local function fillRoot(pattern: string, root: string): string
 end
 
 function HistoryRules.epithet(entry: Entry, roll: number): string
-	local list = Names.epithets[groupOf(entry)] or Names.epithets.feat
-	return fillRoot(pick(list, roll), HistoryRules.root(entry))
+	local root = HistoryRules.root(entry)
+	local list = fitting(Names.epithets[groupOf(entry)] or Names.epithets.feat, root)
+	return fillRoot(pick(list, roll), root)
 end
 
 function HistoryRules.placeName(entry: Entry, roll: number): string
-	local list = Names.places[groupOf(entry)] or Names.places.feat
-	return fillRoot(pick(list, roll), HistoryRules.root(entry))
+	local root = HistoryRules.root(entry)
+	local list = fitting(Names.places[groupOf(entry)] or Names.places.feat, root)
+	return fillRoot(pick(list, roll), root)
 end
 
 local function fill(text: string, vars: { [string]: string }): string

@@ -64,6 +64,10 @@ local Journal: { [string]: { string } } = {
 		"Something dragged me off. I woke among standing stones, and it was watching me.",
 		"I came round somewhere I didn't know, with a Wildborn standing over me. It hadn't finished me. It was keeping me.",
 	},
+	capture_den = {
+		"Something dragged me off. I woke inside a ring of rock, bones about my feet, and it was standing in the only way out.",
+		"I came round in its den. Walls all round, one gap, and the thing that beat me standing in it, watching.",
+	},
 	escaped_fought = { "I fought my way out of the Wildborn's ring." },
 	escaped_walked = { "I slipped away from the Wildborn while it wasn't looking." },
 	escaped_waited = { "In the end it lost interest in me and wandered off. I walked away." },

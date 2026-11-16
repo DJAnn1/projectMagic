@@ -58,6 +58,12 @@ return function(t: any)
 			expect(Rules.root({ id = "c", kind = "quake", x = 0, z = 0, score = 1 })).toBe("Quake")
 			expect(string.find(Rules.epithet(e, 0), "Ashwalker", 1, true) ~= nil).toBe(true)
 			expect(string.find(Rules.placeName(e, 0.99), "Ashwalker", 1, true) ~= nil).toBe(true)
+			-- A many-word root never gets a suffix glued on.
+			local long = legend("d", 0.9, 0, 0, "the thing in the test")
+			for i = 0, 9 do
+				expect(string.find(Rules.epithet(long, i / 10), "test-", 1, true) == nil).toBe(true)
+				expect(string.find(Rules.placeName(long, i / 10), "testlight", 1, true) == nil).toBe(true)
+			end
 		end)
 
 		it("never puts a person's name on an item, and puts it on the stone", function()

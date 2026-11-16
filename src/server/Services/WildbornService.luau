@@ -68,6 +68,7 @@ type Home = {
 	center: Vector3?,
 	marker: Model?,
 	killedAt: number?, -- os.time() its boss was beaten on this server
+	den: { model: Model, center: Vector3, radius: number, post: Vector3 }?, -- where it keeps a captive (DownedService)
 }
 type Actor = Moves.Actor & {
 	home: Home,
@@ -86,7 +87,7 @@ type Actor = Moves.Actor & {
 	moving: boolean,
 	-- Services/DownedService: someone it dragged home. Left alone while they stay inside `radius` of
 	-- `center`; fought if they step out; at `untilClock` it lets them be and wanders off.
-	hold: { userId: number, center: Vector3, radius: number, untilClock: number, wander: number }?,
+	hold: { userId: number, center: Vector3, radius: number, untilClock: number, wander: number, post: Vector3? }?,
 	spare: { [number]: number }?, -- userId -> os.clock() until which it ignores them
 	wanderTo: Vector3?,
 	wanderUntil: number?,
@@ -290,6 +291,10 @@ local function sleepHome(home: Home)
 	if home.marker then
 		home.marker:Destroy()
 		home.marker = nil
+	end
+	if home.den then
+		home.den.model:Destroy()
+		home.den = nil
 	end
 	if home.temporary then
 		local index = table.find(homes, home)
@@ -517,6 +522,14 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		target = nil
 	end
 	actor.target = target
+	if not target and actor.hold and actor.hold.post then
+		-- Keeping someone: it stands in the way out.
+		local post = actor.hold.post :: Vector3
+		if flat(position, post) > 3 then
+			humanoid:MoveTo(post)
+		end
+		return
+	end
 	if not target then
 		-- Nobody to fight: drift back toward home.
 		if flat(position, home) > 12 then
@@ -780,6 +793,92 @@ end
 
 -- ─── Captives (Services/DownedService) ─────────────────────────────────────
 
+local DEN = { radius = 9, height = 11, segments = 14, thickness = 2.2 }
+
+local function denPart(model: Model, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material, collide: boolean?): Part
+	local p = Instance.new("Part")
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material
+	p.Anchored = true
+	p.CanCollide = collide ~= false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p:SetAttribute("Flammability", 0)
+	p.Parent = model
+	return p
+end
+
+-- Where this home keeps someone it dragged off: a ring of rough rock walls with one gap, a broken
+-- overhang, bones and a dim glow of its theme. Built the first time it's needed, gone when the
+-- home sleeps. Seeded per home, so its gap faces the same way every time.
+local function denOf(home: Home): { model: Model, center: Vector3, radius: number, post: Vector3 }?
+	if home.den and home.den.model.Parent then
+		return home.den
+	end
+	local center = home.center or groundAt(home.x, home.z)
+	if not center then
+		return nil
+	end
+	local theme = Data.themes[home.theme]
+	local rng = Seed.random(worldService:getSeed(), home.id, "wildborn_den")
+	local rock = Color3.fromRGB(70, 64, 58):Lerp(theme.primary, 0.12)
+	local dark = Color3.fromRGB(46, 42, 38):Lerp(theme.primary, 0.08)
+	local model = Instance.new("Model")
+	model.Name = "WildbornDen"
+	model:SetAttribute("WildbornHome", home.id)
+	local gapAt = rng:NextInteger(0, DEN.segments - 1)
+	local step = 2 * math.pi / DEN.segments
+	local width = 2 * math.pi * DEN.radius / DEN.segments + 1.2
+	for i = 0, DEN.segments - 1 do
+		if i ~= gapAt then
+			local angle = i * step
+			local x, z = center.X + math.cos(angle) * DEN.radius, center.Z + math.sin(angle) * DEN.radius
+			local base = groundAt(x, z) or Vector3.new(x, center.Y, z)
+			local height = DEN.height + rng:NextNumber() * 3 - 1
+			local look = CFrame.lookAt(Vector3.new(x, base.Y, z), Vector3.new(center.X, base.Y, center.Z))
+			denPart(model, Vector3.new(width, height + 2, DEN.thickness), look * CFrame.new(0, height / 2 - 1, 0) * CFrame.Angles(math.rad(rng:NextNumber() * 8 - 4), 0, math.rad(rng:NextNumber() * 6 - 3)), rock, Enum.Material.Slate)
+			-- A broken overhang on some of it: you can see out, but it feels shut in.
+			if rng:NextNumber() < 0.45 then
+				denPart(model, Vector3.new(width, 1.2, 5 + rng:NextNumber() * 2), look * CFrame.new(0, height + 0.4, -2.6) * CFrame.Angles(math.rad(-8 - rng:NextNumber() * 6), 0, 0), dark, Enum.Material.Slate)
+			end
+		end
+	end
+	-- Bones and old things on the floor, nothing to pick up.
+	for _ = 1, 6 do
+		local a, d = rng:NextNumber() * 2 * math.pi, rng:NextNumber() * (DEN.radius - 3)
+		local at = groundAt(center.X + math.cos(a) * d, center.Z + math.sin(a) * d) or center
+		denPart(model, Vector3.new(0.35, 0.35, 1.6 + rng:NextNumber()), CFrame.new(at + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, rng:NextNumber() * 6.28, math.rad(90)), Color3.fromRGB(214, 206, 186), Enum.Material.SmoothPlastic, false)
+	end
+	local glow = denPart(model, Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, DEN.height - 2, 0)), theme.secondary, Enum.Material.SmoothPlastic, false)
+	glow.Transparency = 1
+	glow.CanQuery = false
+	local light = Instance.new("PointLight")
+	light.Color = theme.secondary
+	light.Range = DEN.radius * 2
+	light.Brightness = 0.6
+	light.Shadows = true
+	light.Parent = glow
+	model.Parent = folder
+	local gapAngle = gapAt * step
+	local post = groundAt(center.X + math.cos(gapAngle) * DEN.radius, center.Z + math.sin(gapAngle) * DEN.radius)
+		or Vector3.new(center.X + math.cos(gapAngle) * DEN.radius, center.Y, center.Z + math.sin(gapAngle) * DEN.radius)
+	home.den = { model = model, center = center, radius = DEN.radius, post = post }
+	log:info("wildborn_den_built", { home = home.id, gap = gapAt })
+	return home.den
+end
+
+-- The den of the Wildborn behind `model`, built if it isn't there yet: { center, radius, post }.
+function WildbornService.denOf(_self: any, model: Model): { center: Vector3, radius: number, post: Vector3 }?
+	local actor = byModel[model]
+	if not actor then
+		return nil
+	end
+	local den = denOf(actor.home)
+	return if den then { center = den.center, radius = den.radius, post = den.post } else nil
+end
+
 -- The Wildborn behind this model and where it lives, or nil.
 function WildbornService.captorOf(_self: any, model: Model?): { center: Vector3, name: string, boss: boolean, home: string }?
 	local actor = model and byModel[model]
@@ -808,7 +907,7 @@ end
 
 -- Hold a captive: it leaves them be inside `radius` of `center` for `seconds`, then wanders off for
 -- `wander` seconds. Returns false if the captor is gone.
-function WildbornService.hold(_self: any, model: Model, userId: number, center: Vector3, radius: number, seconds: number, wander: number): boolean
+function WildbornService.hold(_self: any, model: Model, userId: number, center: Vector3, radius: number, seconds: number, wander: number, post: Vector3?): boolean
 	local actor = byModel[model]
 	if not actor or actor.humanoid.Health <= 0 then
 		return false
@@ -817,7 +916,9 @@ function WildbornService.hold(_self: any, model: Model, userId: number, center: 
 	for _, slot in actor.home.slots do
 		local other = slot.actor
 		if other and other.humanoid.Health > 0 then
-			other.hold = { userId = userId, center = center, radius = radius, untilClock = os.clock() + seconds, wander = wander }
+			-- The one that brought them stands in the gap; the others just leave them be.
+			local guard = if other == actor then post else nil
+			other.hold = { userId = userId, center = center, radius = radius, untilClock = os.clock() + seconds, wander = wander, post = guard }
 			if other.attacker == userId then
 				other.attacker = nil
 			end

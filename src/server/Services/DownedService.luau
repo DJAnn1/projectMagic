@@ -147,6 +147,16 @@ local function playerOf(humanoid: Humanoid): Player?
 	return if model and model:IsA("Model") then Players:GetPlayerFromCharacter(model) else nil
 end
 
+-- Which Wildborn home the blow came from, for the log (who downs a captive matters).
+local function homeOf(info: any): string?
+	local attacker = info and info.attacker
+	if typeof(attacker) == "Instance" then
+		local home = attacker:GetAttribute("WildbornHome")
+		return if typeof(home) == "string" then home else nil
+	end
+	return nil
+end
+
 local function humanoidOf(player: Player): Humanoid?
 	local character = player.Character
 	return character and character:FindFirstChildOfClass("Humanoid")
@@ -475,6 +485,11 @@ local function runCapture(player: Player, down: Down)
 	end
 	local captor = down.captor
 	local center = down.center
+	-- Its den: walls with one way out, and it stands in it (WildbornService.denOf).
+	local den = if captor then wildborn:denOf(captor) else nil
+	if den then
+		center = den.center
+	end
 	if not captor or not center then
 		release(player, down, T.wakeHealth.wake)
 		return
@@ -485,8 +500,10 @@ local function runCapture(player: Player, down: Down)
 		return
 	end
 	local angle = rngFor("lair"):NextNumber() * 2 * math.pi
-	local spot = groundAt(center.X + math.cos(angle) * 6, center.Z + math.sin(angle) * 6, center.Y)
-	if not wildborn:hold(captor, player.UserId, center, T.holdRadius, T.holdSeconds + 2, T.wanderSeconds) then
+	local reach = if den then 2 else 6
+	local spot = groundAt(center.X + math.cos(angle) * reach, center.Z + math.sin(angle) * reach, center.Y)
+	local radius = if den then den.radius + 1.5 else T.holdRadius
+	if not wildborn:hold(captor, player.UserId, center, radius, T.holdSeconds + 2, T.wanderSeconds, if den then den.post else nil) then
 		-- Its captor is gone (killed, or its haunt emptied): nobody drags them anywhere.
 		log:info("capture_lost", { userId = player.UserId })
 		release(player, down, T.wakeHealth.wake)
@@ -501,7 +518,8 @@ local function runCapture(player: Player, down: Down)
 	end
 	-- Held, not hurt: they get up inside its ring. Watch for them getting away.
 	release(player, down, T.wakeHealth.capture)
-	journalLine(player, "capture", {})
+	journalLine(player, if den then "capture_den" else "capture", {})
+	log:info("captive_held", { userId = player.UserId, home = homeOf({ attacker = captor }), den = den ~= nil })
 	local since = os.clock()
 	task.spawn(function()
 		while player.Parent do
@@ -585,7 +603,7 @@ local function downer(humanoid: Humanoid, sourceUserId: number?, kind: string, i
 	if outcome == "spawn" then
 		counts.spawn += 1
 		lastOutcome[uid] = outcome
-		log:info("player_downed", { userId = uid, outcome = outcome, by = kind, where = where, purse = amount })
+		log:info("player_downed", { userId = uid, outcome = outcome, by = kind, where = where, purse = amount, home = homeOf(info) })
 		return false
 	end
 	if outcome == "capture" and not captor then
@@ -603,7 +621,7 @@ local function downer(humanoid: Humanoid, sourceUserId: number?, kind: string, i
 	counts.downed += 1
 	counts[outcome] = (counts[outcome] or 0) + 1
 	lastOutcome[uid] = outcome
-	log:info("player_downed", { userId = uid, outcome = outcome, by = kind, where = where, purse = amount })
+	log:info("player_downed", { userId = uid, outcome = outcome, by = kind, where = where, purse = amount, home = homeOf(info) })
 	tokens += 1
 	local down: Down = {
 		token = tokens,

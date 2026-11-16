@@ -131,6 +131,13 @@ local BUILDERS: { [string]: { Piece } } = {
 -- Shapes held upright (no forward turn) and how far below the hand they reach.
 local uprightShapes: { [string]: boolean } = { staff = true, torch = true, hourglass = true, orb = true, tome = true }
 
+-- How a held upright shape leans in the hand, in the arm's frame (-Z forward, +X outward for the right
+-- hand): a staff's head forward and a little out, like it's carried, not stood beside you (owner,
+-- 2026-11-15). Add other long upright weapons here with their own lean.
+local HELD_LEAN: { [string]: { forward: number, out: number } } = {
+	staff = { forward = 20, out = 8 },
+}
+
 -- A sheathed main hand (the Player's WeaponSheathed attribute, set by WeaponService): long
 -- things hang across the back, grip over the right shoulder; short ones ride at the back of the
 -- waist. Frames are in the attachment's space (+Z is the back of the body on both rigs).
@@ -195,6 +202,12 @@ local function build(character: Model, slot: string, def: ItemTypes.ItemDef)
 	elseif HELD[slot] then
 		-- From the grip point: forward like a held tool, or upright for staffs and lights.
 		base = CFrame.new(attachment.Position) * (if uprightShapes[model.shape] then CFrame.new(0, -0.3, 0) else CFrame.Angles(-math.pi / 2, 0, 0))
+		local lean = HELD_LEAN[model.shape]
+		if lean and uprightShapes[model.shape] then
+			-- The left hand leans out the other way.
+			local side = if slot == "offHand" then 1 else -1
+			base *= CFrame.Angles(math.rad(-lean.forward), 0, math.rad(side * lean.out))
+		end
 	else
 		base = attachment.CFrame
 	end
