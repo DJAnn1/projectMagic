@@ -15,6 +15,8 @@
 		         (LightningRods.metalWeight >= minWeight)
 		ley      the ley lines of WorldStateService:magicMap() clipped to the circle, nexuses inside it
 		tracks   the TrackStore SenseService fills (everyone's recent footprints), minus your own
+		space    Clairsentience: every body, every tagged Door, every container part, in a wider radius
+		         (SpaceTuning.clairsentience); payload lists bodies, doors, boxes
 
 	Payload (SenseReveal): { kind, center, radius, duration, bodies = { Model }, spots = { { p, s,
 	cold } }, parts = { BasePart }, lines = { { a, b, d } }, nexuses = { { p, d, s } }, prints = {
@@ -25,9 +27,12 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 
 local Shared = ReplicatedStorage.Shared
 local Data = require(Shared.Magic.Data.SenseSight)
+local SpaceTuning = require(Shared.Magic.Data.SpaceTuning)
+local Interactables = require(Shared.World.Interactables)
 local SenseRules = require(Shared.Magic.SenseRules)
 
 local Cast = script.Parent
@@ -163,6 +168,39 @@ local function gatherTracks(payload: { [string]: any }, point: Vector3, radius: 
 	return #prints
 end
 
+-- Clairsentience (Space): every body in reach, every door, every container: what fills the space.
+local function gatherSpace(payload: { [string]: any }, point: Vector3, radius: number, caster: Model): number
+	local caps = Data.caps
+	local bodies: { Model } = {}
+	for _, hit in Targeting.inRadius(point, radius, caps.bodies * 2, { [caster] = true }) do
+		table.insert(bodies, hit.model)
+	end
+	local doors: { BasePart } = {}
+	for _, door in CollectionService:GetTagged("Door") do
+		if #doors >= caps.metalParts then
+			break
+		end
+		if door:IsA("BasePart") and (door.Position - point).Magnitude <= radius then
+			table.insert(doors, door)
+		end
+	end
+	local boxes: { BasePart } = {}
+	local params = OverlapParams.new()
+	params.MaxParts = caps.queryParts * 2
+	for _, part in workspace:GetPartBoundsInRadius(point, radius, params) do
+		if #boxes >= caps.spots then
+			break
+		end
+		local kind = part:GetAttribute("Interactable")
+		local def = typeof(kind) == "string" and Interactables[kind] or nil
+		if def and def.container then
+			table.insert(boxes, part)
+		end
+	end
+	payload.bodies, payload.doors, payload.boxes = bodies, doors, boxes
+	return #bodies + #doors + #boxes
+end
+
 --[[
 	Shows `kind` to `player` around `point`. Returns (things shown, the line for the caster).
 	Used by the Sense resolver and by the admin command `sensesight`.
@@ -173,6 +211,10 @@ function SenseSight.revealAt(player: Player, caster: Model, point: Vector3, kind
 		return 0, ""
 	end
 	local radius = SenseRules.radiusFor(power, area)
+	if kind == "space" then
+		local C = SpaceTuning.clairsentience
+		radius = math.min(radius * C.reachMult, C.maxRadius)
+	end
 	local payload: { [string]: any } = {
 		kind = kind,
 		center = point,
@@ -188,6 +230,8 @@ function SenseSight.revealAt(player: Player, caster: Model, point: Vector3, kind
 		count = gatherLey(payload, point, radius, world)
 	elseif kind == "tracks" then
 		count = gatherTracks(payload, point, radius, "p" .. player.UserId)
+	elseif kind == "space" then
+		count = gatherSpace(payload, point, radius, caster)
 	end
 	local h = hooks
 	if h then

@@ -11,7 +11,9 @@
 		swap         two flashes and a thread between them
 		cut          a thin white tear along the aim that closes
 		stride       ripples left at your feet while it lasts
-		dislocate    a tear where you were and where you landed
+		dislocate    a tear where you were and where you landed (also a recall)
+		anchor       a mark of folded space on the ground, fading
+		stretch      a faint dome and a starry floor over the stretched area, until stretch_end
 
 	Reduce spell effects keeps gates and seals (they're information) and drops the rest's flourishes.
 ]]
@@ -150,7 +152,7 @@ function SpaceFx.cue(cue: { [string]: any })
 		end
 		alive[cue.id] = list
 		task.delay(seconds, close, cue.id)
-	elseif name == "gate_close" or name == "seal_end" then
+	elseif name == "gate_close" or name == "seal_end" or name == "stretch_end" then
 		close(cue.id)
 	elseif name == "gate_pass" then
 		if typeof(cue.to) == "Vector3" then
@@ -200,6 +202,27 @@ function SpaceFx.cue(cue: { [string]: any })
 			e.Parent = root
 			Debris:AddItem(e, seconds)
 		end
+	elseif name == "anchor" then
+		-- A small mark of folded space left on the ground where you stood.
+		if typeof(cue.at) == "Vector3" then
+			local disc = part(Enum.PartType.Cylinder, Vector3.new(0.1, 4, 4), CFrame.new(cue.at - Vector3.new(0, 2.9, 0)) * CFrame.Angles(0, 0, math.pi / 2), RIM, Enum.Material.Neon, 0.3)
+			TweenService:Create(disc, TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.05, 1.5, 1.5), Transparency = 1 }):Play()
+			Debris:AddItem(disc, 2.6)
+		end
+	elseif name == "stretch" then
+		if typeof(cue.center) ~= "Vector3" then
+			return
+		end
+		local radius = tonumber(cue.radius) or 12
+		local seconds = tonumber(cue.seconds) or 8
+		local dome = part(Enum.PartType.Ball, Vector3.new(radius * 2, radius * 2, radius * 2), CFrame.new(cue.center), RIM, Enum.Material.ForceField, 0.55)
+		local floor = part(Enum.PartType.Cylinder, Vector3.new(0.12, radius * 2, radius * 2), CFrame.new(cue.center + Vector3.new(0, 0.15, 0)) * CFrame.Angles(0, 0, math.pi / 2), DEEP, Enum.Material.Neon, 0.75)
+		if not reduced() then
+			stars(floor, 10)
+		end
+		alive[cue.id] = { dome, floor }
+		Debris:AddItem(dome, seconds + 1)
+		Debris:AddItem(floor, seconds + 1)
 	elseif name == "dislocate" then
 		if typeof(cue.from) == "Vector3" then
 			flash(cue.from, 4)

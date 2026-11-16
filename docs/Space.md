@@ -76,6 +76,46 @@ The open questions took their defaults: strong but limited, anyone can use a gat
   - how the rings look (a cylinder turned onto the gate's face);
   - whether `damageTaken = 0` covers every way of being hurt (statuses that tick go through Damage.apply too).
 
+## After stage 1's run (2026-11-16)
+
+The owner: "the gate looks good but the range is too small. at a high enough skill level you should be able to gate anywhere around the map."
+
+- **Long gates:**
+  - Set a waypoint on the map (M, click), then cast a gate. Its far end opens at the waypoint instead of where you aim.
+  - How far it can reach depends on your tier (`SpaceTuning.gate.waypointReach`):
+
+    | Tier | Reach |
+    |---|---|
+    | Below Expert | none |
+    | Expert | 700 studs |
+    | Master | 1,600 studs |
+    | Grandmaster and up | 8,000 studs (the whole island) |
+
+  - The waypoint must be on ground you've uncovered on your map (`MapService:hasSeen`).
+  - A far end on ground nobody has built yet asks for it (`requestArea`). A small ring flickers in front of you (`gate_forming`), and the gate opens when the ground is ready, or gives up after 12 s.
+  - Clear the waypoint to gate where you aim again.
+  - The client sends its waypoint on remote `MapWaypoint` (Net.send, nil to clear).
+  - Gate cues now go out at both ends, so people at the far end see the gate too.
+- **Spec fixes:** that run had `specs 1157/1160`. Transmute needs a tier 2 branch and release a tier 1, so Swap's example is now on Blinking and Cut's on Translocation.
+- **The deer** got a rounded neck (it read as a plank).
+
+## Stage 2: built (2026-11-16, on the owner's "begin stage 2"; not yet run)
+
+| Power | Recipe | What it does |
+|---|---|---|
+| **Anchor** (`space_anchor`) | Blinking · position · bind | Space remembers where you stand: one anchor each, kept for the session. |
+| **Recall** (`space_recall`) | Blinking · position · release · aura, burst, zone or ritual | Back to your anchor. Reach by tier: 250 → 1,800 studs, the whole island from Grandmaster. From Grandmaster, party mates within 14 studs come too. A far anchor waits up to 10 s for its ground. |
+| **Stretch** (`space_stretch`) | Folding · distance or volume · amplify · zone, burst, wall or ritual | For 8–16 s, everyone inside but you is `space_stretched` (walk ×0.4). Anyone else's bolts crossing it slow to ×0.45, once each. You get 2 at once and the server 16. |
+| **Pocket** (`space_pocket`) | Pocketcraft · volume · amplify, store or transfer · aura or touch | Opens your saved pocket (`data.spacePocket`, 6 → 22 slots by tier; it never shrinks) as a container window, usable anywhere for 30–120 s. It's in your own save, so it can't be duplicated across servers. |
+| **Clairsentience** | Spatial Sense · orientation · sense | Sense sight's new `space` kind: every body, door (tag `Door`) and container, through walls. The radius is ×2.2 the usual, up to 200 studs. Bodies and doors are outlined in pale blue, containers in gold. |
+
+- Swap is now transmute only, because bind on position is the Anchor.
+- **Code:**
+  - Server: `SpaceRuntime` (anchors, recall, stretches and their interceptor `"bend"`, matesHook, pocketHook), `ContainerService.openPocket` (a container whose "part" is your root, reachable only by you while it's open), `Cast/SenseSight` `gatherSpace`.
+  - Client: `SenseController` draws the `space` kind; `Fx/SpaceFx` draws `anchor`, `stretch` and `stretch_end`.
+  - Save: `Schemas` `spacePocket`.
+- **Specs:** expected boot line **`specs 1160/1161`** (one new spec in Space.spec; the one failure is the known Standing room spec).
+
 ## 5. Open questions for the owner
 
 1. Is Space meant to be overpowered like Time and Gravity (it's Rare, not Mythic)? Default: strong but limited: costs stay `costMult` 1.3, and seals are capped against players.

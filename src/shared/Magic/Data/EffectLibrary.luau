@@ -124,9 +124,14 @@ local routes: { Route } = {
 	-- ─── Space ──────────────────────────────────────────────────────────────
 	-- Space's powers (Effects/SpacePower, docs/Space.md stage 1). Each narrow: its own branch, so the old
 	-- blink, fold and push/pull routes keep everything else.
+	-- Stage 2 first where branches nest: Pocketcraft sits under Folding, so the pocket goes before the stride.
+	{ id = "space_pocket", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "amplify", "store", "transfer" }, forms = { "aura", "touch" }, params = { power = "pocket" } },
+	{ id = "space_anchor", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "bind" }, params = { power = "anchor" } },
+	{ id = "space_recall", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "release" }, forms = { "aura", "burst", "zone", "ritual" }, params = { power = "recall" } },
+	{ id = "space_stretch", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "amplify" }, forms = { "zone", "burst", "wall", "ritual" }, params = { power = "stretch" } },
 	{ id = "space_gate", effect = "SpacePower", branches = { "gatecraft" }, properties = { "boundary", "position" }, verbs = { "generate", "amplify", "transfer" }, forms = { "zone", "wall", "ritual" }, params = { power = "gate" } },
 	{ id = "space_seal", effect = "SpacePower", branches = { "containment" }, properties = { "boundary", "volume" }, verbs = { "bind", "generate", "amplify" }, params = { power = "seal" } },
-	{ id = "space_swap", effect = "SpacePower", branches = { "translocation" }, properties = { "position" }, verbs = { "transmute", "bind" }, forms = { "touch", "beam", "projectile" }, params = { power = "swap" } },
+	{ id = "space_swap", effect = "SpacePower", branches = { "translocation" }, properties = { "position" }, verbs = { "transmute" }, forms = { "touch", "beam", "projectile" }, params = { power = "swap" } },
 	{ id = "space_stride", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "reduce", "amplify" }, forms = { "aura" }, params = { power = "stride" } },
 	{ id = "space_cut", effect = "SpacePower", branches = { "space" }, properties = { "distance", "position", "volume", "boundary" }, verbs = { "release", "transmute" }, forms = { "beam", "touch", "wall" }, params = { power = "cut" } },
 	{ id = "blink",effect = "Blink", properties = { "position" }, verbs = { "redirect", "transfer" } },

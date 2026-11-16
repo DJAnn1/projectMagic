@@ -218,6 +218,10 @@ local routes: { [string]: Summary } = {
 		},
 	},
 	space_stride = { kind = "move", text = "Space folds under your feet: every step covers far more ground, until you hurt someone." },
+	space_pocket = { kind = "utility", text = "Opens your own pocket of space, wherever you are: what you put in it is kept, and only you can reach it." },
+	space_anchor = { kind = "move", text = "Space remembers where you stand. Release it later to come back here." },
+	space_recall = { kind = "move", text = "Takes you back to the spot you anchored, from as far as your mastery reaches. From Grandmaster, friends beside you come too." },
+	space_stretch = { kind = "control", text = "Stretches space over an area: everyone else in it crawls, and other people's bolts slow as they cross." },
 	space_cut = { kind = "attack", text = "Cuts space along your aim, hurting everyone it crosses. Guards can't turn it." },
 	blink = {
 		kind = "move",

@@ -11,6 +11,8 @@
 		metal    metal parts and people wearing metal: a steel-white glow, on top of walls.
 		ley      the seam along the ground in the line's domain colour (Beams between points laid
 		         on the terrain), a faint column where a nexus is.
+		space    Clairsentience: pale outlines of every body and door, gold ones for containers, on top
+		         of walls; the world dims as for heat.
 		tracks   footprints on the ground (not through walls), alternating left and right along the
 		         way they went, fainter the older they are; people and beasts shaped differently.
 
@@ -40,6 +42,9 @@ local COLD = Color3.fromRGB(130, 195, 255)
 local STEEL = Color3.fromRGB(200, 222, 240)
 local PERSON_PRINT = Color3.fromRGB(245, 232, 190)
 local BEAST_PRINT = Color3.fromRGB(205, 232, 175)
+local SPACE_BODY = Color3.fromRGB(190, 200, 255) -- Clairsentience (Space): bodies, doors, containers
+local SPACE_DOOR = Color3.fromRGB(150, 160, 255)
+local SPACE_BOX = Color3.fromRGB(255, 225, 150)
 
 type Item = { inst: Instance, base: number }
 type Reveal = { kind: string, started: number, ends: number, items: { Item }, owned: { Instance } }
@@ -270,6 +275,23 @@ local function onReveal(payload: any)
 				nexusColumn(r, n.p, tostring(n.d), tonumber(n.s) or 0.5, center.Y)
 			end
 		end
+	elseif kind == "space" then
+		-- Clairsentience: pale outlines of everything that fills the space, on top of walls.
+		for _, model in list(payload.bodies) do
+			if typeof(model) == "Instance" then
+				bodyGlow(r, model, SPACE_BODY, 0.45)
+			end
+		end
+		for _, part in list(payload.doors) do
+			if typeof(part) == "Instance" then
+				partGlow(r, part, SPACE_DOOR, 0.55)
+			end
+		end
+		for _, part in list(payload.boxes) do
+			if typeof(part) == "Instance" then
+				partGlow(r, part, SPACE_BOX, 0.4)
+			end
+		end
 	elseif kind == "tracks" then
 		for index, p in list(payload.prints) do
 			if typeof(p) == "table" and typeof(p.p) == "Vector3" then
@@ -293,7 +315,7 @@ local function update()
 		for _, item in r.items do
 			setTransparency(item.inst, 1 - (1 - item.base) * alpha)
 		end
-		if kind == "heat" or kind == "metal" then
+		if kind == "heat" or kind == "metal" or kind == "space" then
 			seeThrough = math.max(seeThrough, alpha)
 		end
 	end

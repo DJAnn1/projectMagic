@@ -97,6 +97,7 @@ local DEFS: { [string]: StatusDef } = {
 	-- Space (Cast/SpaceRuntime, docs/Space.md): a box nobody crosses, and space folding under your feet.
 	space_sealed = { name = "Sealed", walk = 0, jump = 0, noCast = true, damageTaken = 0, anchorNpc = true, harmful = true },
 	space_stride = { name = "Folding Stride" }, -- the walk multiplier is SpaceRuntime's (tier-scaled)
+	space_stretched = { name = "Stretched", walk = 0.4, jump = 0.6, harmful = true }, -- inside someone's Stretch, refreshed each step
 	suffocating = { name = "Suffocating", walk = 0.75, dot = true, harmful = true },
 	irradiated = { name = "Irradiated", dot = true, harmful = true },
 	crumbling = { name = "Crumbling", damageTaken = 1.2, harmful = true },

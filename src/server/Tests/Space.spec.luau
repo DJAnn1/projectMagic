@@ -43,6 +43,21 @@ return function(t: any)
 			expect(routeOf({ branch = "folding", property = "volume", verb = "reduce", form = "burst", power = 4 })).toBe("fold")
 		end)
 
+		it("stage 2: pocket, anchor, recall and stretch each have their own recipe", function()
+			expect(routeOf({ branch = "pocketcraft", property = "volume", verb = "amplify", form = "aura", power = 3 })).toBe("space_pocket")
+			expect(routeOf({ branch = "blinking", property = "position", verb = "bind", form = "touch", power = 3 })).toBe("space_anchor")
+			expect(routeOf({ branch = "blinking", property = "position", verb = "release", form = "aura", power = 3 })).toBe("space_recall")
+			expect(routeOf({ branch = "folding", property = "distance", verb = "amplify", form = "zone", power = 4 })).toBe("space_stretch")
+			-- Folding Stride still answers on the aura, and Cut on a beam
+			expect(routeOf({ branch = "folding", property = "distance", verb = "amplify", form = "aura", power = 3 })).toBe("space_stride")
+			expect(routeOf({ branch = "blinking", property = "position", verb = "release", form = "beam", power = 3 })).toBe("space_cut")
+			-- Recall reaches the whole island from Grandmaster; the pocket only grows
+			expect(S.anchorReach(6) >= 4096 * 1.5).toBe(true)
+			expect(S.anchorReach(0) > 0).toBe(true)
+			expect(S.byTier(S.pocket.slots, 8) > S.byTier(S.pocket.slots, 0)).toBe(true)
+			expect(StatusInfo.space_stretched ~= nil and StatusInfo.space_stretched.harmful).toBe(true)
+		end)
+
 		it("every power has a resolver, a Composer line, its statuses and a flag", function()
 			for _, route in EffectLibrary.routes do
 				if route.effect == "SpacePower" then

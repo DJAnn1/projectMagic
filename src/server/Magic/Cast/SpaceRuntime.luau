@@ -43,6 +43,11 @@ type Gate = {
 }
 
 type Seal = { id: number, humanoid: Humanoid, root: BasePart, center: Vector3, half: number }
+type Stretch = { id: number, owner: number, ownerModel: Model?, center: Vector3, radius: number, untilAt: number, slowed: { [any]: boolean } }
+
+-- Stretch zones (stage 2), declared here because the flight interceptor below reads them.
+local stretches: { Stretch } = {}
+local stretchIntercept: (Vector3, Vector3, any) -> Vector3?
 
 local runner: any = nil
 local log: any = nil
@@ -127,8 +132,26 @@ end
 -- Set by Services/SpaceService: the world's chunk building (a far end may be somewhere nobody is), each
 -- player's map waypoint (MapWaypoint), and whether they've uncovered a spot on their map (MapService).
 SpaceRuntime.world = nil :: any
-local waypoints: { [Player]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
+local waypoints: { [Player]: Vector3? } = setmetatable({}, { __mode = "k" }) :: any
 SpaceRuntime.seenHook = nil :: ((Player, number, number) -> boolean)?
+
+-- Stage 2 hooks (SpaceService): your party mates (PartyService), and opening your pocket (ContainerService
+-- with your saved data.spacePocket, its size set to `slots`).
+SpaceRuntime.matesHook = nil :: ((Player) -> { Player })?
+SpaceRuntime.pocketHook = nil :: ((Player, number, number) -> (boolean, string?))?
+
+function SpaceRuntime.matesOf(player: Player): { Player }
+	local hook = SpaceRuntime.matesHook
+	return if hook then hook(player) else {}
+end
+
+function SpaceRuntime.openPocket(player: Player, slots: number, seconds: number): (boolean, string?)
+	local hook = SpaceRuntime.pocketHook
+	if not hook then
+		return false, "Your pocket won't open here."
+	end
+	return hook(player, slots, seconds)
+end
 
 function SpaceRuntime.setWaypoint(player: Player, point: Vector3?)
 	waypoints[player] = point
@@ -314,6 +337,12 @@ function SpaceRuntime.intercept(position: Vector3, velocity: Vector3, flight: an
 			return "warp", { position = to.Position + Vector3.new(0, 1.5, 0) + dir * 3, velocity = dir * speed }
 		end
 	end
+	if #stretches > 0 then
+		local slowed = stretchIntercept(position, velocity, flight)
+		if slowed then
+			return "bend", slowed
+		end
+	end
 	for _, seal in seals do
 		local d = position - seal.center
 		local h = seal.half
@@ -405,6 +434,134 @@ function SpaceRuntime.dislocate(model: Model, studs: number, rng: Random): boole
 	return false
 end
 
+-- ─── Anchor and Recall (stage 2) ───────────────────────────────────────────
+
+local anchors: { [Player]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+local recalling: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+
+function SpaceRuntime.setAnchor(player: Player, at: CFrame)
+	anchors[player] = at
+	fx("anchor", { at = at.Position, caster = player.UserId }, at.Position)
+end
+
+function SpaceRuntime.anchorOf(player: Player): CFrame?
+	return anchors[player]
+end
+
+--[[
+	Takes `player` (and `mates`, already chosen by the caller) back to their anchor. A far anchor's ground may
+	not be built: it's asked for, and the recall waits up to anchor.wait seconds (the caster is told). Returns
+	false and why when it can't start.
+]]
+function SpaceRuntime.recall(player: Player, mates: { Player }): (boolean, string?)
+	local anchor = anchors[player]
+	if not anchor then
+		return false, "You've left no anchor to return to. Bind space where you stand first."
+	end
+	if recalling[player] then
+		return false, "You're already on your way back."
+	end
+	local function go()
+		local everyone = { player }
+		for _, mate in mates do
+			table.insert(everyone, mate)
+		end
+		for i, who in everyone do
+			local character = who.Character
+			if character then
+				local from = character:GetPivot().Position
+				-- Mates arrive in a ring round the anchor, not inside each other.
+				local offset = if i == 1 then Vector3.zero else Vector3.new(math.cos(i), 0, math.sin(i)) * 4
+				local spot = SpaceRuntime.standAt(anchor.Position + offset, { character }, 20) or anchor
+				character:PivotTo(CFrame.new(spot.Position) * anchor.Rotation)
+				fx("dislocate", { from = from, to = spot.Position }, spot.Position)
+			end
+		end
+	end
+	local world = SpaceRuntime.world
+	if world == nil or world:isChunkBuilt(anchor.Position.X, anchor.Position.Z) then
+		go()
+		return true, nil
+	end
+	recalling[player] = true
+	world:requestArea(anchor.Position.X, anchor.Position.Z, 1)
+	task.spawn(function()
+		local giveUp = os.clock() + S.anchor.wait
+		while os.clock() < giveUp and not world:isChunkBuilt(anchor.Position.X, anchor.Position.Z) do
+			task.wait(0.25)
+		end
+		recalling[player] = nil
+		if player.Parent and world:isChunkBuilt(anchor.Position.X, anchor.Position.Z) then
+			go()
+		end
+	end)
+	return true, nil
+end
+
+-- ─── Stretch (stage 2) ─────────────────────────────────────────────────────
+
+function SpaceRuntime.canStretch(): boolean
+	return #stretches < S.stretch.maxServer
+end
+
+function SpaceRuntime.stretch(owner: number, ownerModel: Model?, center: Vector3, radius: number, seconds: number): boolean
+	if #stretches >= S.stretch.maxServer then
+		return false
+	end
+	local mine = {}
+	for _, s in stretches do
+		if s.owner == owner then
+			table.insert(mine, s)
+		end
+	end
+	while #mine >= S.stretch.perCaster do
+		local old = table.remove(mine, 1) :: Stretch
+		table.remove(stretches, table.find(stretches, old) :: number)
+		fx("stretch_end", { id = old.id }, old.center)
+	end
+	local s: Stretch = { id = newId(), owner = owner, ownerModel = ownerModel, center = center, radius = radius, untilAt = os.clock() + seconds, slowed = setmetatable({}, { __mode = "k" }) :: any }
+	table.insert(stretches, s)
+	fx("stretch", { id = s.id, center = center, radius = radius, seconds = seconds }, center)
+	return true
+end
+
+local function stepStretches(now: number)
+	for i = #stretches, 1, -1 do
+		local s = stretches[i]
+		if now >= s.untilAt then
+			table.remove(stretches, i)
+			fx("stretch_end", { id = s.id }, s.center)
+		else
+			for _, model in bodies() do
+				if model ~= s.ownerModel then
+					local root = model:FindFirstChild("HumanoidRootPart")
+					local humanoid = model:FindFirstChildOfClass("Humanoid")
+					if root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
+						local d = Vector3.new(root.Position.X - s.center.X, 0, root.Position.Z - s.center.Z).Magnitude
+						if d <= s.radius then
+							StatusEffects.apply(humanoid, "space_stretched", { duration = 0.5, source = s.owner })
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- A bolt from anyone but the stretch's maker slows as it crosses, once per stretch.
+function stretchIntercept(position: Vector3, velocity: Vector3, flight: any): Vector3?
+	for _, s in stretches do
+		if flight.ownerModel ~= s.ownerModel and not s.slowed[flight] then
+			local d = Vector3.new(position.X - s.center.X, 0, position.Z - s.center.Z).Magnitude
+			if d <= s.radius then
+				s.slowed[flight] = true
+				return velocity * S.stretch.boltMult
+			end
+		end
+	end
+	return nil
+end
+
 -- ─── Dispel and admin ──────────────────────────────────────────────────────
 
 -- Closes gates touching the area (a Dispel), or every gate of `owner`. Returns how many.
@@ -445,6 +602,7 @@ end
 function SpaceRuntime.step(_dt: number)
 	local now = os.clock()
 	stepGates(now)
+	stepStretches(now)
 	stepSeals()
 	stepStrides()
 end

@@ -15,11 +15,12 @@ local Net = require(game:GetService("ReplicatedStorage").Shared.Net)
 local Server = script.Parent.Parent
 local SpaceRuntime = require(Server.Magic.Cast.SpaceRuntime)
 local Damage = require(Server.Magic.Cast.Damage)
+local Inventory = require(Server.Items.Inventory)
 
 local SpaceService = {
 	name = "SpaceService",
 	-- After Gravity and Reality: their interceptors are in place, so ours wraps them.
-	dependencies = { "AdminService", "EffectRunner", "GravityService", "MapService", "RealityService", "WorldStateService" },
+	dependencies = { "AdminService", "ContainerService", "EffectRunner", "GravityService", "MapService", "PartyService", "PlayerDataService", "RealityService", "WorldStateService" },
 }
 
 local STEP = 0.1
@@ -30,6 +31,25 @@ function SpaceService.init(_self: any, ctx: any)
 	local map = ctx.get("MapService")
 	SpaceRuntime.seenHook = function(player: Player, x: number, z: number): boolean
 		return map:hasSeen(player, x, z)
+	end
+	-- Stage 2: party mates come along on a Grandmaster recall; the pocket is your saved data.spacePocket.
+	local parties = ctx.get("PartyService")
+	local playerData = ctx.get("PlayerDataService")
+	local containers = ctx.get("ContainerService")
+	SpaceRuntime.matesHook = function(player: Player): { Player }
+		return parties:matesOf(player)
+	end
+	SpaceRuntime.pocketHook = function(player: Player, slots: number, seconds: number): (boolean, string?)
+		local state = playerData:get(player)
+		if not state then
+			return false, "Your pocket won't open yet."
+		end
+		local pocket = Inventory.normalize(state.data.spacePocket)
+		-- It grows with you and never shrinks: what's already in it stays.
+		pocket.cap = math.max(pocket.cap or 0, slots)
+		state.data.spacePocket = pocket
+		local ok = containers:openPocket(player, pocket, seconds)
+		return ok, if ok then nil else "Your pocket won't open here."
 	end
 	-- Your map waypoint: a long gate's far end opens there (docs/Space.md).
 	Net.on("MapWaypoint", function(player: Player, point: Vector3?)

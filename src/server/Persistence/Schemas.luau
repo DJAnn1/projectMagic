@@ -136,6 +136,9 @@ Schemas.Player = {
 				decor = {}, -- { { rec = Record, x, z, r } } lot-local position, rotation in 15-degree steps
 				chest = { currency = 0, rare = 0, slots = {}, equip = {}, quick = {}, nextUid = 0, audit = {}, cap = 24 },
 			},
+			-- Space's pocket (docs/Space.md stage 2): what you've put in your pocket of space. Opened only by the
+			-- spell (Effects/SpacePower `pocket`); `cap` grows with your tier. Old saves get it by reconcile.
+			spacePocket = { currency = 0, rare = 0, slots = {}, equip = {}, quick = {}, nextUid = 0, audit = {}, cap = 6 },
 			settings = defaultSettings(), -- consoleKey + Shared/UI/Settings; new settings reach old saves via reconcile
 			moderation = { warnings = 0, notes = {} },
 			stats = { joins = 0, firstJoin = 0, lastJoin = 0, playtime = 0, casts = 0 },

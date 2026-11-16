@@ -77,6 +77,56 @@ SpaceTuning.dislocation = {
 	dropFrom = 14,
 }
 
+-- ─── Stage 2 ─────────────────────────────────────────────────────────────
+
+--[[
+	ANCHOR and RECALL (Blinking, position): bind leaves an anchor where you stand (one each, kept for the
+	session); release takes you back to it from as far as your tier reaches (index = tier + 1). From
+	Grandmaster, party mates within partyRadius come with you.
+]]
+SpaceTuning.anchor = {
+	reach = { 250, 300, 400, 600, 1000, 1800, 8000, 8000, 8000 },
+	partyRadius = 14,
+	partyFromTier = 6,
+	wait = 10, -- seconds a far recall may wait for the ground there to be built
+}
+
+function SpaceTuning.anchorReach(tier: number): number
+	local list = SpaceTuning.anchor.reach
+	return list[math.clamp(math.floor(tier) + 1, 1, #list)]
+end
+
+--[[
+	STRETCH (Folding, amplify, an area form): space lengthens around a point. Everyone inside but the caster
+	crawls (status space_stretched), and anyone else's bolts crossing it slow to boltMult, once each.
+]]
+SpaceTuning.stretch = {
+	seconds = { base = 8, perTier = 1, max = 16 } :: Curve,
+	radius = { base = 10, perTier = 1.5, max = 22 } :: Curve,
+	boltMult = 0.45,
+	perCaster = 2,
+	maxServer = 16,
+}
+
+--[[
+	POCKET (Pocketcraft, volume): a pocket of space only you can reach into. Its contents are saved with you;
+	the spell opens it wherever you are, for a while. Its size grows with your tier (it never shrinks: what's
+	in it stays, only adding is refused past the size).
+]]
+SpaceTuning.pocket = {
+	slots = { base = 6, perTier = 2, max = 22 } :: Curve,
+	seconds = { base = 30, perTier = 10, max = 120 } :: Curve,
+}
+
+--[[
+	CLAIRSENTIENCE: Sense sight's "space" kind (Data/SenseSight): every body, door and container in reach,
+	through walls. Space reaches further than the other kinds: radius x reachMult, up to maxRadius.
+]]
+SpaceTuning.clairsentience = {
+	reachMult = 2.2,
+	maxRadius = 200,
+}
+
 SpaceTuning.looks = {
 	rim = Color3.fromRGB(150, 160, 255),
 	deep = Color3.fromRGB(20, 18, 60),

@@ -8,6 +8,10 @@
 		seal     a box nobody crosses: one target (touch/beam/projectile) or everyone in an area
 		stride   space folds under your feet: each step covers far more ground (Folding, reduce, aura)
 		cut      a rend along the aim: hurts everyone it crosses, and guards can't turn it
+		anchor   (stage 2) space remembers where you stand (Blinking, bind position)
+		recall   (stage 2) back to your anchor from as far as your tier reaches; party mates from Grandmaster
+		stretch  (stage 2) an area where everyone else crawls and other people's bolts slow
+		pocket   (stage 2) your saved pocket of space opens wherever you are, for a while
 
 	A backfire is Dislocation: you're thrown somewhere, sometimes somewhere awkward.
 	Refusals (no room, nobody there) cost nothing further and say why in a note.
@@ -38,11 +42,18 @@ function SpacePower.precheck(params: { [string]: any }, _stats: Types.SpellStats
 	if params.power == "gate" and not SpaceRuntime.canOpenGate() then
 		return "WORLD_STRAINED"
 	end
+	if params.power == "stretch" and not SpaceRuntime.canStretch() then
+		return "WORLD_STRAINED"
+	end
 	return nil
 end
 
 local function tierOf(ctx: CastTypes.EffectContext): number
 	return ctx.stats.masteryTier or 0
+end
+
+local function reachText(studs: number): string
+	return if studs >= 4096 then "anywhere on the island" else string.format("%d studs away", studs)
 end
 
 -- Dislocation: Space's backfire, and its risk (BacklashService calls SpaceRuntime.dislocate too).
@@ -175,6 +186,47 @@ function SpacePower.resolve(ctx: CastTypes.EffectContext, params: { [string]: an
 		return { effective = true, hits = 0, note = if far
 			then "Space tears open toward your waypoint. The far end takes a moment to find its ground."
 			else "Two holes in space, joined. Anything can use them." }
+	elseif power == "anchor" then
+		SpaceRuntime.setAnchor(ctx.player, ctx.root.CFrame)
+		return { effective = true, hits = 0, note = string.format("Space remembers this spot. Release it to come back, from up to %s.", reachText(S.anchorReach(tierOf(ctx)))) }
+	elseif power == "recall" then
+		local anchor = SpaceRuntime.anchorOf(ctx.player)
+		local tier = tierOf(ctx)
+		if anchor then
+			local distance = Vector3.new(anchor.Position.X - ctx.origin.X, 0, anchor.Position.Z - ctx.origin.Z).Magnitude
+			if distance > S.anchorReach(tier) then
+				return { effective = false, hits = 0, note = "Your anchor is too far away for you to reach yet." }
+			end
+		end
+		-- From Grandmaster, party mates close by come too.
+		local mates: { Player } = {}
+		if tier >= S.anchor.partyFromTier then
+			for _, mate in SpaceRuntime.matesOf(ctx.player) do
+				local character = mate.Character
+				if character and (character:GetPivot().Position - ctx.origin).Magnitude <= S.anchor.partyRadius then
+					table.insert(mates, mate)
+				end
+			end
+		end
+		local ok, why = SpaceRuntime.recall(ctx.player, mates)
+		if not ok then
+			return { effective = false, hits = 0, note = why }
+		end
+		return { effective = true, hits = #mates, note = if #mates > 0 then "Space folds back to your anchor, and takes your friends with you." else nil }
+	elseif power == "stretch" then
+		local tier = tierOf(ctx)
+		local radius = math.max(S.byTier(S.stretch.radius, tier), ctx.stats.area or 0)
+		if not SpaceRuntime.stretch(ctx.player.UserId, ctx.character, ctx.point, radius, S.byTier(S.stretch.seconds, tier)) then
+			return { effective = false, hits = 0, note = "Space here won't stretch any further." }
+		end
+		return { effective = true, hits = 0, note = "Space stretches: anyone else crossing it crawls, and their bolts slow." }
+	elseif power == "pocket" then
+		local tier = tierOf(ctx)
+		local ok, why = SpaceRuntime.openPocket(ctx.player, math.floor(S.byTier(S.pocket.slots, tier)), S.byTier(S.pocket.seconds, tier))
+		if not ok then
+			return { effective = false, hits = 0, note = why }
+		end
+		return { effective = true, hits = 0, note = "You open a pocket of space only you can reach into." }
 	elseif power == "swap" then
 		return swap(ctx)
 	elseif power == "seal" then

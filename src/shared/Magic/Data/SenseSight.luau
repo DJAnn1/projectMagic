@@ -57,10 +57,18 @@ SenseSight.kinds = {
 		found = "Fresh tracks stand out on the ground.",
 		empty = "The ground here holds no fresh tracks.",
 	},
+	-- Clairsentience (Space, docs/Space.md stage 2): further than the others (Data/SpaceTuning.clairsentience).
+	space = {
+		properties = { "orientation" },
+		summary = "For a while you're aware of everything in a wide area: every person and beast, every door and every chest, even through walls. It touches nobody.",
+		journal = "Space told me what it held. Every body, every door, every box in every room around me, all at once, as if the walls were only drawn on.",
+		found = "You feel everything that fills the space around you.",
+		empty = "The space around you holds nothing but air and ground.",
+	},
 } :: { [string]: Kind }
 
 -- Order the admin tools and specs list them in.
-SenseSight.order = { "heat", "metal", "ley", "tracks" }
+SenseSight.order = { "heat", "metal", "ley", "tracks", "space" }
 
 -- How far (studs) and how long (seconds) you see, from the spell's power.
 SenseSight.radius = { base = 24, perPower = 6, max = 90 }

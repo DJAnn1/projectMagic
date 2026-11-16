@@ -66,6 +66,10 @@ type Container = {
 	deposits: { [number]: { [string]: number } }, -- userId -> itemId -> count put in
 	viewers: { [Player]: boolean },
 	personal: boolean?, -- the owner's housing storage (no loot, no restock, no theft)
+	-- A Space pocket (openPocket): no chest in the world; its owner may use it, anywhere, until pocketUntil.
+	pocketOwner: Player?,
+	pocketUntil: number?,
+	label: string?,
 }
 
 local RESTOCK_DAYS = 3
@@ -168,7 +172,7 @@ local function viewFor(c: Container, player: Player): { [string]: any }
 	return {
 		id = c.id,
 		session = session,
-		name = if c.personal then "Your storage" else def.object .. (if building then " · " .. Access.describe(building) else ""),
+		name = if c.label then c.label elseif c.personal then "Your storage" else def.object .. (if building then " · " .. Access.describe(building) else ""),
 		owner = if kind == "player" then (if ownerId == player.UserId then "yours" else "another adventurer's") elseif kind == "npc" then "a local household's" else nil,
 		theft = not c.personal and not Access.permits(player, building),
 		capacity = Inventory.capacity(c.inv),
@@ -199,7 +203,26 @@ end
 
 -- ─── Rules ──────────────────────────────────────────────────────────────────
 
+-- Open pockets by their part (openPocket): the owner's root, so a chest check never matches one.
+local pocketsByPart: { [BasePart]: Container } = setmetatable({}, { __mode = "k" }) :: any
+
+-- nil: `part` isn't a pocket. Else whether `player` may use it now.
+local function pocketOf(player: Player, part: BasePart): boolean?
+	local c = pocketsByPart[part]
+	if not c then
+		return nil
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	return c.pocketOwner == player and humanoid ~= nil and humanoid.Health > 0 and os.clock() < (c.pocketUntil or 0)
+end
+
 local function inReach(player: Player, part: BasePart): boolean
+	-- A Space pocket: reachable by its owner, anywhere, while the spell holds it open.
+	local pocket = pocketOf(player, part)
+	if pocket ~= nil then
+		return pocket
+	end
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -390,6 +413,44 @@ function ContainerService.open(_self: any, player: Player, part: BasePart): (boo
 	sessionOf[player] = (sessionOf[player] or 0) + 1
 	opened.viewers[player] = true
 	Net.fire("ContainerView", player, viewFor(opened, player))
+	return true, nil
+end
+
+--[[
+	Opens a Space pocket (Effects/SpacePower): `inv` is the owner's saved pocket (data.spacePocket), usable
+	anywhere by its owner for `seconds`. Closing or the time running out shuts it; what's in it stays saved.
+]]
+function ContainerService.openPocket(_self: any, player: Player, inv: Inventory.Inv, seconds: number): (boolean, string?)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false, "NO_CHARACTER"
+	end
+	local id = "pocket@" .. player.UserId
+	local c = containers[id]
+	if c then
+		pocketsByPart[c.part] = nil
+		c.inv, c.part = inv, root
+	else
+		serial += 1
+		c = {
+			id = id, kind = "pocket", part = root, inv = inv,
+			ownerKey = serverKey .. Inventory.base36(serial), round = 0, rolledDay = math.huge,
+			deposits = {}, viewers = {}, personal = true, label = "Your pocket of space",
+		}
+		containers[id] = c
+	end
+	local pocket = c :: Container
+	pocket.pocketOwner = player
+	pocket.pocketUntil = os.clock() + seconds
+	pocketsByPart[root] = pocket
+	if openBy[player] and openBy[player] ~= id then
+		close(player)
+	end
+	openBy[player] = id
+	sessionOf[player] = (sessionOf[player] or 0) + 1
+	pocket.viewers[player] = true
+	Net.fire("ContainerView", player, viewFor(pocket, player))
 	return true, nil
 end
 
