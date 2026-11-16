@@ -47,6 +47,7 @@ export type Part = {
 	shape: string, -- "Ball" (an ellipsoid filling `size`) | "Block"
 	size: Vector3,
 	offset: Vector3,
+	rot: Vector3?, -- degrees, X then Y then Z (CreatureRig)
 	color: Color3,
 	material: Enum.Material,
 	transparency: number?,
@@ -292,8 +293,11 @@ creature({
 
 -- ─── Game: ordinary animals the hunters go out for (docs/Hunting.md) ─────────────────────────────
 
-local DEER_BROWN, DEER_DARK, DEER_PALE = rgb(146, 100, 62), rgb(96, 66, 44), rgb(226, 214, 196)
-local deerShape = { hipHeight = 2.4, hitbox = Vector3.new(1.9, 2, 4) }
+-- Deer, second look (owner's screenshot 2026-11-16: an upright neck and flat floating ears read as an
+-- alpaca with antlers). Now: a slim body with a deeper chest, the neck leaning forward, a long narrow
+-- head with a darker muzzle, upright ears tilted out, thin legs, a white rump with a small tail on it.
+local DEER_BROWN, DEER_DARK, DEER_PALE, DEER_LEG = rgb(146, 100, 62), rgb(70, 50, 36), rgb(226, 214, 196), rgb(112, 80, 54)
+local deerShape = { hipHeight = 2.2, hitbox = Vector3.new(1.5, 1.6, 3.6) }
 creature({
 	id = "deer",
 	name = "Deer",
@@ -314,17 +318,19 @@ creature({
 	xp = 5,
 	loot = { { item = "raw_meat", chance = 1, min = 2, max = 3 }, { item = "deer_hide", chance = 0.8, min = 1, max = 1 } },
 	body = with({
-		{ name = "Body", shape = "Ball", size = Vector3.new(1.9, 2, 4), offset = Vector3.zero, color = DEER_BROWN, material = M.Fabric },
-		{ name = "Neck", shape = "Block", size = Vector3.new(0.7, 1.8, 0.8), offset = Vector3.new(0, 1.2, -1.75), color = DEER_BROWN, material = M.Fabric },
-		{ name = "Head", shape = "Ball", size = Vector3.new(0.8, 0.85, 1.5), offset = Vector3.new(0, 2.2, -2.25), color = DEER_BROWN, material = M.Fabric,
-			anim = { kind = "bob", amount = 0.08, speed = 1.3 } },
-		{ name = "Nose", shape = "Ball", size = Vector3.new(0.4, 0.35, 0.3), offset = Vector3.new(0, 2.1, -3), color = DEER_DARK, material = M.SmoothPlastic },
-		{ name = "EarL", shape = "Block", size = Vector3.new(0.5, 0.18, 0.3), offset = Vector3.new(-0.5, 2.6, -2), color = DEER_DARK, material = M.Fabric },
-		{ name = "EarR", shape = "Block", size = Vector3.new(0.5, 0.18, 0.3), offset = Vector3.new(0.5, 2.6, -2), color = DEER_DARK, material = M.Fabric },
-		{ name = "Rump", shape = "Ball", size = Vector3.new(1.2, 1, 0.5), offset = Vector3.new(0, 0.3, 1.9), color = DEER_PALE, material = M.Fabric },
-		{ name = "Tail", shape = "Ball", size = Vector3.new(0.35, 0.6, 0.3), offset = Vector3.new(0, 0.55, 2.1), color = DEER_PALE, material = M.Fabric,
+		{ name = "Body", shape = "Ball", size = Vector3.new(1.5, 1.6, 3.6), offset = Vector3.zero, color = DEER_BROWN, material = M.Fabric },
+		{ name = "Chest", shape = "Ball", size = Vector3.new(1.4, 1.7, 1.5), offset = Vector3.new(0, 0.15, -1.25), color = DEER_BROWN, material = M.Fabric },
+		{ name = "Neck", shape = "Block", size = Vector3.new(0.55, 1.9, 0.75), offset = Vector3.new(0, 1.45, -1.9), rot = Vector3.new(-32, 0, 0), color = DEER_BROWN, material = M.Fabric },
+		{ name = "Head", shape = "Ball", size = Vector3.new(0.7, 0.75, 1.1), offset = Vector3.new(0, 2.45, -2.6), color = DEER_BROWN, material = M.Fabric,
+			anim = { kind = "bob", amount = 0.06, speed = 1.3 } },
+		{ name = "Muzzle", shape = "Ball", size = Vector3.new(0.45, 0.45, 0.75), offset = Vector3.new(0, 2.28, -3.15), color = rgb(120, 84, 56), material = M.Fabric },
+		{ name = "Nose", shape = "Ball", size = Vector3.new(0.26, 0.2, 0.18), offset = Vector3.new(0, 2.32, -3.5), color = DEER_DARK, material = M.SmoothPlastic },
+		{ name = "EarL", shape = "Block", size = Vector3.new(0.14, 0.6, 0.32), offset = Vector3.new(-0.38, 2.95, -2.45), rot = Vector3.new(0, 0, 38), color = DEER_BROWN, material = M.Fabric },
+		{ name = "EarR", shape = "Block", size = Vector3.new(0.14, 0.6, 0.32), offset = Vector3.new(0.38, 2.95, -2.45), rot = Vector3.new(0, 0, -38), color = DEER_BROWN, material = M.Fabric },
+		{ name = "Rump", shape = "Ball", size = Vector3.new(1.1, 1, 0.5), offset = Vector3.new(0, 0.25, 1.6), color = DEER_PALE, material = M.Fabric },
+		{ name = "Tail", shape = "Ball", size = Vector3.new(0.28, 0.45, 0.22), offset = Vector3.new(0, 0.6, 1.8), color = DEER_PALE, material = M.Fabric,
 			anim = { kind = "wag", amount = 0.35, speed = 2.2 } },
-	}, legs(deerShape, { Vector2.new(-0.55, -1.3), Vector2.new(0.55, -1.3), Vector2.new(-0.55, 1.3), Vector2.new(0.55, 1.3) }, 0.32, DEER_DARK)),
+	}, legs(deerShape, { Vector2.new(-0.45, -1.2), Vector2.new(0.45, -1.2), Vector2.new(-0.45, 1.15), Vector2.new(0.45, 1.15) }, 0.22, DEER_LEG)),
 	game = true,
 	silent = true,
 })

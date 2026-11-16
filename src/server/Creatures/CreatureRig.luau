@@ -62,7 +62,13 @@ function CreatureRig.build(def: Creatures.Def, at: CFrame): (Model, Humanoid, Ba
 		if spec.shape == "Ball" then
 			CreatureRig.ellipsoid(part)
 		end
-		part.CFrame = at * CFrame.new(spec.offset)
+		-- An optional tilt (degrees, X then Y then Z): a deer's neck leaning forward, ears out to the sides.
+		local rot = (spec :: any).rot :: Vector3?
+		local local_ = CFrame.new(spec.offset)
+		if rot then
+			local_ *= CFrame.Angles(math.rad(rot.X), math.rad(rot.Y), math.rad(rot.Z))
+		end
+		part.CFrame = at * local_
 		part.Color = spec.color
 		part.Material = spec.material
 		part.Transparency = spec.transparency or 0
@@ -79,7 +85,7 @@ function CreatureRig.build(def: Creatures.Def, at: CFrame): (Model, Humanoid, Ba
 			weld.Name = "Pose"
 			weld.Part0 = root
 			weld.Part1 = part
-			weld.C0 = CFrame.new(spec.offset)
+			weld.C0 = local_
 			weld.Parent = part
 			part:SetAttribute("Anim", anim.kind)
 			part:SetAttribute("AnimAmount", anim.amount)
