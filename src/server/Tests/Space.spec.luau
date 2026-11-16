@@ -34,9 +34,10 @@ return function(t: any)
 		it("each power is reached by its own branch; blink, Displace and Fold are unchanged", function()
 			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "transfer", form = "zone", power = 4 })).toBe("space_gate")
 			expect(routeOf({ branch = "sealing", property = "boundary", verb = "bind", form = "touch", power = 3 })).toBe("space_seal")
-			expect(routeOf({ branch = "translocation", property = "position", verb = "transmute", form = "touch", power = 3 })).toBe("space_swap")
+			-- Transmute needs a tier 2 branch, release a tier 1 (log 2026-11-16): Blinking and Translocation.
+			expect(routeOf({ branch = "blinking", property = "position", verb = "transmute", form = "touch", power = 3 })).toBe("space_swap")
 			expect(routeOf({ branch = "folding", property = "distance", verb = "reduce", form = "aura", power = 3 })).toBe("space_stride")
-			expect(routeOf({ branch = "space", property = "distance", verb = "release", form = "beam", power = 4 })).toBe("space_cut")
+			expect(routeOf({ branch = "translocation", property = "distance", verb = "release", form = "beam", power = 4 })).toBe("space_cut")
 			expect(routeOf({ branch = "blinking", property = "position", verb = "redirect", form = "projectile", power = 4 })).toBe("blink")
 			expect(routeOf({ branch = "translocation", property = "position", verb = "transfer", form = "touch", power = 3 })).toBe("blink")
 			expect(routeOf({ branch = "folding", property = "volume", verb = "reduce", form = "burst", power = 4 })).toBe("fold")
@@ -62,6 +63,11 @@ return function(t: any)
 			end
 			expect(S.seal.pvpSeconds <= S.byTier(S.seal.seconds, 0)).toBe(true)
 			expect(S.gate.exitOffset > S.gate.radius).toBe(true) -- you come out clear of the far ring
+			-- Long gates: none early, growing, and the whole island (4,096 studs) from Grandmaster.
+			expect(S.waypointReach(0)).toBe(0)
+			expect(S.waypointReach(5) > S.waypointReach(4)).toBe(true)
+			expect(S.waypointReach(6) >= 4096 * 1.5).toBe(true)
+			expect(S.waypointReach(99)).toBe(S.waypointReach(8))
 		end)
 	end)
 end

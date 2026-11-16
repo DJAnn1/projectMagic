@@ -84,6 +84,15 @@ local function sendFresh(player: Player, bits: { [string]: number }, fresh: { nu
 	Net.fire("MapReveal", player, { cells = cells, pois = pois })
 end
 
+-- Whether this player has uncovered the map cell at (x, z) (a Space gate may only open on ground you know).
+function MapService.hasSeen(_self: any, player: Player, x: number, z: number): boolean
+	local state = playerData:get(player)
+	if not state then
+		return false
+	end
+	return MapData.isRevealed(bitsOf(state), MapData.cellIndex(x, z))
+end
+
 -- Uncovers ground you haven't walked: something told you what's there (a rumour: Services/WildZoneService).
 function MapService.revealArea(_self: any, player: Player, x: number, z: number, radius: number)
 	local state = playerData:get(player)

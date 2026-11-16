@@ -3,6 +3,7 @@
 	SpaceFx: what Space looks like (docs/Space.md, stage 1). Cosmetic: Cast/SpaceRuntime and
 	Effects/SpacePower decide everything and send a "space" cue with `fx`:
 
+		gate_forming a small ring in front of the caster while a long gate's far end opens
 		gate_open    two standing rings, each a dark hole with a pale rim and drifting stars, facing out
 		gate_close   both collapse to a point
 		gate_pass    a flash where someone came out
@@ -125,9 +126,21 @@ end
 
 function SpaceFx.cue(cue: { [string]: any })
 	local name = cue.fx
-	if name == "gate_open" then
+	if name == "gate_forming" then
+		-- A long gate: the near ring flickers while the far end finds its ground.
+		if typeof(cue.a) == "CFrame" and not alive[cue.id] then
+			alive[cue.id] = ring(cue.a, (tonumber(cue.radius) or 2.8) * 0.5, 14)
+		end
+	elseif name == "gate_open" then
 		if typeof(cue.a) ~= "CFrame" or typeof(cue.b) ~= "CFrame" then
 			return
+		end
+		-- A long gate's cue comes once from each end; someone near both gets it twice.
+		local existing = alive[cue.id]
+		if existing and #existing > 2 then
+			return
+		elseif existing then
+			close(cue.id) -- the forming ring gives way to the real one
 		end
 		local seconds = tonumber(cue.seconds) or 20
 		local radius = tonumber(cue.radius) or 2.8

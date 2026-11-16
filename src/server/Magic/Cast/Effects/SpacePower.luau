@@ -151,12 +151,30 @@ function SpacePower.resolve(ctx: CastTypes.EffectContext, params: { [string]: an
 	end
 	local power = params.power
 	if power == "gate" then
-		local seconds = S.byTier(S.gate.seconds, tierOf(ctx))
-		local gate, why = SpaceRuntime.openGate(ctx.player.UserId, ctx.origin, ctx.root.CFrame.LookVector, ctx.point, seconds, { ctx.character })
+		local tier = tierOf(ctx)
+		local seconds = S.byTier(S.gate.seconds, tier)
+		-- A long gate: your map waypoint, when your mastery reaches that far and you know the ground there.
+		local farAt, far = ctx.point, false
+		-- Too early in your mastery (reach 0): an ordinary gate where you aim, and no word about the waypoint.
+		local waypoint = SpaceRuntime.waypointOf(ctx.player)
+		local reach = S.waypointReach(tier)
+		if waypoint and reach > 0 then
+			local distance = Vector3.new(waypoint.X - ctx.origin.X, 0, waypoint.Z - ctx.origin.Z).Magnitude
+			if distance > reach then
+				return { effective = false, hits = 0, note = string.format("Your waypoint is too far for you yet (you can reach about %d studs). Clear it to gate where you aim.", reach) }
+			elseif not SpaceRuntime.hasSeen(ctx.player, waypoint.X, waypoint.Z) then
+				return { effective = false, hits = 0, note = "You can't open space onto ground you've never seen. Clear the waypoint to gate where you aim." }
+			else
+				farAt, far = Vector3.new(waypoint.X, ctx.world:surfaceHeight(waypoint.X, waypoint.Z), waypoint.Z), true
+			end
+		end
+		local gate, why = SpaceRuntime.openGate(ctx.player.UserId, ctx.origin, ctx.root.CFrame.LookVector, farAt, seconds, { ctx.character })
 		if not gate then
 			return { effective = false, hits = 0, note = why }
 		end
-		return { effective = true, hits = 0, note = "Two holes in space, joined. Anything can use them." }
+		return { effective = true, hits = 0, note = if far
+			then "Space tears open toward your waypoint. The far end takes a moment to find its ground."
+			else "Two holes in space, joined. Anything can use them." }
 	elseif power == "swap" then
 		return swap(ctx)
 	elseif power == "seal" then

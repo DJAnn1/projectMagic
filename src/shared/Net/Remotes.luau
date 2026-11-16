@@ -138,6 +138,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 4, perSecond = 2 },
 		maxBytes = 64,
 	},
+	MapWaypoint = { -- your map waypoint (Controllers/MapController), nil = cleared. A Space gate's far end opens there (Services/SpaceService)
+		kind = "Event",
+		from = "Client",
+		args = { S.optional(S.vector3(100000)) },
+		rate = { capacity = 6, perSecond = 2 },
+		maxBytes = 64,
+	},
 	FlightIntent = { -- come down: "land" ends flight; "dive" is Meteor Landing (Services/GravityService checks both)
 		kind = "Event",
 		from = "Client",

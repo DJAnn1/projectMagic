@@ -34,8 +34,12 @@ type Gate = {
 	id: number,
 	owner: number,
 	a: CFrame, -- facing out of the gate (its LookVector is the way you leave it)
-	b: CFrame,
+	b: CFrame?, -- nil while the far end is still opening (its ground is being built: a long gate)
+	farAt: Vector3, -- where the far end was asked for
+	forward: Vector3,
+	seconds: number,
 	untilAt: number,
+	giveUpAt: number, -- a far end that can't open by now closes the near one too
 }
 
 type Seal = { id: number, humanoid: Humanoid, root: BasePart, center: Vector3, half: number }
@@ -95,12 +99,22 @@ end
 
 -- ─── Gates ─────────────────────────────────────────────────────────────────
 
+-- A gate is drawn for anyone near EITHER end: the cue goes out at both (clients ignore a second copy).
+local function gateFx(name: string, gate: Gate, payload: { [string]: any })
+	payload.id = gate.id
+	fx(name, table.clone(payload), gate.a.Position)
+	local b = gate.b
+	if b and (b.Position - gate.a.Position).Magnitude > 150 then
+		fx(name, table.clone(payload), b.Position)
+	end
+end
+
 local function closeGate(gate: Gate, why: string)
 	local index = table.find(gates, gate)
 	if index then
 		table.remove(gates, index)
 	end
-	fx("gate_close", { id = gate.id }, gate.a.Position)
+	gateFx("gate_close", gate, {})
 	if log then
 		log:info("space_gate_closed", { owner = gate.owner, why = why })
 	end
@@ -110,22 +124,70 @@ function SpaceRuntime.canOpenGate(): boolean
 	return #gates < S.gate.maxServer
 end
 
+-- Set by Services/SpaceService: the world's chunk building (a far end may be somewhere nobody is), each
+-- player's map waypoint (MapWaypoint), and whether they've uncovered a spot on their map (MapService).
+SpaceRuntime.world = nil :: any
+local waypoints: { [Player]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
+SpaceRuntime.seenHook = nil :: ((Player, number, number) -> boolean)?
+
+function SpaceRuntime.setWaypoint(player: Player, point: Vector3?)
+	waypoints[player] = point
+end
+
+function SpaceRuntime.waypointOf(player: Player): Vector3?
+	return waypoints[player]
+end
+
+function SpaceRuntime.hasSeen(player: Player, x: number, z: number): boolean
+	local hook = SpaceRuntime.seenHook
+	return hook == nil or hook(player, x, z)
+end
+
+-- A standing spot near `point`: the point itself, else rings around it (a far end on a slope or in trees).
+local function standNear(point: Vector3, ignore: { Instance }): CFrame?
+	local spot = SpaceRuntime.standAt(point, ignore, 40)
+	if spot then
+		return spot
+	end
+	for ring = 1, 3 do
+		for i = 0, 7 do
+			local a = i / 8 * math.pi * 2
+			spot = SpaceRuntime.standAt(point + Vector3.new(math.cos(a), 0, math.sin(a)) * ring * 6, ignore, 40)
+			if spot then
+				return spot
+			end
+		end
+	end
+	return nil
+end
+
+local function finishOpening(gate: Gate, farSpot: CFrame)
+	local forward = gate.forward
+	gate.b = CFrame.lookAt(farSpot.Position, farSpot.Position + forward) -- faces on, away from the caster
+	gate.untilAt = os.clock() + gate.seconds
+	local b = gate.b :: CFrame
+	gateFx("gate_open", gate, { a = gate.a, b = b, seconds = gate.seconds, radius = S.gate.radius, caster = gate.owner })
+	if log then
+		log:info("space_gate_opened", { owner = gate.owner, seconds = gate.seconds, studs = math.floor((b.Position - gate.a.Position).Magnitude) })
+	end
+end
+
 --[[
-	Opens a pair: `near` in front of the caster, `far` at the aim point. Both are standing spots; the near one
-	faces back toward the caster (you walk into it and out of the far one, which faces away from you).
+	Opens a pair: `near` in front of the caster, `far` at `farAt` (the aim point, or a waypoint across the map).
+	The near one faces back toward the caster (you walk into it and out of the far one, which faces away from
+	you). A far end on ground nobody has built yet waits for it (requestArea), up to farWait seconds.
 	Returns the gate, or nil and why.
 ]]
-function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, aim: Vector3, seconds: number, ignore: { Instance }): (Gate?, string?)
+function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, farAt: Vector3, seconds: number, ignore: { Instance }): (Gate?, string?)
 	if #gates >= S.gate.maxServer then
 		return nil, "Space here is already full of holes."
 	end
-	local forward = flatLook(origin, aim, look)
+	local forward = flatLook(origin, farAt, look)
 	local nearSpot = SpaceRuntime.standAt(origin + forward * S.gate.frontOffset, ignore)
-	local farSpot = SpaceRuntime.standAt(aim - forward * 1.5, ignore)
-	if not nearSpot or not farSpot then
-		return nil, "There's no room for a gate there."
+	if not nearSpot then
+		return nil, "There's no room for a gate here."
 	end
-	if (farSpot.Position - nearSpot.Position).Magnitude < 10 then
+	if Vector3.new(farAt.X - origin.X, 0, farAt.Z - origin.Z).Magnitude < 12 then
 		return nil, "Too close: the two ends would touch."
 	end
 	-- A third pair of yours closes your oldest.
@@ -142,24 +204,40 @@ function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, ai
 		id = newId(),
 		owner = owner,
 		a = CFrame.lookAt(nearSpot.Position, nearSpot.Position - forward), -- faces the caster
-		b = CFrame.lookAt(farSpot.Position, farSpot.Position + forward), -- faces on, away
-		untilAt = os.clock() + seconds,
+		b = nil,
+		farAt = farAt,
+		forward = forward,
+		seconds = seconds,
+		untilAt = math.huge,
+		giveUpAt = os.clock() + S.gate.farWait,
 	}
-	table.insert(gates, gate)
-	fx("gate_open", { id = gate.id, a = gate.a, b = gate.b, seconds = seconds, radius = S.gate.radius, caster = owner }, gate.a.Position)
-	if log then
-		log:info("space_gate_opened", { owner = owner, seconds = seconds, studs = math.floor((gate.b.Position - gate.a.Position).Magnitude) })
+	local world = SpaceRuntime.world
+	local built = world == nil or world:isChunkBuilt(farAt.X, farAt.Z)
+	if built then
+		local farSpot = standNear(farAt - forward * 1.5, ignore)
+		if not farSpot then
+			return nil, "There's no room for a gate there."
+		end
+		table.insert(gates, gate)
+		finishOpening(gate, farSpot)
+	else
+		world:requestArea(farAt.X, farAt.Z, 1)
+		table.insert(gates, gate)
+		fx("gate_forming", { id = gate.id, a = gate.a, radius = S.gate.radius }, gate.a.Position)
 	end
 	return gate, nil
 end
 
--- Which end a point is at, and the CFrame it comes out of. nil when it's at neither.
+-- Which end a point is at, and the CFrame it comes out of. nil when it's at neither (or still opening).
 local function gateAt(position: Vector3, reach: number): (Gate?, CFrame?, CFrame?)
 	for _, gate in gates do
-		if (position - gate.a.Position).Magnitude <= reach then
-			return gate, gate.a, gate.b
-		elseif (position - gate.b.Position).Magnitude <= reach then
-			return gate, gate.b, gate.a
+		local b = gate.b
+		if b then
+			if (position - gate.a.Position).Magnitude <= reach then
+				return gate, gate.a, b
+			elseif (position - b.Position).Magnitude <= reach then
+				return gate, b, gate.a
+			end
 		end
 	end
 	return nil, nil, nil
@@ -188,7 +266,20 @@ end
 local function stepGates(now: number)
 	for i = #gates, 1, -1 do
 		local gate = gates[i]
-		if now >= gate.untilAt then
+		if gate.b == nil then
+			-- A long gate's far end, waiting for its ground.
+			local world = SpaceRuntime.world
+			if world and world:isChunkBuilt(gate.farAt.X, gate.farAt.Z) then
+				local farSpot = standNear(gate.farAt - gate.forward * 1.5, {})
+				if farSpot then
+					finishOpening(gate, farSpot)
+				else
+					closeGate(gate, "no room at the far end")
+				end
+			elseif now >= gate.giveUpAt then
+				closeGate(gate, "far end never opened")
+			end
+		elseif now >= gate.untilAt then
 			closeGate(gate, "faded")
 		end
 	end
@@ -321,7 +412,8 @@ function SpaceRuntime.closeGates(position: Vector3?, radius: number?, owner: num
 	local n = 0
 	for i = #gates, 1, -1 do
 		local gate = gates[i]
-		local near = position ~= nil and ((gate.a.Position - position).Magnitude <= (radius or 0) or (gate.b.Position - position).Magnitude <= (radius or 0))
+		local b = gate.b
+		local near = position ~= nil and ((gate.a.Position - position).Magnitude <= (radius or 0) or (b ~= nil and (b.Position - position).Magnitude <= (radius or 0)))
 		if near or (owner ~= nil and gate.owner == owner) or (position == nil and owner == nil) then
 			closeGate(gate, "dispelled")
 			n += 1
@@ -340,7 +432,12 @@ function SpaceRuntime.report(): string
 	end
 	local lines = { string.format("gates %d / %d, sealed %d, striding %d", #gates, S.gate.maxServer, sealed, striding) }
 	for _, gate in gates do
-		table.insert(lines, string.format("  gate %d by %d: %.0f studs, %.0f s left", gate.id, gate.owner, (gate.b.Position - gate.a.Position).Magnitude, gate.untilAt - os.clock()))
+		local b = gate.b
+		if b then
+			table.insert(lines, string.format("  gate %d by %d: %.0f studs, %.0f s left", gate.id, gate.owner, (b.Position - gate.a.Position).Magnitude, gate.untilAt - os.clock()))
+		else
+			table.insert(lines, string.format("  gate %d by %d: far end still opening at (%.0f, %.0f)", gate.id, gate.owner, gate.farAt.X, gate.farAt.Z))
+		end
 	end
 	return table.concat(lines, "\n")
 end

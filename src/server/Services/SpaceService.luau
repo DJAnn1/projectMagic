@@ -10,6 +10,8 @@
 
 local RunService = game:GetService("RunService")
 
+local Net = require(game:GetService("ReplicatedStorage").Shared.Net)
+
 local Server = script.Parent.Parent
 local SpaceRuntime = require(Server.Magic.Cast.SpaceRuntime)
 local Damage = require(Server.Magic.Cast.Damage)
@@ -17,13 +19,22 @@ local Damage = require(Server.Magic.Cast.Damage)
 local SpaceService = {
 	name = "SpaceService",
 	-- After Gravity and Reality: their interceptors are in place, so ours wraps them.
-	dependencies = { "AdminService", "EffectRunner", "GravityService", "RealityService" },
+	dependencies = { "AdminService", "EffectRunner", "GravityService", "MapService", "RealityService", "WorldStateService" },
 }
 
 local STEP = 0.1
 
 function SpaceService.init(_self: any, ctx: any)
 	SpaceRuntime.start(ctx.get("EffectRunner"), ctx.log)
+	SpaceRuntime.world = ctx.get("WorldStateService")
+	local map = ctx.get("MapService")
+	SpaceRuntime.seenHook = function(player: Player, x: number, z: number): boolean
+		return map:hasSeen(player, x, z)
+	end
+	-- Your map waypoint: a long gate's far end opens there (docs/Space.md).
+	Net.on("MapWaypoint", function(player: Player, point: Vector3?)
+		SpaceRuntime.setWaypoint(player, point)
+	end)
 
 	-- Hurting someone lets go of the fold.
 	Damage.listenAttacked(function(_victim: Humanoid, attacker: Model)

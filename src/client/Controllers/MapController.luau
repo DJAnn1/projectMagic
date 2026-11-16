@@ -428,6 +428,10 @@ end
 
 function MapController.start(_self: any, _ctx: any)
 	Net.listen("MapReveal", onReveal)
+	-- The server only needs it for one thing: a Space gate's far end opens at your waypoint (docs/Space.md).
+	MapController.waypoint:observe(function(point: Vector3?)
+		Net.send("MapWaypoint", point)
+	end)
 	-- The world may still be generating on the first ask.
 	task.spawn(function()
 		while not load() do

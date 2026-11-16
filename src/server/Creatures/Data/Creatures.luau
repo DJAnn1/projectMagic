@@ -320,8 +320,10 @@ creature({
 	body = with({
 		{ name = "Body", shape = "Ball", size = Vector3.new(1.5, 1.6, 3.6), offset = Vector3.zero, color = DEER_BROWN, material = M.Fabric },
 		{ name = "Chest", shape = "Ball", size = Vector3.new(1.4, 1.7, 1.5), offset = Vector3.new(0, 0.15, -1.25), color = DEER_BROWN, material = M.Fabric },
-		{ name = "Neck", shape = "Block", size = Vector3.new(0.55, 1.9, 0.75), offset = Vector3.new(0, 1.45, -1.9), rot = Vector3.new(-32, 0, 0), color = DEER_BROWN, material = M.Fabric },
-		{ name = "Head", shape = "Ball", size = Vector3.new(0.7, 0.75, 1.1), offset = Vector3.new(0, 2.45, -2.6), color = DEER_BROWN, material = M.Fabric,
+		-- Rounded, not a plank (owner's second screenshot): an ellipsoid neck, thicker where it meets the chest.
+		{ name = "Neck", shape = "Ball", size = Vector3.new(0.62, 2.1, 0.8), offset = Vector3.new(0, 1.45, -1.9), rot = Vector3.new(-32, 0, 0), color = DEER_BROWN, material = M.Fabric },
+		{ name = "NeckBase", shape = "Ball", size = Vector3.new(0.9, 1, 0.95), offset = Vector3.new(0, 0.75, -1.55), color = DEER_BROWN, material = M.Fabric },
+		{ name = "Head", shape = "Ball", size = Vector3.new(0.75, 0.8, 1.2), offset = Vector3.new(0, 2.45, -2.6), color = DEER_BROWN, material = M.Fabric,
 			anim = { kind = "bob", amount = 0.06, speed = 1.3 } },
 		{ name = "Muzzle", shape = "Ball", size = Vector3.new(0.45, 0.45, 0.75), offset = Vector3.new(0, 2.28, -3.15), color = rgb(120, 84, 56), material = M.Fabric },
 		{ name = "Nose", shape = "Ball", size = Vector3.new(0.26, 0.2, 0.18), offset = Vector3.new(0, 2.32, -3.5), color = DEER_DARK, material = M.SmoothPlastic },

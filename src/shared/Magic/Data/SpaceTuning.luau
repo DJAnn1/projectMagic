@@ -30,7 +30,20 @@ SpaceTuning.gate = {
 	bodyGap = 1.2, -- seconds before the same body can go through again (no ping-pong)
 	flightGap = 0.4,
 	frontOffset = 5, -- studs ahead of the caster for the near gate
+	--[[
+		Long gates (owner, 2026-11-16: "at a high enough skill level you should be able to gate anywhere around
+		the map"). With a map waypoint set, the far end opens there instead of at the aim point, if it's within
+		this many studs for your tier (index = tier + 1) and on ground you've uncovered on your map.
+		Expert: across a region; Master: half the island; Grandmaster and up: anywhere.
+	]]
+	waypointReach = { 0, 0, 0, 0, 700, 1600, 8000, 8000, 8000 },
+	farWait = 12, -- seconds a far end may take to open (its ground being built) before the gate gives up
 }
+
+function SpaceTuning.waypointReach(tier: number): number
+	local list = SpaceTuning.gate.waypointReach
+	return list[math.clamp(math.floor(tier) + 1, 1, #list)]
+end
 
 SpaceTuning.swap = {
 	maxStuds = 140, -- never further than this, whatever the range said
