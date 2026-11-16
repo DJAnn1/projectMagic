@@ -79,7 +79,10 @@ function ActivityRules.candidates(npc: any, action: string): { Activity }
 			elseif def.id == "eating_home" then
 				eatOk = not ((npc.traits and npc.traits.extraversion or 0.5) > 0.65)
 			end
-			if jobOk and domainOk and quirkOk and eatOk then
+			-- Fishing only where there's water within reach; mending nets only where there isn't (NPCService
+			-- sets noShore from Life/Shore).
+			local shoreOk = def.shore == nil or def.shore == (npc.noShore ~= true)
+			if jobOk and domainOk and quirkOk and eatOk and shoreOk then
 				table.insert(out, def)
 			end
 		end

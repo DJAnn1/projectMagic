@@ -8,6 +8,7 @@
 		rollLoot(def, rng, factor) -> (items, coins)   always consumes the same rolls per def
 		strongAgainst(domain) -> { creature id }       who this domain's magic is good against
 		planDens(worldSeed, towns, sample, seaLevel) -> { Den }
+	planHerds(worldSeed, towns, sample, seaLevel, dens) -> { Den }   game animals, clear of `dens`
 ]]
 
 local Seed = require(game:GetService("ReplicatedStorage").Shared.Magic.Seed)
@@ -115,8 +116,8 @@ function CreatureRules.strongAgainst(domain: string): { string }
 end
 
 -- This town's creature types, without repeats, weighted by how well each suits its biome.
-local function pickTypes(biome: string, n: number, rng: Random): { string }
-	local pool = table.clone(Creatures.ids) :: { string }
+local function pickTypes(biome: string, n: number, rng: Random, from: { string }?): { string }
+	local pool = table.clone(from or Creatures.ids) :: { string }
 	local picked: { string } = {}
 	while #picked < n and #pool > 0 do
 		local total = 0
@@ -183,6 +184,55 @@ function CreatureRules.planDens(worldSeed: number, towns: { Town }, sample: Samp
 		end
 	end
 	return dens
+end
+
+--[[
+	Where the herds of game graze (deer, fowl, hares: Creatures.gameIds). Its own seed system, so the
+	critters' dens stay exactly where they were. Further out than the dens (herdRingMin..herdRingMax from
+	the town's edge), clear of every town and of every den and herd. Ids "<town>:herd<n>".
+]]
+function CreatureRules.planHerds(worldSeed: number, towns: { Town }, sample: Sampler, seaLevel: number, dens: { Den }): { Den }
+	local herds: { Den } = {}
+	local function clear(x: number, z: number): boolean
+		for _, town in towns do
+			local keep = town.radius + T.townMargin
+			if (town.x - x) ^ 2 + (town.z - z) ^ 2 < keep * keep then
+				return false
+			end
+		end
+		for _, list in { dens, herds } do
+			for _, den in list do
+				if (den.x - x) ^ 2 + (den.z - z) ^ 2 < T.denSpacing * T.denSpacing then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	for _, town in towns do
+		local rng = Seed.random(worldSeed, "settlement:" .. town.id, "herds")
+		for index, typeId in pickTypes(town.biome, T.herdsPerTown, rng, Creatures.gameIds) do
+			local def = Creatures.defs[typeId]
+			for _ = 1, T.tries do
+				local angle = rng:NextNumber() * 2 * math.pi
+				local distance = town.radius + T.herdRingMin + rng:NextNumber() * (T.herdRingMax - T.herdRingMin)
+				local x, z = town.x + math.cos(angle) * distance, town.z + math.sin(angle) * distance
+				local height, slope = sample(x, z)
+				if height >= seaLevel + T.minAboveSea and slope <= T.maxSlope and clear(x, z) then
+					table.insert(herds, {
+						id = town.id .. ":herd" .. index,
+						type = typeId,
+						settlementId = town.id,
+						x = x,
+						z = z,
+						count = rng:NextInteger(def.pack.min, def.pack.max),
+					})
+					break
+				end
+			end
+		end
+	end
+	return herds
 end
 
 return CreatureRules

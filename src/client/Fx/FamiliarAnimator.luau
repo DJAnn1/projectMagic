@@ -29,7 +29,7 @@ local RANGE = 90
 local STEP = 1 / 30
 local BLINK_EVERY = 4.2
 local BLINK_SECONDS = 0.13
-local FOLDERS = { "Familiars", "FeralSpells" }
+local FOLDERS = { "Familiars", "FeralSpells", "Creatures" } -- creatures: game animals wag and bob (docs/Hunting.md)
 
 type Entry = { part: BasePart, weld: Weld, base: CFrame, kind: string, amount: number, speed: number, phase: number }
 

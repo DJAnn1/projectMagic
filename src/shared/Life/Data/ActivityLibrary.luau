@@ -13,6 +13,8 @@
 		weight       among several fits for the same person, how often this one is chosen (default 1)
 		station      a StationTypes kind the NPC goes to and uses; nil = performed at a spot
 		altStation   where it's done when the town has no free `station` (reading at home without a school)
+		shore        true: only where the town has a shore within reach (fishing); false: only where it
+		             hasn't (mending nets). NPCService sets npc.noShore (Life/Shore)
 		spot         station-less: "route" (wherever the schedule sends them), "door" (a house's front
 		             step), "yard" (beside a house), "patrol" (a guard's round)
 		props        { right = HeldProps id?, left = HeldProps id? }, out from Preparing to Finishing
@@ -41,6 +43,7 @@ export type Activity = {
 	actions: { string },
 	occupations: { string }?,
 	quirks: { string }?,
+	shore: boolean?,
 	domain: string?,
 	weight: number?,
 	station: string?,
@@ -188,13 +191,25 @@ local list: { Activity } = {
 		id = "fishing", index = 0, group = "land", name = "Fishing",
 		actions = { "work" }, occupations = { "fisher" },
 		spot = "route", props = { right = "rod" }, carry = true,
-		pose = "fish", setPiece = "fishing", vfx = {},
+		pose = "fish", setPiece = "fishing", vfx = {}, shore = true,
 		minutes = { 60, 150 }, interrupt = "hold",
 		tell = "Standing at the water with a long rod out, a line down to a bobber; now and then a splash.",
 		seen = "Someone fishing",
 		doing = "Fishing for {item}",
 		items = { "mackerel", "the evening catch", "eels", "whatever's biting" },
 		learn = "A full basket beside a fisher means the fish are biting here.",
+	},
+	{
+		id = "mending_nets", index = 0, group = "land", name = "Mending nets",
+		actions = { "work" }, occupations = { "fisher" }, shore = false,
+		spot = "route", props = { right = "knife" },
+		pose = "whittle", vfx = {},
+		minutes = { 40, 90 }, interrupt = "setDown",
+		tell = "Sitting with a net across their knees, knotting the torn places closed.",
+		seen = "Someone mending a net",
+		doing = "Mending {item}",
+		items = { "a torn net", "the long net", "a crab pot", "next season's lines" },
+		learn = "A fisher far from the sea mends nets and waits for the cart to the coast.",
 	},
 	{
 		id = "praying", index = 0, group = "faith", name = "Praying",

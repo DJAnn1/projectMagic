@@ -74,6 +74,7 @@ local DialogueEngine = require(NPC.DialogueEngine)
 local LOD = require(NPC.NPCLOD)
 local Navigation = require(NPC.NavigationService)
 local Doors = require(script.Parent.Parent.Interact.Doors)
+local Shore = require(Server.Life.Shore)
 local NPCAnimator = require(NPC.NPCAnimator)
 local Conversation = require(NPC.NPCConversation)
 local NPCCombat = require(NPC.NPCCombat)
@@ -120,6 +121,7 @@ type Town = {
 	dirty: boolean,
 	saved: any?, -- the record read at boot
 	spawnPoints: { Vector3 }?, -- the plaza's NPCSpawn points (SettlementService)
+	shore: { Shore.Spot }?, -- where fishers stand (Life/Shore), found on first need
 }
 
 local NPCService = {
@@ -150,6 +152,7 @@ local talkHook: ((Player, any, string) -> (string?, boolean))? = nil -- QuestDir
 local rumorHooks: { (Player, any) -> string? } = {} -- WildZoneService, FeralService (setRumorHook)
 local ambientHook: ((any, number, number) -> ())? = nil -- AmbientLifeService (setAmbientHooks)
 local placeHook: ((any, string) -> Vector3?)? = nil
+local workSpotHook: ((any) -> Vector3?)? = nil -- HuntService (setWorkSpotHook): a hunter's stand by a real herd
 local activityHook: ((any) -> Vector3?)? = nil -- ActivityService (setActivityHook): the station's use point
 local store: any = nil
 local dataService: any = nil
@@ -263,6 +266,18 @@ end
 
 -- ─── Places ─────────────────────────────────────────────────────────────────
 
+-- A town's shoreline (Life/Shore), found once: where its fishers stand with the water in front of them.
+local function shoreOf(town: Town): { Shore.Spot }
+	local found = town.shore
+	if not found then
+		found = Shore.find(town.place, function(x: number, z: number): number
+			return world:surfaceHeight(x, z)
+		end, SEA)
+		town.shore = found
+	end
+	return found
+end
+
 -- A person's own spot in a district, on dry ground (cached: spots never move).
 local function spotFor(npc: any, district: string): Vector3
 	local cached = npc.spots[district]
@@ -270,6 +285,16 @@ local function spotFor(npc: any, district: string): Vector3
 		return cached
 	end
 	local town = townById[npc.settlementId]
+	-- The harbour is wherever the town meets the water, not a fixed point that may be inland (fishers used
+	-- to stand fishing on the grass: the old point fell in the sea and was moved to the nearest dry land).
+	if district == "harbor" then
+		local shore = Shore.pick(shoreOf(town), npc.seed)
+		if shore then
+			npc.spots[district] = shore.at
+			npc.waterAt = shore.water
+			return shore.at
+		end
+	end
 	local x, z = ScheduleService.spot(town.place, district, npc.seed, npc.household)
 	if world:surfaceHeight(x, z) < SEA + 2 then
 		local dx, _, dz = world:findDryLand(x, z, 96)
@@ -457,7 +482,7 @@ local function route(npc: any)
 	if not target and not rogue and district == "home" and npc.home then
 		target = homePosition(npc)
 	elseif not target and not rogue and def.district == "work" then
-		target = workPosition(npc)
+		target = workPosition(npc) or (if workSpotHook then workSpotHook(npc) else nil)
 	end
 	if not target and not rogue and placeHook then
 		target = placeHook(npc, district) -- AmbientLifeService: the real building for this district
@@ -1424,6 +1449,12 @@ local function populateTown(town: Town, overrides: { [number]: any }?, now: numb
 	end
 	RelationshipGraph.seed(town.npcs)
 	assignBuildings(town)
+	-- Fishers with no water within reach mend nets instead of fishing (Life/Data/ActivityLibrary `shore`).
+	for _, npc in town.npcs do
+		if npc.occupation == "fisher" then
+			npc.noShore = #shoreOf(town) == 0
+		end
+	end
 	applySaved(town)
 	NPCMagicLife.advance(town.npcs, chapter, now, Scheduler.checkpoint)
 	for _, npc in town.npcs do
@@ -2030,6 +2061,12 @@ function NPCService.speak(_self: any, npc: any, text: string, radius: number)
 end
 
 -- Sends an NPC back to wherever its current action belongs.
+-- Where someone with no workplace building works, when the world gives a better place than the district's
+-- point (HuntService: hunters stand off from one of their town's herds). Nil = the usual district spot.
+function NPCService.setWorkSpotHook(_self: any, fn: (any) -> Vector3?)
+	workSpotHook = fn
+end
+
 function NPCService.reroute(_self: any, npc: any)
 	route(npc)
 end

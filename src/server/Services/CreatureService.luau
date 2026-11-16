@@ -80,6 +80,8 @@ type Creature = {
 	attacker: number?,
 	attackerUntil: number,
 	returning: boolean,
+	scaredFrom: Vector3?, -- game: a hunter's shot sends the herd running from here (scaredUntil)
+	scaredUntil: number,
 	nextGoal: number,
 	nextBite: number,
 	nextWord: number,
@@ -182,6 +184,8 @@ local function spawnMember(den: DenState, index: number, slot: Slot): boolean
 		attacker = nil,
 		attackerUntil = 0,
 		returning = false,
+		scaredFrom = nil,
+		scaredUntil = 0,
 		nextGoal = os.clock() + rng:NextNumber() * 3,
 		nextBite = 0,
 		nextWord = 0,
@@ -203,15 +207,16 @@ end
 
 local function makeNest(den: DenState)
 	local center = den.center
-	if den.nest or not center then
-		return
+	local color = Creatures.defs[den.type].nestColor
+	if den.nest or not center or not color then
+		return -- a herd has no mound: it just grazes there
 	end
 	local nest = Instance.new("Part")
 	nest.Name = "CreatureDen"
 	nest.Size = Vector3.new(7, 1.6, 7)
 	CreatureRig.ellipsoid(nest)
 	nest.CFrame = CFrame.new(center)
-	nest.Color = Creatures.defs[den.type].nestColor
+	nest.Color = color
 	nest.Material = Enum.Material.Ground
 	nest.Anchored = true
 	nest.CanCollide = false
@@ -505,6 +510,11 @@ local function stepCreature(creature: Creature, players: { PlayerView }, now: nu
 
 	-- Home again: it gets its health back and forgets the fight, so kiting a creature to the edge of
 	-- its leash and back doesn't whittle it down for free.
+	-- Game a hunter shot at: the whole herd runs from the shooter for a few seconds.
+	if creature.scaredFrom and now < creature.scaredUntil and action ~= "return" then
+		action = "scared"
+	end
+
 	if creature.returning and action ~= "return" then
 		creature.returning = false
 		humanoid.Health = humanoid.MaxHealth
@@ -528,6 +538,11 @@ local function stepCreature(creature: Creature, players: { PlayerView }, now: nu
 			humanoid:MoveTo(target.position)
 			bite(creature, target, flat(target.position, position), now)
 		end
+	elseif action == "scared" then
+		local from = creature.scaredFrom :: Vector3
+		local away = Vector3.new(position.X - from.X, 0, position.Z - from.Z)
+		local dir = if away.Magnitude > 0.1 then away.Unit else root.CFrame.LookVector
+		humanoid:MoveTo(CreatureRules.clampToLeash(den, position + dir * T.fleeStep, creature.def.leash))
 	elseif action == "flee" then
 		local from = attacker or nearest
 		if from then
@@ -664,7 +679,13 @@ local function registerAdmin(admin: any)
 		description = "Spawn creatures in front of you (a temporary den, no respawns), or clear every living creature",
 		args = {
 			{ name = "action", type = "enum", options = { "spawn", "clear" } },
-			{ name = "type", type = "enum", options = table.clone(Creatures.ids), optional = true },
+			{ name = "type", type = "enum", options = (function()
+				local all = table.clone(Creatures.ids)
+				for _, id in Creatures.gameIds do
+					table.insert(all, id)
+				end
+				return all
+			end)(), optional = true },
 			{ name = "count", type = "number", min = 1, max = 10, default = 3 },
 		},
 		handler = function(ctx: any, a: any)
@@ -769,6 +790,14 @@ local function planWorld()
 		local h = gen:height(x, z)
 		return h, math.max(math.abs(gen:height(x + 8, z) - h), math.abs(gen:height(x, z + 8) - h)) / 8
 	end, WorldConfig.SEA_LEVEL)
+	local herds = CreatureRules.planHerds(worldService:getSeed(), towns, function(x: number, z: number): (number, number)
+		local h = gen:height(x, z)
+		return h, math.max(math.abs(gen:height(x + 8, z) - h), math.abs(gen:height(x, z + 8) - h)) / 8
+	end, WorldConfig.SEA_LEVEL, plan)
+	local herdCount = #herds
+	for _, herd in herds do
+		table.insert(plan, herd)
+	end
 	for _, den in plan do
 		local slots: { Slot } = {}
 		for i = 1, den.count do
@@ -787,18 +816,89 @@ local function planWorld()
 			nest = nil,
 		})
 	end
-	log:info("creature_dens", { dens = #dens, towns = #towns })
+	log:info("creature_dens", { dens = #dens - herdCount, herds = herdCount, towns = #towns })
 end
 
 -- Every planned den (not admin-made ones), for townspeople to talk about (Services/RumorService).
 function CreatureService.dens(_self: any): { { id: string, type: string, settlementId: string, x: number, z: number } }
 	local out = {}
 	for _, den in dens do
-		if not den.temporary then
+		if not den.temporary and not Creatures.defs[den.type].game then
 			table.insert(out, { id = den.id, type = den.type, settlementId = den.settlementId, x = den.x, z = den.z })
 		end
 	end
 	return out
+end
+
+-- ─── Game: herds the town's hunters go out to (Services/HuntService) ───────
+
+export type Herd = { id: string, type: string, settlementId: string, x: number, z: number, awake: boolean, living: { Vector3 } }
+
+-- A town's herds of game (planned, not admin-made), with where the living animals stand while awake.
+function CreatureService.herdsOf(_self: any, settlementId: string): { Herd }
+	local out: { Herd } = {}
+	for _, den in dens do
+		if den.settlementId == settlementId and not den.temporary and Creatures.defs[den.type].game then
+			local living: { Vector3 } = {}
+			for _, slot in den.slots do
+				local creature = slot.creature
+				if creature and creature.humanoid.Health > 0 then
+					table.insert(living, creature.root.Position)
+				end
+			end
+			table.insert(out, { id = den.id, type = den.type, settlementId = den.settlementId, x = den.x, z = den.z, awake = den.awake, living = living })
+		end
+	end
+	return out
+end
+
+--[[
+	A hunter's shot at a herd from `from`. `hits`: the animal nearest the shooter falls (no player is paid:
+	nobody dealt it damage); a miss only startles them. Either way the herd runs from the shooter. Returns
+	where the arrow went (the animal, or past it), or nil when nothing's there to shoot at.
+]]
+function CreatureService.shoot(_self: any, herdId: string, from: Vector3, hits: boolean): (Vector3?, string?)
+	local herd: DenState? = nil
+	for _, den in dens do
+		if den.id == herdId then
+			herd = den
+			break
+		end
+	end
+	if not herd or not herd.awake then
+		return nil, nil
+	end
+	local target: Creature? = nil
+	local best = math.huge
+	for _, slot in herd.slots do
+		local creature = slot.creature
+		if creature and creature.humanoid.Health > 0 then
+			local d = flat(creature.root.Position, from)
+			if d < best then
+				target, best = creature, d
+			end
+		end
+	end
+	if not target then
+		return nil, nil
+	end
+	local at = target.root.Position
+	local now = os.clock()
+	for _, slot in herd.slots do
+		local creature = slot.creature
+		if creature then
+			creature.scaredFrom = from
+			creature.scaredUntil = now + T.scaredSeconds
+		end
+	end
+	if hits then
+		target.humanoid.Health = 0 -- the next step lays it down (die): no reward, nobody dealt it damage
+		return at, target.def.id
+	end
+	-- A miss: the arrow goes into the ground a little past it.
+	local past = Vector3.new(at.X - from.X, 0, at.Z - from.Z)
+	local beyond = if past.Magnitude > 0.1 then at + past.Unit * 4 else at
+	return beyond, nil
 end
 
 function CreatureService.init(_self: any, ctx: any)

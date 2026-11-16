@@ -82,6 +82,7 @@ return {
 	creatures_enabled = { default = true, description = "Wild creatures around towns (CreatureService). Off puts every den to sleep." },
 	creatures_max_alive = { default = 70, description = "Most creatures alive on this server; when dens compete, the ones nearest a player fill first." },
 	npc_enabled = { default = true, description = "Simulate settlement NPCs (NPCService)." },
+	hunting_enabled = { default = true, description = "Hunters work at their town's real herds of game and shoot them; fishers face the water on the real shoreline (Services/HuntService, docs/Hunting.md)." },
 	npc_fights_enabled = { default = true, description = "NPCs fight each other for reasons in the world: brawls between rivals, live raids between feuding towns, Wildborn turning on the guards who shoot them (Services/NpcFightService, docs/NpcFights.md)." },
 	npc_day_seconds = { default = 1440, description = "Real seconds per game day (NPC schedules, day/night)." },
 	npc_population_mult = { default = 1, description = "Multiplier on every settlement's simulated population (0.25-3)." },

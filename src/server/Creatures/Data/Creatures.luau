@@ -32,7 +32,11 @@
 		body        parts welded to the root. { name, shape, size, offset, color, material }. The one
 		            called "Head" carries the Humanoid's name and health display.
 		emit        { color, rate } a particle emitter on the root
-		nestColor   the den's mound
+		nestColor   the den's mound (nil: no mound, a herd just grazes there)
+		game        an ordinary animal (deer, fowl, hares), not a magical critter. Planned as herds
+		            further out (CreatureRules.planHerds, `Creatures.gameIds`), hunted by the town's
+		            hunters (Services/HuntService), no name or health bar over it (`silent`)
+		silent      nothing floats over it
 ]]
 
 local rgb = Color3.fromRGB
@@ -75,15 +79,44 @@ export type Def = {
 	loot: { { item: string, chance: number, min: number, max: number } },
 	body: { Part },
 	emit: { color: Color3, rate: number }?,
-	nestColor: Color3,
+	nestColor: Color3?,
+	game: boolean?,
+	silent: boolean?,
 }
 
 local defs: { [string]: Def } = {}
-local ids: { string } = {} -- declaration order: the planner's stable iteration order
+local ids: { string } = {} -- declaration order: the planner's stable iteration order (critters only)
+local gameIds: { string } = {} -- ordinary animals, planned as herds (CreatureRules.planHerds)
 
 local function creature(def: Def)
 	defs[def.id] = def
-	table.insert(ids, def.id)
+	table.insert(if def.game then gameIds else ids, def.id)
+end
+
+-- Legs for an animal standing on four (or two) of them: from the ground up to the body's underside.
+local function legs(def: { hipHeight: number, hitbox: Vector3 }, spots: { Vector2 }, width: number, color: Color3): { Part }
+	local out: { Part } = {}
+	local length = def.hipHeight + 0.2
+	local y = -(def.hitbox.Y / 2 + def.hipHeight / 2) + 0.1
+	for i, spot in spots do
+		table.insert(out, {
+			name = "Leg" .. i,
+			shape = "Block",
+			size = Vector3.new(width, length, width),
+			offset = Vector3.new(spot.X, y, spot.Y),
+			color = color,
+			material = M.Fabric,
+		})
+	end
+	return out
+end
+
+local function with(base: { Part }, extra: { Part }): { Part }
+	local out = table.clone(base)
+	for _, p in extra do
+		table.insert(out, p)
+	end
+	return out
 end
 
 creature({
@@ -257,9 +290,117 @@ creature({
 	nestColor = rgb(90, 95, 120),
 })
 
+-- ─── Game: ordinary animals the hunters go out for (docs/Hunting.md) ─────────────────────────────
+
+local DEER_BROWN, DEER_DARK, DEER_PALE = rgb(146, 100, 62), rgb(96, 66, 44), rgb(226, 214, 196)
+local deerShape = { hipHeight = 2.4, hitbox = Vector3.new(1.9, 2, 4) }
+creature({
+	id = "deer",
+	name = "Deer",
+	description = "Red deer, grazing in twos and threes at the edge of the trees. Gone at the first wrong sound.",
+	domain = "life",
+	level = 1,
+	health = 30,
+	walk = 20,
+	hipHeight = deerShape.hipHeight,
+	hitbox = deerShape.hitbox,
+	behaviour = "flee",
+	fleeRadius = 30,
+	leash = 90,
+	pack = { min = 2, max = 4 },
+	respawn = { min = 300, max = 480 },
+	resist = {},
+	biomes = { grasslands = 6, deep_forest = 6, mountains = 2, tundra = 2, swamp = 1 },
+	xp = 5,
+	loot = { { item = "raw_meat", chance = 1, min = 2, max = 3 }, { item = "deer_hide", chance = 0.8, min = 1, max = 1 } },
+	body = with({
+		{ name = "Body", shape = "Ball", size = Vector3.new(1.9, 2, 4), offset = Vector3.zero, color = DEER_BROWN, material = M.Fabric },
+		{ name = "Neck", shape = "Block", size = Vector3.new(0.7, 1.8, 0.8), offset = Vector3.new(0, 1.2, -1.75), color = DEER_BROWN, material = M.Fabric },
+		{ name = "Head", shape = "Ball", size = Vector3.new(0.8, 0.85, 1.5), offset = Vector3.new(0, 2.2, -2.25), color = DEER_BROWN, material = M.Fabric,
+			anim = { kind = "bob", amount = 0.08, speed = 1.3 } },
+		{ name = "Nose", shape = "Ball", size = Vector3.new(0.4, 0.35, 0.3), offset = Vector3.new(0, 2.1, -3), color = DEER_DARK, material = M.SmoothPlastic },
+		{ name = "EarL", shape = "Block", size = Vector3.new(0.5, 0.18, 0.3), offset = Vector3.new(-0.5, 2.6, -2), color = DEER_DARK, material = M.Fabric },
+		{ name = "EarR", shape = "Block", size = Vector3.new(0.5, 0.18, 0.3), offset = Vector3.new(0.5, 2.6, -2), color = DEER_DARK, material = M.Fabric },
+		{ name = "Rump", shape = "Ball", size = Vector3.new(1.2, 1, 0.5), offset = Vector3.new(0, 0.3, 1.9), color = DEER_PALE, material = M.Fabric },
+		{ name = "Tail", shape = "Ball", size = Vector3.new(0.35, 0.6, 0.3), offset = Vector3.new(0, 0.55, 2.1), color = DEER_PALE, material = M.Fabric,
+			anim = { kind = "wag", amount = 0.35, speed = 2.2 } },
+	}, legs(deerShape, { Vector2.new(-0.55, -1.3), Vector2.new(0.55, -1.3), Vector2.new(-0.55, 1.3), Vector2.new(0.55, 1.3) }, 0.32, DEER_DARK)),
+	game = true,
+	silent = true,
+})
+
+local FOWL_COPPER, FOWL_DARK, FOWL_GREEN = rgb(170, 92, 48), rgb(80, 52, 36), rgb(40, 92, 70)
+local fowlShape = { hipHeight = 0.7, hitbox = Vector3.new(1.1, 1, 1.6) }
+creature({
+	id = "wild_fowl",
+	name = "Wild Fowl",
+	description = "Copper-backed pheasants that scratch in the long grass and run rather than fly.",
+	domain = "life",
+	level = 1,
+	health = 10,
+	walk = 16,
+	hipHeight = fowlShape.hipHeight,
+	hitbox = fowlShape.hitbox,
+	behaviour = "flee",
+	fleeRadius = 16,
+	leash = 60,
+	pack = { min = 3, max = 5 },
+	respawn = { min = 200, max = 360 },
+	resist = {},
+	biomes = { grasslands = 5, swamp = 3, tidal_flats = 3, deep_forest = 2, badlands = 1 },
+	xp = 3,
+	loot = { { item = "raw_meat", chance = 0.9, min = 1, max = 1 }, { item = "feather", chance = 0.9, min = 1, max = 3 } },
+	body = with({
+		{ name = "Body", shape = "Ball", size = Vector3.new(1.1, 1, 1.6), offset = Vector3.zero, color = FOWL_COPPER, material = M.Fabric },
+		{ name = "Head", shape = "Ball", size = Vector3.new(0.5, 0.55, 0.55), offset = Vector3.new(0, 0.65, -0.75), color = FOWL_GREEN, material = M.SmoothPlastic,
+			anim = { kind = "bob", amount = 0.12, speed = 3.5 } },
+		{ name = "Beak", shape = "Block", size = Vector3.new(0.14, 0.12, 0.25), offset = Vector3.new(0, 0.6, -1.08), color = rgb(220, 200, 140), material = M.SmoothPlastic },
+		{ name = "Wattle", shape = "Ball", size = Vector3.new(0.3, 0.2, 0.2), offset = Vector3.new(0, 0.78, -0.88), color = rgb(190, 40, 40), material = M.SmoothPlastic },
+		{ name = "Tail", shape = "Block", size = Vector3.new(0.22, 0.12, 1.8), offset = Vector3.new(0, 0.35, 1.5), color = FOWL_DARK, material = M.Fabric,
+			anim = { kind = "wag", amount = 0.2, speed = 1.6 } },
+	}, legs(fowlShape, { Vector2.new(-0.22, 0.1), Vector2.new(0.22, 0.1) }, 0.1, rgb(150, 130, 90))),
+	game = true,
+	silent = true,
+})
+
+local HARE_FUR, HARE_DARK = rgb(160, 138, 108), rgb(90, 76, 60)
+local hareShape = { hipHeight = 0.35, hitbox = Vector3.new(0.9, 0.9, 1.4) }
+creature({
+	id = "hare",
+	name = "Hare",
+	description = "Long-eared and quick, sitting up in the open as if nothing could ever catch it.",
+	domain = "life",
+	level = 1,
+	health = 8,
+	walk = 22,
+	hipHeight = hareShape.hipHeight,
+	hitbox = hareShape.hitbox,
+	behaviour = "flee",
+	fleeRadius = 20,
+	leash = 60,
+	pack = { min = 2, max = 4 },
+	respawn = { min = 180, max = 320 },
+	resist = {},
+	biomes = { grasslands = 5, tundra = 4, frostpeaks = 2, desert_dunes = 2, badlands = 2, mountains = 2 },
+	xp = 3,
+	loot = { { item = "raw_meat", chance = 0.8, min = 1, max = 1 }, { item = "hare_pelt", chance = 0.8, min = 1, max = 1 } },
+	body = with({
+		{ name = "Body", shape = "Ball", size = Vector3.new(0.9, 0.9, 1.4), offset = Vector3.zero, color = HARE_FUR, material = M.Fabric },
+		{ name = "Head", shape = "Ball", size = Vector3.new(0.6, 0.6, 0.7), offset = Vector3.new(0, 0.45, -0.7), color = HARE_FUR, material = M.Fabric },
+		{ name = "EarL", shape = "Block", size = Vector3.new(0.14, 0.8, 0.28), offset = Vector3.new(-0.14, 1.1, -0.6), color = HARE_DARK, material = M.Fabric,
+			anim = { kind = "wag", amount = 0.15, speed = 1.1 } },
+		{ name = "EarR", shape = "Block", size = Vector3.new(0.14, 0.8, 0.28), offset = Vector3.new(0.14, 1.1, -0.6), color = HARE_DARK, material = M.Fabric,
+			anim = { kind = "wag", amount = 0.15, speed = 1.3, phase = 1.2 } },
+		{ name = "Tail", shape = "Ball", size = Vector3.new(0.3, 0.3, 0.3), offset = Vector3.new(0, 0.15, 0.75), color = rgb(235, 230, 220), material = M.Fabric },
+	}, legs(hareShape, { Vector2.new(-0.25, -0.4), Vector2.new(0.25, -0.4), Vector2.new(-0.28, 0.4), Vector2.new(0.28, 0.4) }, 0.18, HARE_DARK)),
+	game = true,
+	silent = true,
+})
+
 return table.freeze({
 	defs = table.freeze(defs),
 	ids = table.freeze(ids),
+	gameIds = table.freeze(gameIds),
 	anyBiome = 1, -- the weight of a creature in a biome it doesn't list: every creature can turn up
 	tuning = table.freeze({
 		-- Population. Dens exist as data only; nothing is in the workspace until a player is near.
@@ -278,6 +419,12 @@ return table.freeze({
 		minAboveSea = 4,
 		maxSlope = 0.7,
 		tries = 16,
+		-- Herds of game (deer, fowl, hares): further out than the critters' dens, where hunters walk to.
+		-- Planned with their own seed system ("herds"), so adding them moved no existing den.
+		herdsPerTown = 3,
+		herdRingMin = 70,
+		herdRingMax = 230,
+		scaredSeconds = 6, -- a shot (or a miss) sends the whole herd running from the shooter this long
 		-- A dead member doesn't come back while someone stands on the den (no camping a spawn).
 		campRadius = 35,
 		-- Behaviour
