@@ -70,6 +70,7 @@ type Building = {
 	lotId: string?,
 	scaffold: Model?,
 	nextKeepOut: number,
+	monument: boolean?, -- raised new (TownRepairService.raise), not rebuilt: no town damage record
 }
 type Job = {
 	npc: any,
@@ -321,6 +322,11 @@ local function finishRebuild(town: Town, building: Building): boolean
 		return false
 	end
 	local model = building.model
+	if building.monument then
+		removeScaffold(building)
+		log:info("town_monument_raised", { town = town.id, monument = model.Name })
+		return true
+	end
 	CollectionService:RemoveTag(model, "Rubble")
 	CollectionService:AddTag(model, "Structure")
 	model:SetAttribute("Integrity", T.wholeIntegrity)
@@ -444,6 +450,50 @@ local function onCollapse(model: Model, cause: string)
 	})
 	tellResidents(lotId, true)
 	log:info("town_collapse_noted", { town = id, building = model.Name, cause = cause, pieces = #pieces })
+end
+
+-- Something new for the town to put up (Services/HistoryService: a monument). Every anchored part
+-- of `model` is where it belongs now; they're sunk out of sight and the town raises them like a
+-- rebuild: scaffolding, a worker with a hammer, piece by piece from the ground up.
+function TownRepairService.raise(_self: any, model: Model, settlementId: string): boolean
+	if not enabled() then
+		return false
+	end
+	local town = townFor(settlementId)
+	local pieces: { Charred } = {}
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Anchored then
+			table.insert(pieces, { part = part, color = part.Color, flammability = 0, at = part.CFrame })
+		end
+	end
+	if #pieces == 0 then
+		return false
+	end
+	Rules.rebuildOrder(pieces)
+	local places: { Vector3 } = {}
+	for _, piece in pieces do
+		local at = piece.at :: CFrame
+		table.insert(places, at.Position)
+		piece.part.CFrame = at * CFrame.new(0, -T.riseFrom - 30, 0)
+	end
+	local footprint = Rules.footprint(places)
+	local baseY, topY = Rules.heightsWithin(footprint, places, T.strayMargin)
+	table.insert(town.buildings, {
+		model = model,
+		parts = pieces,
+		rebuild = true,
+		startAfter = os.clock(),
+		all = table.clone(pieces),
+		footprint = footprint,
+		baseY = baseY,
+		topY = topY,
+		lotId = nil,
+		scaffold = nil,
+		nextKeepOut = 0,
+		monument = true,
+	})
+	log:info("town_monument_started", { town = settlementId, monument = model.Name, pieces = #pieces })
+	return true
 end
 
 -- Damaged but still standing: a little stronger now and then, off the town's record as it goes.

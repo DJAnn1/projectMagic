@@ -263,6 +263,11 @@ function ItemInstance.displayName(rec: Record): string
 	if rec.cn and rec.cn ~= "" then
 		return rec.cn
 	end
+	-- A past (Services/HistoryService): its epithet first, what it is after.
+	if rec.hn and rec.hn ~= "" then
+		local def = ItemDatabase.get(rec.i)
+		return rec.hn .. " (" .. (if def then def.name else tostring(rec.i)) .. ")"
+	end
 	local def = ItemDatabase.get(rec.i)
 	if not def then
 		return "Unknown item (" .. tostring(rec.i) .. ")"
@@ -301,7 +306,7 @@ end
 
 -- ─── Validation (loads and saves) ───────────────────────────────────────────
 
-local KNOWN_KEYS = { i = true, n = true, u = true, r = true, a = true, d = true, q = true, c = true, cn = true, b = true, f = true, ch = true, t = true }
+local KNOWN_KEYS = { i = true, n = true, u = true, r = true, a = true, d = true, q = true, c = true, cn = true, b = true, f = true, ch = true, t = true, h = true, hn = true, hl = true }
 
 local function isInt(v: any, lo: number, hi: number): boolean
 	return typeof(v) == "number" and v == v and v % 1 == 0 and v >= lo and v <= hi
@@ -359,11 +364,14 @@ function ItemInstance.validate(rec: any): (boolean, string?)
 	if rec.ch ~= nil and not isInt(rec.ch, 0, 1000) then
 		return false, "bad charges"
 	end
-	for _, key in { "c", "cn" } do
+	for _, key in { "c", "cn", "h", "hn" } do
 		local v = rec[key]
 		if v ~= nil and (typeof(v) ~= "string" or #v > 64) then
 			return false, "bad " .. key
 		end
+	end
+	if rec.hl ~= nil and (typeof(rec.hl) ~= "string" or #rec.hl > 160) then
+		return false, "bad hl"
 	end
 	return true, nil
 end

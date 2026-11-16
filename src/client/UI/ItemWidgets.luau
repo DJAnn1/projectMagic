@@ -484,6 +484,9 @@ function ItemWidgets.tooltip(parent: Instance, view: ItemView, compare: ItemView
 		table.insert(facts, "stacks to " .. def.stack)
 	end
 	o = add(parent, o, table.concat(facts, " · "), "caption", Theme.color.inkDim)
+	if rec.hl then
+		o = add(parent, o, "⁂ " .. rec.hl, "caption", Theme.color.accent)
+	end
 	if rec.c then
 		o = add(parent, o, "Made by " .. rec.c .. (if rec.q then string.format(" (quality %d)", rec.q) else ""), "caption", Theme.color.inkDim)
 	end

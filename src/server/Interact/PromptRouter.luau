@@ -115,7 +115,7 @@ local function run(player: Player, prompt: ProximityPrompt): (boolean, string?, 
 	if ok == false then
 		return false, reason or "REFUSED", text
 	end
-	return true, nil, nil
+	return true, nil, text -- a successful action may have something to say (reading a monument)
 end
 
 function PromptRouter.connect(prompt: ProximityPrompt, fn: Handler)

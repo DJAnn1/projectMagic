@@ -763,6 +763,9 @@ local function onResult(result: any)
 	pending = nil
 	if result.ok then
 		InteractDebug.record(p.source, what, "OK", ms, p.combat)
+		if typeof(result.text) == "string" then
+			feedback(result.text) -- something to read (a town's monument: Services/HistoryService)
+		end
 		return
 	end
 	local reason = if typeof(result.reason) == "string" then result.reason else "REFUSED"

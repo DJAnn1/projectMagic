@@ -66,6 +66,7 @@ local poiStyles: { [string]: PoiStyle } = {
 	dungeon = { glyph = "☗", label = "Dungeon" },
 	wild_zone = { glyph = "❖", label = "Wild zone" },
 	titan_fall = { glyph = "☠", label = "Titan's bones" },
+	named_place = { glyph = "⚑", label = "A place with a story" }, -- named after a legend there (Services/HistoryService)
 }
 
 local MapData = {

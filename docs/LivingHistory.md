@@ -368,3 +368,32 @@ Built on the owner's "go stage 3". Scars (the `scar` mark kind) are **not** in t
 6. `wildborn goto <theme>` (or 260+ studs from a town near a haunt), `downed reset`, then let a Wildborn beat you (or `downme capture`). Fade, wake among its stones; it leaves you alone inside the ring. Step out while it watches (it fights), or wait 90 s (it wanders off). `capture_escaped how=`.
 7. With 2 players: one beats the other. That's a normal death.
 8. Inside a Rift: a normal death.
+
+---
+
+## Stage 2a: built (2026-11-15, not yet run)
+
+Built on the owner's "living history stage 2". Split in two: **2a** (items, places, monuments) here; **2b** (strange moods) is next, as its own commit.
+
+**Code:**
+- `Server/Chronicle/HistoryRules` (pure: `root`, `epithet`, `placeName`, `historyLine`, `monumentLine`, `places`, `top`), `Chronicle/Data/DeedNames` (roots by kind, epithets and place names by group, history lines by kind, monument lines, `item_known` lines).
+- `Services/HistoryService`: items on `Topics.LegendMade`; places and monuments from `ChronicleService:legends()` every 60 s; greet hook for recognised items.
+- ChronicleService: `legends()`, `setPlaceNamer` (told stories say "at Ashwalker's Fall, out north"), publishes `LegendMade`.
+- TownRepairService: `raise(model, settlementId)` hands a new model to the rebuild machinery (sunk out of sight, then scaffolding, a worker, pieces rising); monument buildings skip the town damage record.
+- Item records: `h` (legend id), `hn` (epithet), `hl` (one line), validated (`ItemInstance.validate`), `displayName` "Ashwalker's Bane (Oak Staff)", tooltip line "⁂ …".
+- Map: POI type `named_place` (⚑), added through `WorldStateService:addPOI` like Titan bones, so the map shows it once you've uncovered the ground.
+- PromptRouter and InteractClickController: a successful prompt may return text, and the client shows it (reading a stone).
+
+**Defaults Claude chose:** only the top doer's item gets a past, the main hand first, else the off hand, and only a unique item without one already; legends from before this server stand at boot; a replaced stone goes up in the old one's place; items keep their past forever; stealing a famous item isn't talked about yet (no item theft between players exists).
+
+**Flag** `history_enabled`. **Admin** (World): `history`, `epithet`, `monumentnow`. **Log:** `item_got_past`, `item_recognised`, `place_named`, `place_unnamed`, `monument_placed`, `town_monument_started`, `town_monument_raised`, `monument_read`.
+
+**Expected boot line:** `specs 1143/1144` (5 new in `Tests/History.spec`, if stage 3's 1138/1139 holds).
+
+**Test:**
+1. `give me oak_staff 1 legendary` and equip it. In Glenhold, `chronicleadd boss_slain yes`: the staff becomes "<epithet> (Oak Staff)" with a ⁂ line in its tooltip; quiet Journal line; `item_got_past`.
+2. Within a minute: `monument_placed raised=true`, then a worker with a hammer, scaffolding and the stone rising near the centre (`town_monument_raised`). Click it: one line, with your name.
+3. Walk past townspeople with the staff in hand: about one in three who know it says so (`item_recognised`).
+4. Go 300+ studs out of town, `chronicleadd boss_slain yes`: `place_named`; open the map (M): ⚑ and the name. Back in town, ask for news: "at <name>, out …".
+5. `history` lists it all. `epithet` gives a fresh unique item a past; `monumentnow` raises the nearest town's stone again.
+6. Rejoin on a new server: the stone is already standing and the place is still named.

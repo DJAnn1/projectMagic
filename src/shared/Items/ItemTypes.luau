@@ -165,6 +165,10 @@ export type Record = {
 	f: number?, -- flag bits: 1 favourite, 2 locked, 4 new (unseen)
 	ch: number?, -- charges (imbued items)
 	t: number?, -- unix time minted (uniques)
+	-- A past (Services/HistoryService, docs/LivingHistory.md §6): our own data, never a player's name.
+	h: string?, -- the legend it took part in (its id)
+	hn: string?, -- its epithet ("Ashwalker's Bane")
+	hl: string?, -- one line of history ("Struck down the Ashwalker out north of Glenhold.")
 }
 
 export type ItemView = {

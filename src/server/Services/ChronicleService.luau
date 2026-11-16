@@ -58,6 +58,9 @@ local ambient: any = nil
 local journal: any = nil
 local worldService: any = nil
 local world: any = nil
+local bus: any = nil
+-- Services/HistoryService: a legend in the wilds has a name ("Ashwalker's Fall"), used in the telling.
+local placeNamer: ((Rules.Entry) -> string?)? = nil
 
 local entries: { Rules.Entry } = {}
 local repeats: { [string]: { number } } = {}
@@ -140,6 +143,10 @@ local function varsFor(entry: Rules.Entry, town: any?, from: Vector3): { [string
 		if other and other.settlement and other.settlement.name then
 			where = "up by " .. tostring(other.settlement.name)
 		end
+	end
+	local named = if placeNamer then placeNamer(entry) else nil
+	if named then
+		where = "at " .. named .. ", out " .. dir
 	end
 	local vars: { [string]: string } = { dir = dir, where = where, what = entry.what or "it" }
 	if entry.names and entry.names[1] then
@@ -286,6 +293,9 @@ local function record(deed: any): Rules.Entry?
 	if Rules.isLegend(score) then
 		entry.legend = true
 		table.insert(pendingLegends, entry)
+		if bus then
+			bus:publish(Topics.LegendMade, { entry = entry })
+		end
 	end
 	return entry
 end
@@ -665,6 +675,21 @@ end
 
 -- ─── Boot ───────────────────────────────────────────────────────────────────
 
+-- Every legend this server knows: its own and other servers' (Services/HistoryService). Read-only copies.
+function ChronicleService.legends(_self: any): { Rules.Entry }
+	local out: { Rules.Entry } = {}
+	for _, entry in entries do
+		if entry.legend then
+			table.insert(out, table.clone(entry))
+		end
+	end
+	return out
+end
+
+function ChronicleService.setPlaceNamer(_self: any, fn: (Rules.Entry) -> string?)
+	placeNamer = fn
+end
+
 function ChronicleService.init(_self: any, ctx: any)
 	log = ctx.log
 	npcs = ctx.get("NPCService")
@@ -672,6 +697,7 @@ function ChronicleService.init(_self: any, ctx: any)
 	journal = ctx.get("JournalService")
 	worldService = ctx.get("WorldService")
 	world = ctx.get("WorldStateService")
+	bus = ctx.bus
 	registerAdmin(ctx.get("AdminService"))
 	npcs:setRumorHook(rumorHook) -- after the others: what's loose or overheard nearby comes first
 	ambient:setGreetHook(greetHook)
