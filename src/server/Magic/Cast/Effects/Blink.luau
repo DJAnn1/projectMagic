@@ -14,6 +14,7 @@
 local Cast = script.Parent.Parent
 local CastTypes = require(Cast.CastTypes)
 local Targeting = require(Cast.Targeting)
+local SpaceRuntime = require(Cast.SpaceRuntime)
 
 local CLEARANCE = Vector3.new(3, 5, 3)
 
@@ -48,11 +49,8 @@ end
 function Blink.resolve(ctx: CastTypes.EffectContext, _params: { [string]: any }): CastTypes.Outcome
 	local verb = ctx.stats.recipe.verb
 	if ctx.backfire then
-		local angle = ctx.rng:NextNumber() * math.pi * 2
-		local stand = standAt(ctx.origin + Vector3.new(math.cos(angle), 0, math.sin(angle)) * 10, { ctx.character })
-		if stand then
-			ctx.character:PivotTo(stand)
-		end
+		-- Dislocation (Cast/SpaceRuntime): further with more power, sometimes dropped from above.
+		SpaceRuntime.dislocate(ctx.character, math.min(34, 10 + ctx.power * 2.5), ctx.rng)
 		return { effective = false, hits = 0, note = "Space slips; you land somewhere you didn't choose." }
 	end
 

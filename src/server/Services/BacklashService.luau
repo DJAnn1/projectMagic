@@ -30,6 +30,7 @@ local Server = script.Parent.Parent
 local T = require(Server.Magic.Data.CastTuning)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local Damage = require(Server.Magic.Cast.Damage)
+local SpaceRuntime = require(Server.Magic.Cast.SpaceRuntime)
 
 type RiskEffect = {
 	status: string?,
@@ -49,7 +50,7 @@ local RISK_EFFECTS: { [string]: RiskEffect } = {
 	fracture = { status = "blind", seconds = 3, text = "Your perception shatters." },
 	haunting = { status = "fear", seconds = 5, text = "Something followed the magic back into you." },
 	hollowing = { drain = 0.2, text = "The void drinks from your reservoir." },
-	dislocation = { displace = 14, text = "Space lets go of you for a moment." },
+	dislocation = { displace = 16, text = "Space lets go of you, and puts you down somewhere you didn't choose." },
 	unmooring = { status = "time_slow", seconds = 4, text = "You come unstuck from the moment." },
 	crush = { status = "root", seconds = 2, text = "Your own weight pins you down." },
 	unraveling = { random = { "slow", "blind", "silence", "fear" }, text = "The rules around you fray." },
@@ -76,16 +77,9 @@ local function displace(player: Player, studs: number)
 	if not character or not root or not root:IsA("BasePart") then
 		return
 	end
-	local angle = rng:NextNumber() * math.pi * 2
-	local target = root.Position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * studs
-	-- Land on something: drop from above onto the surface, never inside it.
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { character }
-	local hit = workspace:Raycast(target + Vector3.new(0, 30, 0), Vector3.new(0, -80, 0), params)
-	if hit then
-		character:PivotTo(CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * root.CFrame.Rotation)
-	end
+	-- Space's Dislocation (Cast/SpaceRuntime, docs/Space.md): onto whatever is there, a roof or a ledge
+	-- included, sometimes dropped from above it; tries other directions before landing inside anything.
+	SpaceRuntime.dislocate(character, studs, rng)
 end
 
 -- Applies a domain's risk effect to the caster. Returns its line of text.

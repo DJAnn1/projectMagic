@@ -51,6 +51,31 @@ Build in three stages, each with a commit and a playtest:
 - **Stage 2:** Anchor and Recall, Stretch, Clairsentience, Pocket storage.
 - **Stage 3:** Worldgate, hidden-room Pocket, Mindlink, Starfall Gate, NPC Space mages.
 
+## Stage 1: built (2026-11-16, on the owner's "go stage 1"; not yet run)
+
+The open questions took their defaults: strong but limited, anyone can use a gate, player seals capped at 2.5 s.
+
+| Power | Recipe that reaches it | What it does |
+|---|---|---|
+| **Gate** (`space_gate`) | Gatecraft · boundary or position · amplify or transfer · zone, wall or ritual | Opens a ring 5 studs ahead and one at the aim point. Bodies (players, NPCs, creatures, Wildborn) within 2.8 studs come out of the other 4 studs along its face. Bolts and arrows come out with the same speed (Delivery's new `"warp"` action). It lasts 20 + 5/tier s (max 60). You get 2 pairs at once and the server 24. |
+| **Swap** (`space_swap`) | Translocation · position · transmute or bind · touch, beam or projectile | You and the target change places, up to 140 studs. Other players only with PvP. |
+| **Seal** (`space_seal`) | Containment/Sealing · boundary or volume · bind, generate or amplify | Status `space_sealed`: no moving, no casting, no damage taken. A bolt reaching the box stops. It lasts 3 + 0.4/tier s (max 6), and 2.5 s at most on a player. Area forms seal up to 8. |
+| **Folding Stride** (`space_stride`) | Folding · distance or volume · reduce or amplify · aura | Walk ×1.9 + 0.18/tier (max 3.4) for 12 + 3/tier s. It ends the moment you hurt someone. |
+| **Cut** (`space_cut`) | any Space branch · distance, position, volume or boundary · release or transmute · beam or touch | 1.35× a hit on everyone along the aim (6 at most), `pierce` so guards can't turn it. |
+| **Dislocation** | any Space backfire, and the Dislocation risk | Thrown 10 + 2.5 × power studs (max 34), tries 6 directions, 25% dropped from 14 studs above (a roof, a ledge). |
+
+- Old routes stay: Blink and Displace (redirect/transfer position), Fold (volume reduce, not aura), push and pull.
+- **Code:**
+  - Server: `Shared/Magic/Data/SpaceTuning`, `Cast/SpaceRuntime`, `Cast/Effects/SpacePower`, `Services/SpaceService` (10 Hz step; wraps `Delivery.interceptor` after Gravity's and Reality's), BacklashService and Blink both call `SpaceRuntime.dislocate`.
+  - Client: `Fx/SpaceFx` (cue `space`).
+  - Statuses: `space_sealed`, `space_stride`.
+- **Flag and tools:** flag `space_powers_enabled`. Admin `space`, `spaceclear`, `dislocate [player] [studs]`. Log `space_gate_opened`, `space_gate_closed`.
+- **Specs:** expected boot line `specs 1159/1160` (3 new in `Tests/Space.spec`, 4 new examples). The Seal example now routes to `space_seal`.
+- **Not verified in Roblox:**
+  - whether moving a player through a gate with server `PivotTo` feels smooth (Blink already moves players this way);
+  - how the rings look (a cylinder turned onto the gate's face);
+  - whether `damageTaken = 0` covers every way of being hurt (statuses that tick go through Damage.apply too).
+
 ## 5. Open questions for the owner
 
 1. Is Space meant to be overpowered like Time and Gravity (it's Rare, not Mythic)? Default: strong but limited: costs stay `costMult` 1.3, and seals are capped against players.

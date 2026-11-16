@@ -94,6 +94,9 @@ local DEFS: { [string]: StatusDef } = {
 	frozen = { name = "Frozen", walk = 0, jump = 0, noCast = true, harmful = true }, -- frozen solid: no moving, no casting (owner, 2026-11-13: it has to matter)
 	downed = { name = "Down", walk = 0, jump = 0, noCast = true }, -- Services/DownedService: on the ground after losing; not harmful, so nothing cleanses it
 	struggling = { name = "Struggling", walk = 0, jump = 0, noCast = true }, -- locked in a spell struggle (Cast/Struggle): only the struggle's own intents act
+	-- Space (Cast/SpaceRuntime, docs/Space.md): a box nobody crosses, and space folding under your feet.
+	space_sealed = { name = "Sealed", walk = 0, jump = 0, noCast = true, damageTaken = 0, anchorNpc = true, harmful = true },
+	space_stride = { name = "Folding Stride" }, -- the walk multiplier is SpaceRuntime's (tier-scaled)
 	suffocating = { name = "Suffocating", walk = 0.75, dot = true, harmful = true },
 	irradiated = { name = "Irradiated", dot = true, harmful = true },
 	crumbling = { name = "Crumbling", damageTaken = 1.2, harmful = true },

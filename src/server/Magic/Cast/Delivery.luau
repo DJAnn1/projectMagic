@@ -118,6 +118,7 @@ local Delivery = {}
 		"reflect", model    it turns back at its caster, as a parry does, turned by `model` (Bend Path)
 		"bend", velocity    it carries on with this velocity, no longer homing (Bend Path)
 		"erase"             it stops existing: it ends in the air, with no splash (a Severance edict)
+		"warp", { position, velocity }  it's moved there and carries on that way (a Space gate)
 		nil                 nothing
 	Cast/RealityRuntime wraps Gravity's interceptor and asks first.
 ]]
@@ -256,6 +257,19 @@ local function step(entry: Live, dt: number)
 			return
 		elseif action == "reflect" and value then
 			reflect(entry, value, entry.position)
+			return
+		elseif action == "warp" and value then
+			-- Through a Space gate (Cast/SpaceRuntime): out of the other end, same speed, its own way.
+			entry.position = value.position
+			entry.velocity = value.velocity
+			f.homing = nil
+			local oldId = f.id
+			nextId += 1
+			f.id = nextId
+			local hook = f.onBend
+			if hook then
+				task.spawn(hook, oldId, entry.position, entry.velocity)
+			end
 			return
 		elseif action == "bend" then
 			entry.velocity = value

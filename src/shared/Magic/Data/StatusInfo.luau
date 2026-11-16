@@ -53,6 +53,8 @@ local StatusInfo: { [string]: Info } = {
 	gravity_heavy = { name = "Anchor Weight", harmful = false, description = "Slower, but you resist damage, shrug off pushes and your spells hit harder." },
 	gravity_light = { name = "Featherweight", harmful = false, description = "Faster, and you jump enormous distances." },
 	foreseeing = { name = "Future Sight", harmful = false, description = "You see where spells are aimed, and some hits miss you." },
+	space_sealed = { name = "Sealed", harmful = true, description = "Space is closed around you: you can't move or cast, and nothing can reach you." },
+	space_stride = { name = "Folding Stride", harmful = false, description = "Space folds under your feet: every step covers far more ground. Hurting someone ends it." },
 	-- Reality (Cast/RealityRuntime, docs/Reality.md); harmful must match StatusEffects' defs (Combat.spec).
 	reality_favored = { name = "Favored", harmful = false, description = "Luck is with you: your hits crit more, some blows graze off you, and you backfire less." },
 	reality_doomed = { name = "Doomed", harmful = true, description = "Luck has left you: hits on you crit more, your blows sometimes miss, and you backfire more." },

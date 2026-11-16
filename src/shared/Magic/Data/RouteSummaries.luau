@@ -205,7 +205,20 @@ local routes: { [string]: Summary } = {
 	reality = { kind = "control", text = "Leaves an area where the rules of the world change.", lasts = true },
 	fortune = { kind = "boost", text = "Makes you and other players in the area luckier." },
 
-	-- Space
+	-- Space (Effects/SpacePower, docs/Space.md)
+	space_gate = { kind = "move", text = "Opens two linked holes in space, one in front of you and one where you aim. Anyone can walk through, and bolts fired in come out the other end." },
+	space_swap = { kind = "move", text = "You and your target change places." },
+	space_seal = {
+		kind = "control",
+		text = "Closes space around your target: they can't move, cast or be hurt, and bolts stop at the wall.",
+		byForm = {
+			zone = { text = "Closes space around everyone in the area: they can't move, cast or be hurt." },
+			burst = { text = "Closes space around everyone near you: they can't move, cast or be hurt." },
+			ritual = { text = "Closes space around everyone in the area: they can't move, cast or be hurt." },
+		},
+	},
+	space_stride = { kind = "move", text = "Space folds under your feet: every step covers far more ground, until you hurt someone." },
+	space_cut = { kind = "attack", text = "Cuts space along your aim, hurting everyone it crosses. Guards can't turn it." },
 	blink = {
 		kind = "move",
 		text = "Moves a body through space.",

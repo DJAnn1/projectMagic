@@ -1,0 +1,67 @@
+--!strict
+--[[
+	Space.spec: Space's powers, stage 1 (docs/Space.md). What matters most: each power is reached by its own
+	branch and nothing else moved (blink, Displace and Fold route as before); every power has a resolver, a
+	Composer line and its statuses; the tier curves grow and stop at their caps; seals on players are short.
+]]
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local MagicCore = require(Shared.Magic.MagicCore)
+local S = require(Shared.Magic.Data.SpaceTuning)
+local EffectLibrary = require(Shared.Magic.Data.EffectLibrary)
+local RouteSummaries = require(Shared.Magic.Data.RouteSummaries)
+local StatusInfo = require(Shared.Magic.Data.StatusInfo)
+
+local Server = ServerScriptService.Server
+local CastService = require(Server.Services.CastService)
+local Flags = require(Server.Config.Flags)
+
+local function routeOf(recipe: any): string
+	local ok, errors, normalized = MagicCore.validateRecipe(recipe)
+	if not ok or not normalized then
+		error("invalid recipe: " .. (errors[1] and errors[1].message or "?"))
+	end
+	return CastService.routeFor(normalized).id
+end
+
+return function(t: any)
+	local describe, it, expect = t.describe, t.it, t.expect
+
+	describe("Space powers (docs/Space.md)", function()
+		it("each power is reached by its own branch; blink, Displace and Fold are unchanged", function()
+			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "transfer", form = "zone", power = 4 })).toBe("space_gate")
+			expect(routeOf({ branch = "sealing", property = "boundary", verb = "bind", form = "touch", power = 3 })).toBe("space_seal")
+			expect(routeOf({ branch = "translocation", property = "position", verb = "transmute", form = "touch", power = 3 })).toBe("space_swap")
+			expect(routeOf({ branch = "folding", property = "distance", verb = "reduce", form = "aura", power = 3 })).toBe("space_stride")
+			expect(routeOf({ branch = "space", property = "distance", verb = "release", form = "beam", power = 4 })).toBe("space_cut")
+			expect(routeOf({ branch = "blinking", property = "position", verb = "redirect", form = "projectile", power = 4 })).toBe("blink")
+			expect(routeOf({ branch = "translocation", property = "position", verb = "transfer", form = "touch", power = 3 })).toBe("blink")
+			expect(routeOf({ branch = "folding", property = "volume", verb = "reduce", form = "burst", power = 4 })).toBe("fold")
+		end)
+
+		it("every power has a resolver, a Composer line, its statuses and a flag", function()
+			for _, route in EffectLibrary.routes do
+				if route.effect == "SpacePower" then
+					expect(Server.Magic.Cast.Effects:FindFirstChild("SpacePower") ~= nil).toBe(true)
+					expect((RouteSummaries.routes :: any)[route.id] ~= nil).toBe(true)
+				end
+			end
+			expect(StatusInfo.space_sealed ~= nil and StatusInfo.space_sealed.harmful).toBe(true)
+			expect(StatusInfo.space_stride ~= nil and not StatusInfo.space_stride.harmful).toBe(true)
+			expect((Flags :: any).space_powers_enabled ~= nil).toBe(true)
+		end)
+
+		it("tier curves grow and stop at their caps; player seals stay short", function()
+			for _, curve in { S.gate.seconds, S.seal.seconds, S.stride.seconds, S.stride.walk, S.cut.length } :: { S.Curve } do
+				expect(S.byTier(curve, 0)).toBe(curve.base)
+				expect(S.byTier(curve, 8) >= S.byTier(curve, 0)).toBe(true)
+				expect(S.byTier(curve, 50)).toBe(curve.max)
+			end
+			expect(S.seal.pvpSeconds <= S.byTier(S.seal.seconds, 0)).toBe(true)
+			expect(S.gate.exitOffset > S.gate.radius).toBe(true) -- you come out clear of the far ring
+		end)
+	end)
+end

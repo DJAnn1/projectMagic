@@ -47,7 +47,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 **Newest (2026-11-16), from the owner's report, not yet run:**
 - **Game animals and real shores** (`docs/Hunting.md`, `2d9ee68`): deer, wild fowl and hares (`game = true`, planned as 3 herds per town by `CreatureRules.planHerds`; the critters' dens are unchanged). Hunters stand off a herd and shoot it (`Services/HuntService`, `NPCService.setWorkSpotHook`, `CreatureService:herdsOf`/`shoot`). Fishers fish on the real shoreline (`Life/Shore`) facing the water, or mend nets in towns with no shore (`mending_nets`, ActivityLibrary `shore`).
 - **Subdue fix** (`daf02c9`): a subdue target yields at the share (QuestDirector `subdueFloors`, HealthFloor) instead of being knocked out.
-- **Space:** a plan only (`docs/Space.md`, `b9fbf51`), waiting on the owner's go and §5's questions.
+- **Run 2026-11-16 (`specs 1156/1157`, the failure the known "Standing room"):** `creature_dens dens=56 herds=41`; the owner's deer screenshot looked like an alpaca. The deer was reshaped (neck leaning forward, `rot` on creature parts in `CreatureRig`), not yet seen. `hunts`/`huntnow` ran, but no `hunt_shot` showed in that log.
+- **Space stage 1 BUILT 2026-11-16 on the owner's "go stage 1", not yet run** (`docs/Space.md` "Stage 1: built"): Gate, Swap, Seal, Folding Stride, Cut, and a truer Dislocation. Expected boot line **`specs 1159/1160`**. Then stage 2: Anchor and Recall, Stretch, Clairsentience, Pocket storage.
 - **NPC fights:** the stray-bolt fix (`08d5334`) is also still unrun.
 - Expected boot line **`specs 1156/1157`** (4 new in `Tests/Hunting.spec`). Admin: `hunts`, `huntnow`, `creature spawn deer`. Log: `hunt_shot`, `creature_dens herds=`.
 

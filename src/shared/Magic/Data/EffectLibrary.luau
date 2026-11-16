@@ -122,7 +122,14 @@ local routes: { Route } = {
 	{ id = "fortune", effect = "Status", properties = { "probability" }, verbs = { "amplify", "generate" }, params = { status = "lucky", targets = "allies" } },
 
 	-- ─── Space ──────────────────────────────────────────────────────────────
-	{ id = "blink", effect = "Blink", properties = { "position" }, verbs = { "redirect", "transfer" } },
+	-- Space's powers (Effects/SpacePower, docs/Space.md stage 1). Each narrow: its own branch, so the old
+	-- blink, fold and push/pull routes keep everything else.
+	{ id = "space_gate", effect = "SpacePower", branches = { "gatecraft" }, properties = { "boundary", "position" }, verbs = { "generate", "amplify", "transfer" }, forms = { "zone", "wall", "ritual" }, params = { power = "gate" } },
+	{ id = "space_seal", effect = "SpacePower", branches = { "containment" }, properties = { "boundary", "volume" }, verbs = { "bind", "generate", "amplify" }, params = { power = "seal" } },
+	{ id = "space_swap", effect = "SpacePower", branches = { "translocation" }, properties = { "position" }, verbs = { "transmute", "bind" }, forms = { "touch", "beam", "projectile" }, params = { power = "swap" } },
+	{ id = "space_stride", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "reduce", "amplify" }, forms = { "aura" }, params = { power = "stride" } },
+	{ id = "space_cut", effect = "SpacePower", branches = { "space" }, properties = { "distance", "position", "volume", "boundary" }, verbs = { "release", "transmute" }, forms = { "beam", "touch", "wall" }, params = { power = "cut" } },
+	{ id = "blink",effect = "Blink", properties = { "position" }, verbs = { "redirect", "transfer" } },
 	{ id = "fold", effect = "Force", properties = { "volume" }, verbs = { "reduce" }, params = { mode = "pull" }, repeatable = true },
 
 	-- ─── Spirit, Life and Mind: statuses ────────────────────────────────────
