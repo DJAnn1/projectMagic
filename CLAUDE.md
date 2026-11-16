@@ -44,6 +44,29 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 9. Secrets and the strange: 5 Town Mysteries, 6 Pacts, 55 Secret factions find you, 56 Mythic sightings, 36 Small laws.
 10. Next stages: 58 Magic Marks stage 2, 60 Wild Zones stage 3, 61 Rifts stage 3 + tuning, 63 NPC movement stage 2, 62 the multiplayer queue (news, trade, markets).
 
+**📌 PINNED by the owner (2026-11-16: "pin this for next time"): Space powers (`docs/Space.md`). Resume here next session.**
+- **Where it stands:**
+  - Stages 1 and 2 are confirmed in logs: gates (including long gates to your map waypoint), swap, seal, Folding Stride, cut, Dislocation, Anchor and Recall, Stretch, Pocket, Clairsentience.
+  - Stage 3 was built 2026-11-16 (`1eb5254`) and hasn't been run: Worldgate, Hideaway, Starfall Gate, NPC Space mages blinking away.
+- **First:** ask for one playtest of stage 3 (the test steps are in the doc's "Stage 3: built" section). Expect boot line **`specs 1161/1162`**. Clear the Output first.
+- **Then:**
+  - **Mindlink:** waiting on the owner's answer to who it reaches. Suggested: party members anywhere, plus any NPC you've talked to before, who answers as if you were there.
+  - **Guards sealing brawlers** instead of fighting them.
+  - After that, back to Living History stage 4b.
+- **Unanswered, defaults in use:**
+  - Should a Worldgate leave a mark people talk about? Default: no.
+  - Should the Hideaway have anything inside? Default: empty.
+  - Is Master's 1,600-stud long-gate reach right?
+  - Should anchors be saved between sessions? Default: session only.
+  - Should the Pocket be lost when you're downed? Default: no.
+  - Should gates show the far side through the hole?
+  - Should a seal be breakable early? Default: no.
+  - Should Folding Stride drain reservoir? Default: no.
+- **Also unrun from the same session:**
+  - The NPC fight stray-bolt and raid fix (`08d5334`).
+  - The deer's second reshape (rounded neck).
+  - The subdue fix (`daf02c9`): a subdue target yields at the share.
+
 **Newest (2026-11-16), from the owner's report, not yet run:**
 - **Game animals and real shores** (`docs/Hunting.md`, `2d9ee68`): deer, wild fowl and hares (`game = true`, planned as 3 herds per town by `CreatureRules.planHerds`; the critters' dens are unchanged). Hunters stand off a herd and shoot it (`Services/HuntService`, `NPCService.setWorkSpotHook`, `CreatureService:herdsOf`/`shoot`). Fishers fish on the real shoreline (`Life/Shore`) facing the water, or mend nets in towns with no shore (`mending_nets`, ActivityLibrary `shore`).
 - **Subdue fix** (`daf02c9`): a subdue target yields at the share (QuestDirector `subdueFloors`, HealthFloor) instead of being knocked out.
