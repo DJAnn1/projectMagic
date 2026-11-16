@@ -397,3 +397,33 @@ Built on the owner's "living history stage 2". Items, places and monuments. Stra
 4. Go 300+ studs out of town, `chronicleadd boss_slain yes`: `place_named`; open the map (M): ⚑ and the name. Back in town, ask for news: "at <name>, out …".
 5. `history` lists it all. `epithet` gives a fresh unique item a past; `monumentnow` raises the nearest town's stone again.
 6. Rejoin on a new server: the stone is already standing and the place is still named.
+
+---
+
+## Stage 4a: built (2026-11-15, not yet run)
+
+Built on the owner's "go". §5's model: plans are seeded per game day from the world seed (`AgendaRules.plan`), so every server agrees; live play overrides an outcome on that server only.
+
+**Agendas (at most 2 a game day):**
+- **siege** on a town with a haunt within 900 studs (its theme). Live (a player within 280 studs of the centre when it starts): a band of 3–5 of that theme's Wildborn rises past the town's edge on the haunt's side and makes for the plaza; people shelter (`NPCService.setDanger`), guards and hunters turn out against each raider they see (`NPCCombat.onWitness` on an external target per raider), someone shouts. Band dead before the hours are up: held (`siege_broken` in the Chronicle). Not: it falls (`town_fell`). Nobody near: the seeded outcome (held 70%, fell 30%).
+- **raid** between feuding towns (base relation ≤ −0.25, within 1600 studs), at night. Live: a building at the target's edge catches fire (`FireSim.ignitePart`) and someone shouts where the raiders came from. No raider bodies (NPC-vs-NPC fighting doesn't exist).
+- **alliance** (relation ≥ 0.35) and **trade** boom or bust: news only.
+
+**A fallen town:** sheltering people, repairs held (`TownRepairService.holdTown`), the buildings round the plaza scorched when a player first comes near (`TownRepairService.scorch`), a column of dark smoke, and 3 Wildborn holding the plaza (an occupation band, raised when a player is near). Kill them: retaken (`town_retaken` in the Chronicle), repairs and builders resume. Unattended it frees itself on its seeded retake day (2–4 game days). A new server knows which towns are fallen from the last 6 days of plans (`AgendaRules.fallen`).
+
+**Telling:** an omen before a siege (`agenda_siege`: smoke and birds, 5 minutes ahead); news when asked for rumours (`news_<outcome>`, nearest within 1400 studs, a quiet Journal line); Chronicle entries for live outcomes only (an unattended one would be written by every server).
+
+**Code:** `Server/Agendas/AgendaRules`, `Agendas/Data/Agendas`, `Services/AgendaService`; WildbornService `haunts`, `band`, `bandStatus`, `dropBand`; TownRepairService `holdTown`, `scorch`; NPCService `setDanger`; OmenService reads `AgendaService:upcoming`; ChronicleKinds `siege_broken`, `town_fell`, `town_retaken` (group `loss` is new) with lines.
+
+**Deferred to 4b:** residents fleeing to neighbouring towns, while you were away, a region's mood, deaths, raids with bodies.
+
+**Flag** `agendas_enabled`. **Admin** (World): `agendas [day]`, `agendanow <siege|raid|alliance|trade>`, `townfall`, `townretake`. **Log:** `agendas_ready`, `agenda_started`, `agenda_resolved`, `wildborn_band`, `town_fell`, `town_retaken`, `agenda_news`.
+
+**Expected boot line:** `specs 1147/1148` (4 new in `Tests/Agendas.spec`).
+
+**Test:**
+1. `agendas` (today's plan, seeded outcomes, fallen towns), `agendas 1`, `agendas -1`. `agendas_ready fallen=N` at boot.
+2. In Glenhold, `agendanow siege`: a shout, Wildborn walk in from the edge, people go indoors, guards fight. Kill them all: `agenda_resolved outcome=held live=true` and a `siege_broken` chronicle entry. Again, and let the 3 game hours run out (`timescale 20`): it falls.
+3. `townfall` in a town: smoke, people sheltering, charred buildings round the plaza, 3 Wildborn at the plaza. Kill them: `town_retaken how=retaken`, builders come to mend. `townretake` frees it instantly.
+4. Another town: ask for rumours about the siege or fall (`agenda_news`).
+5. `agendanow raid` at night (`time 22`): a fire at the town's edge and a shout.

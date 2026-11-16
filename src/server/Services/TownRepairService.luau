@@ -665,8 +665,16 @@ local function keepOut(town: Town, building: Building, now: number)
 	end
 end
 
+local heldTowns: { [string]: boolean } = {} -- Services/AgendaService: a fallen town mends nothing
+
 local function stepTown(town: Town, now: number)
 	tidy(town)
+	if heldTowns[town.id] then
+		if town.job then
+			endJob(town, false)
+		end
+		return
+	end
 	local building: Building? = nil
 	local living: Building? = nil
 	for _, candidate in town.buildings do
@@ -721,6 +729,32 @@ local function nearestTownParts(position: Vector3, radius: number, max: number):
 		end
 	end
 	return found
+end
+
+-- A town held by its enemies (Services/AgendaService): nobody repairs anything until it's free.
+function TownRepairService.holdTown(_self: any, settlementId: string, held: boolean)
+	heldTowns[settlementId] = if held then true else nil
+end
+
+-- Chars up to `max` burnable town parts within `radius` of `position`, as a fire would, and they go
+-- on the repair list. Returns how many.
+function TownRepairService.scorch(_self: any, position: Vector3, radius: number, max: number): number
+	local n = 0
+	for _, part in nearestTownParts(position, radius, max * 3) do
+		if n >= max then
+			break
+		end
+		ThermalSim.ensure(part)
+		local flammability = (part:GetAttribute("Flammability") :: number?) or 0
+		if flammability > 0 then
+			local color = part.Color
+			part.Color = color:Lerp(Color3.new(0.08, 0.07, 0.06), 0.8)
+			part:SetAttribute("Flammability", 0)
+			record(part, color, flammability)
+			n += 1
+		end
+	end
+	return n
 end
 
 local function registerAdmin(admin: any)

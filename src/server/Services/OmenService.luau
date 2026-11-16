@@ -42,7 +42,7 @@ local WorldConfig = require(ServerScriptService.Server.World.WorldConfig)
 local OmenService = {
 	name = "OmenService",
 	dependencies = {
-		"AdminService", "EventDirector", "JournalService", "NPCService", "PlayerDataService",
+		"AdminService", "AgendaService", "EventDirector", "JournalService", "NPCService", "PlayerDataService",
 		"RiftService", "SharedEventService", "TitanService", "WorldStateService",
 	},
 }
@@ -54,6 +54,7 @@ local journal: any = nil
 local playerData: any = nil
 local world: any = nil
 local director: any = nil
+local agendas: any = nil -- Services/AgendaService: sieges coming
 local titans: any = nil
 local sharedEvents: any = nil
 local rifts: any = nil
@@ -113,6 +114,9 @@ local function discover()
 	end
 	for _, p in director:pending() do
 		add("world:" .. p.id, "world_" .. p.type, p.x, p.z, p.startsAt)
+	end
+	for _, siege in agendas:upcoming(MAX_LEAD) do
+		add("agenda:" .. siege.id, "agenda_siege", siege.x, siege.z, siege.startsAt)
 	end
 end
 
@@ -331,6 +335,7 @@ function OmenService.init(_self: any, ctx: any)
 	playerData = ctx.get("PlayerDataService")
 	world = ctx.get("WorldStateService")
 	director = ctx.get("EventDirector")
+	agendas = ctx.get("AgendaService")
 	titans = ctx.get("TitanService")
 	sharedEvents = ctx.get("SharedEventService")
 	rifts = ctx.get("RiftService")

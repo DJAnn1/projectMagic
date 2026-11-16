@@ -96,6 +96,7 @@ Omens.sources = {
 	-- Shared events (SharedEventService): at the town, 10 minutes ahead.
 	shared_elemental = { signs = { "motes" }, lead = 600, seen = 700, after = "The rising lights were raw magic gathering. It took a body and came for the town." },
 	shared_storm = { signs = { "dark_sky", "birds" }, lead = 600, seen = 800, after = "The heavy sky broke into a storm of magic, just as the birds had known it would." },
+	agenda_siege = { signs = { "smoke", "birds" }, lead = 300, seen = 900, after = "The smoke and the birds were for this: Wildborn, walking on the town." }, -- Services/AgendaService
 	shared_siege = { signs = { "smoke" }, lead = 600, seen = 900, after = "The smoke on the horizon was their campfires. They came for the town." },
 	shared_comet = { signs = { "new_star" }, lead = 600, seen = math.huge, after = "The new star fell. It wasn't a star at all." },
 	-- Rifts (RiftService): at the town, 5 minutes ahead.

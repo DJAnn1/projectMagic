@@ -1107,6 +1107,27 @@ local function onEventEnded(payload: any)
 	end
 end
 
+-- A danger that isn't a world event (Services/AgendaService: a siege, a town held by Wildborn):
+-- its people shelter or help, as for a wildfire. `severity` nil clears it.
+function NPCService.setDanger(_self: any, townId: string, id: string, kind: string, severity: number?)
+	local town = townById[townId]
+	if not town then
+		return
+	end
+	if severity then
+		town.dangers[id] = kind
+		for _, npc in town.npcs do
+			npc.needs.safety = math.max(0, npc.needs.safety - severity)
+			npc.actionUntil = 0
+		end
+	elseif town.dangers[id] then
+		town.dangers[id] = nil
+		for _, npc in town.npcs do
+			npc.actionUntil = 0
+		end
+	end
+end
+
 -- ─── Persistence ────────────────────────────────────────────────────────────
 
 -- Scoped by the world's generation, so a reseeded world starts with fresh town records.

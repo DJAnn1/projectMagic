@@ -36,6 +36,10 @@ local Kinds: { [string]: Kind } = {
 	tsunami = { base = 0.65, valence = -0.5, group = "disaster", named = true },
 	npc_awakened = { base = 0.5, valence = 0.3, group = "wonder", named = false },
 	world_first = { base = 0.35, valence = 0.2, group = "wonder", named = true },
+	-- Services/AgendaService (Living History stage 4): what towns live through.
+	siege_broken = { base = 0.6, valence = 0.85, group = "feat", named = true },
+	town_fell = { base = 0.7, valence = 0, group = "loss", named = false },
+	town_retaken = { base = 0.7, valence = 0.9, group = "feat", named = true },
 }
 
 return table.freeze(Kinds)

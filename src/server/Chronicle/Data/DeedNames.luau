@@ -33,6 +33,9 @@ Names.rootByKind = {
 	tsunami = "Wave",
 	npc_awakened = "Waking",
 	world_first = "First Light",
+	siege_broken = "Siege",
+	town_fell = "Fall",
+	town_retaken = "Freeing",
 } :: { [string]: string }
 
 Names.epithets = {
@@ -62,6 +65,9 @@ Names.history = {
 	tsunami = "Raised the sea {where}.",
 	npc_awakened = "Was there when {what} awoke {where}.",
 	world_first = "Was first to cast {what}, {where}.",
+	siege_broken = "Held {what} against the Wildborn.",
+	town_fell = "Was there when {what} fell.",
+	town_retaken = "Took {what} back from the Wildborn.",
 } :: { [string]: string }
 
 Names.monument = {

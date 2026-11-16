@@ -69,6 +69,7 @@ type Home = {
 	marker: Model?,
 	killedAt: number?, -- os.time() its boss was beaten on this server
 	den: { model: Model, center: Vector3, radius: number, post: Vector3 }?, -- where it keeps a captive (DownedService)
+	band: string?, -- Services/AgendaService: a siege or an occupation, not a haunt
 }
 type Actor = Moves.Actor & {
 	home: Home,
@@ -829,11 +830,11 @@ local function denOf(home: Home): { model: Model, center: Vector3, radius: numbe
 	model.Name = "WildbornDen"
 	model:SetAttribute("WildbornHome", home.id)
 	local gapAt = rng:NextInteger(0, DEN.segments - 1)
-	local step = 2 * math.pi / DEN.segments
+	local arc = 2 * math.pi / DEN.segments
 	local width = 2 * math.pi * DEN.radius / DEN.segments + 1.2
 	for i = 0, DEN.segments - 1 do
 		if i ~= gapAt then
-			local angle = i * step
+			local angle = i * arc
 			local x, z = center.X + math.cos(angle) * DEN.radius, center.Z + math.sin(angle) * DEN.radius
 			local base = groundAt(x, z) or Vector3.new(x, center.Y, z)
 			local height = DEN.height + rng:NextNumber() * 3 - 1
@@ -861,7 +862,7 @@ local function denOf(home: Home): { model: Model, center: Vector3, radius: numbe
 	light.Shadows = true
 	light.Parent = glow
 	model.Parent = folder
-	local gapAngle = gapAt * step
+	local gapAngle = gapAt * arc
 	local post = groundAt(center.X + math.cos(gapAngle) * DEN.radius, center.Z + math.sin(gapAngle) * DEN.radius)
 		or Vector3.new(center.X + math.cos(gapAngle) * DEN.radius, center.Y, center.Z + math.sin(gapAngle) * DEN.radius)
 	home.den = { model = model, center = center, radius = DEN.radius, post = post }
@@ -935,6 +936,81 @@ function WildbornService.holding(_self: any, model: Model, userId: number): (boo
 	local actor = byModel[model]
 	local living = actor ~= nil and actor.humanoid.Health > 0 and model.Parent ~= nil
 	return living, living and actor.hold ~= nil and (actor.hold :: any).userId == userId
+end
+
+-- ─── Bands (Services/AgendaService) ────────────────────────────────────────
+
+-- Every haunt (not lairs, not bands): where each theme's Wildborn live, for choosing sieges.
+function WildbornService.haunts(_self: any): { { id: string, theme: string, x: number, z: number } }
+	local out = {}
+	for _, home in homes do
+		if not home.boss and not home.temporary then
+			table.insert(out, { id = home.id, theme = home.theme, x = home.x, z = home.z })
+		end
+	end
+	return out
+end
+
+local function bandHome(id: string): Home?
+	for _, home in homes do
+		if home.band == id then
+			return home
+		end
+	end
+	return nil
+end
+
+-- A band of `count` of a theme's ordinary Wildborn, rising at `from` and making for `to` (a siege
+-- marching on a plaza), or standing at `to` (from == to: an occupation). They never come back once
+-- killed; the band goes if nobody is near (the home sleeps). Returns whether any rose.
+function WildbornService.band(_self: any, id: string, theme: string, from: Vector3, to: Vector3, count: number): boolean
+	local themeDef = Data.themes[theme]
+	if not themeDef or bandHome(id) then
+		return false
+	end
+	local slots: { Slot } = {}
+	for i = 1, count do
+		slots[i] = { actor = nil, respawnAt = math.huge, generation = 0 }
+	end
+	local home: Home = {
+		id = "band:" .. id, enemy = themeDef.regular, theme = theme, x = from.X, z = from.Z, boss = false,
+		slots = slots, awake = true, temporary = true, center = groundAt(to.X, to.Z) or to, marker = nil,
+		killedAt = nil, band = id,
+	}
+	table.insert(homes, home)
+	local any = false
+	for i, slot in slots do
+		if spawnActor(home, i, slot) then
+			any = true
+		end
+		slot.respawnAt = math.huge
+	end
+	log:info("wildborn_band", { band = id, theme = theme, count = count, risen = any })
+	return any
+end
+
+-- How a band stands: whether it still exists, how many are alive, and their bodies.
+function WildbornService.bandStatus(_self: any, id: string): (boolean, number, { Model })
+	local home = bandHome(id)
+	if not home then
+		return false, 0, {}
+	end
+	local models: { Model } = {}
+	for _, slot in home.slots do
+		local actor = slot.actor
+		if actor and actor.humanoid.Health > 0 and actor.model.Parent then
+			table.insert(models, actor.model)
+		end
+	end
+	return true, #models, models
+end
+
+-- Gone without a fight (an unattended outcome, an admin): no bodies, no rewards.
+function WildbornService.dropBand(_self: any, id: string)
+	local home = bandHome(id)
+	if home then
+		sleepHome(home)
+	end
 end
 
 -- Boss lairs, and whether their boss is beaten on this server (Services/RumorService).
