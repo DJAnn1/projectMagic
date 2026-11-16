@@ -1050,6 +1050,9 @@ local function onDamage(payload: any)
 			otherNpc = if other and string.sub(other, 1, 2) == "n:" then byId[string.sub(other, 3)] else nil
 		end
 	end
+	-- A stray: another NPC's spell meant for someone else. They flinch away from it; they don't
+	-- join the fight, and nobody comes for the one who threw it (docs/NpcFights.md "Strays").
+	local stray = otherNpc ~= nil and not NPCCombat.intends(otherNpc, "n:" .. npc.id)
 	npc.needs.safety = math.max(0, npc.needs.safety - 0.4)
 	npc.threatUntil = now + 1 / 24
 	npc.actionUntil = 0
@@ -1076,6 +1079,8 @@ local function onDamage(payload: any)
 			reputation[town.id] = (reputation[town.id] or 0) + delta
 		end
 		town.dirty = true
+	elseif otherNpc and stray then
+		MemoryService.add(npc, "spell_hurt_me", otherNpc.id, now, { intensity = 0.3 })
 	elseif otherNpc then
 		-- One of us did it: remembered by name, and it sours things between them.
 		MemoryService.add(npc, "attacked_me", otherNpc.id, now, { intensity = math.clamp(payload.amount / 40, 0.3, 1) })
@@ -1105,6 +1110,10 @@ local function onDamage(payload: any)
 		if otherNpc or other then
 			log:info("npc_knocked_out_by", { npc = npc.id, by = if otherNpc then otherNpc.id else other })
 		end
+		return
+	end
+	if stray then
+		NPCCombat.alarm(npc, other :: string) -- get out of the way (someone already fighting stays in it)
 		return
 	end
 	-- Aggro: fight back or flee (NPC/NPCCombat). Speak only when the fight starts.

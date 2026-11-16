@@ -46,6 +46,7 @@ local Data = require(Server.Agendas.Data.Agendas)
 local WorldClock = require(Server.NPC.WorldClock)
 local NPCCombat = require(Server.NPC.NPCCombat)
 local FireSim = require(Server.Magic.Cast.FireSim)
+local ThermalSim = require(Server.Magic.Cast.ThermalSim)
 
 local T = Rules.Tuning
 
@@ -370,25 +371,30 @@ local function edgePoint(town: any, theme: string?): Vector3
 	return Vector3.new(x, world:surfaceHeight(x, z), z)
 end
 
--- The building farthest out (toward `toward`, when given: the side raiders come in on).
+-- The building farthest out (toward `toward`, when given: the side raiders come in on) that has
+-- something that burns. Flammability is only written when something first heats a part
+-- (ThermalSim.ensure), so it's read through that, not straight off the attribute.
 local function edgeBuildingPart(town: any, toward: Vector3?): BasePart?
 	local centre = Vector3.new(town.x, 0, town.z)
-	local best: Model?, bestD = nil, -math.huge
+	local ranked: { { model: Model, score: number } } = {}
 	for _, model in CollectionService:GetTagged("Structure") do
 		if model:IsA("Model") and model:GetAttribute("SettlementId") == town.id then
 			local offset = model:GetPivot().Position - centre
-			local d = if toward then Vector3.new(offset.X, 0, offset.Z):Dot(toward) else flat(model:GetPivot().Position, centre)
-			if d > bestD then
-				best, bestD = model, d
-			end
+			local score = if toward then Vector3.new(offset.X, 0, offset.Z):Dot(toward) else flat(model:GetPivot().Position, centre)
+			table.insert(ranked, { model = model, score = score })
 		end
 	end
-	if not best then
-		return nil
-	end
-	for _, part in best:GetDescendants() do
-		if part:IsA("BasePart") and ((part:GetAttribute("Flammability") :: number?) or 0) > 0 then
-			return part
+	table.sort(ranked, function(a, b)
+		return a.score > b.score
+	end)
+	for _, entry in ranked do
+		for _, part in entry.model:GetDescendants() do
+			if part:IsA("BasePart") then
+				ThermalSim.ensure(part)
+				if ((part:GetAttribute("Flammability") :: number?) or 0) > 0 then
+					return part
+				end
+			end
 		end
 	end
 	return nil

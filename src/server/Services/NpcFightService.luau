@@ -454,6 +454,7 @@ local function stepRaid(raid: Raid)
 	for _, npc in alive do
 		if npc.rig and not raid.greeted[npc] then
 			raid.greeted[npc] = true
+			log:info("npc_raid_arrived", { id = raid.id, npc = npc.id })
 			line(npc, "raid_arrive", { town = townName(raid.town), other = townName(raid.other) })
 		end
 		local subject = "n:" .. npc.id
@@ -478,6 +479,14 @@ local function stepRaid(raid: Raid)
 			end
 			if foe then
 				NPCCombat.challenge(npc, "n:" .. foe.id, { reason = "raid" })
+			elseif not (target and target.Parent) then
+				-- Nothing to burn on this side: into the town, to find someone to fight.
+				local centre = Vector3.new(raid.town.x, npc.position.Y, raid.town.z)
+				local d = flat(npc.position, centre)
+				if d > 12 then
+					local dir = Vector3.new(centre.X - npc.position.X, 0, centre.Z - npc.position.Z).Unit
+					npcs:setLeash(npc, { kind = "hold", position = if d <= R.walkStep then centre else npc.position + dir * R.walkStep })
+				end
 			elseif target and target.Parent then
 				-- Nobody in the way: on toward the building.
 				local d = flat(npc.position, target.Position)

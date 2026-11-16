@@ -143,6 +143,13 @@ function NPCCombat.fighting(npc: any): boolean
 	return c ~= nil and c.stance == "fight"
 end
 
+-- Whether this NPC means to hit `subject` (it's in its fight). A hit on anyone else is a stray:
+-- NPCService has them flinch away instead of joining in (docs/NpcFights.md "Strays").
+function NPCCombat.intends(npc: any, subject: string): boolean
+	local c: Combat? = npc.combat
+	return c ~= nil and c.threat[subject] ~= nil
+end
+
 -- Why the fight started (challenge opts), or nil for plain self-defence.
 function NPCCombat.reason(npc: any): string?
 	local c: Combat? = npc.combat
@@ -431,8 +438,13 @@ local function launchBolt(npc: any, rig: any, recipe: any, stats: any, applied: 
 		resolve.expired = impact.expired
 		runner:cue("spell", resolve, impact.point, false)
 		ctx.point = impact.point
+		-- A brawl's bolts are aimed and held back: they only land on the one it's brawling with.
+		local onlyTarget = c.reason == "brawl"
 		for _, hit in impact.hits do
 			-- Its own bolt only hurts it when someone parried it back.
+			if onlyTarget and hit.model ~= targetModel and not impact.reflectedBy then
+				continue
+			end
 			if hit.model ~= rig.model or impact.reflectedBy then
 				DamageModel.hit(ctx, hit, impact.powerMult or 1, recipe.property)
 			end

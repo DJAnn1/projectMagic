@@ -58,6 +58,20 @@ Owner, 2026-11-16: "I do want npcs being able to fight each other." Built the sa
   - The live outcome overrides the seeded one on this server.
 - **Fallback:** if nobody could come, a raid at night falls back to the old edge fire.
 
+## Strays (fix after the first run, 2026-11-16)
+
+Run 2026-11-16 (`specs 1152/1153`): `brawlnow` started #34 vs #21, and within a minute #11, #38 and #3 were knocked out by other townspeople (`npc_knocked_out_by` #1, #4 and #8). Stray bolts hit bystanders. Each bystander fought back at full power and guards joined in, so each new fight started the next.
+
+- **Brawl bolts only land on the opponent.** `NPCCombat` launchBolt skips any other body when the fight's `reason` is `brawl`.
+- **A stray isn't an attack.** An NPC hit by another NPC's spell that wasn't meant for it (`NPCCombat.intends(attacker, "n:<victim>")` is false) gets out of the way (`NPCCombat.alarm`) and remembers a mild `spell_hurt_me`. It doesn't fight back, and no guard comes for the thrower. This applies to raids and guard fights in a crowd too.
+
+The same run showed raids with `target=none`, and all 3 raiders still standing after 180 s.
+
+- **Cause:** `Flammability` is only written when something first heats a part (`ThermalSim.ensure`), so `edgeBuildingPart` read 0 on every part. The old night-fire raid had the same hidden bug.
+- **Fix:** it now calls `ensure` and works through the buildings from the outermost inward until it finds one that burns.
+- **New fallback:** raiders with nothing to burn walk into the town centre.
+- **New log line:** `npc_raid_arrived npc=`, written when a raider gets a body near you.
+
 ## Admin and logs
 
 - `fights`: brawls and raids running now.
