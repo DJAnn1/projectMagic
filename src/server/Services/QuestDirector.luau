@@ -100,6 +100,25 @@ local noticeTime: { [string]: number } = {} -- quest id -> seconds noticed
 local spawned: { [string]: { any } } = {} -- quest id -> NPCs made for it
 local sharedEnded: { [string]: number } = {} -- shared quest id -> os.time() it ended (re-offer cooldown)
 
+--[[
+	Subdue objectives hold their target at the yield point (HealthFloor) while someone on the quest is
+	close. "Subdue them without killing them" used to be a race: one strong spell took them from full
+	health past the share straight to a knockout. Now they give in at the share instead of falling.
+	Cleared when the quest moves on (they yielded, or it ended), or 3 s after everyone walked away.
+]]
+local subdueFloors: { [Humanoid]: { quest: QuestState, floor: number, seen: number } } = setmetatable({}, { __mode = "k" }) :: any
+
+local function clearSubdueFloor(humanoid: Humanoid)
+	local entry = subdueFloors[humanoid]
+	if not entry then
+		return
+	end
+	subdueFloors[humanoid] = nil
+	if humanoid:GetAttribute("HealthFloor") == entry.floor then
+		humanoid:SetAttribute("HealthFloor", nil)
+	end
+end
+
 -- ─── Small helpers ──────────────────────────────────────────────────────────
 
 local function enabled(): boolean
@@ -1325,6 +1344,7 @@ local function onDamaged(payload: any)
 						if npc then
 							NPCCombat.disengage(npc) -- they yield
 						end
+						-- The floor stays until the quest moves on (poll), so a burn still ticking can't knock them out.
 						addProgress(quest, option.id, spec, 1, Players:GetPlayerByUserId(payload.sourceUserId or 0), false)
 					end
 				end
@@ -1414,8 +1434,22 @@ local function pollQuest(player: Player, quest: QuestState, root: BasePart, dt: 
 				-- Duels: once you're close, they fight you (and hits on them aren't crimes).
 				local npc = npcOf(quest, spec.target)
 				if npc and npc.rig and npc.tier == 0 and quest.owner and (npc.position - root.Position).Magnitude <= 40 then
-					if npc.rig.humanoid:GetAttribute("QuestSanction") ~= quest.owner then
-						npc.rig.humanoid:SetAttribute("QuestSanction", quest.owner)
+					local humanoid: Humanoid = npc.rig.humanoid
+					if humanoid:GetAttribute("QuestSanction") ~= quest.owner then
+						humanoid:SetAttribute("QuestSanction", quest.owner)
+					end
+					-- They give in at the share rather than being knocked out past it (subdueFloors).
+					local held = subdueFloors[humanoid]
+					if held then
+						held.seen = os.clock()
+					elseif humanoid:GetAttribute("HealthFloor") == nil then
+						-- Already below it (hurt earlier): no floor, or every hit would do nothing and they'd
+						-- never yield. The next hit counts as it is.
+						local floor = humanoid.MaxHealth * (spec.share or Q.duelYieldShare) * 0.97
+						if humanoid.Health > floor + 1 then
+							humanoid:SetAttribute("HealthFloor", floor)
+							subdueFloors[humanoid] = { quest = quest, floor = floor, seen = os.clock() }
+						end
 					end
 					if not NPCCombat.engaged(npc) then
 						NPCCombat.challenge(npc, "u:" .. player.UserId) -- whoever came close: the owner or a helper
@@ -1448,6 +1482,12 @@ local function pollQuest(player: Player, quest: QuestState, root: BasePart, dt: 
 end
 
 local function poll(dt: number)
+	local now = os.clock()
+	for humanoid, entry in subdueFloors do
+		if entry.quest.status ~= "active" or now - entry.seen > 3 or not humanoid.Parent then
+			clearSubdueFloor(humanoid)
+		end
+	end
 	for _, player in Players:GetPlayers() do
 		local root = rootOf(player)
 		if root then
