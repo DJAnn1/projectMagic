@@ -399,6 +399,13 @@ local Remotes: { [string]: RemoteDef } = {
 		rate = { capacity = 6, perSecond = 1 },
 		maxBytes = 64,
 	},
+	MindlinkIntent = { -- "npc", npcId -> { ok, reason? } opens a link; "player", userId, thought id -> { ok, reason? } (Services/MindlinkService)
+		kind = "Function",
+		from = "Client",
+		args = { S.literal("npc", "player"), ID, S.optional(ID) },
+		rate = { capacity = 6, perSecond = 2 },
+		maxBytes = 128,
+	},
 	DuelAction = { -- op, userId?, rule id? -> { ok, reason? } (Services/DuelService)
 		kind = "Function",
 		from = "Client",
@@ -529,6 +536,7 @@ local Remotes: { [string]: RemoteDef } = {
 		maxBytes = 32,
 	},
 	Struggle = { kind = "Event", from = "Server" }, -- { t = "start" | "tick" | "end" | "clash", id?, a?, b?, domainA, domainB, wa?, wb?, point?, how?, loser?, at?, kind? } (Cast/Struggle -> Controllers/StruggleController)
+	Mindlink = { kind = "Event", from = "Server" }, -- { t = "open", until, people = { { kind, id, name, role?, where } }, thoughts } | { t = "thought", from, text, where }: a Mindlink cast's choices, or a party member's thought (Services/MindlinkService -> Controllers/MindlinkController)
 	Downed = { kind = "Event", from = "Server" }, -- "down" | "fade" | "wake": lying down after losing, the fade while someone carries you, coming round (Services/DownedService -> Controllers/DownedController); carries no content
 	Dreaming = { kind = "Event", from = "Server" }, -- "drift" | "wake": dim the screen while you fall asleep in a bed, lift it when you wake or get up; never carries the dream (Services/DreamService -> Controllers/DreamController)
 	SenseReveal = { kind = "Event", from = "Server" }, -- { kind, center, radius, duration, bodies?, spots?, parts?, lines?, nexuses?, prints? }: what a Sense spell shows its caster (Cast/SenseSight -> Controllers/SenseController)

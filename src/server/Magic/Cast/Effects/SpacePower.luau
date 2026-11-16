@@ -251,6 +251,9 @@ function SpacePower.resolve(ctx: CastTypes.EffectContext, params: { [string]: an
 			return { effective = false, hits = 0, note = why }
 		end
 		return { effective = true, hits = 0, note = "You open a pocket of space only you can reach into." }
+	elseif power == "mindlink" then
+		local ok, note = SpaceRuntime.mindlink(ctx.player, ctx.target)
+		return { effective = ok, hits = 0, note = note }
 	elseif power == "swap" then
 		return swap(ctx)
 	elseif power == "seal" then

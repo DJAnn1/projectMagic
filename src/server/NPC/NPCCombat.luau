@@ -218,6 +218,9 @@ local function isSpaceMage(npc: any): boolean
 	return branch ~= nil and branch.domains[1] == "space"
 end
 
+-- Space guards seal brawlers instead of wading in (Services/NpcFightService).
+NPCCombat.isSpaceMage = isSpaceMage
+
 local function healthShare(npc: any): number
 	local rig = npc.rig
 	if not rig then

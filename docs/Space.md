@@ -136,6 +136,15 @@ Boot `specs 1160/1161`. Long gates opened at 1,565, 2,799 and 3,150 studs; Clair
   - **Worldgate scars and rumours.**
 - **Specs:** expected boot line **`specs 1161/1162`** (1 new spec).
 
+## Stage 3: confirmed, plus Mindlink and Space guards (2026-11-16)
+
+Stage 3 confirmed in a log (`specs 1160/1162`: Worldgate 2,553 studs, gates, Hideaway in and out). Built after, not yet run:
+
+- **Mindlink** (owner: "party members anywhere, plus any NPC you've talked to before, who answers as if you were there"). Route `space_mindlink` (branch `mindlink`, thought or distance, transfer/generate/amplify/redirect; instant). Cast it as an **Aura** (any distance) or Touch/Beam aimed at someone you know (straight into the conversation). `Services/MindlinkService` sends the caster the minds they can reach for 30 s: party members (not blocked either way) and up to 14 NPCs who hold a relationship with you, strongest bond first, with where they are in words. An NPC opens the ordinary dialogue panel through the link (`NPCService:linkTalk`; `onTalk` skips distance and the body, doesn't stop them, refuses `learn`; the link lasts 90 s after the last word). A party member gets one of six fixed thoughts (no free text, so nothing to filter), shown low on their screen with your name and direction. Client `Controllers/MindlinkController` (a SideCards card). Admin `mindlink [player]`; log `mindlink_cast`, `mindlink_npc`, `mindlink_thought`. Tuning `SpaceTuning.mindlink`.
+- **Space guards seal brawlers.** A guard whose best magic is Space (`NPCCombat.isSpaceMage`) seals both brawlers from up to 35 studs for 5 s and ends the brawl (`sealed`, line `brawl_sealed`) instead of walking in. Admin `spaceguards on` makes every guard count, to test with `brawlnow`. Log `npc_brawl_sealed`.
+
+Test: `testmage 8 space` plus Mind (`unlockall 8` or `setmastery mindlink Master`), talk to two Glenhold NPCs, walk away 300+ studs, cast a Mindlink Aura, pick one (talk, ask for rumours, try Learn), wait for the card to close by itself. With a second client in your party: send a thought. `spaceguards on`, `time 20`, `brawlnow` near two NPCs, watch the guard seal them.
+
 ## 5. Open questions for the owner
 
 1. Is Space meant to be overpowered like Time and Gravity (it's Rare, not Mythic)? Default: strong but limited: costs stay `costMult` 1.3, and seals are capped against players.

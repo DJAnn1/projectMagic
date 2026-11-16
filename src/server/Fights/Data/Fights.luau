@@ -17,6 +17,9 @@
 		apart           studs: one ran this far, it's over
 		guardReach      studs: a guard (not busy) this close walks over to break it up
 		breakAt         studs: the guard is this close, it's broken up
+		sealAt          studs: a guard whose best magic is Space seals both from this far instead of walking
+		                in (docs/Space.md: "guards with Space seal brawlers instead of fighting them")
+		sealSeconds     how long the brawlers stand sealed (they can't move, cast or be hurt)
 		pairCooldown    game days before the same two can come to blows again
 		npcCooldown     game days before either starts another with anyone
 		watchReach      studs: bystanders this close remember it (and talk about it)
@@ -29,7 +32,7 @@
 		answer          studs: a raider this close to a defender who's fighting turns on them
 		walkStep        studs: how far ahead each raider's walk target moves per check
 	LINES (NPC/Data/Barks shape, AmbientLifeService:lineFor): brawl_words_a/_b, brawl_won,
-	brawl_lost, brawl_broken (the guard), brawl_watch (a bystander), raid_arrive (a raider),
+	brawl_lost, brawl_broken (the guard), brawl_sealed (a Space guard, sealing them), brawl_watch (a bystander), raid_arrive (a raider),
 	raid_fire (a raider at the fire), raid_flee (a raider giving up), raid_beaten (a defender).
 	Vars: {name} the other one, {town}, {other}. No digits.
 ]]
@@ -52,6 +55,8 @@ Fights.tuning = {
 		apart = 45,
 		guardReach = 90,
 		breakAt = 9,
+		sealAt = 35,
+		sealSeconds = 5,
 		pairCooldown = 1,
 		npcCooldown = 0.5,
 		watchReach = 40,
@@ -86,6 +91,9 @@ Fights.lines = {
 	{ cat = "brawl_broken", text = "Enough! Both of you, enough!" },
 	{ cat = "brawl_broken", text = "Break it up. Now. Before someone gets hurt." },
 	{ cat = "brawl_broken", text = "Not in my streets. Go home, the pair of you." },
+	{ cat = "brawl_sealed", text = "Stay there and cool off. Both of you." },
+	{ cat = "brawl_sealed", text = "That's enough. You can think about it in there." },
+	{ cat = "brawl_sealed", text = "Hold still. Nobody's hitting anybody now." },
 	{ cat = "brawl_watch", text = "Here we go again." },
 	{ cat = "brawl_watch", text = "Someone get a guard!" },
 	{ cat = "brawl_watch", text = "Those two. Every time." },

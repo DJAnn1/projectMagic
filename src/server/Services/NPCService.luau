@@ -47,6 +47,7 @@ local Net = require(Shared.Net)
 local Topics = require(Shared.Core.Topics)
 local Seed = require(Shared.Magic.Seed)
 local Registry = require(Shared.Magic.Registry)
+local Mindlink = require(Shared.Magic.Data.SpaceTuning).mindlink
 
 local Server = script.Parent.Parent
 local Scheduler = require(Server.Core.Scheduler)
@@ -1668,17 +1669,32 @@ local function teachOffer(player: Player, npc: any): any?
 	}
 end
 
+-- Mindlink (Services/MindlinkService): player -> npc id -> os.clock() the link lapses. A linked talk
+-- needs no body nearby: the NPC answers wherever they are, and doesn't stop what they're doing.
+local mindlinks: { [Player]: { [string]: number } } = {}
+
+local function linkedTo(player: Player, npcId: string): boolean
+	local row = mindlinks[player]
+	return row ~= nil and (row[npcId] or 0) > os.clock()
+end
+
 local function onTalk(player: Player, npcId: string, topic: string): any
 	if not enabled() then
 		return { ok = false, reason = "unavailable" }
 	end
 	local npc = byId[npcId]
 	local root = rootOf(player)
-	if not npc or not npc.rig or npc.knockedOut or not root then
+	local linked = npc ~= nil and linkedTo(player, npc.id)
+	if not npc or (not npc.rig and not linked) or npc.knockedOut or not root then
 		return { ok = false, reason = "unavailable" }
 	end
-	local npcRoot: BasePart = npc.rig.root
-	if (npcRoot.Position - root.Position).Magnitude > TALK_DISTANCE then
+	if linked then
+		-- Every word keeps the link open a while longer.
+		mindlinks[player][npc.id] = os.clock() + Mindlink.linkSeconds
+		if topic == "learn" then
+			return { ok = false, reason = "linked_learn" }
+		end
+	elseif (npc.rig.root.Position - root.Position).Magnitude > TALK_DISTANCE then
 		return { ok = false, reason = "too_far" }
 	end
 	local closedAt = talkClosedAt[player] and talkClosedAt[player][npc.id]
@@ -1742,8 +1758,8 @@ local function onTalk(player: Player, npcId: string, topic: string): any
 	townById[npc.settlementId].dirty = true
 	savePlayerRelation(player, npc)
 
-	-- A conversation holds them still, facing you, until it ends (NPC/NPCConversation).
-	if not NPCCombat.engaged(npc) then
+	-- A conversation holds them still, facing you, until it ends (NPC/NPCConversation). Not through a Mindlink.
+	if not linked and not NPCCombat.engaged(npc) then
 		Conversation.Say(npc, player, text)
 		if topic == "farewell" then
 			Conversation.Leave(npc, player)
@@ -1761,6 +1777,7 @@ local function onTalk(player: Player, npcId: string, topic: string): any
 		mood = mood,
 		rel = ctx.rel,
 		studied = studied,
+		linked = linked or nil,
 		topics = if offersQuest then withQuestTopic else TOPICS,
 	}
 end
@@ -1941,6 +1958,31 @@ function NPCService.setLeash(_self: any, npc: any, leash: { kind: string, userId
 end
 
 -- QuestDirector's hook into conversations: (text?, offersQuest) for a player talking to an NPC.
+-- Mindlink: open (or keep open) a link from `player` to an NPC, wherever they are.
+function NPCService.linkTalk(_self: any, player: Player, npcId: string, seconds: number?)
+	mindlinks[player] = mindlinks[player] or {}
+	mindlinks[player][npcId] = os.clock() + (seconds or Mindlink.linkSeconds)
+end
+
+-- Everyone `player` has talked to before (they hold a relationship with you) and who could answer now:
+-- conscious, in the world. { npc, bond } sorted by bond, strongest first.
+function NPCService.knownTo(_self: any, player: Player): { { npc: any, bond: number } }
+	local me = subjectOf(player.UserId)
+	local found: { { npc: any, bond: number } } = {}
+	for _, npc in byId do
+		if not npc.knockedOut then
+			local edge = RelationshipGraph.peek(npc.id, me)
+			if edge then
+				table.insert(found, { npc = npc, bond = edge.affinity + edge.trust })
+			end
+		end
+	end
+	table.sort(found, function(a, b)
+		return a.bond > b.bond
+	end)
+	return found
+end
+
 function NPCService.setTalkHook(_self: any, fn: (Player, any, string) -> (string?, boolean))
 	talkHook = fn
 end
@@ -2659,6 +2701,7 @@ function NPCService.init(_self: any, ctx: any)
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)
+		mindlinks[player] = nil
 		talkTurns[player] = nil
 		talkClosedAt[player] = nil
 	end)

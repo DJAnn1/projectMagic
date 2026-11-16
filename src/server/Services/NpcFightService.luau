@@ -41,6 +41,7 @@ local NPCCombat = require(Server.NPC.NPCCombat)
 local RelationshipGraph = require(Server.NPC.RelationshipGraph)
 local Navigation = require(Server.NPC.NavigationService)
 local FireSim = require(Server.Magic.Cast.FireSim)
+local SpaceRuntime = require(Server.Magic.Cast.SpaceRuntime)
 
 local B = Data.tuning.brawl
 local R = Data.tuning.raid
@@ -86,6 +87,11 @@ local brawlCount = 0
 local nextLook: { [string]: number } = {} -- town id -> os.clock() of its next brawl look
 local pairUntil: { [string]: number } = {} -- pair key -> game time it may happen again
 local npcUntil: { [string]: number } = {} -- npc id -> game time
+local spaceGuards = false -- admin `spaceguards on`: every guard counts as a Space mage (to test sealing)
+
+local function sealsBrawls(guard: any): boolean
+	return spaceGuards or NPCCombat.isSpaceMage(guard)
+end
 
 local function enabled(): boolean
 	return FeatureFlags.get("npc_fights_enabled") == true
@@ -209,7 +215,11 @@ local function endBrawl(brawl: Brawl, how: string)
 		end
 		npcs:remember(a, "brawled_with", b.id, 0.6)
 		npcs:remember(b, "brawled_with", a.id, 0.6)
-		if how == "broken" and brawl.guard then
+		if how == "sealed" and brawl.guard then
+			line(brawl.guard, "brawl_sealed")
+			npcs:remember(a, "broke_up_fight", brawl.guard.id, 0.3)
+			npcs:remember(b, "broke_up_fight", brawl.guard.id, 0.3)
+		elseif how == "broken" and brawl.guard then
 			line(brawl.guard, "brawl_broken")
 			npcs:remember(a, "broke_up_fight", brawl.guard.id, 0.3)
 			npcs:remember(b, "broke_up_fight", brawl.guard.id, 0.3)
@@ -291,6 +301,25 @@ local function stepBrawl(brawl: Brawl)
 		else
 			npcs:setLeash(guard, { kind = "hold", position = mid })
 			guardDistance = flat(guard.position, mid)
+			-- A Space guard doesn't wade in: space closes round both of them from where the guard stands.
+			if guardDistance <= B.sealAt and sealsBrawls(guard) and a.rig and b.rig then
+				local sealed = 0
+				for _, npc in { a, b } do
+					if SpaceRuntime.seal(npc.rig.humanoid, npc.rig.root, B.sealSeconds, nil) then
+						sealed += 1
+					end
+				end
+				if sealed > 0 then
+					local toward = mid - guard.position
+					local dir = Vector3.new(toward.X, 0, toward.Z)
+					if dir.Magnitude > 0.1 then
+						Navigation.FaceNow(guard, dir.Unit)
+					end
+					log:info("npc_brawl_sealed", { a = a.id, b = b.id, guard = guard.id, studs = math.floor(guardDistance) })
+					endBrawl(brawl, "sealed")
+					return
+				end
+			end
 		end
 	end
 	local how = FightRules.brawlOver({
@@ -578,6 +607,14 @@ local function townOf(npc: any): any?
 end
 
 local function registerAdmin(admin: any)
+	admin:Register({
+		name = "spaceguards", category = "NPCs", description = "Every guard counts as a Space mage: they seal brawlers from afar instead of walking in (to test it with brawlnow)",
+		args = { { name = "on", type = "boolean", default = true } },
+		handler = function(_, a)
+			spaceGuards = a.on == true
+			return "space guards " .. (if spaceGuards then "on" else "off (only guards whose best magic is Space)")
+		end,
+	})
 	admin:Register({
 		name = "fights", category = "NPCs", description = "NPC brawls and raids running now (docs/NpcFights.md)",
 		args = {},

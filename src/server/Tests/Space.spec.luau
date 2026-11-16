@@ -59,17 +59,43 @@ return function(t: any)
 		end)
 
 		it("stage 3: worldgate, hideaway and Starfall Gate; a big gate ritual stays a gate", function()
-			-- Ritual needs a tier 2 branch (log 2026-11-16): the ultimates use Gatecraft, not Raw Space.
+			-- Ritual needs a tier 2 branch and power 8 a branch that reaches it (logs 2026-11-16): Worldgates.
 			expect(routeOf({ branch = "worldgates", property = "boundary", verb = "transfer", form = "ritual", power = 9 })).toBe("space_worldgate")
 			expect(routeOf({ branch = "pocketcraft", property = "volume", verb = "bind", form = "touch", power = 4 })).toBe("space_hideaway")
-			expect(routeOf({ branch = "gatecraft", property = "presence", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_starfall_gate")
-			expect(routeOf({ branch = "gatecraft", property = "distance", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_fold_of_worlds")
-			-- Space's own powers still answer a ritual at power 8: boundary and position belong to them
-			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "amplify", form = "ritual", power = 8 })).toBe("space_gate")
+			expect(routeOf({ branch = "worldgates", property = "presence", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_starfall_gate")
+			expect(routeOf({ branch = "worldgates", property = "distance", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_fold_of_worlds")
+			-- Space's own powers still answer a big ritual: boundary and position belong to them (Gatecraft tops out at 7)
+			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "amplify", form = "ritual", power = 7 })).toBe("space_gate")
 			expect(S.byTier(S.hideaway.seconds, S.hideaway.fromTier) >= 20).toBe(true)
 			expect(S.worldgate.seconds >= 3600).toBe(true)
 			-- The hideaway rooms sit clear of the Rift pocket and of the island
 			expect(S.hideaway.origin.X > 4096 or S.hideaway.origin.Z > 4096).toBe(true)
+		end)
+
+		it("Mindlink: the hybrid reaches minds, on a click; thoughts are fixed words; Space guards seal from afar", function()
+			expect(routeOf({ branch = "mindlink", property = "thought", verb = "transfer", form = "touch", power = 3 })).toBe("space_mindlink")
+			local route = nil
+			for _, r in EffectLibrary.routes do
+				if r.id == "space_mindlink" then
+					route = r
+				end
+			end
+			expect(route ~= nil and route.instant == true).toBe(true)
+			expect(#S.mindlink.thoughts >= 4).toBe(true)
+			for _, t in S.mindlink.thoughts do
+				expect(string.find(t.text, "%d") == nil).toBe(true)
+			end
+			expect(S.mindlink.maxPeople >= 6).toBe(true)
+			local Fights = require(Server.Fights.Data.Fights)
+			local B = Fights.tuning.brawl
+			expect(B.sealAt > B.breakAt and B.sealAt < B.guardReach).toBe(true)
+			local sealedLines = 0
+			for _, l in Fights.lines do
+				if l.cat == "brawl_sealed" then
+					sealedLines += 1
+				end
+			end
+			expect(sealedLines >= 2).toBe(true)
 		end)
 
 		it("every power has a resolver, a Composer line, its statuses and a flag", function()

@@ -194,6 +194,16 @@ SpaceRuntime.seenHook = nil :: ((Player, number, number) -> boolean)?
 -- with your saved data.spacePocket, its size set to `slots`).
 SpaceRuntime.matesHook = nil :: ((Player) -> { Player })?
 SpaceRuntime.pocketHook = nil :: ((Player, number, number) -> (boolean, string?))?
+-- Mindlink (Services/MindlinkService): offers the caster the minds they can reach. (ok, note)
+SpaceRuntime.mindlinkHook = nil :: ((Player, Model?) -> (boolean, string?))?
+
+function SpaceRuntime.mindlink(player: Player, target: Model?): (boolean, string?)
+	local hook = SpaceRuntime.mindlinkHook
+	if not hook then
+		return false, "No mind answers."
+	end
+	return hook(player, target)
+end
 
 function SpaceRuntime.matesOf(player: Player): { Player }
 	local hook = SpaceRuntime.matesHook

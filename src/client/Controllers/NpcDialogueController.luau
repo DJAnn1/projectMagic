@@ -93,7 +93,7 @@ type Dialogue = {
 	note: string?,
 }
 
-type Session = { id: number, npcId: string, inFlight: boolean }
+type Session = { id: number, npcId: string, inFlight: boolean, linked: boolean? } -- linked: through a Mindlink (no body nearby)
 
 local NpcDialogueController = {
 	name = "NpcDialogueController",
@@ -159,6 +159,13 @@ local function request(s: Session, topic: string, source: string)
 		if not ok or typeof(payload) ~= "table" or not payload.ok then
 			local reason = if typeof(payload) == "table" then tostring(payload.reason) else tostring(payload)
 			InteractDebug.record(source, "NpcTalk " .. topic, "refused: " .. reason, ms)
+			local shown = current:get()
+			if reason == "linked_learn" and shown then
+				local note = table.clone(shown)
+				note.note = "Nobody can teach you through a Mindlink. Go and see them."
+				current:set(note)
+				return
+			end
 			if current:get() == nil or reason == "too_far" then
 				-- Nothing on screen yet (the greeting itself was refused), or they're out of reach.
 				session = nil
@@ -177,7 +184,7 @@ local function request(s: Session, topic: string, source: string)
 			sessionId = s.id,
 			npcId = payload.npcId,
 			name = payload.name,
-			occupation = payload.occupation,
+			occupation = if payload.linked then tostring(payload.occupation) .. " · through Mindlink" else payload.occupation,
 			text = payload.text,
 			mood = payload.mood,
 			rel = payload.rel,
@@ -311,6 +318,13 @@ local function watch()
 		local character = Players.LocalPlayer.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if s.linked then
+			-- Through a Mindlink: they're wherever they are. The server ends it when the link lapses.
+			if not humanoid or humanoid.Health <= 0 then
+				closeSession("you're down")
+			end
+			continue
+		end
 		if not model then
 			closeSession("the NPC went away")
 		elseif not root or not root:IsA("BasePart") or not humanoid or humanoid.Health <= 0 then
@@ -346,7 +360,7 @@ function NpcDialogueController.open(_self: any, npcId: string, source: string): 
 		closeSession("switched to someone else")
 	end
 	sessionSeq += 1
-	local fresh: Session = { id = sessionSeq, npcId = npcId, inFlight = false }
+	local fresh: Session = { id = sessionSeq, npcId = npcId, inFlight = false, linked = source == "mindlink" or nil }
 	session = fresh
 	request(fresh, "greet", source)
 	return true, nil

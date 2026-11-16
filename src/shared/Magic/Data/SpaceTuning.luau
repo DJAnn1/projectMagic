@@ -160,6 +160,28 @@ SpaceTuning.npcBlink = {
 	cooldown = 8,
 }
 
+--[[
+	MINDLINK (the Space + Mind hybrid; thought or distance): reach a mind anywhere on the island.
+	Who: your party (anywhere, unless one of you blocked the other) and anyone you've talked to before
+	(an NPC who has a relationship with you), as long as they're conscious. An NPC answers as if you were
+	standing there (the same talk, rumours and quests; nobody can teach you through it). A party member
+	hears one of the thoughts below, with where it came from in words.
+]]
+SpaceTuning.mindlink = {
+	pickSeconds = 30, -- how long the choice stays open after the cast
+	linkSeconds = 90, -- an NPC link stays open this long after the last thing said
+	maxPeople = 14, -- NPCs offered at most (closest bond first), after your party
+	thoughts = {
+		{ id = "come", text = "Come to me." },
+		{ id = "help", text = "I need help." },
+		{ id = "danger", text = "Danger here. Keep away." },
+		{ id = "follow", text = "Follow me." },
+		{ id = "wait", text = "Wait for me." },
+		{ id = "fine", text = "I'm all right." },
+	},
+	thoughtGap = 2, -- seconds between thoughts you send
+}
+
 SpaceTuning.looks = {
 	rim = Color3.fromRGB(150, 160, 255),
 	deep = Color3.fromRGB(20, 18, 60),
