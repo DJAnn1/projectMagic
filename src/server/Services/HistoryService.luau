@@ -83,7 +83,7 @@ local function enabled(): boolean
 end
 
 local function rollFor(id: string, what: string): number
-	return Seed.random(worldService:getSeed(), "history", id, what):NextNumber()
+	return Seed.random(worldService:getSeed(), "history:" .. id, what):NextNumber()
 end
 
 local function flat(a: Vector3, b: Vector3): number

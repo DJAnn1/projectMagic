@@ -135,6 +135,9 @@ local uprightShapes: { [string]: boolean } = { staff = true, torch = true, hourg
 -- things hang across the back, grip over the right shoulder; short ones ride at the back of the
 -- waist. Frames are in the attachment's space (+Z is the back of the body on both rigs).
 local SHEATH_BACK = CFrame.new(0, 0.5, 0.45) * CFrame.Angles(0, 0, math.rad(145)) * CFrame.new(0, -1.1, 0)
+-- Staffs and other upright things: the other way up, head over the right shoulder and the foot
+-- down by the left hip (the sword frame turned them head-down, 2026-11-15), centred on the back.
+local SHEATH_BACK_UPRIGHT = CFrame.new(0, 0.3, 0.45) * CFrame.Angles(0, 0, math.rad(-35)) * CFrame.new(0, -1.2, 0)
 local SHEATH_HIP = CFrame.new(0.35, 0, 0.45) * CFrame.Angles(0, 0, math.rad(160)) * CFrame.new(0, -0.3, 0)
 local hipShapes: { [string]: boolean } = { dagger = true, sickle = true, wand = true }
 
@@ -188,7 +191,7 @@ local function build(character: Model, slot: string, def: ItemTypes.ItemDef)
 	local anchor = attachment.Parent :: BasePart
 	local base: CFrame
 	if sheathed then
-		base = attachment.CFrame * (if hipShapes[model.shape] then SHEATH_HIP else SHEATH_BACK)
+		base = attachment.CFrame * (if hipShapes[model.shape] then SHEATH_HIP elseif uprightShapes[model.shape] then SHEATH_BACK_UPRIGHT else SHEATH_BACK)
 	elseif HELD[slot] then
 		-- From the grip point: forward like a held tool, or upright for staffs and lights.
 		base = CFrame.new(attachment.Position) * (if uprightShapes[model.shape] then CFrame.new(0, -0.3, 0) else CFrame.Angles(-math.pi / 2, 0, 0))
