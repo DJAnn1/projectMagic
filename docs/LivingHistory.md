@@ -161,7 +161,7 @@ This changes how stage 4 is built, so it comes before the stage designs. Recomme
 - **Items:** a unique item involved in a legend gets `h` (the legend's id) and a seeded epithet ("Ashbreaker") from `Data/DeedNames`. The tooltip shows one line: "Broke the Ashwalker at Cinder Ford". NPCs who know the legend recognise it when it's equipped ("Is that the staff that…?"). This uses the greeting hook, alongside Noticing. An item that changes hands keeps its past, and stealing a famous item is talked about.
 - **Places:** a legend in the wilds (not in a town) names that spot ("Ashfall Ford"). The name shows on the map for everyone who has uncovered the ground, and NPCs use it in rumours. At most 1 per 400 studs, and each world's legends cap keeps the count low.
 - **Monuments:** each town's top legend gets a carved stone near the plaza, built by its own builders the way town repair works (a walk, a hammer, scaffolding). At most one per town, replaced when a bigger legend comes along. Reading it gives one line, not a lore wall.
-- **Strange moods** (one, narrow): rarely (at most one per server at a time, about one in-game week apart per town), an NPC mage or craftsperson becomes obsessed. For three in-game days they take over a workshop station, readable as an activity ("obsessed"); they won't talk shop and they barely sleep. Then they make a **named unique item** from their own domain and craft (crafter `c`, epithet). It enters the chronicle. They keep it. You can buy it (dear), be given it (if they love you most), or steal it (a crime, and the town remembers). Interrupting the mood leaves them miserable for a while, and that's remembered too.
+- ~~**Strange moods**~~ **(discarded by the owner, 2026-11-15; not built)** (one, narrow): rarely (at most one per server at a time, about one in-game week apart per town), an NPC mage or craftsperson becomes obsessed. For three in-game days they take over a workshop station, readable as an activity ("obsessed"); they won't talk shop and they barely sleep. Then they make a **named unique item** from their own domain and craft (crafter `c`, epithet). It enters the chronicle. They keep it. You can buy it (dear), be given it (if they love you most), or steal it (a crime, and the town remembers). Interrupting the mood leaves them miserable for a while, and that's remembered too.
 
 **Not taken:** DF's failed-mood madness, artifact demands for specific materials, and item biographies longer than a line.
 
@@ -373,7 +373,7 @@ Built on the owner's "go stage 3". Scars (the `scar` mark kind) are **not** in t
 
 ## Stage 2a: built (2026-11-15, not yet run)
 
-Built on the owner's "living history stage 2". Split in two: **2a** (items, places, monuments) here; **2b** (strange moods) is next, as its own commit.
+Built on the owner's "living history stage 2". Items, places and monuments. Strange moods were discarded by the owner (2026-11-15), so stage 2 ends here.
 
 **Code:**
 - `Server/Chronicle/HistoryRules` (pure: `root`, `epithet`, `placeName`, `historyLine`, `monumentLine`, `places`, `top`), `Chronicle/Data/DeedNames` (roots by kind, epithets and place names by group, history lines by kind, monument lines, `item_known` lines).
