@@ -45,6 +45,8 @@ local DamageModel = require(Server.Magic.Cast.DamageModel)
 local Targeting = require(Server.Magic.Cast.Targeting)
 local ActionState = require(Server.Magic.Cast.ActionState)
 local Guard = require(Server.Magic.Cast.Guard)
+local SpaceRuntime = require(Server.Magic.Cast.SpaceRuntime)
+local SpaceTuning = require(Shared.Magic.Data.SpaceTuning)
 local ActionRules = require(Shared.Magic.ActionRules)
 local Charge = require(Shared.Magic.Charge)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
@@ -207,6 +209,13 @@ function NPCCombat.attackRecipe(npc: any): any?
 		end
 	end
 	return nil
+end
+
+-- Whether this NPC's best magic is Space (it blinks out of reach: SpaceRuntime.blinkAway).
+local function isSpaceMage(npc: any): boolean
+	local recipe = NPCCombat.attackRecipe(npc)
+	local branch = recipe and Registry.branches[recipe.branch]
+	return branch ~= nil and branch.domains[1] == "space"
 end
 
 local function healthShare(npc: any): number
@@ -637,6 +646,15 @@ function NPCCombat.step(npc: any, dt: number): boolean
 	if c.stance == "flee" then
 		Navigation.Steer(npc, root.Position - toward * A.fleeDistance)
 		return true
+	end
+
+	-- A Space mage doesn't stand and trade blows: someone too close, and they're somewhere else (docs/Space.md).
+	if distance < SpaceTuning.npcBlink.within and clock >= ((c :: any).nextBlink or 0) and isSpaceMage(npc) then
+		(c :: any).nextBlink = clock + SpaceTuning.npcBlink.cooldown
+		if SpaceRuntime.blinkAway(rig.model, -toward, SpaceTuning.npcBlink.studs) then
+			npc.position = rig.root.Position
+			return true
+		end
 	end
 
 	watchTarget(npc, c, rig, targetModel)

@@ -40,6 +40,8 @@ type Gate = {
 	seconds: number,
 	untilAt: number,
 	giveUpAt: number, -- a far end that can't open by now closes the near one too
+	lasting: boolean?, -- a Worldgate (stage 3): an hour, its own cap, one per caster
+	parts: { Instance }?, -- a Worldgate's rings, real parts so anyone who comes by later sees them
 }
 
 type Seal = { id: number, humanoid: Humanoid, root: BasePart, center: Vector3, half: number }
@@ -114,10 +116,63 @@ local function gateFx(name: string, gate: Gate, payload: { [string]: any })
 	end
 end
 
+-- A Worldgate's rings as real parts (anchored, no collision): the cue only reaches people near at the time.
+local function worldgateRing(cf: CFrame): { Instance }
+	local folder = workspace:FindFirstChild("SpaceGates")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "SpaceGates"
+		folder.Parent = workspace
+	end
+	local d = S.gate.radius * 2
+	local face = cf * CFrame.new(0, 1, 0) * CFrame.Angles(0, math.pi / 2, 0)
+	local out: { Instance } = {}
+	-- { diameter, colour, material, transparency, thickness }
+	local specs: { { any } } = { { d + 0.8, S.looks.rim, Enum.Material.Neon, 0.1, 0.2 }, { d, S.looks.deep, Enum.Material.Glass, 0.05, 0.3 } }
+	for i, spec in specs do
+		local p = Instance.new("Part")
+		p.Name = if i == 1 then "WorldgateRim" else "WorldgateHole"
+		p.Shape = Enum.PartType.Cylinder
+		p.Size = Vector3.new(spec[5], spec[1], spec[1])
+		p.CFrame = face
+		p.Color = spec[2]
+		p.Material = spec[3]
+		p.Transparency = spec[4]
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p:SetAttribute("Flammability", 0)
+		if i == 2 then
+			local e = Instance.new("ParticleEmitter")
+			e.Color = ColorSequence.new(S.looks.star)
+			e.LightEmission = 1
+			e.Size = NumberSequence.new(0.18, 0)
+			e.Lifetime = NumberRange.new(0.6, 1.2)
+			e.Speed = NumberRange.new(0.5, 2)
+			e.SpreadAngle = Vector2.new(180, 180)
+			e.Rate = 10
+			e.Parent = p
+			local light = Instance.new("PointLight")
+			light.Color = S.looks.rim
+			light.Range = 12
+			light.Brightness = 1.2
+			light.Parent = p
+		end
+		p.Parent = folder
+		table.insert(out, p)
+	end
+	return out
+end
+
 local function closeGate(gate: Gate, why: string)
 	local index = table.find(gates, gate)
 	if index then
 		table.remove(gates, index)
+	end
+	for _, inst in (gate.parts or {}) :: { Instance } do
+		inst:Destroy()
 	end
 	gateFx("gate_close", gate, {})
 	if log then
@@ -189,9 +244,16 @@ local function finishOpening(gate: Gate, farSpot: CFrame)
 	gate.b = CFrame.lookAt(farSpot.Position, farSpot.Position + forward) -- faces on, away from the caster
 	gate.untilAt = os.clock() + gate.seconds
 	local b = gate.b :: CFrame
-	gateFx("gate_open", gate, { a = gate.a, b = b, seconds = gate.seconds, radius = S.gate.radius, caster = gate.owner })
+	if gate.lasting then
+		local parts = worldgateRing(gate.a)
+		for _, inst in worldgateRing(b) do
+			table.insert(parts, inst)
+		end
+		gate.parts = parts
+	end
+	gateFx(if gate.lasting then "gate_pass" else "gate_open", gate, { a = gate.a, b = b, seconds = gate.seconds, radius = S.gate.radius, caster = gate.owner })
 	if log then
-		log:info("space_gate_opened", { owner = gate.owner, seconds = gate.seconds, studs = math.floor((b.Position - gate.a.Position).Magnitude) })
+		log:info(if gate.lasting then "space_worldgate_opened" else "space_gate_opened", { owner = gate.owner, seconds = gate.seconds, studs = math.floor((b.Position - gate.a.Position).Magnitude) })
 	end
 end
 
@@ -201,9 +263,20 @@ end
 	you). A far end on ground nobody has built yet waits for it (requestArea), up to farWait seconds.
 	Returns the gate, or nil and why.
 ]]
-function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, farAt: Vector3, seconds: number, ignore: { Instance }): (Gate?, string?)
+function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, farAt: Vector3, seconds: number, ignore: { Instance }, lasting: boolean?): (Gate?, string?)
 	if #gates >= S.gate.maxServer then
 		return nil, "Space here is already full of holes."
+	end
+	if lasting then
+		local worldgates = 0
+		for _, g in gates do
+			if g.lasting and g.owner ~= owner then
+				worldgates += 1
+			end
+		end
+		if worldgates >= S.worldgate.maxServer then
+			return nil, "The world already has as many lasting gates as it will bear."
+		end
 	end
 	local forward = flatLook(origin, farAt, look)
 	local nearSpot = SpaceRuntime.standAt(origin + forward * S.gate.frontOffset, ignore)
@@ -213,14 +286,14 @@ function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, fa
 	if Vector3.new(farAt.X - origin.X, 0, farAt.Z - origin.Z).Magnitude < 12 then
 		return nil, "Too close: the two ends would touch."
 	end
-	-- A third pair of yours closes your oldest.
+	-- A third pair of yours closes your oldest (Worldgates count separately: one each).
 	local mine = {}
 	for _, gate in gates do
-		if gate.owner == owner then
+		if gate.owner == owner and (gate.lasting == true) == (lasting == true) then
 			table.insert(mine, gate)
 		end
 	end
-	while #mine >= S.gate.perCaster do
+	while #mine >= (if lasting then S.worldgate.perCaster else S.gate.perCaster) do
 		closeGate(table.remove(mine, 1) :: Gate, "replaced")
 	end
 	local gate: Gate = {
@@ -233,6 +306,7 @@ function SpaceRuntime.openGate(owner: number, origin: Vector3, look: Vector3, fa
 		seconds = seconds,
 		untilAt = math.huge,
 		giveUpAt = os.clock() + S.gate.farWait,
+		lasting = lasting,
 	}
 	local world = SpaceRuntime.world
 	local built = world == nil or world:isChunkBuilt(farAt.X, farAt.Z)
@@ -549,7 +623,7 @@ local function stepStretches(now: number)
 end
 
 -- A bolt from anyone but the stretch's maker slows as it crosses, once per stretch.
-function stretchIntercept(position: Vector3, velocity: Vector3, flight: any): Vector3?
+stretchIntercept = function(position: Vector3, velocity: Vector3, flight: any): Vector3?
 	for _, s in stretches do
 		if flight.ownerModel ~= s.ownerModel and not s.slowed[flight] then
 			local d = Vector3.new(position.X - s.center.X, 0, position.Z - s.center.Z).Magnitude
@@ -560,6 +634,153 @@ function stretchIntercept(position: Vector3, velocity: Vector3, flight: any): Ve
 		end
 	end
 	return nil
+end
+
+-- ─── Hideaway (stage 3) ────────────────────────────────────────────────────
+
+type Hideaway = { player: Player, slot: number, returnTo: CFrame, untilAt: number, model: Model }
+
+local hideaways: { [Player]: Hideaway } = {}
+local hideSlots: { [number]: boolean } = {}
+
+local function roomPart(model: Model, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material, transparency: number)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material
+	p.Transparency = transparency
+	p.Anchored = true
+	p.CanCollide = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p:SetAttribute("Flammability", 0)
+	p:SetAttribute("Protected", true) -- Reality's Unmake and the like leave it alone
+	p.Parent = model
+	return p
+end
+
+-- A small sealed room: a dark floor, glassy walls full of stars, a light. Nothing in it but you.
+local function buildRoom(slot: number): (Model, CFrame)
+	local H = S.hideaway
+	local center = H.origin + Vector3.new(0, 0, slot * H.spacing)
+	local model = Instance.new("Model")
+	model.Name = "SpaceHideaway"
+	local size = H.size
+	local floor = roomPart(model, "Floor", Vector3.new(size.X, 1, size.Z), CFrame.new(center), S.looks.deep, Enum.Material.Slate, 0)
+	roomPart(model, "Ceiling", Vector3.new(size.X, 1, size.Z), CFrame.new(center + Vector3.new(0, size.Y, 0)), S.looks.deep, Enum.Material.Glass, 0.2)
+	for _, side in { Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1) } do
+		local wallSize = if side.X ~= 0 then Vector3.new(1, size.Y, size.Z) else Vector3.new(size.X, size.Y, 1)
+		local wall = roomPart(model, "Wall", wallSize, CFrame.new(center + Vector3.new(side.X * size.X / 2, size.Y / 2, side.Z * size.Z / 2)), S.looks.rim, Enum.Material.ForceField, 0.15)
+		local e = Instance.new("ParticleEmitter")
+		e.Color = ColorSequence.new(S.looks.star)
+		e.LightEmission = 1
+		e.Size = NumberSequence.new(0.15, 0)
+		e.Lifetime = NumberRange.new(1, 2)
+		e.Speed = NumberRange.new(0.2, 0.6)
+		e.Rate = 6
+		e.Parent = wall
+	end
+	local light = Instance.new("PointLight")
+	light.Color = S.looks.star
+	light.Range = 24
+	light.Brightness = 1.5
+	light.Parent = floor
+	model.PrimaryPart = floor
+	model.Parent = workspace
+	return model, CFrame.new(center + Vector3.new(0, 3.5, 0))
+end
+
+local function leaveHideaway(player: Player, why: string)
+	local h = hideaways[player]
+	if not h then
+		return
+	end
+	hideaways[player] = nil
+	hideSlots[h.slot] = nil
+	local character = player.Character
+	if character and character.Parent then
+		character:PivotTo(h.returnTo)
+		fx("dislocate", { from = h.returnTo.Position, to = h.returnTo.Position }, h.returnTo.Position)
+	end
+	h.model:Destroy()
+	if log then
+		log:info("space_hideaway_left", { userId = player.UserId, why = why })
+	end
+end
+
+function SpaceRuntime.inHideaway(player: Player): boolean
+	return hideaways[player] ~= nil
+end
+
+-- Steps `player` out of the world into their own sealed room for `seconds`; cast again inside to come back.
+function SpaceRuntime.enterHideaway(player: Player, seconds: number): (boolean, string?)
+	if hideaways[player] then
+		leaveHideaway(player, "cast again")
+		return true, "You step back into the world where you left it."
+	end
+	local character = player.Character
+	if not character then
+		return false, nil
+	end
+	local slot = 0
+	while hideSlots[slot] do
+		slot += 1
+	end
+	hideSlots[slot] = true
+	local model, inside = buildRoom(slot)
+	local returnTo = character:GetPivot()
+	hideaways[player] = { player = player, slot = slot, returnTo = returnTo, untilAt = os.clock() + seconds, model = model }
+	fx("dislocate", { from = returnTo.Position, to = returnTo.Position }, returnTo.Position)
+	character:PivotTo(inside * returnTo.Rotation)
+	if log then
+		log:info("space_hideaway_entered", { userId = player.UserId, seconds = seconds, slot = slot })
+	end
+	return true, string.format("You fold yourself out of the world. %d seconds, or cast it again to step back.", math.floor(seconds))
+end
+
+local function stepHideaways(now: number)
+	for player, h in hideaways do
+		if not player.Parent then
+			hideaways[player] = nil
+			hideSlots[h.slot] = nil
+			h.model:Destroy()
+		elseif now >= h.untilAt then
+			leaveHideaway(player, "time")
+		else
+			-- Died or respawned inside: the room has nobody to hold.
+			local character = player.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if not humanoid or humanoid.Health <= 0 then
+				hideaways[player] = nil
+				hideSlots[h.slot] = nil
+				h.model:Destroy()
+			end
+		end
+	end
+end
+
+-- ─── NPC Space mages (stage 3) ─────────────────────────────────────────────
+
+-- An NPC slips away from someone too close: `studs` back along `away`, onto a standing spot. Returns
+-- whether it moved.
+function SpaceRuntime.blinkAway(model: Model, away: Vector3, studs: number): boolean
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") or root.Anchored then
+		return false
+	end
+	local from = root.Position
+	for _, turn in { 0, 0.6, -0.6, 1.2, -1.2 } do
+		local dir = (CFrame.Angles(0, turn, 0) * away)
+		local spot = SpaceRuntime.standAt(from + dir * studs, { model }, 12)
+		if spot then
+			model:PivotTo(CFrame.lookAt(spot.Position, spot.Position - dir))
+			fx("dislocate", { from = from, to = spot.Position }, spot.Position)
+			return true
+		end
+	end
+	return false
 end
 
 -- ─── Dispel and admin ──────────────────────────────────────────────────────
@@ -603,6 +824,7 @@ function SpaceRuntime.step(_dt: number)
 	local now = os.clock()
 	stepGates(now)
 	stepStretches(now)
+	stepHideaways(now)
 	stepSeals()
 	stepStrides()
 end

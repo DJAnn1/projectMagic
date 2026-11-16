@@ -58,6 +58,19 @@ return function(t: any)
 			expect(StatusInfo.space_stretched ~= nil and StatusInfo.space_stretched.harmful).toBe(true)
 		end)
 
+		it("stage 3: worldgate, hideaway and Starfall Gate; a big gate ritual stays a gate", function()
+			expect(routeOf({ branch = "worldgates", property = "boundary", verb = "transfer", form = "ritual", power = 9 })).toBe("space_worldgate")
+			expect(routeOf({ branch = "pocketcraft", property = "volume", verb = "bind", form = "touch", power = 4 })).toBe("space_hideaway")
+			expect(routeOf({ branch = "space", property = "presence", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_starfall_gate")
+			expect(routeOf({ branch = "space", property = "distance", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_fold_of_worlds")
+			-- Space's own powers still answer a ritual at power 8: boundary and position belong to them
+			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "amplify", form = "ritual", power = 8 })).toBe("space_gate")
+			expect(S.byTier(S.hideaway.seconds, S.hideaway.fromTier) >= 20).toBe(true)
+			expect(S.worldgate.seconds >= 3600).toBe(true)
+			-- The hideaway rooms sit clear of the Rift pocket and of the island
+			expect(S.hideaway.origin.X > 4096 or S.hideaway.origin.Z > 4096).toBe(true)
+		end)
+
 		it("every power has a resolver, a Composer line, its statuses and a flag", function()
 			for _, route in EffectLibrary.routes do
 				if route.effect == "SpacePower" then

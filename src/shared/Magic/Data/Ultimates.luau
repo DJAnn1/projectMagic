@@ -157,9 +157,24 @@ local list: { [string]: Ultimate } = {
 			{ at = 5.2, where = "center", warn = 1.0, radius = 24, share = 1.5, look = "erupt" },
 		},
 	},
+	-- Space has two (docs/Space.md stage 3). Each takes its own properties, and boundary and position
+	-- are left to Space's own powers (gates, seals, anchors), which a ritual must still reach.
+	starfall_gate = {
+		name = "Starfall Gate",
+		domain = "space",
+		properties = { "presence" },
+		words = "Gates tear open in the sky over everyone you can hurt, and what's on the other side falls through: three volleys, then the sky closes on the middle with a crash.",
+		beats = {
+			{ at = 0, where = "targets", count = 8, spread = 34, warn = 1.0, radius = 7, share = 0.7, look = "drop" },
+			{ at = 1.2, where = "targets", count = 8, spread = 34, warn = 1.0, radius = 7, share = 0.7, look = "drop", status = { id = "dazed", duration = 1.5 } },
+			{ at = 2.4, where = "scatter", count = 7, spread = 30, warn = 1.0, radius = 8, share = 0.7, look = "drop" },
+			{ at = 3.8, where = "center", warn = 1.0, radius = 20, share = 1.3, look = "nova", push = 40 },
+		},
+	},
 	fold_of_worlds = {
 		name = "Fold of Worlds",
 		domain = "space",
+		properties = { "distance", "volume", "orientation" },
 		words = "Space folds: everyone around is dragged to the middle, crushed as it closes, then thrown out as it opens again.",
 		beats = {
 			{ at = 0, where = "center", warn = 0.9, radius = 28, share = 0.3, look = "nova", pull = 60 },

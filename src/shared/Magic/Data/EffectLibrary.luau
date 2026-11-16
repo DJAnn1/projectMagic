@@ -125,6 +125,10 @@ local routes: { Route } = {
 	-- Space's powers (Effects/SpacePower, docs/Space.md stage 1). Each narrow: its own branch, so the old
 	-- blink, fold and push/pull routes keep everything else.
 	-- Stage 2 first where branches nest: Pocketcraft sits under Folding, so the pocket goes before the stride.
+	-- Stage 3: the Worldgate before the ordinary gate (Worldgates sits under Gatecraft), the hideaway before
+	-- the pocket (both Pocketcraft).
+	{ id = "space_worldgate", effect = "SpacePower", branches = { "worldgates" }, properties = { "boundary", "position" }, verbs = { "amplify", "transfer" }, forms = { "ritual", "zone", "wall" }, minPower = 9, params = { power = "worldgate" }, heavy = true },
+	{ id = "space_hideaway", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "bind", "reduce" }, params = { power = "hideaway" } },
 	{ id = "space_pocket", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "amplify", "store", "transfer" }, forms = { "aura", "touch" }, params = { power = "pocket" } },
 	{ id = "space_anchor", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "bind" }, params = { power = "anchor" } },
 	{ id = "space_recall", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "release" }, forms = { "aura", "burst", "zone", "ritual" }, params = { power = "recall" } },

@@ -127,6 +127,39 @@ SpaceTuning.clairsentience = {
 	maxRadius = 200,
 }
 
+-- ─── Stage 3 ─────────────────────────────────────────────────────────────
+
+--[[
+	WORLDGATE (Worldgates, power 9+): a gate that stays a real hour on this server, for anyone. Its far end
+	is your map waypoint (any distance, ground you've uncovered) or where you aim. One each; a second
+	replaces the first. They don't count against your two ordinary gates.
+]]
+SpaceTuning.worldgate = {
+	seconds = 3600,
+	perCaster = 1,
+	maxServer = 6,
+}
+
+--[[
+	HIDEAWAY (Pocketcraft, bind, from Master): step out of the world into a small sealed room of folded space
+	of your own (off the island, like a Rift's pocket). Nobody can follow; you come back where you left when
+	it closes, or when you cast it again inside. One room per player at a time.
+]]
+SpaceTuning.hideaway = {
+	fromTier = 5,
+	seconds = { base = -20, perTier = 10, max = 60 } :: Curve, -- Master 30 s, Grandmaster 40, Transcendent 60
+	origin = Vector3.new(6000, 140, 2400), -- clear of the Rift pocket (6000, 60, 0)
+	spacing = 70, -- studs between rooms
+	size = Vector3.new(22, 12, 22),
+}
+
+-- NPC Space mages (NPC/NPCCombat): blink away when someone gets close, now and then.
+SpaceTuning.npcBlink = {
+	within = 8, -- studs: closer than this, they slip away
+	studs = 18,
+	cooldown = 8,
+}
+
 SpaceTuning.looks = {
 	rim = Color3.fromRGB(150, 160, 255),
 	deep = Color3.fromRGB(20, 18, 60),

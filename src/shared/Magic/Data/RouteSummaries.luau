@@ -218,6 +218,8 @@ local routes: { [string]: Summary } = {
 		},
 	},
 	space_stride = { kind = "move", text = "Space folds under your feet: every step covers far more ground, until you hurt someone." },
+	space_worldgate = { kind = "move", text = "Opens a lasting gate to your map waypoint, or where you aim. It stands for an hour, and anyone who finds it can walk through." },
+	space_hideaway = { kind = "move", text = "From Master: you fold yourself out of the world into a small sealed room nobody can follow you into. Cast it again inside to step back." },
 	space_pocket = { kind = "utility", text = "Opens your own pocket of space, wherever you are: what you put in it is kept, and only you can reach it." },
 	space_anchor = { kind = "move", text = "Space remembers where you stand. Release it later to come back here." },
 	space_recall = { kind = "move", text = "Takes you back to the spot you anchored, from as far as your mastery reaches. From Grandmaster, friends beside you come too." },

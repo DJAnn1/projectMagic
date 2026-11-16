@@ -116,6 +116,26 @@ The owner: "the gate looks good but the range is too small. at a high enough ski
   - Save: `Schemas` `spacePocket`.
 - **Specs:** expected boot line **`specs 1160/1161`** (one new spec in Space.spec; the one failure is the known Standing room spec).
 
+## Stage 2: confirmed in a log (2026-11-16)
+
+Boot `specs 1160/1161`. Long gates opened at 1,565, 2,799 and 3,150 studs; Clairsentience (`sense_noticed kind=space`) and the pocket were cast. The owner: "if everything is good, begin stage 3".
+
+## Stage 3: built (2026-11-16; not yet run)
+
+| Power | Recipe | What it does |
+|---|---|---|
+| **Worldgate** (`space_worldgate`) | Worldgates · boundary or position · amplify or transfer · ritual, zone or wall · power 9+ | A gate that stands for an hour, for anyone. Its far end is your waypoint (any distance, ground you've seen) or where you aim. You get one each (a second replaces it), separate from your two ordinary gates; the server holds 6. Its rings are real parts (`workspace.SpaceGates`), so people who come by later see it. Log `space_worldgate_opened`. |
+| **Hideaway** (`space_hideaway`) | Pocketcraft · volume · bind or reduce · any form | From Master: you're folded out of the world into your own sealed room (22×12×22, starry walls, a light), off the island at (6000, 140, 2400 + 70 per room). It lasts 30 s at Master, 40 at Grandmaster and 60 at Transcendent; cast it again inside to come back early. You come back exactly where you left. Nobody can follow. Log `space_hideaway_entered` / `_left`. |
+| **Starfall Gate** (`ult_starfall_gate`) | Raw Space · presence · offensive verb · ritual · power 8+ | Space's second ultimate: three volleys fall on marked ground under everyone you can hurt, then the middle crashes and throws people back. |
+| **NPC Space mages** | — | In a fight, someone within 8 studs makes them blink 18 studs away (every 8 s at most; `SpaceRuntime.blinkAway`). |
+
+- **Fold of Worlds:** now takes distance, volume or orientation. Boundary and position rituals go to Space's own powers (gates, seals, anchors), since ultimates are matched before them.
+- **Not built in stage 3:**
+  - **Mindlink**, because who it reaches needs your call (see the questions);
+  - **guards sealing brawlers instead of fighting them**;
+  - **Worldgate scars and rumours.**
+- **Specs:** expected boot line **`specs 1161/1162`** (1 new spec).
+
 ## 5. Open questions for the owner
 
 1. Is Space meant to be overpowered like Time and Gravity (it's Rare, not Mythic)? Default: strong but limited: costs stay `costMult` 1.3, and seals are capped against players.

@@ -12,6 +12,8 @@
 		recall   (stage 2) back to your anchor from as far as your tier reaches; party mates from Grandmaster
 		stretch  (stage 2) an area where everyone else crawls and other people's bolts slow
 		pocket   (stage 2) your saved pocket of space opens wherever you are, for a while
+		worldgate (stage 3) a gate that stands an hour, for anyone (Worldgates, power 9+)
+		hideaway (stage 3) step out of the world into your own sealed room (Pocketcraft, bind; Master)
 
 	A backfire is Dislocation: you're thrown somewhere, sometimes somewhere awkward.
 	Refusals (no room, nobody there) cost nothing further and say why in a note.
@@ -186,6 +188,28 @@ function SpacePower.resolve(ctx: CastTypes.EffectContext, params: { [string]: an
 		return { effective = true, hits = 0, note = if far
 			then "Space tears open toward your waypoint. The far end takes a moment to find its ground."
 			else "Two holes in space, joined. Anything can use them." }
+	elseif power == "worldgate" then
+		-- An hour, for anyone: to your waypoint (anywhere you've seen) or where you aim.
+		local farAt = ctx.point
+		local waypoint = SpaceRuntime.waypointOf(ctx.player)
+		if waypoint then
+			if not SpaceRuntime.hasSeen(ctx.player, waypoint.X, waypoint.Z) then
+				return { effective = false, hits = 0, note = "You can't open space onto ground you've never seen. Clear the waypoint to open it where you aim." }
+			end
+			farAt = Vector3.new(waypoint.X, ctx.world:surfaceHeight(waypoint.X, waypoint.Z), waypoint.Z)
+		end
+		local gate, why = SpaceRuntime.openGate(ctx.player.UserId, ctx.origin, ctx.root.CFrame.LookVector, farAt, S.worldgate.seconds, { ctx.character }, true)
+		if not gate then
+			return { effective = false, hits = 0, note = why }
+		end
+		return { effective = true, hits = 0, note = "A lasting gate: it will stand for an hour, and anyone who finds it can use it." }
+	elseif power == "hideaway" then
+		local tier = tierOf(ctx)
+		if tier < S.hideaway.fromTier and not SpaceRuntime.inHideaway(ctx.player) then
+			return { effective = false, hits = 0, note = "Space won't fold that small for you yet (Master)." }
+		end
+		local ok, note = SpaceRuntime.enterHideaway(ctx.player, math.max(10, S.byTier(S.hideaway.seconds, tier)))
+		return { effective = ok, hits = 0, note = note }
 	elseif power == "anchor" then
 		SpaceRuntime.setAnchor(ctx.player, ctx.root.CFrame)
 		return { effective = true, hits = 0, note = string.format("Space remembers this spot. Release it to come back, from up to %s.", reachText(S.anchorReach(tierOf(ctx)))) }
