@@ -813,11 +813,19 @@ function WildbornService.hold(_self: any, model: Model, userId: number, center: 
 	if not actor or actor.humanoid.Health <= 0 then
 		return false
 	end
-	actor.hold = { userId = userId, center = center, radius = radius, untilClock = os.clock() + seconds, wander = wander }
-	actor.attacker = nil
-	actor.target = nil
-	actor.returning = false
-	actor.wanderUntil = nil
+	-- Everyone at that haunt holds them, not only the one that dragged them there.
+	for _, slot in actor.home.slots do
+		local other = slot.actor
+		if other and other.humanoid.Health > 0 then
+			other.hold = { userId = userId, center = center, radius = radius, untilClock = os.clock() + seconds, wander = wander }
+			if other.attacker == userId then
+				other.attacker = nil
+			end
+			other.target = nil
+			other.returning = false
+			other.wanderUntil = nil
+		end
+	end
 	return true
 end
 
