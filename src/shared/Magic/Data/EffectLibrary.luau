@@ -18,6 +18,9 @@
 		recordsWorld  the resolver records magic pressure itself (CastService skips noteMagic)
 		repeatable    echoes and channel pulses may re-run it (never disasters or zones)
 		heavy         counts against the per-server heavy budget when power >= budget.heavyPower
+		instant       a click casts it at once (owner, 2026-11-16: "it makes no sense to charge" a blink):
+		              no hold to charge, no Quick-tap penalty, cast time Tuning.minCastTime. For moving
+		              yourself, escapes and self toggles, where the moment matters more than the power.
 
 	Adding a spell effect: write Effects/<Name>.luau (resolve(ctx, params) -> Outcome), add a
 	route here, add an example to Shared/Magic/Data/SpellExamples, and Tests/Cast.spec checks
@@ -40,6 +43,7 @@ export type Route = {
 	recordsWorld: boolean?,
 	repeatable: boolean?,
 	heavy: boolean?,
+	instant: boolean?,
 }
 
 local OFFENSIVE = { "generate", "amplify", "reduce", "transfer", "redirect", "release", "transmute" }
@@ -58,12 +62,12 @@ local routes: { Route } = {
 
 	-- ─── Time's powers (Effects/TimePower, docs/Time.md) ────────────────────
 	-- Before `store`, which would swallow Self Timeline, and `time_field`. Each is narrow: its own branch.
-	{ id = "self_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "store" }, forms = { "aura" }, params = { power = "self_timeline" } },
+	{ id = "self_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "store" }, forms = { "aura" }, params = { power = "self_timeline" }, instant = true },
 	{ id = "target_timeline", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { power = "target_timeline" } },
 	{ id = "time_loop", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "redirect" }, forms = { "touch", "beam" }, params = { power = "loop" } },
-	{ id = "stored_moment", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "stored" } },
+	{ id = "stored_moment", effect = "TimePower", branches = { "rewind" }, properties = { "sequence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "stored" }, instant = true },
 	{ id = "borrowed_wound", effect = "TimePower", branches = { "causality" }, properties = { "sequence" }, verbs = { "amplify", "reduce" }, forms = { "touch", "beam", "aura" }, params = { power = "wound" } },
-	{ id = "future_sight", effect = "TimePower", branches = { "precognition" }, properties = { "foresight" }, verbs = { "amplify" }, forms = { "aura", "touch" }, params = { power = "sight" } },
+	{ id = "future_sight", effect = "TimePower", branches = { "precognition" }, properties = { "foresight" }, verbs = { "amplify" }, forms = { "aura", "touch" }, params = { power = "sight" }, instant = true },
 	{ id = "timestop", effect = "TimePower", branches = { "stasis" }, properties = { "tempo" }, verbs = { "reduce", "bind" }, forms = { "zone", "burst", "aura", "ritual" }, minPower = 7, params = { power = "timestop" }, heavy = true },
 
 	-- ─── Reality's powers (Effects/RealityPower, docs/Reality.md) ───────────
@@ -83,13 +87,13 @@ local routes: { Route } = {
 	{ id = "cage", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "bind" }, forms = POINT_FORMS, params = { power = "cage" } },
 	{ id = "conjure", effect = "RealityPower", branches = { "conjuration" }, properties = { "substance" }, verbs = { "generate" }, forms = { "touch", "beam", "wall", "pillar", "zone", "burst", "ritual" }, params = { power = "conjure" } },
 	{ id = "unmake", effect = "RealityPower", branches = { "unmaking" }, properties = { "substance" }, verbs = { "reduce" }, params = { power = "unmake" } },
-	{ id = "undying", effect = "RealityPower", branches = { "substantiation" }, properties = { "persistence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "undying" } },
+	{ id = "undying", effect = "RealityPower", branches = { "substantiation" }, properties = { "persistence" }, verbs = { "bind" }, forms = { "aura" }, params = { power = "undying" }, instant = true },
 	{ id = "fray", effect = "RealityPower", branches = { "substantiation" }, properties = { "persistence" }, verbs = { "reduce" }, forms = { "touch", "projectile", "beam" }, params = { power = "fray" } },
 	{ id = "polymorph", effect = "RealityPower", branches = { "polymorphy" }, properties = { "identity" }, verbs = { "transmute" }, forms = POINT_FORMS, params = { power = "polymorph" } },
 	{ id = "exchange", effect = "RealityPower", branches = { "lawcraft" }, properties = { "identity" }, verbs = { "transfer" }, forms = { "touch", "beam", "chain" }, params = { power = "exchange" } },
 
 	-- ─── Perception and charges ─────────────────────────────────────────────
-	{ id = "sense", effect = "Sense", verbs = { "sense" } },
+	{ id = "sense", effect = "Sense", verbs = { "sense" }, instant = true },
 	{ id = "store", effect = "Store", verbs = { "store" } },
 
 	-- ─── Domain strikes: every domain's first attack (Shared/Magic/Data/Strikes) ─────
@@ -110,12 +114,12 @@ local routes: { Route } = {
 	-- Gravity's powers (Effects/GravityPower, docs/Gravity.md). Before gravity_field and the broad
 	-- force and harm routes, and each is narrow: its own branch, so nothing else moves.
 	{ id = "singularity", effect = "GravityPower", branches = { "collapse" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify" }, forms = { "zone", "burst", "ritual" }, minPower = 7, params = { power = "singularity" }, heavy = true },
-	{ id = "orbit_shield", effect = "GravityPower", branches = { "orbitcraft" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify", "bind" }, forms = { "aura" }, params = { power = "orbit" } },
+	{ id = "orbit_shield", effect = "GravityPower", branches = { "orbitcraft" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify", "bind" }, forms = { "aura" }, params = { power = "orbit" }, instant = true },
 	{ id = "gravity_well", effect = "GravityPower", branches = { "attraction" }, properties = { "weight", "cohesion" }, verbs = { "generate", "amplify" }, forms = { "zone", "burst", "ritual" }, params = { power = "well" }, heavy = true },
-	{ id = "flight", effect = "GravityPower", branches = { "levitation" }, properties = { "buoyancy" }, verbs = { "generate", "amplify" }, forms = { "aura" }, params = { power = "flight" } },
-	{ id = "mass_shift", effect = "GravityPower", branches = { "weightcraft" }, properties = { "density" }, verbs = { "amplify", "reduce" }, forms = { "aura", "touch" }, params = { power = "mass" } },
+	{ id = "flight", effect = "GravityPower", branches = { "levitation" }, properties = { "buoyancy" }, verbs = { "generate", "amplify" }, forms = { "aura" }, params = { power = "flight" }, instant = true },
+	{ id = "mass_shift", effect = "GravityPower", branches = { "weightcraft" }, properties = { "density" }, verbs = { "amplify", "reduce" }, forms = { "aura", "touch" }, params = { power = "mass" }, instant = true },
 	{ id = "crushing_grip", effect = "GravityPower", branches = { "crushing" }, properties = { "weight" }, verbs = { "generate", "amplify", "bind" }, forms = { "touch", "beam" }, params = { power = "grip" } },
-	{ id = "bend_path", effect = "GravityPower", branches = { "vectoring" }, properties = { "momentum", "orientation" }, verbs = { "redirect", "transmute" }, forms = { "aura" }, params = { power = "bend" } },
+	{ id = "bend_path", effect = "GravityPower", branches = { "vectoring" }, properties = { "momentum", "orientation" }, verbs = { "redirect", "transmute" }, forms = { "aura" }, params = { power = "bend" }, instant = true },
 	{ id = "lift_slam", effect = "GravityPower", branches = { "vectoring" }, properties = { "momentum", "orientation" }, verbs = { "redirect", "transfer" }, forms = { "touch", "beam" }, params = { power = "lift" } },
 	{ id = "gravity_field", effect = "Field", branches = { "gravity" }, properties = { "weight", "orientation", "buoyancy", "density" }, forms = AREA_FORMS, params = { field = "gravity" }, heavy = true },
 	{ id = "reality", effect = "Field", branches = { "reality" }, properties = { "law", "substance", "identity" }, params = { field = "reality", ruleByProperty = { law = "slick", substance = "intangible", identity = "transmute" } }, heavy = true },
@@ -128,17 +132,17 @@ local routes: { Route } = {
 	-- Stage 3: the Worldgate before the ordinary gate (Worldgates sits under Gatecraft), the hideaway before
 	-- the pocket (both Pocketcraft).
 	{ id = "space_worldgate", effect = "SpacePower", branches = { "worldgates" }, properties = { "boundary", "position" }, verbs = { "amplify", "transfer" }, forms = { "ritual", "zone", "wall" }, minPower = 9, params = { power = "worldgate" }, heavy = true },
-	{ id = "space_hideaway", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "bind", "reduce" }, params = { power = "hideaway" } },
-	{ id = "space_pocket", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "amplify", "store", "transfer" }, forms = { "aura", "touch" }, params = { power = "pocket" } },
-	{ id = "space_anchor", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "bind" }, params = { power = "anchor" } },
-	{ id = "space_recall", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "release" }, forms = { "aura", "burst", "zone", "ritual" }, params = { power = "recall" } },
+	{ id = "space_hideaway", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "bind", "reduce" }, params = { power = "hideaway" }, instant = true },
+	{ id = "space_pocket", effect = "SpacePower", branches = { "pocketcraft" }, properties = { "volume" }, verbs = { "amplify", "store", "transfer" }, forms = { "aura", "touch" }, params = { power = "pocket" }, instant = true },
+	{ id = "space_anchor", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "bind" }, params = { power = "anchor" }, instant = true },
+	{ id = "space_recall", effect = "SpacePower", branches = { "blinking" }, properties = { "position" }, verbs = { "release" }, forms = { "aura", "burst", "zone", "ritual" }, params = { power = "recall" }, instant = true },
 	{ id = "space_stretch", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "amplify" }, forms = { "zone", "burst", "wall", "ritual" }, params = { power = "stretch" } },
 	{ id = "space_gate", effect = "SpacePower", branches = { "gatecraft" }, properties = { "boundary", "position" }, verbs = { "generate", "amplify", "transfer" }, forms = { "zone", "wall", "ritual" }, params = { power = "gate" } },
 	{ id = "space_seal", effect = "SpacePower", branches = { "containment" }, properties = { "boundary", "volume" }, verbs = { "bind", "generate", "amplify" }, params = { power = "seal" } },
-	{ id = "space_swap", effect = "SpacePower", branches = { "translocation" }, properties = { "position" }, verbs = { "transmute" }, forms = { "touch", "beam", "projectile" }, params = { power = "swap" } },
-	{ id = "space_stride", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "reduce", "amplify" }, forms = { "aura" }, params = { power = "stride" } },
+	{ id = "space_swap", effect = "SpacePower", branches = { "translocation" }, properties = { "position" }, verbs = { "transmute" }, forms = { "touch", "beam", "projectile" }, params = { power = "swap" }, instant = true },
+	{ id = "space_stride", effect = "SpacePower", branches = { "folding" }, properties = { "distance", "volume" }, verbs = { "reduce", "amplify" }, forms = { "aura" }, params = { power = "stride" }, instant = true },
 	{ id = "space_cut", effect = "SpacePower", branches = { "space" }, properties = { "distance", "position", "volume", "boundary" }, verbs = { "release", "transmute" }, forms = { "beam", "touch", "wall" }, params = { power = "cut" } },
-	{ id = "blink",effect = "Blink", properties = { "position" }, verbs = { "redirect", "transfer" } },
+	{ id = "blink", effect = "Blink", properties = { "position" }, verbs = { "redirect", "transfer" }, instant = true },
 	{ id = "fold", effect = "Force", properties = { "volume" }, verbs = { "reduce" }, params = { mode = "pull" }, repeatable = true },
 
 	-- ─── Spirit, Life and Mind: statuses ────────────────────────────────────
@@ -153,7 +157,7 @@ local routes: { Route } = {
 	{ id = "siphon", effect = "Siphon", properties = { "essence", "vitality" }, verbs = { "transfer" }, forms = POINT_FORMS },
 
 	-- ─── Energy ─────────────────────────────────────────────────────────────
-	{ id = "light", effect = "Light", properties = { "luminosity" }, verbs = { "generate", "amplify" }, forms = { "touch", "aura" } },
+	{ id = "light", effect = "Light", properties = { "luminosity" }, verbs = { "generate", "amplify" }, forms = { "touch", "aura" }, instant = true },
 	{ id = "ignite", effect = "Thermal", properties = { "combustion" }, verbs = { "generate", "amplify", "release", "redirect" }, params = { mode = "ignite" }, repeatable = true, heavy = true },
 	{ id = "heat_transfer", effect = "Thermal", properties = { "temperature" }, verbs = { "transfer" }, params = { mode = "transfer" } },
 

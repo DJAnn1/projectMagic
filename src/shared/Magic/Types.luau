@@ -326,6 +326,7 @@ export type SpellStats = {
 	comfortPower: number,
 	overreach: number,
 	flags: { [string]: boolean }, -- one entry per modifier id
+	instant: boolean?, -- its route casts on a click, no charge (EffectLibrary `instant`)
 	channelCostPerSecond: number,
 	maxChannelTime: number,
 	echoes: number,

@@ -179,3 +179,9 @@ The full table is in Runtime.md §3 (`CastTuning.budget`, enforced by `Magic/Cas
 - A knockdown during the wind-up drops the bolt.
 
 **Spec:** `Tests/Charge.spec`.
+
+## Instant spells (2026-11-16)
+
+Owner: "with certain spells such as blink, it makes no sense to charge it." Routes flagged `instant = true` in `Data/EffectLibrary` cast the moment you click: no hold to charge, no Quick-tap penalty (power x1.0), cast time `Tuning.minCastTime` (0.1 s). `MagicCore.computeStats` sets `stats.instant`; `Charge.chargeableStats(stats)` is the one gate (CastClient press/cast, CastService hold/apply). The Composer shows "Cast time: Instant (casts on click)".
+
+Instant: `blink`, `space_swap`, `space_anchor`, `space_recall`, `space_stride`, `space_hideaway`, `space_pocket`, `self_timeline`, `stored_moment`, `future_sight`, `flight`, `mass_shift`, `orbit_shield`, `bend_path`, `undying`, `sense`, `light`. The rule: moving yourself, escapes, self toggles and quick utility. Attacks, areas, gates, seals, disasters and ultimates still charge. Specs: `Charge.spec` "Instant spells" (3).

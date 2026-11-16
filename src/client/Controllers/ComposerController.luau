@@ -741,7 +741,7 @@ local function buildStats(parent: Instance, recipe: Types.Recipe?, brief: boolea
 	if stats.duration > 0 then
 		statLine(parent, o(), "Duration", fmt(stats.duration) .. " s")
 	end
-	statLine(parent, o(), "Cast time", fmt(stats.castTime) .. " s")
+	statLine(parent, o(), "Cast time", if stats.instant then "Instant (casts on click)" else fmt(stats.castTime) .. " s")
 	statLine(parent, o(), "Cooldown", fmt(stats.cooldown) .. " s")
 	if stats.maxTargets > 0 then
 		statLine(parent, o(), "Targets", tostring(stats.maxTargets))

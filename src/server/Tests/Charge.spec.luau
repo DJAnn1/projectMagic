@@ -8,6 +8,8 @@ local Charge = require(ReplicatedStorage.Shared.Magic.Charge)
 local Registry = require(ReplicatedStorage.Shared.Magic.Registry)
 local ActionRules = require(ReplicatedStorage.Shared.Magic.ActionRules)
 local CombatAnimations = require(ReplicatedStorage.Shared.Magic.Data.CombatAnimations)
+local MagicCore = require(ReplicatedStorage.Shared.Magic.MagicCore)
+local EffectLibrary = require(ReplicatedStorage.Shared.Magic.Data.EffectLibrary)
 
 local D = Charge.data
 
@@ -103,6 +105,46 @@ return function(t: any)
 		it("lets a channel end into holding", function()
 			expect(ActionRules.canEnter("channeling", "holding")).toBe(true)
 			expect(ActionRules.allows("channeling", "cast")).toBe(false)
+		end)
+	end)
+	-- Instant spells (owner, 2026-11-16: "it makes no sense to charge" a blink): a click casts them.
+	describe("Instant spells", function()
+		local caster = {
+			id = "spec_instant",
+			affinities = { space = 0.6, energy = 0.6 },
+			awakened = { space = true, energy = true },
+			mastery = { space = 100, translocation = 100, blinking = 100, energy = 100 },
+			unlocked = { space = true, translocation = true, blinking = true, energy = true },
+		}
+		local function computed(recipe: any): any
+			recipe.modifiers = recipe.modifiers or {}
+			local result, errors = MagicCore.computeStats(recipe, caster)
+			if not result then
+				error("computeStats refused " .. MagicCore.describe(recipe) .. ": " .. (errors[1] and errors[1].code or "?"), 2)
+			end
+			return result
+		end
+		it("blink casts on the click: no charge and the shortest cast time", function()
+			local blink = computed({ branch = "blinking", property = "position", verb = "redirect", form = "projectile", power = 4 })
+			expect(blink.instant).toBe(true)
+			expect(Charge.chargeableStats(blink)).toBe(false)
+			expect(blink.castTime).toBe(Registry.Tuning.minCastTime)
+		end)
+		it("an attack still charges", function()
+			local bolt = computed({ branch = "energy", property = "temperature", verb = "generate", form = "projectile", power = 3 })
+			expect(bolt.instant == nil).toBe(true)
+			expect(Charge.chargeableStats(bolt)).toBe(true)
+		end)
+		it("instant routes are movement, escapes and self spells, never area attacks or disasters", function()
+			local count = 0
+			for _, route in EffectLibrary.routes do
+				if route.instant then
+					count += 1
+					expect(route.heavy == true).toBe(false)
+					expect(route.harmful == true).toBe(false)
+				end
+			end
+			expect(count >= 10).toBe(true)
 		end)
 	end)
 end

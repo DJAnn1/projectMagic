@@ -59,10 +59,11 @@ return function(t: any)
 		end)
 
 		it("stage 3: worldgate, hideaway and Starfall Gate; a big gate ritual stays a gate", function()
+			-- Ritual needs a tier 2 branch (log 2026-11-16): the ultimates use Gatecraft, not Raw Space.
 			expect(routeOf({ branch = "worldgates", property = "boundary", verb = "transfer", form = "ritual", power = 9 })).toBe("space_worldgate")
 			expect(routeOf({ branch = "pocketcraft", property = "volume", verb = "bind", form = "touch", power = 4 })).toBe("space_hideaway")
-			expect(routeOf({ branch = "space", property = "presence", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_starfall_gate")
-			expect(routeOf({ branch = "space", property = "distance", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_fold_of_worlds")
+			expect(routeOf({ branch = "gatecraft", property = "presence", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_starfall_gate")
+			expect(routeOf({ branch = "gatecraft", property = "distance", verb = "amplify", form = "ritual", power = 8 })).toBe("ult_fold_of_worlds")
 			-- Space's own powers still answer a ritual at power 8: boundary and position belong to them
 			expect(routeOf({ branch = "gatecraft", property = "boundary", verb = "amplify", form = "ritual", power = 8 })).toBe("space_gate")
 			expect(S.byTier(S.hideaway.seconds, S.hideaway.fromTier) >= 20).toBe(true)

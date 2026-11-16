@@ -222,7 +222,7 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 
 	-- Predict: glow and cast bar now; the server corrects or cancels.
 	local castTime = if stats then stats.castTime else 0.5
-	if equipMode() and stats and not stats.flags.channeled and Charge.chargeable(castTime) then
+	if equipMode() and stats and Charge.chargeableStats(stats) then
 		local h = heldFor or 0 -- no charge at all = a tap
 		castTime = Charge.releaseCastTime(Charge.stageIndex(h, castTime), castTime, h)
 	end
@@ -306,7 +306,7 @@ local function domainOf(key: string): string
 end
 
 -- Press (left mouse, R2, the touch Cast button) in equip mode: a chargeable spell starts
--- charging (released later); a channelled or slow spell is cast at once and held.
+-- charging (released later); a channelled, instant or slow spell is cast at once.
 -- Locked in a spell struggle (docs/SpellStruggle.md): the cast button pours more in instead.
 local function struggling(): boolean
 	local character = Players.LocalPlayer.Character
@@ -331,7 +331,7 @@ function CastClient.pressCast(self: any)
 	end
 	local spell = magic:spell(held.key)
 	local stats = spell and magic:preview(spell.recipe)
-	if not stats or stats.flags.channeled or not Charge.chargeable(stats.castTime) then
+	if not stats or not Charge.chargeableStats(stats) then
 		self:cast(held.slot)
 		return
 	end

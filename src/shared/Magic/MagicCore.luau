@@ -22,6 +22,7 @@ local Types = require(script.Parent.Types)
 local Registry = require(script.Parent.Registry)
 local Strike = require(script.Parent.Strike)
 local WeatherFuel = require(script.Parent.WeatherFuel)
+local SpellRoute = require(script.Parent.SpellRoute)
 
 local Tuning = Registry.Tuning
 
@@ -697,6 +698,11 @@ function MagicCore.computeStats(raw: any, caster: CasterProfile, context: CastCo
 			* profile.castTimeMult
 			* traits.castTime
 	)
+	-- Instant spells (EffectLibrary `instant`: blink, recall, flight...): a click casts them at once.
+	local instant = SpellRoute.find(recipe).instant == true
+	if instant then
+		castTime = Tuning.minCastTime
+	end
 	local cooldown = math.max(Tuning.minCooldown, form.cooldown * (1 + Tuning.cooldownPerLevel * (P - 1)) * mCooldown)
 	local maxTargets = if form.maxTargets > 0
 		then form.maxTargets + math.floor(form.extraTargetsPerPower * (P - 1))
@@ -755,6 +761,7 @@ function MagicCore.computeStats(raw: any, caster: CasterProfile, context: CastCo
 		comfortPower = round(comfort, 2),
 		overreach = round(overreach, 2),
 		flags = flags,
+		instant = if instant then true else nil,
 		channelCostPerSecond = round(channelCostPerSecond, 2),
 		maxChannelTime = maxChannelTime,
 		echoes = echoes,

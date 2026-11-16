@@ -29,6 +29,12 @@ function Charge.chargeable(castTime: number): boolean
 	return castTime <= Data.maxChargeableCastTime
 end
 
+-- A computed spell (MagicCore.computeStats): channelled spells hold instead, instant ones (blink,
+-- recall, flight...) cast on the click, and slow ones wind up on their own.
+function Charge.chargeableStats(stats: { castTime: number, flags: { [string]: boolean }, instant: boolean? }): boolean
+	return not stats.flags.channeled and not stats.instant and Charge.chargeable(stats.castTime)
+end
+
 function Charge.step(castTime: number): number
 	return math.max(castTime, Data.minStep)
 end

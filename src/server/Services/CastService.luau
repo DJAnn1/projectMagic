@@ -1015,8 +1015,8 @@ local function onHold(player: Player, kind: string)
 		return
 	end
 	local shape = MagicCore.computeStats(recipe, state.caster, nil)
-	if not shape or shape.flags.channeled or not Charge.chargeable(shape.castTime) then
-		return -- channelled and slow spells cast on release without a charge
+	if not shape or not Charge.chargeableStats(shape) then
+		return -- channelled, instant and slow spells cast without a charge
 	end
 	local maxHold = Charge.maxHold(shape.castTime)
 	local hold: Hold = {
@@ -1194,7 +1194,7 @@ local function onCastIntent(player: Player, raw: any, aim: Vector3, target: Mode
 	StatCache.applyToCast(player, stats)
 	-- The charge stage (power, area, targets, overcharge risk, the time left to wait).
 	local charged: Charge.Applied? = nil
-	if charging and not stats.flags.channeled and Charge.chargeable(stats.castTime) then
+	if charging and Charge.chargeableStats(stats) then
 		charged = Charge.apply(stats, Charge.stageIndex(held, stats.castTime), held)
 	end
 	-- Spellblade finisher: a Slash2 that just landed makes this cast stronger (Cast/Finisher).

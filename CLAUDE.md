@@ -44,6 +44,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 9. Secrets and the strange: 5 Town Mysteries, 6 Pacts, 55 Secret factions find you, 56 Mythic sightings, 36 Small laws.
 10. Next stages: 58 Magic Marks stage 2, 60 Wild Zones stage 3, 61 Rifts stage 3 + tuning, 63 NPC movement stage 2, 62 the multiplayer queue (news, trade, markets).
 
+**Newest (2026-11-16): Space stage 3 CONFIRMED** (log `specs 1160/1162`: worldgate 2,553 studs, long gate, hideaway in/out, stride, seal; owner: "all fixes seem to work", so the NPC stray-bolt fix, subdue fix and deer neck count as confirmed too). The second failure was Space.spec using Raw Space (tier 0) for the ultimates' Ritual; now Gatecraft. **Instant spells built, not yet run** (`docs/Casting.md` "Instant spells"): EffectLibrary `instant = true` on 17 routes (blink, swap, anchor, recall, stride, hideaway, pocket, self timeline, stored moment, future sight, flight, mass shift, orbit shield, bend path, undying, sense, light) casts on the click: no charge, no tap penalty, 0.1 s. Expected boot line **`specs 1164/1165`** (3 new in Charge.spec; the failure the known "Standing room"). Owner agreed to Mindlink (party anywhere + any NPC you've talked to) and guards sealing brawlers: **build those next**.
+
 **📌 PINNED by the owner (2026-11-16: "pin this for next time"): Space powers (`docs/Space.md`). Resume here next session.**
 - **Where it stands:**
   - Stages 1 and 2 are confirmed in logs: gates (including long gates to your map waypoint), swap, seal, Folding Stride, cut, Dislocation, Anchor and Recall, Stretch, Pocket, Clairsentience.
