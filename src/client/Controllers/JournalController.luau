@@ -34,7 +34,7 @@ local APPROACH: { [string]: string } = {
 }
 local KIND_GLYPH: { [string]: string } = {
 	quest = "§", outcome = "★", reputation = "⚑", rumor = "…", crime = "!", faction = "⚑", discovery = "✦",
-	weather = "☁", dream = "☾", sight = "◉", omen = "☄", wildborn = "✠",
+	weather = "☁", dream = "☾", sight = "◉", omen = "☄", wildborn = "✠", downed = "↓",
 }
 
 local JournalController = {

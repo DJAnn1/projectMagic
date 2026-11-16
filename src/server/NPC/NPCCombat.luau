@@ -38,6 +38,7 @@ local Seed = require(Shared.Magic.Seed)
 
 local Server = script.Parent.Parent
 local C = require(Server.Magic.Data.CombatTuning)
+local DownedRules = require(Server.Downed.DownedRules)
 local Delivery = require(Server.Magic.Cast.Delivery)
 local DamageModel = require(Server.Magic.Cast.DamageModel)
 local Targeting = require(Server.Magic.Cast.Targeting)
@@ -241,7 +242,7 @@ local function characterOf(subject: string): (Model?, BasePart?)
 	local character = player and player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+	if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and not DownedRules.ignored(humanoid) then
 		return character, root
 	end
 	return nil, nil

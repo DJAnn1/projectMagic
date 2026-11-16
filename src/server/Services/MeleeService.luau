@@ -207,8 +207,8 @@ end
 local function onIntent(player: Player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not character or not humanoid or humanoid.Health <= 0 then
-		return
+	if not character or not humanoid or humanoid.Health <= 0 or humanoid:GetAttribute("Downed") then
+		return -- down (Services/DownedService): no swinging from the ground
 	end
 	if not attunement:equipMode(player) then
 		refuse(player, "QUICK_MODE")

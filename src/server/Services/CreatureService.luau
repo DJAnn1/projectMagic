@@ -43,6 +43,7 @@ local CreatureRig = require(Server.Creatures.CreatureRig)
 local Damage = require(Server.Magic.Cast.Damage)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
+local DownedRules = require(Server.Downed.DownedRules)
 
 local T = Creatures.tuning
 
@@ -141,7 +142,7 @@ local function livingPlayers(): { PlayerView }
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and not DownedRules.ignored(humanoid) then
 			table.insert(out, { player = player, humanoid = humanoid, root = root, position = root.Position })
 		end
 	end

@@ -16,7 +16,8 @@
 
 	Order: PvP rules (Cast/PvpRules) -> quest ward -> a raised guard (Cast/Guard: block or parry,
 	frontal hits with `from`; damage over time and environment damage carry no `from` and are
-	never blocked) -> hexes and wards (StatusEffects) -> a duel's HealthFloor -> health.
+	never blocked) -> hexes and wards (StatusEffects) -> a duel's HealthFloor -> interceptor (Time,
+	Reality) -> downer (a lethal blow from anything but another player downs instead) -> health.
 
 	Spells compute `amount` with Cast/DamageModel (crit, resistance, falloff, caps); environment
 	damage (fire ticks, waves, scalding) passes raw amounts with no info.
@@ -65,6 +66,23 @@ end
 -- Set by Cast/TimeRuntime: gets what's about to land and returns what does (a mark saving you from
 -- death, a Borrowed Wound holding it back, Future Sight dodging it). `kind` "internal" is overdraw.
 Damage.interceptor = nil :: ((Humanoid, number, number?, string, Info?) -> number)?
+-- Set by Services/DownedService: a blow that would kill a player. Returns true to take over (the
+-- player is left at 1 health, down, and something happens next); false lets it kill as before.
+-- Must not yield. Losing to another player is always a death (DownedService says false).
+Damage.downer = nil :: ((Humanoid, number?, string, Info?) -> boolean)?
+
+-- What's left of a lethal blow when someone is downed instead: everything but the last point.
+local function downedInstead(humanoid: Humanoid, remaining: number, sourceUserId: number?, kind: string, info: Info?): number
+	local downer = Damage.downer
+	if not downer or remaining < humanoid.Health then
+		return remaining
+	end
+	local ok, took = pcall(downer, humanoid, sourceUserId, kind, info)
+	if ok and took == true then
+		return math.max(0, humanoid.Health - 1)
+	end
+	return remaining
+end
 
 local recorders: { [thread]: { RecordEntry } } = {}
 
@@ -137,6 +155,10 @@ function Damage.apply(humanoid: Humanoid, amount: number, sourceUserId: number?,
 			return 0
 		end
 	end
+	remaining = downedInstead(humanoid, remaining, sourceUserId, kind, info)
+	if remaining <= 0 then
+		return 0
+	end
 	local before = humanoid.Health
 	humanoid:TakeDamage(remaining)
 	local dealt = before - humanoid.Health
@@ -184,6 +206,7 @@ end
 function Damage.internal(humanoid: Humanoid, amount: number)
 	local interceptor = Damage.interceptor
 	local remaining = if interceptor then interceptor(humanoid, amount, nil, "internal", nil) else amount
+	remaining = downedInstead(humanoid, remaining, nil, "internal", nil)
 	if remaining > 0 then
 		humanoid:TakeDamage(remaining)
 	end

@@ -44,6 +44,7 @@ local Rig = require(Server.Wildborn.WildbornRig)
 local Moves = require(Server.Wildborn.WildbornMoves)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
+local DownedRules = require(Server.Downed.DownedRules)
 
 local T = Data.tuning
 
@@ -83,6 +84,12 @@ type Actor = Moves.Actor & {
 	nextMelee: number,
 	returning: boolean,
 	moving: boolean,
+	-- Services/DownedService: someone it dragged home. Left alone while they stay inside `radius` of
+	-- `center`; fought if they step out; at `untilClock` it lets them be and wanders off.
+	hold: { userId: number, center: Vector3, radius: number, untilClock: number, wander: number }?,
+	spare: { [number]: number }?, -- userId -> os.clock() until which it ignores them
+	wanderTo: Vector3?,
+	wanderUntil: number?,
 }
 
 local log: any = nil
@@ -119,7 +126,7 @@ local function livingPlayers(): { View }
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and not DownedRules.ignored(humanoid) then
 			table.insert(out, { player = player, humanoid = humanoid, root = root, position = root.Position })
 		end
 	end
@@ -455,6 +462,21 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		return
 	end
 
+	-- A captive (Services/DownedService): when the hold runs out it lets them be and wanders off.
+	local hold = actor.hold
+	if hold and now >= hold.untilClock then
+		actor.hold = nil
+		actor.spare = actor.spare or {}
+		;(actor.spare :: { [number]: number })[hold.userId] = now + hold.wander + 30
+		local angle = actor.rng:NextNumber() * 2 * math.pi
+		actor.wanderTo = home + Vector3.new(math.cos(angle) * 90, 0, math.sin(angle) * 90)
+		actor.wanderUntil = now + hold.wander
+	end
+	if actor.wanderUntil and now < actor.wanderUntil and actor.wanderTo and not (actor.attacker and now < actor.attackerUntil) then
+		humanoid:MoveTo(actor.wanderTo :: Vector3)
+		return
+	end
+
 	-- Too far from home: it goes back and heals (and forgets the fight).
 	if Rules.shouldReturn(flat(position, home), enemy.leash) then
 		actor.returning = true
@@ -481,7 +503,10 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		local best = enemy.aggro
 		for _, view in players do
 			local d = flat(view.position, position)
-			if d <= best then
+			local uid = view.player.UserId
+			local spared = (actor.spare and (actor.spare[uid] or 0) > now)
+				or (hold ~= nil and actor.hold ~= nil and hold.userId == uid and flat(view.position, hold.center) <= hold.radius)
+			if d <= best and not spared then
 				target, best = view, d
 			end
 		end
@@ -749,6 +774,56 @@ local function planWorld()
 		lairCount += 1
 	end
 	log:info("wildborn_planned", { haunts = #homes - lairCount, lairs = lairCount })
+end
+
+-- ─── Captives (Services/DownedService) ─────────────────────────────────────
+
+-- The Wildborn behind this model and where it lives, or nil.
+function WildbornService.captorOf(_self: any, model: Model?): { center: Vector3, name: string, boss: boolean, home: string }?
+	local actor = model and byModel[model]
+	if not actor or actor.humanoid.Health <= 0 then
+		return nil
+	end
+	local home = actor.home
+	local center = home.center or groundAt(home.x, home.z)
+	if not center then
+		return nil
+	end
+	return { center = center, name = actor.enemy.name, boss = home.boss, home = home.id }
+end
+
+-- The nearest living Wildborn within `reach` of `at` (admin `downme capture`), or nil.
+function WildbornService.nearestCaptor(_self: any, at: Vector3, reach: number): Model?
+	local best: Model?, bestD = nil, reach
+	for _, actor in alive do
+		local d = flat(actor.root.Position, at)
+		if actor.humanoid.Health > 0 and d <= bestD then
+			best, bestD = actor.model, d
+		end
+	end
+	return best
+end
+
+-- Hold a captive: it leaves them be inside `radius` of `center` for `seconds`, then wanders off for
+-- `wander` seconds. Returns false if the captor is gone.
+function WildbornService.hold(_self: any, model: Model, userId: number, center: Vector3, radius: number, seconds: number, wander: number): boolean
+	local actor = byModel[model]
+	if not actor or actor.humanoid.Health <= 0 then
+		return false
+	end
+	actor.hold = { userId = userId, center = center, radius = radius, untilClock = os.clock() + seconds, wander = wander }
+	actor.attacker = nil
+	actor.target = nil
+	actor.returning = false
+	actor.wanderUntil = nil
+	return true
+end
+
+-- Whether this captor still lives and still holds this person.
+function WildbornService.holding(_self: any, model: Model, userId: number): (boolean, boolean)
+	local actor = byModel[model]
+	local living = actor ~= nil and actor.humanoid.Health > 0 and model.Parent ~= nil
+	return living, living and actor.hold ~= nil and (actor.hold :: any).userId == userId
 end
 
 -- Boss lairs, and whether their boss is beaten on this server (Services/RumorService).

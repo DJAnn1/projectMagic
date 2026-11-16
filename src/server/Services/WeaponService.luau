@@ -472,8 +472,8 @@ end
 local function onIntent(player: Player, op: string, aim: Vector3?)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not character or not humanoid or humanoid.Health <= 0 then
-		return
+	if not character or not humanoid or humanoid.Health <= 0 or humanoid:GetAttribute("Downed") then
+		return -- down (Services/DownedService): no swinging from the ground
 	end
 	local s = stateOf(player)
 	if op == "cancel" then

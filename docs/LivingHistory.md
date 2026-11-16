@@ -2,7 +2,7 @@
 
 The design for `docs/Prompts-LivingHistory.md`: Dwarf Fortress, Caves of Qud and Kenshi-style engagement, built mostly by connecting systems that already exist. Stage 0 (this audit and design) written 2026-11-14. Nothing is built yet.
 
-**Status:** stage 0 done. Owner answered §11 2026-11-14: yes to all (§5's model, the purse instead of bandits, every first-person Journal line quiet, monuments, a free healer carry). **Stage 1 built 2026-11-14, not yet run** (see "Stage 1: built" at the end).
+**Status:** stage 0 done. Owner answered §11 2026-11-14: yes to all (§5's model, the purse instead of bandits, every first-person Journal line quiet, monuments, a free healer carry). **Stage 1 built 2026-11-14, not yet run** (see "Stage 1: built" at the end). **Stage 3 built 2026-11-15, not yet run** (see "Stage 3: built").
 
 ---
 
@@ -332,3 +332,39 @@ Stage 1 (the Chronicle) is the foundation the others read. Then 3 (losing), sinc
 6. Run `legends`, then rejoin a new server: `chronicle_ready legends=N` and the legend is there as "from before this server".
 7. A real deed: `titan start`, fight it, `titan win`. Or relieve a drought with water magic.
 8. Check a dream or omen no longer toasts.
+
+---
+
+## Stage 3: built (2026-11-15, not yet run)
+
+Built on the owner's "go stage 3". Scars (the `scar` mark kind) are **not** in this build: Magic Marks are keyed by domain, so a scar is its own small piece (3b).
+
+**Code:**
+- `Server/Downed/DownedRules` (pure: `choose`, `deep`, `purse`, `returns`, `ignored`), `Downed/Data/DownedTuning`, `Downed/Data/DownedLines` (people's lines in Barks shape + first-person Journal lines).
+- `Services/DownedService`: sets `Damage.downer`; the carry, wake and capture flows; purses; greet hook (carrier, purse return), rumour hook (who kept your purse), `NpcTalked` (thanks, purse return).
+- `Cast/Damage`: new `Damage.downer` hook, after the interceptor, in `apply` and `internal`. Another player's blow is never taken over.
+- Status `downed` (walk 0, no casting, not harmful so nothing cleanses it), in `StatusEffects` and `StatusInfo`.
+- Creatures, Wildborn and NPC fighters skip players for whom `DownedRules.ignored` is true (`Downed`, or `DownedGraceUntil` 8 s after getting up). Weapons and the spellblade do nothing while down. Shared-event enemies and Titans still swing at a downed player, but `HealthFloor` 1 stops every hit.
+- `WildbornService`: `captorOf`, `nearestCaptor`, `hold`, `holding`; an actor holding a captive ignores them inside its ring, fights them outside it, and when the hold ends wanders 90 studs off for a minute.
+- Remote `Downed` ("down" | "fade" | "wake"), client `Controllers/DownedController` (lying via PlatformStand every frame while `Downed`, dim, black fade). Journal glyph ↓ for kind `downed`.
+
+**Defaults Claude chose (said to the owner):**
+- Your own spells and overdraw down you rather than kill you; only another player's blow kills.
+- You can pick up your own purse (a prompt); nobody else can, apart from townspeople. Unfound purses go after 20 minutes.
+- Outcome memory (last outcome, capture gap, last purse) is per server session, not saved.
+- The carrier doesn't walk you over: the fade covers the trip. The healer is the town's healer, else herbalist, else you wake at the town centre.
+- An NPC guard who downs you can't be your carrier while still fighting, but could carry you afterwards.
+
+**Flag** `downed_enabled`. **Admin** (Spells): `downme [auto|carry|wake|capture|spawn]`, `purse [list|drop|clear] [amount]`, `downed [status|reset]`. **Log:** `player_downed`, `downed_outcome`, `downed_greeted`, `downed_thanked`, `purse_dropped`, `purse_recovered`, `purse_found`, `purse_returned`, `purse_kept`, `purse_lost`, `capture_escaped`, `downed_failed`.
+
+**Expected boot line:** `specs 1138/1139` (7 new in `Tests/Downed.spec`, if stage 1's 1131/1132 holds; the failure the known "Standing room").
+
+**Test:**
+1. `coins me 200`, stand in Glenhold near people in the day, `downed` (shows a carrier), then `downme`. You lie down and the screen greys; about 5 s later it fades to black and you wake beside the healer, who names your carrier. Quiet Journal line, no toast. `purse list`: a purse where you fell.
+2. Wait 30–120 s near the purse: someone picks it up ("Someone's dropped a purse."). Walk up to them or talk to them: either they give it back (`purse_returned`), or ask someone else in town for news (`purse_kept`).
+3. Talk to your carrier: thanks (`downed_thanked`).
+4. `downme` again: not carry this time (no repeats), so you lie ~20 s and get up where you are (`wake`).
+5. Walk into the wilds, `downme wake`; let a creature beat you for real, and check it walks off and doesn't bite you while you're down or just after.
+6. `wildborn goto <theme>` (or 260+ studs from a town near a haunt), `downed reset`, then let a Wildborn beat you (or `downme capture`). Fade, wake among its stones; it leaves you alone inside the ring. Step out while it watches (it fights), or wait 90 s (it wanders off). `capture_escaped how=`.
+7. With 2 players: one beats the other. That's a normal death.
+8. Inside a Rift: a normal death.
