@@ -195,7 +195,7 @@ local function whereOf(at: Vector3, town: any?, distance: number): string
 	if not town then
 		return "out in the wilds"
 	end
-	if distance <= town.radius * 1.1 then
+	if distance <= town.radius * 1.3 then -- the same edge as a purse a passer-by may find
 		return "in " .. townName(town)
 	end
 	return string.format("out %s of %s", OmenRules.bearing(town.x, town.z, at.X, at.Z), townName(town))
@@ -486,8 +486,14 @@ local function runCapture(player: Player, down: Down)
 	end
 	local angle = rngFor("lair"):NextNumber() * 2 * math.pi
 	local spot = groundAt(center.X + math.cos(angle) * 6, center.Z + math.sin(angle) * 6, center.Y)
+	if not wildborn:hold(captor, player.UserId, center, T.holdRadius, T.holdSeconds + 2, T.wanderSeconds) then
+		-- Its captor is gone (killed, or its haunt emptied): nobody drags them anywhere.
+		log:info("capture_lost", { userId = player.UserId })
+		release(player, down, T.wakeHealth.wake)
+		journalLine(player, "wake", { where = down.where })
+		return
+	end
 	moveTo(player, spot)
-	wildborn:hold(captor, player.UserId, center, T.holdRadius, T.holdSeconds + 2, T.wanderSeconds)
 	lastCapture[player.UserId] = os.clock()
 	task.wait(0.8)
 	if not stillDown(player, down) then

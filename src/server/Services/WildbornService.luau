@@ -120,13 +120,15 @@ local function flat(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
-local function livingPlayers(): { View }
+-- Everyone alive. `present`: downed players count too (a haunt stays awake around someone lying
+-- in it, or a captive would lose their captor); fights and moves leave them out (Services/DownedService).
+local function livingPlayers(present: boolean?): { View }
 	local out: { View } = {}
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and not DownedRules.ignored(humanoid) then
+		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and (present or not DownedRules.ignored(humanoid)) then
 			table.insert(out, { player = player, humanoid = humanoid, root = root, position = root.Position })
 		end
 	end
@@ -308,7 +310,7 @@ local function regularAlive(): number
 end
 
 local function wakeTick()
-	local players = livingPlayers()
+	local players = livingPlayers(true)
 	local now = os.clock()
 	local room = T.maxAlive - regularAlive()
 	for i = #homes, 1, -1 do
