@@ -15,8 +15,11 @@
 	           band, raised when a player comes near). Kill them all: it's retaken, repairs start.
 	           Unattended it frees itself on its seeded retake day. A new server knows which towns are
 	           already fallen from the last lookBack days of plans (AgendaRules.fallen).
-	RAID       A player near at night: a building on the town's edge catches fire (FireSim) and someone
-	           shouts who did it. Unattended: only news.
+	RAID       A player near: the raiding town's real fighters come in at the edge facing their own town
+	           and make for a building, the town's guards and hunters meet them (Services/NpcFightService,
+	           docs/NpcFights.md). One reaching it sets it alight: "burned"; all beaten or run:
+	           "driven_off". Nobody free to come (or npc_fights_enabled off): at night a building on the
+	           edge simply catches fire, as before. Unattended: only news.
 	ALLIANCE, TRADE   news only (stage 4b may make them show).
 	NEWS       Ask anyone for rumours: the nearest recent outcome within newsReach you haven't heard,
 	           with a direction (NPCService rumour hook), and a quiet Journal line.
@@ -53,6 +56,7 @@ local AgendaService = {
 		"AmbientLifeService",
 		"JournalService",
 		"NPCService",
+		"NpcFightService",
 		"TownRepairService",
 		"WildbornService",
 		"WorldService",
@@ -78,6 +82,7 @@ local npcs: any = nil
 local ambient: any = nil
 local journal: any = nil
 local repair: any = nil
+local fights: any = nil
 local wildborn: any = nil
 local world: any = nil
 local worldService: any = nil
@@ -365,12 +370,14 @@ local function edgePoint(town: any, theme: string?): Vector3
 	return Vector3.new(x, world:surfaceHeight(x, z), z)
 end
 
-local function edgeBuildingPart(town: any): BasePart?
+-- The building farthest out (toward `toward`, when given: the side raiders come in on).
+local function edgeBuildingPart(town: any, toward: Vector3?): BasePart?
 	local centre = Vector3.new(town.x, 0, town.z)
-	local best: Model?, bestD = nil, -1
+	local best: Model?, bestD = nil, -math.huge
 	for _, model in CollectionService:GetTagged("Structure") do
 		if model:IsA("Model") and model:GetAttribute("SettlementId") == town.id then
-			local d = flat(model:GetPivot().Position, centre)
+			local offset = model:GetPivot().Position - centre
+			local d = if toward then Vector3.new(offset.X, 0, offset.Z):Dot(toward) else flat(model:GetPivot().Position, centre)
 			if d > bestD then
 				best, bestD = model, d
 			end
@@ -416,6 +423,31 @@ local function start(agenda: Rules.Agenda)
 			fall(town, agenda.id, agenda.theme or "fire", agenda.retake or (agenda.day + T.retakeDays[2]), false)
 		end
 	elseif agenda.kind == "raid" then
+		local other = townById(agenda.other)
+		if live and other then
+			-- They come in on the side facing their own town, past the edge.
+			local dir = Vector3.new(other.x - town.x, 0, other.z - town.z)
+			dir = if dir.Magnitude > 1 then dir.Unit else Vector3.new(1, 0, 0)
+			local reach = town.radius + T.edge * 0.5
+			local x, z = town.x + dir.X * reach, town.z + dir.Z * reach
+			local from = Vector3.new(x, world:surfaceHeight(x, z), z)
+			local coming = fights:raid({
+				id = agenda.id,
+				town = town,
+				other = other,
+				from = from,
+				target = edgeBuildingPart(town, dir),
+				onDone = function(outcome: string)
+					npcs:setDanger(town.id, "raid:" .. agenda.id, "raid", nil)
+					resolve(agenda, outcome, true)
+				end,
+			})
+			if coming then
+				npcs:setDanger(town.id, "raid:" .. agenda.id, "raid", 0.4) -- people get indoors
+				shout(town, from, "shout_raid_coming", { other = nameOf(agenda.other) })
+				return
+			end
+		end
 		local hour = WorldClock.hour()
 		if live and (hour >= 20 or hour < 5) then
 			local part = edgeBuildingPart(town)
@@ -629,7 +661,7 @@ local function registerAdmin(admin: any)
 	admin:Register({
 		name = "agendanow",
 		category = "World",
-		description = "Start an agenda at the nearest town right now, live if you're within reach: siege (Wildborn march on it), raid (a fire at its edge, at night only), alliance, trade",
+		description = "Start an agenda at the nearest town right now, live if you're within reach: siege (Wildborn march on it), raid (the nearest town's fighters come to burn it), alliance, trade",
 		args = { { name = "kind", type = "enum", options = { "siege", "raid", "alliance", "trade" } } },
 		handler = function(ctx: any, a: any)
 			local town = nearestTown(ctx.player)
@@ -643,10 +675,11 @@ local function registerAdmin(admin: any)
 				theme = haunt.theme
 			end
 			local other: string? = nil
+			local otherD = math.huge
 			for _, t in npcs:towns() do
-				if t.id ~= town.id then
-					other = t.id
-					break
+				local d = (t.x - town.x) ^ 2 + (t.z - town.z) ^ 2
+				if t.id ~= town.id and d < otherD then
+					other, otherD = t.id, d
 				end
 			end
 			local now = WorldClock.now()
@@ -657,7 +690,10 @@ local function registerAdmin(admin: any)
 				retake = math.floor(now) + T.retakeDays[1],
 			}
 			start(agenda)
-			return string.format("%s at %s (%s)", a.kind, nameOf(town.id), if sieges[agenda.id] then "live: Wildborn coming" else "resolved: " .. (overrides[agenda.id] or agenda.outcome))
+			local state = if sieges[agenda.id] then "live: Wildborn coming"
+				elseif fights:raidRunning(agenda.id) then "live: raiders from " .. nameOf(agenda.other) .. " coming"
+				else "resolved: " .. (overrides[agenda.id] or agenda.outcome)
+			return string.format("%s at %s (%s)", a.kind, nameOf(town.id), state)
 		end,
 	})
 	admin:Register({
@@ -701,6 +737,7 @@ function AgendaService.init(_self: any, ctx: any)
 	ambient = ctx.get("AmbientLifeService")
 	journal = ctx.get("JournalService")
 	repair = ctx.get("TownRepairService")
+	fights = ctx.get("NpcFightService")
 	wildborn = ctx.get("WildbornService")
 	world = ctx.get("WorldStateService")
 	worldService = ctx.get("WorldService")

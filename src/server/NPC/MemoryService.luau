@@ -84,6 +84,11 @@ MemoryService.KINDS = {
 	-- Services/ChronicleService: they did something the town still talks about (valence by deed;
 	-- note = "<kind>|<what>" so a greeting can say which).
 	legend_of = { valence = 0.4, gossip = true },
+	-- NPCs fighting each other (Services/NpcFightService, docs/NpcFights.md).
+	brawled_with = { valence = -0.5, gossip = true }, -- we came to blows
+	saw_brawl = { valence = -0.2, gossip = true }, -- they started a brawl (note: with whom)
+	broke_up_fight = { valence = 0.1, gossip = false }, -- the guard who pulled us apart
+	raided_us = { valence = -0.8, gossip = true }, -- they came over from their town to burn ours (note: which town)
 } :: { [string]: { valence: number, gossip: boolean } }
 
 local function halfLife(npc: any, valence: number): number

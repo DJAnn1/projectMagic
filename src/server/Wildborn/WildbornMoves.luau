@@ -40,7 +40,8 @@ local Data = require(script.Parent.Data.Wildborn)
 
 local T = Data.tuning
 
-export type View = { player: Player, humanoid: Humanoid, root: BasePart, position: Vector3 }
+-- Someone a move can reach: a player (`player` set) or an NPC's body (no player; docs/NpcFights.md).
+export type View = { player: Player?, model: Model, humanoid: Humanoid, root: BasePart, position: Vector3 }
 export type Actor = {
 	enemy: Data.Enemy,
 	model: Model,
@@ -72,12 +73,21 @@ local WildbornMoves = {}
 local playersNear: () -> { View } = function()
 	return {}
 end
+-- Everyone a move can hurt: the players and the NPC bodies near (Services/WildbornService).
+-- Cues go to players only.
+local targetsNear: () -> { View } = function()
+	return playersNear()
+end
 local projectiles: { Projectile } = {}
 local zones: { Zone } = {}
 local projectileId = 0
 
 function WildbornMoves.setPlayers(fn: () -> { View })
 	playersNear = fn
+end
+
+function WildbornMoves.setTargets(fn: () -> { View })
+	targetsNear = fn
 end
 
 local function alive(actor: Actor): boolean
@@ -101,14 +111,18 @@ local function cue(actor: Actor, kind: string, at: Vector3, payload: { [string]:
 	payload.secondary = secondary
 	payload.scale = actor.enemy.scale
 	for _, view in playersNear() do
-		if (view.position - at).Magnitude <= T.cueRange then
-			Net.fire("WildbornCue", view.player, payload)
+		if view.player and (view.position - at).Magnitude <= T.cueRange then
+			Net.fire("WildbornCue", view.player :: Player, payload)
 		end
 	end
 end
 
 local function pushPlayer(view: View, velocity: Vector3)
-	Net.fire("WorldEffect", view.player, { kind = "knockback", velocity = velocity })
+	if view.player then
+		Net.fire("WorldEffect", view.player :: Player, { kind = "knockback", velocity = velocity })
+	elseif not view.root.Anchored then
+		view.root.AssemblyLinearVelocity += velocity -- an NPC's body: the server moves it
+	end
 end
 
 -- One hit on one player: the boss's hitGap, then the normal pipeline.
@@ -145,9 +159,9 @@ local function withinOf(views: { View }, at: Vector3, radius: number): { View }
 	return out
 end
 
--- Players near a point right now (live positions: the provider reads them fresh).
+-- Players and NPC bodies near a point right now (live positions: the providers read them fresh).
 local function within(at: Vector3, radius: number): { View }
-	return withinOf(playersNear(), at, radius)
+	return withinOf(targetsNear(), at, radius)
 end
 
 local function face(actor: Actor, at: Vector3)
@@ -206,7 +220,7 @@ kinds.bolt = function(actor, move, target)
 			table.insert(points, current.position)
 			hurt(actor, current, move.damage, move, actor.root.Position)
 			local nextView, best = nil, move.chainRange or 30
-			for _, view in playersNear() do
+			for _, view in targetsNear() do
 				local d = (view.position - current.position).Magnitude
 				if not hit[view.humanoid] and d < best then
 					nextView, best = view, d
@@ -444,10 +458,7 @@ kinds.tether = function(actor, move, target)
 	local victims: { View } = if move.all then within(actor.root.Position, move.range or 30) else { target }
 	local models: { Model } = {}
 	for _, view in victims do
-		local character = view.player.Character
-		if character then
-			table.insert(models, character)
-		end
+		table.insert(models, view.model)
 	end
 	cue(actor, "tether", actor.root.Position, { from = actor.model, to = models, duration = move.ticks * move.interval, style = move.style })
 	for tick = 1, move.ticks do
@@ -500,10 +511,7 @@ kinds.pull = function(actor, move, _target)
 		if toward.Magnitude > 1 then
 			pushPlayer(view, toward.Unit * (move.speed or 70))
 		end
-		local character = view.player.Character
-		if character then
-			table.insert(models, character)
-		end
+		table.insert(models, view.model)
 	end
 	cue(actor, "tether", center, { from = actor.model, to = models, duration = 0.4, style = move.style })
 	local slam = { damage = move.damage, knockback = move.knockback }
@@ -530,10 +538,7 @@ kinds.stasis = function(actor, move, target)
 	local models: { Model } = {}
 	for _, view in caught do
 		StatusEffects.apply(view.humanoid, "stasis", { duration = move.duration })
-		local character = view.player.Character
-		if character then
-			table.insert(models, character)
-		end
+		table.insert(models, view.model)
 	end
 	cue(actor, "stasis", center, { at = center, radius = move.radius, duration = move.duration, caught = models, style = move.style })
 	if move.pull then
@@ -690,7 +695,7 @@ function WildbornMoves.start()
 			return
 		end
 		local now = os.clock()
-		local views = playersNear() -- one fresh look at everyone per frame
+		local views = targetsNear() -- one fresh look at everyone per frame
 		stepProjectiles(views, dt, now)
 		stepZones(views, now)
 	end)

@@ -45,6 +45,8 @@ local Moves = require(Server.Wildborn.WildbornMoves)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
 local DownedRules = require(Server.Downed.DownedRules)
+local Damage = require(Server.Magic.Cast.Damage)
+local NPCCombat = require(Server.NPC.NPCCombat)
 
 local T = Data.tuning
 
@@ -79,6 +81,9 @@ type Actor = Moves.Actor & {
 	branch: { [number]: string },
 	attacker: number?,
 	attackerUntil: number,
+	-- Something that isn't a player hurt it lately (an NPC guard, a raider; docs/NpcFights.md).
+	foe: Model?,
+	foeUntil: number?,
 	target: View?,
 	readyAt: { [number]: number },
 	used: { [number]: boolean },
@@ -108,6 +113,7 @@ local homes: { Home } = {}
 local lairByTheme: { [string]: Home } = {}
 local alive: { Actor } = {}
 local byModel: { [Model]: Actor } = {}
+local npcs: any = nil -- NPCService: NPC bodies a move can reach (docs/NpcFights.md)
 local folder: Folder? = nil
 local spawnCounter = 0
 local tempCount = 0
@@ -131,10 +137,59 @@ local function livingPlayers(present: boolean?): { View }
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") and (present or not DownedRules.ignored(humanoid)) then
-			table.insert(out, { player = player, humanoid = humanoid, root = root, position = root.Position })
+			table.insert(out, { player = player, model = character, humanoid = humanoid, root = root, position = root.Position })
 		end
 	end
 	return out
+end
+
+-- NPC bodies a move can reach (docs/NpcFights.md): every full rig that isn't knocked out. Read
+-- at most every 0.2 s; positions are refreshed on each read.
+local npcViewCache: { View } = {}
+local npcViewAt = -math.huge
+local function npcViews(): { View }
+	local clock = os.clock()
+	if clock - npcViewAt >= 0.2 then
+		npcViewAt = clock
+		table.clear(npcViewCache)
+		if npcs and FeatureFlags.get("npc_fights_enabled") == true then
+			for _, npc in npcs:all() do
+				local rig = npc.rig
+				if rig and npc.tier == 0 and not npc.knockedOut and rig.model.Parent and rig.humanoid.Health > 0 then
+					table.insert(npcViewCache, { model = rig.model, humanoid = rig.humanoid, root = rig.root, position = rig.root.Position })
+				end
+			end
+		end
+	else
+		for _, view in npcViewCache do
+			view.position = view.root.Position
+		end
+	end
+	return npcViewCache
+end
+
+-- Everyone a move can hurt: players, then NPC bodies.
+local function targets(): { View }
+	local out = livingPlayers()
+	for _, view in npcViews() do
+		if view.humanoid.Health > 0 then
+			table.insert(out, view)
+		end
+	end
+	return out
+end
+
+-- The view for a body that isn't a player, while it's alive.
+local function bodyView(model: Model?): View?
+	if not model or not model.Parent then
+		return nil
+	end
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+		return { model = model, humanoid = humanoid, root = root, position = root.Position }
+	end
+	return nil
 end
 
 local terrainParams = RaycastParams.new()
@@ -436,7 +491,7 @@ local function viewOf(players: { View }, userId: number?): View?
 		return nil
 	end
 	for _, view in players do
-		if view.player.UserId == userId then
+		if view.player and (view.player :: Player).UserId == userId then
 			return view
 		end
 	end
@@ -507,14 +562,28 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		actor.attacker = nil
 	end
 	local target = viewOf(players, actor.attacker)
+	if not target and actor.foe and now < (actor.foeUntil or 0) then
+		target = bodyView(actor.foe) -- an NPC that hurt it: it turns on them
+	end
 	if not target then
 		local best = enemy.aggro
 		for _, view in players do
 			local d = flat(view.position, position)
-			local uid = view.player.UserId
+			local uid = if view.player then (view.player :: Player).UserId else 0
 			local spared = (actor.spare and (actor.spare[uid] or 0) > now)
 				or (hold ~= nil and actor.hold ~= nil and hold.userId == uid and flat(view.position, hold.center) <= hold.radius)
 			if d <= best and not spared then
+				target, best = view, d
+			end
+		end
+	end
+	if not target and FeatureFlags.get("npc_fights_enabled") == true then
+		-- No player near: anyone standing to fight it (guards, hunters, raiders) is fair game.
+		local best = enemy.aggro
+		for _, view in npcViews() do
+			local npc = npcs:get(view.model:GetAttribute("NpcId"))
+			local d = flat(view.position, position)
+			if npc and d <= best and NPCCombat.fighting(npc) then
 				target, best = view, d
 			end
 		end
@@ -610,6 +679,25 @@ local function onDamaged(payload: any)
 	end
 	actor.attacker = source
 	actor.attackerUntil = os.clock() + 12
+	actor.foe = nil -- a player's blow takes its mind off whoever else
+end
+
+-- Hurt by something that isn't a player (Cast/Damage.listenAttacked): it turns on them.
+local function onAttackedBy(humanoid: Humanoid, attacker: Model)
+	local model = humanoid.Parent
+	local actor = model and byModel[model :: Model]
+	if not actor or attacker == actor.model or Players:GetPlayerFromCharacter(attacker) then
+		return
+	end
+	if byModel[attacker] then
+		return -- one of its own kind, caught in a splash
+	end
+	local now = os.clock()
+	if actor.attacker and now < actor.attackerUntil then
+		return -- busy with a player who hurt it
+	end
+	actor.foe = attacker
+	actor.foeUntil = now + 12
 end
 
 -- ─── Rumours ────────────────────────────────────────────────────────────────
@@ -1033,6 +1121,9 @@ function WildbornService.init(_self: any, ctx: any)
 	playerData = ctx.get("PlayerDataService")
 	progression = ctx.get("ProgressionService")
 	Moves.setPlayers(livingPlayers)
+	Moves.setTargets(targets)
+	npcs = ctx.get("NPCService")
+	Damage.listenAttacked(onAttackedBy)
 	bus = ctx.bus
 	ctx.bus:subscribe(Topics.TargetDamaged, onDamaged)
 	ctx.get("NPCService"):setRumorHook(rumor)

@@ -3,8 +3,9 @@
 	NPCCombat: what an NPC does when someone hurts it (or someone near it). Driven by NPCService
 	from TargetDamaged / MagicDamage; numbers in Magic/Data/CombatTuning.aggro.
 
-	AGGRO    npc.combat.threat[subject] (subject = "u:<userId>", or anything registered with
-	         setExternalTarget, such as a loose spell): + threatPerDamage per point of
+	AGGRO    npc.combat.threat[subject] (subject = "u:<userId>", "n:<npcId>" for another NPC
+	         (docs/NpcFights.md), or anything registered with setExternalTarget, such as a loose
+	         spell; subjectOfModel names any body that hit someone): + threatPerDamage per point of
 	         damage taken, + witnessThreat for guards and hunters who see a neighbour attacked;
 	         decays decayPerSecond. The target is the highest threat whose character is alive.
 	STANCE   decided when the fight starts (and re-decided if health drops below a third):
@@ -64,6 +65,8 @@ export type Combat = {
 	casts: number,
 	jogging: boolean,
 	watchedSeq: number, -- the target's last action-state seq we reacted to
+	maxPower: number?, -- a brawl: bolts no stronger than this (challenge opts)
+	reason: string?, -- why this fight started, when it isn't plain self-defence ("brawl", "raid")
 }
 
 local NPCCombat = {}
@@ -72,6 +75,11 @@ local worldSeed = 0
 local runner: any = nil
 -- Subjects that aren't players: subject -> who and where they are right now, or nil once gone.
 local externalTargets: { [string]: (() -> (Model?, BasePart?))? } = {}
+-- "n:<npcId>" -> that NPC's body (set by NPCService: alive, has a rig, not knocked out).
+local npcResolver: ((string) -> (Model?, BasePart?))? = nil
+-- Bodies that aren't players or NPCs (Wildborn, creatures, elementals) named on first sight.
+local modelSubjects: { [Model]: string } = setmetatable({}, { __mode = "k" }) :: any
+local modelCount = 0
 
 function NPCCombat.init(seed: number, effectRunner: any)
 	worldSeed = seed
@@ -82,6 +90,63 @@ end
 -- and anyone engaged with it stops on their next step.
 function NPCCombat.setExternalTarget(subject: string, resolve: (() -> (Model?, BasePart?))?)
 	externalTargets[subject] = resolve
+end
+
+-- NPCService: how an "n:<npcId>" subject is found.
+function NPCCombat.setNpcResolver(fn: (string) -> (Model?, BasePart?))
+	npcResolver = fn
+end
+
+--[[
+	The subject for whatever body hit someone: a player's character -> "u:<userId>", an NPC's rig
+	-> "n:<npcId>", anything else with a living Humanoid -> "m:<n>", registered as an external
+	target that drops itself once the body is gone. nil for something with no Humanoid.
+]]
+function NPCCombat.subjectOfModel(model: Model): string?
+	local player = Players:GetPlayerFromCharacter(model)
+	if player then
+		return "u:" .. player.UserId
+	end
+	local npcId = model:GetAttribute("NpcId")
+	if npcId ~= nil then
+		return "n:" .. tostring(npcId)
+	end
+	if not model:FindFirstChildOfClass("Humanoid") then
+		return nil
+	end
+	local subject = modelSubjects[model]
+	if not subject then
+		modelCount += 1
+		subject = "m:" .. modelCount
+		modelSubjects[model] = subject
+	end
+	local name = subject :: string
+	if not externalTargets[name] then
+		externalTargets[name] = function(): (Model?, BasePart?)
+			local humanoid = model:FindFirstChildOfClass("Humanoid")
+			local root = model:FindFirstChild("HumanoidRootPart")
+			if model.Parent and humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+				return model, root
+			end
+			if not model.Parent then
+				externalTargets[name] = nil -- gone for good: nobody needs to look it up again
+			end
+			return nil, nil
+		end
+	end
+	return name
+end
+
+-- Engaged and standing its ground (not running).
+function NPCCombat.fighting(npc: any): boolean
+	local c: Combat? = npc.combat
+	return c ~= nil and c.stance == "fight"
+end
+
+-- Why the fight started (challenge opts), or nil for plain self-defence.
+function NPCCombat.reason(npc: any): string?
+	local c: Combat? = npc.combat
+	return if c then c.reason else nil
 end
 
 -- ─── Decisions ──────────────────────────────────────────────────────────────
@@ -214,16 +279,21 @@ function NPCCombat.alarm(npc: any, subject: string)
 end
 
 --[[
-	A fight that isn't about courage: a duel the NPC agreed to, or a quest hostile sent for the
-	player. Fights if it has an attack spell (else flees), and won't break off for decay alone
-	while the subject is near.
+	A fight that isn't about courage: a duel the NPC agreed to, a quest hostile sent for the
+	player, a brawl or a raid (Services/NpcFightService). Fights if it has an attack spell (else
+	flees), and won't break off for decay alone while the subject is near. opts.maxPower caps its
+	bolts (a brawl isn't meant to kill); opts.reason says why.
 ]]
-function NPCCombat.challenge(npc: any, subject: string)
+function NPCCombat.challenge(npc: any, subject: string, opts: { maxPower: number?, reason: string? }?)
 	local c = combatOf(npc)
 	c.lastHit = os.clock()
 	c.threat[subject] = math.max(c.threat[subject] or 0, A.witnessThreat * 4)
 	c.stance = if NPCCombat.attackRecipe(npc) then "fight" else "flee"
 	c.nextCast = os.clock() + 1.2
+	if opts then
+		c.maxPower = opts.maxPower
+		c.reason = opts.reason
+	end
 end
 
 function NPCCombat.engaged(npc: any): boolean
@@ -235,7 +305,15 @@ local function characterOf(subject: string): (Model?, BasePart?)
 	if external then
 		return external()
 	end
-	if string.sub(subject, 1, 2) ~= "u:" then
+	local prefix = string.sub(subject, 1, 2)
+	if prefix == "n:" then
+		local resolver = npcResolver
+		if resolver then
+			return resolver(string.sub(subject, 3))
+		end
+		return nil, nil
+	end
+	if prefix ~= "u:" then
 		return nil, nil
 	end
 	local player = Players:GetPlayerByUserId(tonumber(string.sub(subject, 3)) or 0)
@@ -408,6 +486,11 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 	local recipe = NPCCombat.attackRecipe(npc)
 	if not rig or not recipe or not Delivery.capacity() then
 		return
+	end
+	local cap = (npc.combat :: Combat).maxPower
+	if cap and recipe.power > cap then
+		recipe = table.clone(recipe) -- a brawl: the same spell, held back
+		recipe.power = math.max(1, math.floor(cap))
 	end
 	local stats = MagicCore.computeStats(recipe, npc.magic.caster, nil)
 	if not stats then

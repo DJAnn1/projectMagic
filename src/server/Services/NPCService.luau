@@ -21,7 +21,10 @@
 	REACTIONS (SignalBus)
 	    MagicWitnessed     saw_magic / saw_harmful_magic / saw_mythic_magic memories; harmful magic
 	                       close by frightens; same-domain mythic magic wakes a hidden mythic gift
-	    MagicDamage        attacked_me + witnesses, reputation loss, a knockout discards the rig
+	    MagicDamage        attacked_me + witnesses, reputation loss, a knockout discards the rig.
+	                       Hit by something that isn't a player (another NPC, a Wildborn, a
+	                       creature): Damage.listenAttacked names it first (NPCCombat.subjectOfModel)
+	                       and the NPC fights or runs from that (docs/NpcFights.md)
 	    WorldEventStarted  danger in overlapping towns (shelter / help); eclipse and starfall wake
 	                       hidden Time / Gravity gifts in anyone awake to see them
 	    PlayerDataLoaded   the player's saved relationships become graph edges
@@ -76,6 +79,7 @@ local Conversation = require(NPC.NPCConversation)
 local NPCCombat = require(NPC.NPCCombat)
 local Combat = require(Server.Magic.Data.CombatTuning)
 local Resistances = require(Server.Magic.Cast.Resistances)
+local Damage = require(Server.Magic.Cast.Damage)
 
 local LOD_INTERVAL = 0.5
 local ENTER_REACH = 6 -- studs from their door, or their bed, that counts as being there
@@ -1004,6 +1008,10 @@ local function onWitnessed(payload: any)
 	end
 end
 
+-- Who last hit each NPC when it wasn't a player: Damage.listenAttacked fires just before the
+-- MagicDamage it causes, on the same hit.
+local lastAttacker: { [Humanoid]: { model: Model, at: number } } = setmetatable({}, { __mode = "k" }) :: any
+
 -- Out cold for six game hours; a dead Humanoid can't be revived, so its rig is discarded.
 local function knockout(npc: any, source: number?)
 	npc.knockedOut = true
@@ -1029,6 +1037,19 @@ local function onDamage(payload: any)
 	local now = WorldClock.now()
 	local town = townById[npc.settlementId]
 	local source: number? = payload.sourceUserId
+	-- Not a player: another NPC, a Wildborn, a creature... (docs/NpcFights.md)
+	local other: string? = nil -- its combat subject ("n:" / "m:")
+	local otherNpc: any = nil
+	if not source then
+		local seen = lastAttacker[humanoid]
+		if seen and os.clock() - seen.at <= 1 and seen.model ~= model then
+			other = NPCCombat.subjectOfModel(seen.model)
+			if other and string.sub(other, 1, 2) == "u:" then
+				other = nil -- a player's hit always carries its source
+			end
+			otherNpc = if other and string.sub(other, 1, 2) == "n:" then byId[string.sub(other, 3)] else nil
+		end
+	end
 	npc.needs.safety = math.max(0, npc.needs.safety - 0.4)
 	npc.threatUntil = now + 1 / 24
 	npc.actionUntil = 0
@@ -1055,17 +1076,42 @@ local function onDamage(payload: any)
 			reputation[town.id] = (reputation[town.id] or 0) + delta
 		end
 		town.dirty = true
+	elseif otherNpc then
+		-- One of us did it: remembered by name, and it sours things between them.
+		MemoryService.add(npc, "attacked_me", otherNpc.id, now, { intensity = math.clamp(payload.amount / 40, 0.3, 1) })
+		RelationshipGraph.adjust(npc.id, otherNpc.id, -0.12, -0.08, 0.1)
+		-- A brawl is NpcFightService's to break up; anything else, the guards come.
+		local brawl = NPCCombat.reason(otherNpc) == "brawl" and NPCCombat.reason(npc) == "brawl"
+		for _, near in town.npcs do
+			if near ~= npc and near ~= otherNpc and not near.knockedOut and (near.position - npc.position).Magnitude < 40 then
+				MemoryService.add(near, "attacked_someone", otherNpc.id, now, { intensity = 0.4 })
+				if not brawl and near.rig and (near.position - npc.position).Magnitude < Combat.aggro.witnessRadius then
+					NPCCombat.onWitness(near, other :: string)
+				end
+			end
+		end
+		town.dirty = true
+	elseif other then
+		-- A beast or a Wildborn: the guards nearby come for it.
+		for _, near in town.npcs do
+			if near ~= npc and near.rig and not near.knockedOut and (near.position - npc.position).Magnitude < Combat.aggro.witnessRadius then
+				NPCCombat.onWitness(near, other)
+			end
+		end
 	end
 	if knockedOut then
 		NPCCombat.disengage(npc)
 		knockout(npc, source)
+		if otherNpc or other then
+			log:info("npc_knocked_out_by", { npc = npc.id, by = if otherNpc then otherNpc.id else other })
+		end
 		return
 	end
 	-- Aggro: fight back or flee (NPC/NPCCombat). Speak only when the fight starts.
 	local fresh = not NPCCombat.engaged(npc)
-	NPCCombat.onAttacked(npc, if source then subjectOf(source) else nil, payload.amount)
+	NPCCombat.onAttacked(npc, if source then subjectOf(source) else other, payload.amount)
 	if fresh and npc.tier == 0 then
-		say(npc, "react_attacked", if source then subjectOf(source) else nil, nil)
+		say(npc, "react_attacked", if source then subjectOf(source) elseif otherNpc then otherNpc.id else nil, nil)
 	end
 end
 
@@ -2588,6 +2634,21 @@ function NPCService.start(_self: any, _ctx: any)
 	worldSeed = worldService:getSeed()
 	epoch = worldService:getEpoch()
 	NPCCombat.init(worldSeed, runner)
+	-- Other NPCs as fight subjects ("n:<id>"), and who hit an NPC when it wasn't a player.
+	NPCCombat.setNpcResolver(function(id: string): (Model?, BasePart?)
+		local npc = byId[id]
+		local rig = npc and not npc.knockedOut and npc.rig
+		if rig and rig.model.Parent and rig.humanoid.Health > 0 then
+			return rig.model, rig.root
+		end
+		return nil, nil
+	end)
+	Damage.listenAttacked(function(humanoid: Humanoid, attacker: Model)
+		local model = humanoid.Parent
+		if model and model:GetAttribute("NpcId") ~= nil then
+			lastAttacker[humanoid] = { model = attacker, at = os.clock() }
+		end
+	end)
 	-- NPCs' innate resistances: their affinities and traits (Cast/Resistances "innate" source).
 	Resistances.setInnateProvider(function(humanoid: Humanoid)
 		local model = humanoid.Parent

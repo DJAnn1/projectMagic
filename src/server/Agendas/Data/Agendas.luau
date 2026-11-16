@@ -22,7 +22,7 @@
 		newsReach       studs: townspeople this far off have heard about it
 		newsKeep        game days news stays news
 	LINES (NPC/Data/Barks shape, AmbientLifeService:lineFor): news_<outcome> asked for rumours
-	({town} {other} {dir}); shout_raid a townsperson as the fire starts; journal_<outcome> first person.
+	({town} {other} {dir}); shout_raid a townsperson as the fire starts; shout_raid_coming as raiders come in; journal_<outcome> first person.
 	No digits. Our own data plus town names.
 ]]
 
@@ -72,6 +72,9 @@ Agendas.lines = {
 	{ cat = "shout_raid", text = "Fire! Raiders from {other}!" },
 	{ cat = "shout_raid", text = "They came from {other}! Get water!" },
 	{ cat = "shout_raid", text = "Raiders! Someone wake the guards!" },
+	{ cat = "shout_raid_coming", text = "Raiders! From {other}! Get the guards!" },
+	{ cat = "shout_raid_coming", text = "There's people coming over the edge. That's {other}'s lot!" },
+	{ cat = "shout_raid_coming", text = "{other}'s here! Inside, everyone!" },
 	{ cat = "shout_siege", text = "Wildborn! Get inside!" },
 	{ cat = "shout_siege", text = "They're coming in from the {dir}! Inside, all of you!" },
 	{ cat = "shout_siege", text = "Guards! Wildborn at the edge of town!" },
