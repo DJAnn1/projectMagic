@@ -151,4 +151,44 @@ return function(admin: any, deps: any)
 			)
 		end,
 	})
+
+	-- sigil <domain> [tier] [size] [property] [verb] [standing]: one drawn sigil in front of you
+	-- (docs/Smoothness.md stage 2), held 6 s then snapped out. Only you see it.
+	admin:Register({
+		name = "sigil",
+		category = "Spells",
+		description = "Draw one domain's sigil in front of you for 6 s (only you see it; nothing is cast)",
+		args = {
+			{ name = "domain", type = "domain" },
+			{ name = "tier", type = "number", min = 0, max = 8, default = 5, hint = "mastery tier index 0..8 (detail)" },
+			{ name = "size", type = "number", min = 2, max = 90, default = 14, hint = "diameter in studs" },
+			{ name = "property", type = "property", optional = true, hint = "adds its category's motif" },
+			{ name = "verb", type = "enum", options = { "generate", "amplify", "reduce", "transfer", "redirect", "transmute", "bind", "sense", "store", "release" }, optional = true },
+			{ name = "standing", type = "boolean", default = false, hint = "upright, facing you (the hand disc)" },
+		},
+		handler = function(ctx, a)
+			local player: Player = ctx.player
+			local root = Util.rootOf(player)
+			if not root then
+				return "no character"
+			end
+			local look = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+			look = if look.Magnitude > 0.05 then look.Unit else Vector3.zAxis
+			local at = root.Position + look * (6 + a.size * 0.6)
+			Net.fire("WorldEffect", player, {
+				kind = "sigil",
+				caster = player.UserId,
+				domain = a.domain,
+				property = a.property,
+				verb = a.verb,
+				tier = a.tier,
+				size = a.size,
+				standing = a.standing,
+				point = Vector3.new(at.X, deps.world:surfaceHeight(at.X, at.Z), at.Z),
+				facing = -look,
+				position = at,
+			})
+			return string.format("%s sigil, tier %d, %d studs%s%s", a.domain, a.tier, a.size, if a.property then ", " .. a.property else "", if a.verb then ", " .. a.verb else "")
+		end,
+	})
 end

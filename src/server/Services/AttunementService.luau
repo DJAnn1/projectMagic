@@ -77,6 +77,7 @@ local function clearBody(character: Model)
 	character:SetAttribute("AttunedForm", nil)
 	character:SetAttribute("AttunedProperty", nil)
 	character:SetAttribute("AttunedKind", nil)
+	character:SetAttribute("AttunedVerb", nil)
 	character:SetAttribute("AttunedPower", nil)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -174,6 +175,7 @@ local function attune(player: Player, slot: number): (boolean, string?)
 	-- What it will do and how strong, for anyone watching it form (Read the cast, Magic/CastTells).
 	local tells = FeatureFlags.get("cast_tells_enabled") == true
 	character:SetAttribute("AttunedKind", if tells then CastTells.kindOf(recipe) else nil)
+	character:SetAttribute("AttunedVerb", recipe.verb) -- how its sigil moves (Client/Fx/Sigils)
 	character:SetAttribute("AttunedPower", if tells then recipe.power else nil)
 	StatusEffects.setWalkMultiplier(humanoid, "attuned", T.attunedWalkMult)
 	ActionState.set(character, "equipping", { domain = domain })

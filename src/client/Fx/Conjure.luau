@@ -39,9 +39,13 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local SpellHand = require(Shared.Magic.SpellHand)
 local CastTells = require(Shared.Magic.CastTells)
 
+local FeatureFlags = require(Shared.Core.FeatureFlags)
+local SigilData = require(Shared.Magic.Data.Sigils)
+
 local DomainFx = require(script.Parent.DomainFx)
 local KenneyTextures = require(script.Parent.KenneyTextures)
 local FxLayers = require(script.Parent.FxLayers)
+local Sigils = require(script.Parent.Sigils)
 
 local Data = SpellHand.data
 local TEX = DomainFx.textures
@@ -55,6 +59,9 @@ export type Opts = {
 	reduced: boolean,
 	kind: string?, -- what it will do (AttunedKind): how it moves
 	power: number?, -- how strong (AttunedPower): how big it forms
+	verb: string?, -- (AttunedVerb) how its sigil turns and breathes (Fx/Sigils)
+	userId: number?, -- the caster, for their sigil's seed (nil for NPC mages)
+	tier: number?, -- the caster's tier when there's no spell hand (NPC mages)
 }
 
 export type Conjuring = {
@@ -268,6 +275,28 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 		rune2 = runeDisc(runeTexture, style.accent, 0.6)
 		table.insert(made, rune2)
 	end
+	-- The drawn sigil (docs/Smoothness.md stage 2) replaces the rune discs when it can be drawn;
+	-- they stay as the fallback (flag off, too many on screen, too far away).
+	local sigil: Sigils.Handle? = nil
+	if FeatureFlags.get("sigils_enabled") ~= false then
+		sigil = Sigils.create({
+			domain = opts.domain,
+			property = opts.property,
+			verb = opts.verb,
+			tier = if hand then hand.tier else (opts.tier or 2),
+			seed = Sigils.seedFor(opts.userId, hand, opts.domain),
+			style = style,
+			reduced = opts.reduced,
+		}, root.CFrame, 0.5, { doubleSided = mode ~= "ground" })
+	end
+	if sigil then
+		setDiscAlpha(rune, 1)
+		if rune2 then
+			setDiscAlpha(rune2, 1)
+		end
+	end
+	-- The sigil's full size; it snaps one step per charge stage toward it.
+	local sigilFull = SpellHand.sizeAt(mode, 2) * scale * (if mode == "ground" then 1.8 else 1.7)
 
 	local groundY: number? = nil
 	local groundAt = -math.huge
@@ -327,7 +356,15 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 			rune.Size = Vector3.new(size * 1.7, 0.02, size * 1.7)
 		end
 		rune.CFrame = discCFrame
-		setDiscAlpha(rune, 0.65 - 0.3 * math.clamp(progress / 2, 0, 1))
+		local s = sigil
+		if s then
+			-- The sigil turns by itself: undo the rune's turn, and snap one size per charge stage.
+			Sigils.place(s, discCFrame * CFrame.Angles(0, -turn * 0.5, 0))
+			local stages = SigilData.size.chargeStages
+			Sigils.target(s, sigilFull * stages[math.clamp(math.floor(progress) + 1, 1, #stages)])
+		else
+			setDiscAlpha(rune, 0.65 - 0.3 * math.clamp(progress / 2, 0, 1))
+		end
 		local r2 = rune2
 		if r2 then
 			r2.Size = rune.Size * 1.35
@@ -389,6 +426,9 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 			return
 		end
 		finished = true
+		if sigil then
+			Sigils.burst(sigil) -- the circle snaps out as the spell leaves
+		end
 		-- A flash where it was, then gone: the cast's own visuals take it from here.
 		local flash = emitter(core, {
 			texture = TEX.core,
@@ -417,6 +457,9 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 			return
 		end
 		finished = true
+		if sigil then
+			Sigils.fade(sigil)
+		end
 		-- It falls apart: everything shrinks and fades, with a puff of the domain's smoke.
 		local puff = emitter(core, {
 			texture = TEX.smoke,

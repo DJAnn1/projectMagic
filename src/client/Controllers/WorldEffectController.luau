@@ -142,6 +142,8 @@ local function handle(effect: { [string]: any })
 			return
 		end
 		SpellFx.spell(effect)
+	elseif kind == "sigil" then
+		SpellFx.previewSigil(effect) -- admin `sigil` (docs/Smoothness.md stage 2)
 	elseif kind == "weapon" then
 		WeaponFx.cue(effect)
 	elseif kind == "dash" then

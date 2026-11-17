@@ -390,6 +390,7 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 				local form = character:GetAttribute("AttunedForm")
 				local kind = character:GetAttribute("AttunedKind")
 				local power = character:GetAttribute("AttunedPower")
+				local verb = character:GetAttribute("AttunedVerb")
 				if typeof(domain) == "string" then
 					glow.conjure = Conjure.begin(character, glow.attachment, {
 						domain = domain,
@@ -400,6 +401,8 @@ function AttuneGlowController.start(_self: any, _ctx: any)
 						reduced = magic.settings:get().reducedEffects == true,
 						kind = if typeof(kind) == "string" then kind else nil,
 						power = if typeof(power) == "number" then power else nil,
+						verb = if typeof(verb) == "string" then verb else nil,
+						userId = glow.player.UserId,
 					})
 				end
 			end

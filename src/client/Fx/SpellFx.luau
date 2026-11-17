@@ -45,6 +45,9 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Registry = require(Shared.Magic.Registry)
 local SpellHand = require(Shared.Magic.SpellHand)
+local FeatureFlags = require(Shared.Core.FeatureFlags)
+local SigilData = require(Shared.Magic.Data.Sigils)
+local Sigils = require(script.Parent.Sigils)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
@@ -510,19 +513,154 @@ end
 
 local castExtras: { [Part]: Part } = {} -- circle anchor -> chest glow anchor
 
+-- ─── Sigils (docs/Smoothness.md stage 2, Fx/Sigils) ──────────────────────────
+
+local SIGIL_MIN_CAST = 0.25 -- seconds: quicker casts (instants, charged releases) draw no cast sigil
+local sigilByAnchor: { [Part]: Sigils.Handle } = {} -- a cast's key anchor -> its sigil (SpellFx.cancel)
+local castSigils: { [string]: { handle: Sigils.Handle, at: number, origin: Vector3 } } = {} -- caster -> their casting sigil
+
+local function sigilsOn(): boolean
+	return FeatureFlags.get("sigils_enabled") ~= false
+end
+
+-- A caster's sigil spec. `caster` is a UserId (nil for NPC mages).
+local function sigilSpec(caster: any, domain: string, property: string?, verb: string?, tierIdx: number?, style: Style): Sigils.Spec
+	local model = if typeof(caster) == "number" then casterModel(caster) else nil
+	local hand = if model then SpellFx.handOf(model) else nil
+	return {
+		domain = domain,
+		property = property,
+		verb = verb,
+		tier = if typeof(tierIdx) == "number" then tierIdx elseif hand then hand.tier else 2,
+		seed = Sigils.seedFor(if typeof(caster) == "number" then caster else nil, hand, domain),
+		style = style,
+		reduced = Theme.settings.reducedEffects == true,
+	}
+end
+
+-- The caster's casting sigil snaps out as the spell goes (launch or resolve). True if one did.
+local function burstCast(caster: any, diameter: number?): boolean
+	if caster == nil then
+		return false
+	end
+	local k = tostring(caster)
+	local entry = castSigils[k]
+	if not entry then
+		return false
+	end
+	castSigils[k] = nil
+	if os.clock() - entry.at > 10 then
+		return false
+	end
+	Sigils.burst(entry.handle, diameter)
+	return true
+end
+
+-- A disc lying on the surface at `position`, its drawing facing along `normal`.
+local function flatOn(position: Vector3, normal: Vector3): CFrame
+	local up = if normal.Magnitude > 0.1 then normal.Unit else Vector3.yAxis
+	local ref = if math.abs(up.Y) < 0.95 then Vector3.yAxis else Vector3.xAxis
+	return CFrame.fromMatrix(position + up * 0.06, ref:Cross(up).Unit, up)
+end
+
+-- The admin command `sigil`: one sigil in front of the admin, held then snapped out.
+function SpellFx.previewSigil(cue: { [string]: any })
+	local domain = if typeof(cue.domain) == "string" then cue.domain else "energy"
+	local property = if typeof(cue.property) == "string" then cue.property else nil
+	local style = PropertyFx.tint(SpellFx.styleFor(cue.caster, domain), property)
+	local spec = sigilSpec(cue.caster, domain, property, if typeof(cue.verb) == "string" then cue.verb else nil, cue.tier, style)
+	spec.reduced = false
+	local size = if typeof(cue.size) == "number" then cue.size else 14
+	local point: Vector3 = if typeof(cue.point) == "Vector3" then cue.point else Vector3.zero
+	local cf: CFrame
+	if cue.standing == true then
+		local facing: Vector3 = if typeof(cue.facing) == "Vector3" then cue.facing else Vector3.zAxis
+		local centre = point + Vector3.new(0, size / 2 + 0.5, 0)
+		cf = CFrame.lookAt(centre, centre + facing) * CFrame.Angles(math.pi / 2, 0, 0)
+	else
+		local ground, up = FxLayers.ground(point + Vector3.new(0, 4, 0), 12)
+		cf = flatOn(ground or point, up or Vector3.yAxis)
+	end
+	local handle = Sigils.create(spec, cf, size, { doubleSided = cue.standing == true, grow = 0.6, from = 1 })
+	if handle then
+		task.delay(6, function()
+			Sigils.burst(handle)
+		end)
+	else
+		warn("[Sigils] preview not drawn (too many on screen, too far, or a drawing error above)")
+	end
+end
+
+export type CastingOpts = {
+	caster: number?, -- UserId (their sigil's seed and hand; nil for NPC mages)
+	form: string?, -- where the sigil goes: the feet (area) or standing at the hand (bolts, beams, touch)
+	verb: string?,
+	tier: number?, -- mastery tier index 0..8
+}
+
 --[[
-	The charge-up while the cast time runs: runic circle at the feet, inward-pulling glow at the
-	chest, a swelling light and the cast sound. Returns the circle anchor (CastClient cancels it on
-	a refused prediction).
+	The charge-up while the cast time runs: the caster's sigil (at the feet for area spells, standing
+	at the hand for bolts and beams; the old runic circle when no sigil can be drawn), an
+	inward-pulling glow at the chest, a swelling light and the cast sound. Returns the key anchor
+	(CastClient cancels it on a refused prediction).
 ]]
-function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement, castTime: number, lod: any, domain: string?, power: number?, property: string?): Part?
+function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement, castTime: number, lod: any, domain: string?, power: number?, property: string?, opts: CastingOpts?): Part?
 	local look = DomainFx.look(domain, property)
 	style = PropertyFx.tint(style, property)
 	local p = power or 3
 	local hold = math.clamp(castTime, 0.3, 8)
 	local q = SpellFx.quality() * (LOD_FACTOR[lod or 2] or 1)
 	local feet, normal = FxLayers.ground(origin, 5)
-	local circle = FxLayers.castCircle(feet or (origin - Vector3.new(0, 3, 0)), normal or Vector3.yAxis, 2.2 + p * 0.25, style, hold, q)
+	local o = opts or {}
+	local circle: Part? = nil
+	if sigilsOn() and castTime >= SIGIL_MIN_CAST and domain then
+		local S = SigilData.size
+		local spec = sigilSpec(o.caster, domain, property, o.verb, o.tier, style)
+		local mode = SpellHand.modeFor(o.form)
+		local handle: Sigils.Handle? = nil
+		if mode == "hand" then
+			-- Standing in front of the casting hand, following it while the cast runs.
+			local model = casterModel(o.caster)
+			local function at(): CFrame?
+				local root = model and model:FindFirstChild("HumanoidRootPart")
+				if not root or not root:IsA("BasePart") then
+					return nil
+				end
+				local arm = model and (model:FindFirstChild("Right Arm") or model:FindFirstChild("RightHand"))
+				local palm = if arm and arm:IsA("BasePart") then (arm.CFrame * CFrame.new(0, -1, 0)).Position else root.Position + Vector3.new(0, 1, 0)
+				local facing = root.CFrame.LookVector
+				local centre = palm + facing * S.handReach
+				return CFrame.lookAt(centre, centre + facing) * CFrame.Angles(math.pi / 2, 0, 0)
+			end
+			local first = at() or (CFrame.lookAt(origin + Vector3.new(0, 1, 0), origin + Vector3.new(0, 1, -1)) * CFrame.Angles(math.pi / 2, 0, 0))
+			handle = Sigils.create(spec, first, S.handBase + p * S.handPerPower, { doubleSided = true, grow = math.min(hold, 0.35) })
+			if handle and model then
+				Sigils.follow(handle, at)
+			end
+		else
+			local d = S.feetBase + p * S.feetPerPower + spec.tier * S.feetPerTier
+			handle = Sigils.create(spec, flatOn(feet or (origin - Vector3.new(0, 3, 0)), normal or Vector3.yAxis), d, { grow = hold, from = S.feetStart })
+		end
+		if handle then
+			-- The key CastClient hands back to cancel: a plain unparented part, never pooled.
+			local key = Instance.new("Part")
+			circle = key
+			sigilByAnchor[key] = handle
+			task.delay(hold + 2, function()
+				-- Never released (no resolve came): let it go.
+				if sigilByAnchor[key] == handle then
+					sigilByAnchor[key] = nil
+					Sigils.fade(handle)
+				end
+			end)
+			if o.caster ~= nil then
+				castSigils[tostring(o.caster)] = { handle = handle, at = os.clock(), origin = origin }
+			end
+		end
+	end
+	if not circle then
+		circle = FxLayers.castCircle(feet or (origin - Vector3.new(0, 3, 0)), normal or Vector3.yAxis, 2.2 + p * 0.25, style, hold, q)
+	end
 	if not circle then
 		return nil
 	end
@@ -586,6 +724,18 @@ function SpellFx.cancel(anchor: Part?)
 		castExtras[anchor] = nil
 		if chest and chest:GetAttribute("Fx") then
 			FxPool.release(chest)
+		end
+		local sigil = sigilByAnchor[anchor]
+		if sigil then
+			-- A sigil's key is not a pooled anchor: fade the sigil and forget the caster's entry.
+			sigilByAnchor[anchor] = nil
+			Sigils.fade(sigil)
+			for k, entry in castSigils do
+				if entry.handle == sigil then
+					castSigils[k] = nil
+				end
+			end
+			return
 		end
 		FxPool.release(anchor)
 	end
@@ -663,6 +813,8 @@ end
 	the bolt fades at the end of its lifetime).
 ]]
 function SpellFx.launch(cue: { [string]: any })
+	-- The bolt leaves: the sigil at the hand snaps out with it.
+	burstCast(cue.caster, nil)
 	-- Our own bolt is already flying from the hand (Fx/LocalShots): it takes this path instead.
 	if not cue.localShot and cue.caster == Players.LocalPlayer.UserId and typeof(cue.velocity) == "Vector3" then
 		local now = os.clock()
@@ -1314,7 +1466,12 @@ function SpellFx.spell(cue: { [string]: any })
 	local stage = cue.stage
 
 	if stage == "begin" then
-		SpellFx.casting(origin, SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), tier, cue.castTime or 0.5, lod, cue.domain, p, property)
+		SpellFx.casting(origin, SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), tier, cue.castTime or 0.5, lod, cue.domain, p, property, {
+			caster = if typeof(cue.caster) == "number" then cue.caster else nil,
+			form = form,
+			verb = if typeof(cue.verb) == "string" then cue.verb else nil,
+			tier = tIndex,
+		})
 		return
 	elseif stage == "launch" then
 		SpellFx.launch(cue)
@@ -1347,6 +1504,12 @@ function SpellFx.spell(cue: { [string]: any })
 
 	-- Resolve.
 	if cue.backfire then
+		-- The caster's circle breaks instead of snapping out.
+		local entry = if cue.caster ~= nil then castSigils[tostring(cue.caster)] else nil
+		if entry then
+			castSigils[tostring(cue.caster)] = nil
+			Sigils.fade(entry.handle, 0.15)
+		end
 		-- Our own bolt is already out of the hand, but the spell went wrong instead: it never flew.
 		if form == "projectile" and cue.projectileId == nil and cue.caster == Players.LocalPlayer.UserId then
 			local shot = pendingLocals[1]
@@ -1365,6 +1528,24 @@ function SpellFx.spell(cue: { [string]: any })
 	local key = flightKey(cue)
 	local radius = impactRadius(form, cue, p)
 	local normal: Vector3? = if typeof(cue.normal) == "Vector3" then cue.normal else nil
+
+	-- Sigils: the caster's casting circle snaps out (to the spell's area for area spells), and a
+	-- sigil is stamped where it lands, unless the snapped-out circle already marks that spot.
+	if sigilsOn() and not cue.expired then
+		local S = SigilData.size
+		local area = AREA_FORMS[form] == true or form == "aura"
+		local burst = burstCast(cue.caster, if area then radius * S.burstAreaMult else nil)
+		local entryNear = burst and area and (point - origin).Magnitude < 4
+		if not entryNear and not (Theme.settings.reducedEffects and not area) then
+			local ground, up = FxLayers.ground(point, 6)
+			if ground then
+				local d = if area then radius * S.stampAreaMult else radius * S.stampMult
+				local spec = sigilSpec(cue.caster, cue.domain or "energy", property, if typeof(cue.verb) == "string" then cue.verb else nil, tIndex, style)
+				Sigils.stamp(spec, ground, up or Vector3.yAxis, d, SigilData.timing.stampHold + p * SigilData.timing.stampHoldPerPower)
+			end
+		end
+	end
+
 	local impactOpts: ImpactOpts = {
 		position = point,
 		normal = normal,
