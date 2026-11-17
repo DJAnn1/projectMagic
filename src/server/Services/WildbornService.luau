@@ -571,11 +571,33 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 	if now >= actor.attackerUntil then
 		actor.attacker = nil
 	end
+	-- What its own state lets it do (Cast/StatusEffects on its humanoid):
+	--   blind     it only finds people within seenThrough (it can't see further)
+	--   calm      it doesn't fight at all while it lasts; whoever hurt it is forgotten
+	--   charm     it won't turn on whoever charmed it
+	--   afraid    it runs from whoever's nearest and doesn't use its moves
+	local blind = StatusEffects.has(humanoid, "blind")
+	local calmed = StatusEffects.has(humanoid, "calm")
+	local afraid = StatusEffects.has(humanoid, "fear")
+	local charmedBy: number? = nil
+	for _, st in StatusEffects.snapshot(humanoid) do
+		if st.id == "charm" then
+			charmedBy = st.source
+		end
+	end
+	if calmed then
+		actor.attacker = nil
+		actor.target = nil
+		return
+	end
 	local target = viewOf(players, actor.attacker)
 	-- Someone who hurt it and then went veiled (or Unseen) slips away once they're out of reach.
-	if target and hidden(target) and flat(target.position, position) > T.seenThrough then
+	if target and (hidden(target) or blind) and flat(target.position, position) > T.seenThrough then
 		target = nil
 		actor.attacker = nil
+	end
+	if target and charmedBy and target.player and (target.player :: Player).UserId == charmedBy then
+		target = nil
 	end
 	if not target and actor.foe and now < (actor.foeUntil or 0) then
 		target = bodyView(actor.foe) -- an NPC that hurt it: it turns on them
@@ -587,7 +609,8 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 			local uid = if view.player then (view.player :: Player).UserId else 0
 			local spared = (actor.spare and (actor.spare[uid] or 0) > now)
 				or (hold ~= nil and actor.hold ~= nil and hold.userId == uid and flat(view.position, hold.center) <= hold.radius)
-			if d <= best and not spared and not (hidden(view) and d > T.seenThrough) then
+			local charmer = charmedBy ~= nil and uid == charmedBy
+			if d <= best and not spared and not charmer and not ((hidden(view) or blind) and d > T.seenThrough) then
 				target, best = view, d
 			end
 		end
@@ -623,6 +646,13 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		return
 	end
 
+	if afraid then
+		-- Running from it: away from whoever it fears most (its target), no moves.
+		local away = Vector3.new(position.X - target.position.X, 0, position.Z - target.position.Z)
+		local dir = if away.Magnitude > 0.1 then away.Unit else Vector3.new(1, 0, 0)
+		humanoid:MoveTo(position + dir * 20)
+		return
+	end
 	if now < actor.busyUntil then
 		humanoid:MoveTo(position) -- standing still while it casts
 		return

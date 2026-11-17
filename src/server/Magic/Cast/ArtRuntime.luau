@@ -264,7 +264,11 @@ function ArtRuntime.push(hit: Targeting.Hit, velocity: Vector3)
 	local player = Players:GetPlayerFromCharacter(hit.model)
 	if player then
 		Net.fire("WorldEffect", player, { kind = "knockback", velocity = velocity })
-	else
+	elseif not hit.root.Anchored then
+		-- A standing Humanoid pins itself to the ground against an upward push: let go first.
+		if velocity.Y > 12 and hit.humanoid.Health > 0 and not hit.humanoid.PlatformStand then
+			hit.humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+		end
 		hit.root.AssemblyLinearVelocity += velocity
 	end
 end
@@ -487,6 +491,21 @@ function ArtRuntime.swallows(position: Vector3, ownerModel: Model?, property: st
 		end
 	end
 	return false
+end
+
+-- Any flying thing (a Wildborn bolt) asks the deflectors (Ice Mirror, Heat Haze, Repulse, Windwall):
+-- `flight` is a stable table for that projectile (deflectors remember what they've turned) with
+-- ownerModel and property. Returns the deflector's action and value, or nil.
+function ArtRuntime.deflects(position: Vector3, velocity: Vector3, flight: any): (string?, any)
+	for _, body in bodies do
+		if body.deflect and not body.ended then
+			local action, value = body.deflect(body, position, velocity, flight)
+			if action then
+				return action, value
+			end
+		end
+	end
+	return nil, nil
 end
 
 -- Delivery.interceptor's say: the first body that turns this bolt wins; then the swallowers.

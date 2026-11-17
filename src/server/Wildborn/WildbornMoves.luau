@@ -59,6 +59,7 @@ type Projectile = {
 	velocity: Vector3,
 	expires: number,
 	radius: number,
+	ownerModel: Model?, -- for the deflectors: who threw it (they never turn a caster's own bolts)
 }
 type Zone = {
 	actor: Actor,
@@ -73,6 +74,9 @@ local WildbornMoves = {}
 -- Set by Services/ArtService: is flying magic at this point swallowed by a Void spell (Hungry Mouth,
 -- Sponge, Null Ground)? Wildborn bolts and boulders ask every step of their flight.
 WildbornMoves.swallower = nil :: ((Vector3, Model?) -> boolean)?
+-- Set by Services/ArtService: Ice Mirror, Heat Haze, Repulse and Windwall turning a bolt ("bend" with a
+-- new velocity, "reflect", "stop" or "erase"); `flight` is the projectile itself (ownerModel set).
+WildbornMoves.deflector = nil :: ((Vector3, Vector3, any) -> (string?, any))?
 
 local playersNear: () -> { View } = function()
 	return {}
@@ -257,6 +261,7 @@ kinds.bolt = function(actor, move, target)
 			velocity = dir * move.speed,
 			expires = os.clock() + life,
 			radius = (move.size or 2) / 2 + 1.5,
+			ownerModel = actor.model,
 		})
 		cue(actor, "bolt", origin, { id = projectileId, from = origin, velocity = dir * move.speed, life = life, size = move.size or 2, style = move.style })
 	end
@@ -655,9 +660,38 @@ local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 rayParams.FilterDescendantsInstances = { workspace.Terrain }
 
+-- Terrain, and the stone, ice and wood that spells raise (workspace.ArtSolids: an Ice Dome is a wall).
+local function refreshWalls()
+	local list: { Instance } = { workspace.Terrain }
+	local solids = workspace:FindFirstChild("ArtSolids")
+	if solids then
+		table.insert(list, solids)
+	end
+	rayParams.FilterDescendantsInstances = list
+end
+
 local function stepProjectiles(views: { View }, dt: number, now: number)
+	refreshWalls()
+	local deflector = WildbornMoves.deflector
 	for i = #projectiles, 1, -1 do
 		local p = projectiles[i]
+		if deflector then
+			local action, value = deflector(p.position, p.velocity, p)
+			if action == "bend" and typeof(value) == "Vector3" then
+				p.velocity = value
+				cue(p.actor, "boltEnd", p.position, { id = p.id, at = p.position, style = p.move.style })
+				projectileId += 1
+				p.id = projectileId
+				local life = math.max(0.2, p.expires - now)
+				cue(p.actor, "bolt", p.position, { id = p.id, from = p.position, velocity = p.velocity, life = life, size = p.move.size or 2, style = p.move.style })
+			elseif action == "reflect" then
+				p.velocity = -p.velocity
+			elseif action == "stop" or action == "erase" then
+				table.remove(projectiles, i)
+				cue(p.actor, "boltEnd", p.position, { id = p.id, at = p.position, style = p.move.style })
+				continue
+			end
+		end
 		local nextPosition = p.position + p.velocity * dt
 		local done = now >= p.expires or not p.actor.model.Parent
 		local hitAt: Vector3? = nil

@@ -41,6 +41,7 @@ local Server = script.Parent.Parent
 local C = require(Server.Magic.Data.CombatTuning)
 local DownedRules = require(Server.Downed.DownedRules)
 local Delivery = require(Server.Magic.Cast.Delivery)
+local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local DamageModel = require(Server.Magic.Cast.DamageModel)
 local Targeting = require(Server.Magic.Cast.Targeting)
 local ActionState = require(Server.Magic.Cast.ActionState)
@@ -509,6 +510,10 @@ local function castBolt(npc: any, targetModel: Model, targetRoot: BasePart)
 	local rig = npc.rig
 	local recipe = NPCCombat.attackRecipe(npc)
 	if not rig or not recipe or not Delivery.capacity() then
+		return
+	end
+	-- Silenced (Void's Hush or Null Ground, a silence status): no magic.
+	if StatusEffects.blocksCasting(rig.humanoid) then
 		return
 	end
 	local cap = (npc.combat :: Combat).maxPower

@@ -43,6 +43,10 @@ function ArtService.init(_self: any, ctx: any)
 	WildbornMoves.swallower = function(position: Vector3, ownerModel: Model?): boolean
 		return ArtRuntime.swallows(position, ownerModel, nil)
 	end
+	-- ...and the deflectors (Ice Mirror, Heat Haze, Repulse, Windwall) turn them as they turn spell bolts.
+	WildbornMoves.deflector = function(position: Vector3, velocity: Vector3, flight: any): (string?, any)
+		return ArtRuntime.deflects(position, velocity, flight)
+	end
 
 	-- Void's Antimagic Shell: every magic hit (anything with a domain; not weapons, not overdraw) is
 	-- softened while it lasts, whoever cast it.
