@@ -17,6 +17,8 @@
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 
+local localPlayer = Players.LocalPlayer
+
 local Shared = game:GetService("ReplicatedStorage").Shared
 local E = require(Shared.Magic.Data.AirTuning)
 
@@ -395,6 +397,36 @@ BUILD.updraft = function(v)
 		emission = 0,
 		rate = 8,
 	})
+	-- Riding it: the server only pushes NPCs; our own character is carried here, on the client that
+	-- owns its physics. In freefall (a standing Humanoid pins itself to the ground), rising at
+	-- RiseSpeed to Height above the base, then hovering there while you stay in the column.
+	local base = v.part.Position
+	local height = (v.part:GetAttribute("Height") :: number?) or 30
+	local rise = (v.part:GetAttribute("RiseSpeed") :: number?) or 42
+	v.update = function(_vis, _dt)
+		local character = localPlayer and localPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not character or not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") or root.Anchored then
+			return
+		end
+		if character:GetAttribute("GravityFlight") or character:GetAttribute("TravelStyle") or character:GetAttribute("GravityHeld") then
+			return
+		end
+		local rel = root.Position - base
+		if Vector3.new(rel.X, 0, rel.Z).Magnitude > radius or rel.Y < -3 or rel.Y > height + 6 then
+			return
+		end
+		local state = humanoid:GetState()
+		if state ~= Enum.HumanoidStateType.Freefall and state ~= Enum.HumanoidStateType.Jumping then
+			humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+		end
+		-- Slow down near the top and hover: a gentle bob instead of overshooting.
+		local left = height - rel.Y
+		local want = if left > 4 then rise else math.clamp(left * 4, -6, rise) + math.sin(os.clock() * 3) * 1.5
+		local vel = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(vel.X, want, vel.Z)
+	end
 end
 
 BUILD.tailwind = function(v)

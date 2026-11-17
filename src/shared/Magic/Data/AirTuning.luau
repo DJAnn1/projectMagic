@@ -47,8 +47,10 @@ AirTuning.twister = {
 AirTuning.updraft = {
 	radius = 4,
 	seconds = { base = 6, perPower = 0.6, max = 12 } :: Curve,
+	height = { base = 30, perPower = 4, max = 60 } :: Curve, -- studs the column carries you up
+	riseSpeed = 42, -- studs a second, on the rider's own client (Client/Fx/AirFx)
 	every = 0.3,
-	lift = 32,
+	lift = 32, -- NPCs and creatures, pushed by the server each tick
 }
 
 AirTuning.airless = {

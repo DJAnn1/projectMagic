@@ -188,6 +188,7 @@ end
 
 local function updraft(ctx: Ctx): Outcome
 	local T = E.updraft
+	local height = at(T.height, ctx)
 	R.spawn({
 		look = "updraft",
 		ctx = ctx,
@@ -195,10 +196,13 @@ local function updraft(ctx: Ctx): Outcome
 		radius = T.radius,
 		seconds = at(T.seconds, ctx),
 		every = T.every,
+		-- Players ride it on their own client (a standing Humanoid pins itself against a server push:
+		-- Client/Fx/AirFx carries them up to Height and holds them there); NPCs and creatures are pushed here.
+		attrs = { Height = height, RiseSpeed = T.riseSpeed },
 		tick = function(body)
-			for _, hit in Targeting.inRadius(body.position + UP * 10, T.radius + 10, 12) do
+			for _, hit in Targeting.inRadius(body.position + UP * (height / 2), T.radius + height / 2, 12) do
 				local rel = hit.root.Position - body.position
-				if Vector3.new(rel.X, 0, rel.Z).Magnitude <= T.radius and rel.Y > -2 and rel.Y < 40 then
+				if not isPlayer(hit) and Vector3.new(rel.X, 0, rel.Z).Magnitude <= T.radius and rel.Y > -2 and rel.Y < height then
 					R.push(hit, UP * T.lift)
 				end
 			end
