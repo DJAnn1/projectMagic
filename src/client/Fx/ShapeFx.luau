@@ -24,6 +24,8 @@ local TweenService = game:GetService("TweenService")
 
 local SpellFx = require(script.Parent.SpellFx)
 local Staging = require(script.Parent.Staging)
+local Sigils = require(script.Parent.Sigils)
+local SigilData = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Magic.Data.Sigils)
 local FeatureFlags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Core.FeatureFlags)
 local PropertyFx = require(script.Parent.PropertyFx)
 local DomainFx = require(script.Parent.DomainFx)
@@ -241,6 +243,14 @@ handlers.zone = function(cue, kit)
 	end
 	local key = tostring(cue.caster) .. ":" .. tostring(cue.id)
 	zones[key] = made
+	-- Its sigil stays on the ground until the zone ends (docs/Smoothness.md: sustained circles).
+	if FeatureFlags.get("sigils_enabled") ~= false then
+		local _, up = FxLayers.ground(spot + Vector3.new(0, 2, 0), 8)
+		local domain = if typeof(cue.domain) == "string" then cue.domain else "energy"
+		local property = if typeof(cue.property) == "string" then cue.property else nil
+		local spec = SpellFx.sigilSpec(cue.caster, domain, property, if typeof(cue.verb) == "string" then cue.verb else nil, kit.tierIndex, kit.style)
+		Sigils.sustain("zone:" .. key, spec, spot, up or Vector3.yAxis, radius * SigilData.size.stampAreaMult, seconds)
+	end
 	task.delay(seconds + 0.5, function()
 		if zones[key] == made then
 			zones[key] = nil
@@ -255,6 +265,7 @@ handlers.zoneEnd = function(cue, _kit)
 	local key = tostring(cue.caster) .. ":" .. tostring(cue.id)
 	local made = zones[key]
 	zones[key] = nil
+	Sigils.release("zone:" .. key, true)
 	for _, instance in (made or {}) :: { Instance } do
 		if instance:IsA("BasePart") then
 			TweenService:Create(instance, TweenInfo.new(0.4), { Transparency = 1 }):Play()

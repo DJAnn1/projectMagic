@@ -278,6 +278,8 @@ local function cue(
 		radius = stats.area,
 		castTime = stats.castTime,
 		backfire = backfire == true,
+		-- A held channel: clients keep its sigil up until it ends (Client/Fx/SpellFx holdChannel).
+		channeled = if stats.flags.channeled then true else nil,
 	}
 	for k, v in (extra or {}) :: { [string]: any } do
 		payload[k] = v

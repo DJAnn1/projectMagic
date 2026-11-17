@@ -250,6 +250,7 @@ function EffectRunner.startField(
 		duration = duration,
 		followUserId = opts.follow and opts.owner or nil,
 		direction = opts.direction,
+		caster = opts.owner, -- whose sigil holds under it while it lasts (Client/Fx/Sigils)
 	}, center, true)
 	return id, nil
 end

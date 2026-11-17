@@ -106,7 +106,17 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 - `Rotation` on frames inside a SurfaceGui staying crisp when the Part is scaled.
 - A ForceField-material sphere reading as glass from inside.
 
-## Stage 3: built (2026-11-17, owner: "everything looks good, go stage 3"), not yet run
+## Sustained circles (2026-11-17, owner: "I want the sustained spells to keep the circles until the spell finishes"), not yet run
+
+Stage 3 looked good to the owner. Spells that keep going now keep their sigil until they end:
+- **Lingering zones and barriers** (ShapeFx `zone` → `zoneEnd`, from spell shapes and ultimates' zone beats): a sigil 2.1 × the zone's radius holds on the spot and snaps out on `zoneEnd`.
+- **Durational fields** (EffectRunner `field` → `fieldEnd`: time, gravity, water current, reality): the domain's sigil holds under the field for its duration and rides on the caster when the field follows them. The field cue now carries `caster`.
+- **Channels:** cast cues carry `channeled`. On the first pulse the caster's casting disc is kept (or a new one stands at the hand) and stays up while their ActionState is `channeling`, then snaps out. Later pulses draw no new landing marks or staging beats.
+- `Sigils.sustain(key, spec, position, normal, diameter, seconds, follow?)` / `Sigils.release(key, burst?)`: a held circle with a safety end. If the spell's landing mark was stamped on the same spot in the last 1.5 s, that mark is kept and grows into the held circle, so there's never a second circle beside it. `Sigils.target` now also retargets a grow-in still running.
+
+**To test:** a zone spell (its circle stays the whole 5 s linger, then snaps out), a Time or Gravity field (the circle stays for the field's life, and moves with you if it follows you), a channelled beam held down (the disc at your hand stays until you let go, with no new marks each pulse), and a Water ultimate with a lingering beat.
+
+## Stage 3: built (2026-11-17, owner: "everything looks good, go stage 3")
 
 Owner's answers the same day: landing marks stay at one per landing ("a normal amount"); NPC mages' sigils are as detailed as players' (now their real tier: `NPCCombat` sets `ConjureTier` and `AttunedVerb`, AttuneGlowController passes them to Conjure; their spell cues already carried the tier).
 

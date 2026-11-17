@@ -917,9 +917,17 @@ function Sigils.follow(h: Handle, fn: () -> CFrame?)
 end
 
 function Sigils.target(h: Handle, diameter: number)
-	if not h.dead and not h.anim then
-		h.target = diameter
+	if h.dead then
+		return
 	end
+	local anim = h.anim
+	if anim then
+		if not anim.finish then
+			anim.toSize = diameter -- still growing in: grow to the new size instead
+		end
+		return
+	end
+	h.target = diameter
 end
 
 function Sigils.grow(h: Handle, diameter: number, seconds: number)
@@ -992,21 +1000,97 @@ function Sigils.groundLift(position: Vector3, material: Enum.Material?): number
 	return L.base
 end
 
--- A mark where a spell landed: it snaps open, holds, then fades.
+-- A disc lying on the surface at `position` (above grass), its drawing facing along `normal`.
+function Sigils.flatAt(position: Vector3, normal: Vector3): CFrame
+	local up = if normal.Magnitude > 0.1 then normal.Unit else Vector3.yAxis
+	local look = if math.abs(up.Y) < 0.95 then Vector3.yAxis else Vector3.xAxis
+	return CFrame.fromMatrix(position + up * Sigils.groundLift(position), look:Cross(up).Unit, up) -- UpVector = the normal
+end
+
+-- Recent landing marks, so a sustained circle starting on the same spot takes one over instead of
+-- drawing a second circle beside it.
+type Stamp = { handle: Handle, position: Vector3, seed: number, at: number, kept: boolean }
+local recentStamps: { Stamp } = {}
+
+-- A mark where a spell landed: it snaps open, holds, then fades (unless a sustained circle keeps it).
 function Sigils.stamp(spec: Spec, position: Vector3, normal: Vector3, diameter: number, hold: number?)
 	local S, T = Data.size, Data.timing
 	local d = math.clamp(diameter, S.stampMin, S.stampMax)
-	local up = if normal.Magnitude > 0.1 then normal.Unit else Vector3.yAxis
-	local look = if math.abs(up.Y) < 0.95 then Vector3.yAxis else Vector3.xAxis
-	local right = look:Cross(up).Unit
-	local cf = CFrame.fromMatrix(position + up * Sigils.groundLift(position), right, up) -- UpVector = the surface normal
-	local h = Sigils.create(spec, cf, d, { grow = T.stampGrow, from = d * 0.3 })
+	local h = Sigils.create(spec, Sigils.flatAt(position, normal), d, { grow = T.stampGrow, from = d * 0.3 })
 	if not h then
 		return
 	end
+	local entry: Stamp = { handle = h, position = position, seed = spec.seed, at = os.clock(), kept = false }
+	table.insert(recentStamps, entry)
+	if #recentStamps > 24 then
+		table.remove(recentStamps, 1)
+	end
 	task.delay(T.stampGrow + (hold or T.stampHold), function()
-		Sigils.fade(h, T.stampFade)
+		local i = table.find(recentStamps, entry)
+		if i then
+			table.remove(recentStamps, i)
+		end
+		if not entry.kept then
+			Sigils.fade(h, T.stampFade)
+		end
 	end)
+end
+
+--[[
+	A circle that stays while a spell keeps going (lingering zones, durational fields, channels):
+	held by `key` until Sigils.release(key), or `seconds` (a safety end) runs out. If the spell's
+	landing mark was just stamped on the same spot, that mark is kept and becomes this circle.
+	`follow` (optional) moves it each frame (a field riding on its caster).
+]]
+local sustained: { [string]: Handle } = {}
+
+function Sigils.sustain(key: string, spec: Spec, position: Vector3, normal: Vector3, diameter: number, seconds: number, follow: (() -> CFrame?)?): Handle?
+	Sigils.release(key)
+	local S, T = Data.size, Data.timing
+	local d = math.clamp(diameter, S.stampMin, S.stampMax)
+	local cf = Sigils.flatAt(position, normal)
+	local now = os.clock()
+	local h: Handle? = nil
+	for _, stamp in recentStamps do
+		if not stamp.kept and not stamp.handle.dead and stamp.seed == spec.seed and now - stamp.at < 1.5 and (stamp.position - position).Magnitude < 6 then
+			stamp.kept = true
+			h = stamp.handle
+			Sigils.place(stamp.handle, cf)
+			Sigils.target(stamp.handle, d)
+			break
+		end
+	end
+	if not h then
+		h = Sigils.create(spec, cf, d, { grow = T.stampGrow * 2, from = d * 0.3 })
+	end
+	local handle = h
+	if not handle then
+		return nil
+	end
+	if follow then
+		Sigils.follow(handle, follow)
+	end
+	sustained[key] = handle
+	task.delay(math.max(0.5, seconds) + 1, function()
+		if sustained[key] == handle then
+			Sigils.release(key)
+		end
+	end)
+	return handle
+end
+
+-- Ends a sustained circle: it snaps out (`burst`, the spell's last beat) or fades.
+function Sigils.release(key: string, burst: boolean?)
+	local h = sustained[key]
+	if not h then
+		return
+	end
+	sustained[key] = nil
+	if burst then
+		Sigils.burst(h)
+	else
+		Sigils.fade(h, Data.timing.stampFade)
+	end
 end
 
 -- For specs and tooling: every family's pattern, band and core can be drawn.

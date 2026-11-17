@@ -597,6 +597,68 @@ function SpellFx.previewSigil(cue: { [string]: any })
 	end
 end
 
+-- A sigil standing in front of the caster's casting hand, following it.
+local function handDisc(caster: any, spec: Sigils.Spec, power: number, origin: Vector3, grow: number): Sigils.Handle?
+	local S = SigilData.size
+	local model = casterModel(caster)
+	local function at(): CFrame?
+		local root = model and model:FindFirstChild("HumanoidRootPart")
+		if not root or not root:IsA("BasePart") then
+			return nil
+		end
+		local arm = model and (model:FindFirstChild("Right Arm") or model:FindFirstChild("RightHand"))
+		local palm = if arm and arm:IsA("BasePart") then (arm.CFrame * CFrame.new(0, -1, 0)).Position else root.Position + Vector3.new(0, 1, 0)
+		local facing = root.CFrame.LookVector
+		local centre = palm + facing * S.handReach
+		return CFrame.lookAt(centre, centre + facing) * CFrame.Angles(math.pi / 2, 0, 0)
+	end
+	local first = at() or (CFrame.lookAt(origin + Vector3.new(0, 1, 0), origin + Vector3.new(0, 1, -1)) * CFrame.Angles(math.pi / 2, 0, 0))
+	local handle = Sigils.create(spec, first, S.handBase + power * S.handPerPower, { doubleSided = true, grow = grow })
+	if handle and model then
+		Sigils.follow(handle, at)
+	end
+	return handle
+end
+
+--[[
+	A channelled spell (held down, pulsing): the caster's sigil stays up while the channel runs
+	(their character's ActionState is "channeling") and snaps out when it ends. The casting disc
+	is kept if there is one, else a new one stands at the hand. True on the channel's first pulse.
+]]
+local channelling: { [string]: boolean } = {}
+local function holdChannel(cue: { [string]: any }, spec: Sigils.Spec, power: number, origin: Vector3): boolean
+	local k = tostring(cue.caster)
+	if channelling[k] then
+		return false
+	end
+	local entry = castSigils[k]
+	castSigils[k] = nil
+	local handle = if entry then entry.handle else handDisc(cue.caster, spec, power, origin, 0.2)
+	if not handle then
+		return true
+	end
+	channelling[k] = true
+	local model = casterModel(cue.caster)
+	task.spawn(function()
+		local started = os.clock()
+		local seen = false
+		while true do
+			task.wait(0.1)
+			local state = if model then model:GetAttribute("ActionState") else nil
+			if state == "channeling" then
+				seen = true
+			end
+			local age = os.clock() - started
+			if not (model and model.Parent) or (seen and state ~= "channeling") or (not seen and age > 1.2) or age > 30 then
+				break
+			end
+		end
+		channelling[k] = nil
+		Sigils.burst(handle)
+	end)
+	return true
+end
+
 export type CastingOpts = {
 	caster: number?, -- UserId (their sigil's seed and hand; nil for NPC mages)
 	form: string?, -- where the sigil goes: the feet (area) or standing at the hand (bolts, beams, touch)
@@ -625,24 +687,7 @@ function SpellFx.casting(origin: Vector3, style: Style, tier: Recipes.Refinement
 		local mode = SpellHand.modeFor(o.form)
 		local handle: Sigils.Handle? = nil
 		if mode == "hand" then
-			-- Standing in front of the casting hand, following it while the cast runs.
-			local model = casterModel(o.caster)
-			local function at(): CFrame?
-				local root = model and model:FindFirstChild("HumanoidRootPart")
-				if not root or not root:IsA("BasePart") then
-					return nil
-				end
-				local arm = model and (model:FindFirstChild("Right Arm") or model:FindFirstChild("RightHand"))
-				local palm = if arm and arm:IsA("BasePart") then (arm.CFrame * CFrame.new(0, -1, 0)).Position else root.Position + Vector3.new(0, 1, 0)
-				local facing = root.CFrame.LookVector
-				local centre = palm + facing * S.handReach
-				return CFrame.lookAt(centre, centre + facing) * CFrame.Angles(math.pi / 2, 0, 0)
-			end
-			local first = at() or (CFrame.lookAt(origin + Vector3.new(0, 1, 0), origin + Vector3.new(0, 1, -1)) * CFrame.Angles(math.pi / 2, 0, 0))
-			handle = Sigils.create(spec, first, S.handBase + p * S.handPerPower, { doubleSided = true, grow = math.min(hold, 0.35) })
-			if handle and model then
-				Sigils.follow(handle, at)
-			end
+			handle = handDisc(o.caster, spec, p, origin, math.min(hold, 0.35))
 		else
 			local d = S.feetBase + p * S.feetPerPower + spec.tier * S.feetPerTier
 			handle = Sigils.create(spec, flatOn(feet or (origin - Vector3.new(0, 3, 0)), normal or Vector3.yAxis), d, { grow = hold, from = S.feetStart })
@@ -1537,12 +1582,20 @@ function SpellFx.spell(cue: { [string]: any })
 
 	-- Sigils: the caster's casting circle snaps out (to the spell's area for area spells), and a
 	-- sigil is stamped where it lands, unless the snapped-out circle already marks that spot.
+	-- A channel's pulses after its first draw no new marks or beats: its sigil stays up instead.
+	local pulseRepeat = false
 	if sigilsOn() and not cue.expired then
 		local S = SigilData.size
 		local area = AREA_FORMS[form] == true or form == "aura"
-		local burst = burstCast(cue.caster, if area then radius * S.burstAreaMult else nil)
+		local burst = false
+		if cue.channeled == true and cue.caster ~= nil then
+			local spec = sigilSpec(cue.caster, cue.domain or "energy", property, if typeof(cue.verb) == "string" then cue.verb else nil, tIndex, style)
+			pulseRepeat = not holdChannel(cue, spec, p, origin)
+		else
+			burst = burstCast(cue.caster, if area then radius * S.burstAreaMult else nil)
+		end
 		local entryNear = burst and area and (point - origin).Magnitude < 4
-		if not entryNear and not (Theme.settings.reducedEffects and not area) then
+		if not pulseRepeat and not entryNear and not (Theme.settings.reducedEffects and not area) then
 			local ground, up = FxLayers.ground(point, 6)
 			if ground then
 				local d = if area then radius * S.stampAreaMult else radius * S.stampMult
@@ -1554,7 +1607,7 @@ function SpellFx.spell(cue: { [string]: any })
 
 	-- Staged effects (docs/Smoothness.md stage 3, Fx/Staging): the form's beats on the landing
 	-- spot (round the caster for auras): domes, ring streams, rays, slashes, shards.
-	if FeatureFlags.get("staging_enabled") ~= false and not cue.expired and cue.ultimate ~= true then
+	if FeatureFlags.get("staging_enabled") ~= false and not cue.expired and cue.ultimate ~= true and not pulseRepeat then
 		local model = casterModel(cue.caster)
 		local root = model and model:FindFirstChild("HumanoidRootPart")
 		local rootPart: BasePart? = if root and root:IsA("BasePart") then root else nil
@@ -1662,6 +1715,9 @@ end
 -- Persistent zone rings (fields). Kept by id until field_end or their duration.
 local fieldVisuals: { [number]: Part } = {}
 
+-- Which domain's sigil a durational field (EffectRunner) holds under it.
+local FIELD_DOMAIN: { [string]: string } = { time = "time", gravity = "gravity", current = "water", reality = "reality" }
+
 function SpellFx.field(cue: { [string]: any })
 	local recipe = Recipes.fields[cue.field] or Recipes.fields.time
 	local radius = if typeof(cue.radius) == "number" then cue.radius else 10
@@ -1687,6 +1743,25 @@ function SpellFx.field(cue: { [string]: any })
 	end
 	local followUser = cue.followUserId
 	local expires = os.clock() + (if typeof(cue.duration) == "number" then cue.duration else 10)
+	-- The caster's sigil holds under the field until it ends (docs/Smoothness.md: sustained circles).
+	if sigilsOn() and typeof(id) == "number" then
+		local domain = FIELD_DOMAIN[tostring(cue.field)] or "time"
+		local style = SpellFx.styleFor(cue.caster, domain)
+		local spec = sigilSpec(cue.caster, domain, nil, nil, nil, style)
+		local ground, up = FxLayers.ground(position + Vector3.new(0, 2, 0), radius + 8)
+		local follow: (() -> CFrame?)? = nil
+		if typeof(followUser) == "number" then
+			follow = function(): CFrame?
+				local player = Players:GetPlayerByUserId(followUser)
+				local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+				if not root or not root:IsA("BasePart") then
+					return nil
+				end
+				return Sigils.flatAt(root.Position - Vector3.new(0, 3, 0), Vector3.yAxis)
+			end
+		end
+		Sigils.sustain("field:" .. tostring(id), spec, ground or position, up or Vector3.yAxis, math.min(radius * 2, SigilData.size.stampMax), expires - os.clock(), follow)
+	end
 	local connection: RBXScriptConnection? = nil
 	connection = RunService.Heartbeat:Connect(function()
 		if not ring.Parent or os.clock() >= expires then
@@ -1708,6 +1783,7 @@ function SpellFx.field(cue: { [string]: any })
 end
 
 function SpellFx.fieldEnd(cue: { [string]: any })
+	Sigils.release("field:" .. tostring(cue.id), true)
 	local ring = fieldVisuals[cue.id]
 	if ring then
 		ring:Destroy()
