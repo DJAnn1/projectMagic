@@ -23,6 +23,8 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
 local SpellFx = require(script.Parent.SpellFx)
+local Staging = require(script.Parent.Staging)
+local FeatureFlags = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Core.FeatureFlags)
 local PropertyFx = require(script.Parent.PropertyFx)
 local DomainFx = require(script.Parent.DomainFx)
 local FxLayers = require(script.Parent.FxLayers)
@@ -278,13 +280,31 @@ handlers.fade = function(cue, kit)
 	end
 end
 
+-- A domain ultimate's whole run (docs/Smoothness.md stage 3): its sigil spreads and light rises,
+-- stillness before the first hit, then the flash, the field-sized dome and a ring stream.
+handlers.ultimate = function(cue, kit)
+	local spot = spotsOf(cue)[1] or v3(cue.position)
+	if not spot then
+		return
+	end
+	local _, up = FxLayers.ground(spot + Vector3.new(0, 2, 0), 8)
+	local domain = if typeof(cue.domain) == "string" then cue.domain else "energy"
+	local property = if typeof(cue.property) == "string" then cue.property else nil
+	local verb = if typeof(cue.verb) == "string" then cue.verb else nil
+	local sigil = if FeatureFlags.get("sigils_enabled") ~= false then SpellFx.sigilSpec(cue.caster, domain, property, verb, kit.tierIndex, kit.style) else nil
+	Staging.ultimate(spot, up or Vector3.yAxis, tonumber(cue.radius) or 20, kit.style, tonumber(cue.reveal) or 1, tonumber(cue.length) or 4, sigil)
+end
+
 function ShapeFx.handle(cue: { [string]: any })
 	local fn = handlers[tostring(cue.stage)]
 	if not fn then
 		return
 	end
-	-- Warnings and zone ends always draw; everything else is skipped far away.
-	if (tonumber(cue.lod) or 2) <= 0 and cue.stage ~= "warn" and cue.stage ~= "zoneEnd" and cue.stage ~= "zone" then
+	if cue.stage == "ultimate" and FeatureFlags.get("staging_enabled") == false then
+		return
+	end
+	-- Warnings, zone ends and ultimates always draw; everything else is skipped far away.
+	if (tonumber(cue.lod) or 2) <= 0 and cue.stage ~= "warn" and cue.stage ~= "zoneEnd" and cue.stage ~= "zone" and cue.stage ~= "ultimate" then
 		return
 	end
 	fn(cue, kitFor(cue))

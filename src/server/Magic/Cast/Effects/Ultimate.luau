@@ -240,9 +240,27 @@ function Ultimate.resolve(ctx: Ctx, params: { [string]: any }): CastTypes.Outcom
 	c.target = nil
 	active += 1
 	local last = 0
+	local firstHit = math.huge
+	local reach = 0
 	for _, beat in u.beats do
 		local length = beat.at + (beat.warn or 0) + (if beat.zone then beat.zone.seconds else 0.5)
 		last = math.max(last, length)
+		firstHit = math.min(firstHit, beat.at + (beat.warn or 0))
+		reach = math.max(reach, (beat.spread or beat.distance or 0) + beat.radius)
+	end
+	-- One cue for the whole of it, so clients can stage the build, the stillness before the first
+	-- hit and the reveal on it (Client/Fx/Staging.ultimate, docs/Smoothness.md stage 3).
+	send(c, {
+		shape = "ultimate",
+		stage = "ultimate",
+		ultimate = params.ultimate,
+		reveal = if firstHit < math.huge then firstHit else 0,
+		length = last,
+		radius = reach,
+		verb = c.stats.recipe.verb,
+		spots = { ground(c, c.point) },
+	}, c.point)
+	for _, beat in u.beats do
 		task.delay(beat.at, function()
 			local ok, err = pcall(runBeat, c, beat)
 			if not ok then

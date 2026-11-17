@@ -48,6 +48,7 @@ local SpellHand = require(Shared.Magic.SpellHand)
 local FeatureFlags = require(Shared.Core.FeatureFlags)
 local SigilData = require(Shared.Magic.Data.Sigils)
 local Sigils = require(script.Parent.Sigils)
+local Staging = require(script.Parent.Staging)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
@@ -536,6 +537,11 @@ local function sigilSpec(caster: any, domain: string, property: string?, verb: s
 		style = style,
 		reduced = Theme.settings.reducedEffects == true,
 	}
+end
+
+-- For other Fx modules (ShapeFx's ultimates): a caster's sigil spec.
+function SpellFx.sigilSpec(caster: any, domain: string, property: string?, verb: string?, tierIdx: number?, style: Style): Sigils.Spec
+	return sigilSpec(caster, domain, property, verb, tierIdx, style)
 end
 
 -- The caster's casting sigil snaps out as the spell goes (launch or resolve). True if one did.
@@ -1544,6 +1550,17 @@ function SpellFx.spell(cue: { [string]: any })
 				Sigils.stamp(spec, ground, up or Vector3.yAxis, d, SigilData.timing.stampHold + p * SigilData.timing.stampHoldPerPower)
 			end
 		end
+	end
+
+	-- Staged effects (docs/Smoothness.md stage 3, Fx/Staging): the form's beats on the landing
+	-- spot (round the caster for auras): domes, ring streams, rays, slashes, shards.
+	if FeatureFlags.get("staging_enabled") ~= false and not cue.expired and cue.ultimate ~= true then
+		local model = casterModel(cue.caster)
+		local root = model and model:FindFirstChild("HumanoidRootPart")
+		local rootPart: BasePart? = if root and root:IsA("BasePart") then root else nil
+		local at = if form == "aura" and rootPart then rootPart.Position else point
+		local ground, up = FxLayers.ground(at + Vector3.new(0, 2, 0), 8)
+		Staging.play(form, ground or at, up or Vector3.yAxis, radius, style, p, { root = rootPart, look = look })
 	end
 
 	local impactOpts: ImpactOpts = {

@@ -763,6 +763,12 @@ local function strike(
 			p.bent = p.bent or bent
 		end
 	end
+	if params.ultimate ~= nil then
+		-- An ultimate stages itself (its own "ultimate" cue): clients skip the plain form staging.
+		local marked: { [string]: any } = extra or {}
+		marked.ultimate = true
+		extra = marked
+	end
 	cue(player, stats, ctx.origin, ctx.point, "resolve", p.heavy, ctx.backfire, extra)
 	local recording = Damage.record()
 	local outcome = p.resolver.resolve(ctx, params)

@@ -483,6 +483,8 @@ local function beginConjure(npc: any, rig: any, recipe: any, stats: any): boolea
 	model:SetAttribute("AttunedProperty", recipe.property)
 	model:SetAttribute("AttunedKind", CastTells.kindOf(recipe))
 	model:SetAttribute("AttunedPower", recipe.power)
+	model:SetAttribute("AttunedVerb", recipe.verb) -- how its sigil moves (Client/Fx/Sigils)
+	model:SetAttribute("ConjureTier", stats.masteryTier or 0) -- its sigil's detail, as a player's
 	model:SetAttribute("ConjureSignature", npc.signatureJson)
 	model:SetAttribute("ChargeStart", workspace:GetServerTimeNow())
 	model:SetAttribute("ChargeStep", Charge.step(stats.castTime))
@@ -498,7 +500,7 @@ local function endConjure(rig: any, began: boolean, how: string)
 	local model: Model = rig.model
 	model:SetAttribute("ConjureEnd", how)
 	CollectionService:RemoveTag(model, CONJURE_TAG)
-	for _, name in { "AttunedDomain", "AttunedForm", "AttunedProperty", "AttunedKind", "AttunedPower", "ConjureSignature", "ChargeStart", "ChargeStep" } do
+	for _, name in { "AttunedDomain", "AttunedForm", "AttunedProperty", "AttunedKind", "AttunedPower", "AttunedVerb", "ConjureTier", "ConjureSignature", "ChargeStart", "ChargeStep" } do
 		model:SetAttribute(name, nil)
 	end
 end

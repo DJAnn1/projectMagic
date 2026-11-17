@@ -286,7 +286,11 @@ local function updateNpcs(t: number, eye: Vector3?)
 			local kind = model:GetAttribute("AttunedKind")
 			local power = model:GetAttribute("AttunedPower")
 			local signature = model:GetAttribute("ConjureSignature")
+			local verb = model:GetAttribute("AttunedVerb")
+			local tier = model:GetAttribute("ConjureTier")
 			entry.conjure = Conjure.begin(model, entry.palm, {
+				verb = if typeof(verb) == "string" then verb else nil,
+				tier = if typeof(tier) == "number" then tier else nil,
 				domain = domain,
 				property = if typeof(property) == "string" then property else nil,
 				form = if typeof(form) == "string" then form else nil,
