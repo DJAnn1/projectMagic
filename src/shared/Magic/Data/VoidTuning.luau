@@ -76,6 +76,7 @@ VoidTuning.sponge = {
 
 VoidTuning.hungry_mouth = {
 	radius = { base = 7, perPower = 0.6, max = 13 } :: Curve,
+	reachUp = 2.5, -- times its radius: how high above it things flying over are still drawn in
 	seconds = { base = 6, perPower = 0.6, max = 12 } :: Curve,
 	every = 0.4,
 	pull = 10,

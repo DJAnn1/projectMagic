@@ -70,6 +70,10 @@ type Zone = {
 
 local WildbornMoves = {}
 
+-- Set by Services/ArtService: is flying magic at this point swallowed by a Void spell (Hungry Mouth,
+-- Sponge, Null Ground)? Wildborn bolts and boulders ask every step of their flight.
+WildbornMoves.swallower = nil :: ((Vector3, Model?) -> boolean)?
+
 local playersNear: () -> { View } = function()
 	return {}
 end
@@ -274,6 +278,26 @@ kinds.lob = function(actor, move, target)
 			local to = groundBelow(view.root.Position)
 			local flight = math.max(0.45, (to - from).Magnitude / move.speed)
 			cue(actor, "lob", from, { from = from, to = to, time = flight, size = move.size or 3, style = move.style })
+			-- A Void spell on its arc eats the boulder in the air: walk the arc in step with the boulder,
+			-- asking at each point as it gets there; eaten anywhere, it never lands.
+			local swallower = WildbornMoves.swallower
+			if swallower then
+				local apex = math.max(4, (to - from).Magnitude * 0.3)
+				local radius = move.radius or 7
+				cue(actor, "marks", to, { spots = { to }, radius = radius, delay = flight, style = move.style })
+				task.spawn(function()
+					for k = 1, 10 do
+						task.wait(flight / 10)
+						local t = k / 10
+						local point = from:Lerp(to, t) + Vector3.new(0, math.sin(t * math.pi) * apex, 0)
+						if not actor.model.Parent or swallower(point, actor.model) then
+							return
+						end
+					end
+					strikeSpots(actor, move, { to }, radius, 0, move.style)
+				end)
+				return
+			end
 			strikeSpots(actor, move, { to }, move.radius or 7, flight, move.style)
 		end)
 	end
@@ -637,6 +661,13 @@ local function stepProjectiles(views: { View }, dt: number, now: number)
 		local nextPosition = p.position + p.velocity * dt
 		local done = now >= p.expires or not p.actor.model.Parent
 		local hitAt: Vector3? = nil
+		local swallower = WildbornMoves.swallower
+		if not done and swallower and swallower(nextPosition, p.actor.model) then
+			-- Eaten by a Void spell in the air: it simply ends.
+			table.remove(projectiles, i)
+			cue(p.actor, "boltEnd", nextPosition, { id = p.id, at = nextPosition, style = p.move.style })
+			continue
+		end
 		if not done then
 			for _, view in views do
 				if (view.position - nextPosition).Magnitude <= p.radius then

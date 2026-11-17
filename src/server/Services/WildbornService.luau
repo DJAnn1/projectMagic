@@ -46,6 +46,7 @@ local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
 local DownedRules = require(Server.Downed.DownedRules)
 local Damage = require(Server.Magic.Cast.Damage)
+local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local NPCCombat = require(Server.NPC.NPCCombat)
 
 local T = Data.tuning
@@ -498,6 +499,15 @@ local function viewOf(players: { View }, userId: number?): View?
 	return nil
 end
 
+-- Veiled (a status) or Unseen (Void): not noticed from further than T.seenThrough.
+local function hidden(view: View): boolean
+	if StatusEffects.has(view.humanoid, "veiled") then
+		return true
+	end
+	local unseen = view.model:GetAttribute("Unseen")
+	return typeof(unseen) == "number" and unseen > workspace:GetServerTimeNow()
+end
+
 local function stepActor(actor: Actor, players: { View }, now: number)
 	local enemy = actor.enemy
 	local humanoid, root = actor.humanoid, actor.root
@@ -562,6 +572,11 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		actor.attacker = nil
 	end
 	local target = viewOf(players, actor.attacker)
+	-- Someone who hurt it and then went veiled (or Unseen) slips away once they're out of reach.
+	if target and hidden(target) and flat(target.position, position) > T.seenThrough then
+		target = nil
+		actor.attacker = nil
+	end
 	if not target and actor.foe and now < (actor.foeUntil or 0) then
 		target = bodyView(actor.foe) -- an NPC that hurt it: it turns on them
 	end
@@ -572,7 +587,7 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 			local uid = if view.player then (view.player :: Player).UserId else 0
 			local spared = (actor.spare and (actor.spare[uid] or 0) > now)
 				or (hold ~= nil and actor.hold ~= nil and hold.userId == uid and flat(view.position, hold.center) <= hold.radius)
-			if d <= best and not spared then
+			if d <= best and not spared and not (hidden(view) and d > T.seenThrough) then
 				target, best = view, d
 			end
 		end
@@ -620,6 +635,10 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 		readyAt = actor.readyAt,
 		used = actor.used,
 	})
+	-- Silenced (Void's Hush or Null Ground): no magic, only its plain blow.
+	if index and StatusEffects.blocksCasting(humanoid) then
+		index, move = nil, nil
+	end
 	if index and move then
 		actor.readyAt[index] = now + (move.cd or 5)
 		if move.once then

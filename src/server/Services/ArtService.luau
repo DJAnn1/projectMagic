@@ -14,11 +14,14 @@ local RunService = game:GetService("RunService")
 local Server = script.Parent.Parent
 local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 local Delivery = require(Server.Magic.Cast.Delivery)
+local Damage = require(Server.Magic.Cast.Damage)
+local WildbornMoves = require(Server.Wildborn.WildbornMoves)
 
 local ArtService = {
 	name = "ArtService",
 	-- After Space: its interceptor (which wraps Gravity's and Reality's) is in place, so ours wraps it.
-	dependencies = { "AdminService", "EffectRunner", "SpaceService" },
+	-- After Time and Reality too: Damage.interceptor is theirs first, and ours wraps it (Antimagic Shell).
+	dependencies = { "AdminService", "EffectRunner", "SpaceService", "TimeService", "RealityService" },
 }
 
 function ArtService.init(_self: any, ctx: any)
@@ -34,6 +37,26 @@ function ArtService.init(_self: any, ctx: any)
 			return nextIntercept(position, velocity, flight)
 		end
 		return nil, nil
+	end
+
+	-- Wildborn bolts and boulders fly in their own simulation: they ask the same swallowers.
+	WildbornMoves.swallower = function(position: Vector3, ownerModel: Model?): boolean
+		return ArtRuntime.swallows(position, ownerModel, nil)
+	end
+
+	-- Void's Antimagic Shell: every magic hit (anything with a domain; not weapons, not overdraw) is
+	-- softened while it lasts, whoever cast it.
+	local nextDamage = Damage.interceptor
+	Damage.interceptor = function(humanoid: Humanoid, amount: number, source: number?, kind: string, info: Damage.Info?): number
+		local untilAt = humanoid:GetAttribute("AntimagicUntil")
+		if typeof(untilAt) == "number" and untilAt > workspace:GetServerTimeNow() and info and info.domain and kind ~= "weapon" and kind ~= "internal" then
+			local resist = humanoid:GetAttribute("AntimagicResist")
+			amount *= 1 - math.clamp(if typeof(resist) == "number" then resist else 0.3, 0, 0.8)
+		end
+		if nextDamage then
+			return nextDamage(humanoid, amount, source, kind, info)
+		end
+		return amount
 	end
 
 	local admin = ctx.get("AdminService")

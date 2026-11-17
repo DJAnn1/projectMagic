@@ -11,6 +11,9 @@
 		tick(body)              every `every` seconds (hurting, chilling, revealing...)
 		move(body, dt)          every frame (wisps follow, a ball of lightning drifts)
 		deflect(body, position, velocity, flight) -> (action, value)?   a bolt passing it (Delivery)
+		swallow(body, position, ownerModel, property) -> boolean   eats flying magic at `position` (Void's
+		                        Sponge, Hungry Mouth, Ground Out, Null Ground): spell bolts (Delivery) AND
+		                        Wildborn bolts and boulders (Wildborn/WildbornMoves.swallower)
 		ownerHit(body, victim)  their owner just hurt someone (a kindled hand, the shadow puppet)
 		finish(body)            once, as it ends (a ball of lightning pops)
 	Capped per player (ArtRuntime.caps.perPlayer: a new one ends the oldest) and per server.
@@ -53,6 +56,7 @@ export type Body = {
 	tick: ((Body) -> ())?,
 	move: ((Body, number) -> ())?,
 	deflect: ((Body, Vector3, Vector3, any) -> (string?, any))?,
+	swallow: ((Body, Vector3, Model?, string?) -> boolean)?,
 	ownerHit: ((Body, Humanoid) -> ())?,
 	finish: ((Body) -> ())?,
 	ended: boolean?,
@@ -73,6 +77,7 @@ export type SpawnOpts = {
 	tick: ((Body) -> ())?,
 	move: ((Body, number) -> ())?,
 	deflect: ((Body, Vector3, Vector3, any) -> (string?, any))?,
+	swallow: ((Body, Vector3, Model?, string?) -> boolean)?,
 	ownerHit: ((Body, Humanoid) -> ())?,
 	finish: ((Body) -> ())?,
 }
@@ -199,6 +204,7 @@ function ArtRuntime.spawn(opts: SpawnOpts): Body?
 		tick = opts.tick,
 		move = opts.move,
 		deflect = opts.deflect,
+		swallow = opts.swallow,
 		ownerHit = opts.ownerHit,
 		finish = opts.finish,
 	}
@@ -472,7 +478,18 @@ function ArtRuntime.step(dt: number)
 	end
 end
 
--- Delivery.interceptor's say: the first body that turns this bolt wins.
+-- Is flying magic at `position` (thrown by `ownerModel`, of `property`) swallowed by a Void body? The
+-- first one that eats it says so (and draws it). Spell bolts and Wildborn bolts and boulders all ask.
+function ArtRuntime.swallows(position: Vector3, ownerModel: Model?, property: string?): boolean
+	for _, body in bodies do
+		if body.swallow and not body.ended and body.swallow(body, position, ownerModel, property) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Delivery.interceptor's say: the first body that turns this bolt wins; then the swallowers.
 function ArtRuntime.intercept(position: Vector3, velocity: Vector3, flight: any): (string?, any)
 	for _, body in bodies do
 		if body.deflect and not body.ended then
@@ -481,6 +498,9 @@ function ArtRuntime.intercept(position: Vector3, velocity: Vector3, flight: any)
 				return action, value
 			end
 		end
+	end
+	if ArtRuntime.swallows(position, flight.ownerModel, flight.property) then
+		return "erase", nil
 	end
 	return nil, nil
 end

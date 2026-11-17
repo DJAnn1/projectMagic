@@ -169,8 +169,11 @@ local function antimagicShell(ctx: Ctx): Outcome
 		duration = seconds,
 		magnitude = DamageModel.base(ctx.power) * 0.5,
 		source = ctx.player.UserId,
-		resist = { all = at(T.resist, ctx) },
 	})
+	-- Every magic hit, whatever cast it (a player's spell, a Wildborn's boulder, an NPC mage's bolt), is
+	-- softened at the damage step (Services/ArtService wraps Damage.interceptor).
+	humanoid:SetAttribute("AntimagicUntil", serverTime() + seconds)
+	humanoid:SetAttribute("AntimagicResist", at(T.resist, ctx))
 	for _, body in R.bodiesOf(ctx.player.UserId, "antimagic_shell") do
 		R.endBody(body)
 	end
@@ -196,6 +199,7 @@ local function nullGround(ctx: Ctx): Outcome
 	local ended = unmakeBodies(ctx, 10, function(body)
 		return (body.position - center).Magnitude <= radius
 	end)
+	local character = ctx.character
 	R.spawn({
 		look = "null_ground",
 		ctx = ctx,
@@ -203,6 +207,15 @@ local function nullGround(ctx: Ctx): Outcome
 		radius = radius,
 		seconds = at(T.seconds, ctx),
 		every = T.every,
+		-- No magic but yours works there: bolts and boulders flying into it die.
+		swallow = function(body, position: Vector3, ownerModel: Model?, _property: string?): boolean
+			local rel = position - body.position
+			if ownerModel == character or Vector3.new(rel.X, 0, rel.Z).Magnitude > body.radius or rel.Y < -4 or rel.Y > 30 then
+				return false
+			end
+			R.cue(body.ctx, { fx = "fizzle", at = position }, position, false, "void")
+			return true
+		end,
 		tick = function(body)
 			for _, hit in R.foesAround(body.ctx, body.position, body.radius) do
 				R.status(body.ctx, hit.humanoid, "silence", T.silenceSeconds)
@@ -262,15 +275,12 @@ local function groundOut(ctx: Ctx): Outcome
 		position = center,
 		radius = radius,
 		seconds = at(T.seconds, ctx),
-		deflect = function(body, position: Vector3, _velocity: Vector3, flight: any): (string?, any)
-			if flight.property ~= "charge" or flight.ownerModel == character then
-				return nil, nil
-			end
-			if (position - body.position).Magnitude > body.radius + 4 then
-				return nil, nil
+		swallow = function(body, position: Vector3, ownerModel: Model?, property: string?): boolean
+			if property ~= "charge" or ownerModel == character or (position - body.position).Magnitude > body.radius + 4 then
+				return false
 			end
 			R.cue(body.ctx, { fx = "fizzle", at = position }, position, false, "void")
-			return "erase", nil
+			return true
 		end,
 	})
 	return { effective = true, hits = 0, note = "Lightning dies here. Charged bolts that fly in fizzle out." }
@@ -300,12 +310,9 @@ local function sponge(ctx: Ctx): Outcome
 				R.place(body, root.Position)
 			end
 		end,
-		deflect = function(body, position: Vector3, _velocity: Vector3, flight: any): (string?, any)
-			if flight.ownerModel == character or body.data.charges <= 0 then
-				return nil, nil
-			end
-			if (position - body.position).Magnitude > T.reach then
-				return nil, nil
+		swallow = function(body, position: Vector3, ownerModel: Model?, _property: string?): boolean
+			if ownerModel == character or body.data.charges <= 0 or (position - body.position).Magnitude > T.reach then
+				return false
 			end
 			body.data.charges -= 1
 			local mine = reservoirs and reservoirs:get(player)
@@ -317,7 +324,7 @@ local function sponge(ctx: Ctx): Outcome
 			if body.data.charges <= 0 then
 				task.defer(R.endBody, body)
 			end
-			return "erase", nil
+			return true
 		end,
 	})
 	return { effective = true, hits = 0, note = "Your hand opens on nothing. The next bolts that reach you are swallowed." }
@@ -335,12 +342,17 @@ local function hungryMouth(ctx: Ctx): Outcome
 		radius = radius,
 		seconds = at(T.seconds, ctx),
 		every = T.every,
-		deflect = function(body, position: Vector3, _velocity: Vector3, flight: any): (string?, any)
-			if flight.ownerModel == character or (position - body.position).Magnitude > body.radius then
-				return nil, nil
+		swallow = function(body, position: Vector3, ownerModel: Model?, _property: string?): boolean
+			if ownerModel == character then
+				return false
+			end
+			-- It draws in from above as well as round it: anything flying over it within its reach is eaten.
+			local rel = position - body.position
+			if Vector3.new(rel.X, 0, rel.Z).Magnitude > body.radius or rel.Y < -4 or rel.Y > body.radius * T.reachUp then
+				return false
 			end
 			R.cue(body.ctx, { fx = "swallow", at = position }, position, false, "void")
-			return "erase", nil
+			return true
 		end,
 		tick = function(body)
 			for _, hit in R.foesAround(body.ctx, body.position, body.radius) do
