@@ -53,6 +53,7 @@ local ArtFx = require(script.Parent.ArtFx)
 -- The domains' own bolt looks register with ArtFx when these load.
 require(script.Parent.EnergyFx)
 require(script.Parent.EarthFx)
+require(script.Parent.AirFx)
 local Recipes = require(script.Parent.FxRecipes)
 local KenneyTextures = require(script.Parent.KenneyTextures)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)

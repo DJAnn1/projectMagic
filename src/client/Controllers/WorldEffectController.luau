@@ -23,6 +23,7 @@
 		                 bodies (rings, fences, wisps, the shadow puppet) come by the ArtBody tag (Fx/ArtFx)
 		earth            Fx/EarthFx: Earth's spells (rubble, gravel, spikes, blades, spires, fissures, sand...)
 		water            Fx/WaterFx: Water's spells (whips, jets, bubbles, geysers, icicles, steam, clouds...)
+		air              Fx/AirFx: Air's spells (slices, gales, rings, booms, echoes, strikes from the sky, hail...)
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		reality          Fx/RealityFx: luck shells, edict boundaries, conjured matter, unmaking, polymorphs
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
@@ -48,6 +49,7 @@ local ArtFx = require(script.Parent.Parent.Fx.ArtFx)
 local EnergyFx = require(script.Parent.Parent.Fx.EnergyFx)
 local EarthFx = require(script.Parent.Parent.Fx.EarthFx)
 local WaterFx = require(script.Parent.Parent.Fx.WaterFx)
+local AirFx = require(script.Parent.Parent.Fx.AirFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local ShapeFx = require(script.Parent.Parent.Fx.ShapeFx)
 local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
@@ -154,6 +156,8 @@ local function handle(effect: { [string]: any })
 		EarthFx.cue(effect)
 	elseif kind == "water" then
 		WaterFx.cue(effect)
+	elseif kind == "air" then
+		AirFx.cue(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
 		if effect.field == "gravity" then

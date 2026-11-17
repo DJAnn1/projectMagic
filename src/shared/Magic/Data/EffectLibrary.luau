@@ -93,6 +93,8 @@ local routes: { Route } = {
 	{ id = "exchange", effect = "RealityPower", branches = { "lawcraft" }, properties = { "identity" }, verbs = { "transfer" }, forms = { "touch", "beam", "chain" }, params = { power = "exchange" } },
 
 	-- ─── Perception and charges ─────────────────────────────────────────────
+	-- Air's Echo Pulse (Effects/AirArt): before the general Sense, which would take any sense verb.
+	{ id = "air_echo_pulse", effect = "AirArt", branches = { "echolocation" }, properties = { "sound" }, verbs = { "sense" }, forms = { "burst", "aura" }, params = { move = "echo_pulse" }, instant = true },
 	{ id = "sense", effect = "Sense", verbs = { "sense" }, instant = true },
 	{ id = "store", effect = "Store", verbs = { "store" } },
 
@@ -196,6 +198,25 @@ local routes: { Route } = {
 	{ id = "water_cleansing_rain", effect = "WaterArt", branches = { "purification" }, properties = { "purity" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "cleansing_rain" } },
 	{ id = "water_water_shield", effect = "WaterArt", branches = { "purification" }, properties = { "purity" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "water_shield" }, instant = true },
 	{ id = "water_fountain", effect = "WaterArt", branches = { "wellspring" }, properties = { "humidity" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "fountain" } },
+
+	-- ─── Air's spells (Effects/AirArt, Data/AirTuning, docs/DomainIdeas.md) ─────
+	-- Sub-branches only: the root keeps Gust and the cantrips, Thunderclap's amplify burst stays plain harm,
+	-- Vacuity's reduce stays the choke, Weathercraft's charge bolt stays lightning. (Echo Pulse sits before
+	-- `sense`, further up.)
+	{ id = "air_wind_blade", effect = "AirArt", branches = { "windshaping" }, properties = { "flow" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "wind_blade", look = "windblade", flight = { speed = 1.4 } } },
+	{ id = "air_gale", effect = "AirArt", branches = { "windshaping" }, properties = { "pressure" }, verbs = { "release" }, forms = { "beam" }, params = { move = "gale" } },
+	{ id = "air_twister", effect = "AirArt", branches = { "tempest" }, properties = { "flow" }, verbs = { "bind" }, forms = { "summon" }, params = { move = "twister" } },
+	{ id = "air_updraft", effect = "AirArt", branches = { "aeromancy" }, properties = { "buoyancy" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "updraft" } },
+	{ id = "air_airless", effect = "AirArt", branches = { "vacuity" }, properties = { "breath" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "airless" } },
+	{ id = "air_pressure_bomb", effect = "AirArt", branches = { "windshaping" }, properties = { "pressure" }, verbs = { "transmute" }, forms = { "burst" }, params = { move = "pressure_bomb" } },
+	{ id = "air_tailwind", effect = "AirArt", branches = { "windshaping" }, properties = { "flow" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "tailwind" }, instant = true },
+	{ id = "air_windwall", effect = "AirArt", branches = { "windshaping" }, properties = { "flow" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "windwall" } },
+	{ id = "air_sonic_ring", effect = "AirArt", branches = { "sonics" }, properties = { "sound" }, verbs = { "release" }, forms = { "beam" }, params = { move = "sonic_ring" } },
+	{ id = "air_shatter", effect = "AirArt", branches = { "sonics" }, properties = { "sound" }, verbs = { "release" }, forms = { "touch" }, params = { move = "shatter" } },
+	{ id = "air_thunder_boom", effect = "AirArt", branches = { "thunderclap" }, properties = { "sound" }, verbs = { "release" }, forms = { "burst" }, params = { move = "thunder_boom" } },
+	{ id = "air_raincloud", effect = "AirArt", branches = { "rainmaking" }, properties = { "humidity" }, verbs = { "generate" }, forms = { "touch", "projectile" }, params = { move = "raincloud" } },
+	{ id = "air_call_lightning", effect = "AirArt", branches = { "stormbrewing" }, properties = { "charge" }, verbs = { "release" }, forms = { "pillar" }, params = { move = "call_lightning" } },
+	{ id = "air_hail", effect = "AirArt", branches = { "stormbrewing" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "ritual" }, maxPower = 7, params = { move = "hail" } },
 
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },

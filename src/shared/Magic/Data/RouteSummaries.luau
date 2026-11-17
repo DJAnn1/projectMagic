@@ -324,6 +324,22 @@ local routes: { [string]: Summary } = {
 	water_cleansing_rain = { kind = "heal", text = "A soft rain over an area: allies in it are washed of bad statuses and healed a little each second, and fires go out." },
 	water_water_shield = { kind = "protect", text = "Water wraps you: a ward that soaks up hits, and nothing on you can keep burning while it lasts." },
 	water_fountain = { kind = "utility", text = "Water springs up where you aim for a while: fires near it go out and nobody near it keeps burning." },
+	-- Air's spells (Effects/AirArt, docs/DomainIdeas.md).
+	air_wind_blade = { kind = "attack", text = "A fast crescent of wind that cuts your target and on through whoever stands behind them." },
+	air_gale = { kind = "control", text = "A cone of wind that throws everyone in front of you far back." },
+	air_twister = { kind = "attack", text = "A small tornado that wanders after people for a while, throwing them up and round as it passes." },
+	air_updraft = { kind = "move", text = "A column of rising air stands where you point for a while: anyone who steps in is lifted (ride it up to a roof or ledge)." },
+	air_airless = { kind = "control", text = "The air round your target's head is gone: they can't cast for a moment and keep choking for a while after." },
+	air_pressure_bomb = { kind = "attack", text = "The air pulls in to where you aim, dragging people in, then blows out, hurting and hurling everyone away." },
+	air_tailwind = { kind = "boost", text = "Wind at your back: you and allies near you run faster for a while." },
+	air_windwall = { kind = "protect", text = "A wall of wind stands where you point for a while: other people's bolts are turned aside in it, and anyone walking into it is shoved back." },
+	air_sonic_ring = { kind = "attack", text = "A ring of sound runs along your aim, hitting and dazing everyone in its way." },
+	air_shatter = { kind = "attack", text = "A high note where you aim: conjured stone, ice and crystal there break, and anyone frozen solid shatters (double, and the ice is gone)." },
+	air_echo_pulse = { kind = "sense", text = "A pulse only you hear back: everyone near you is outlined to you for a few seconds, even through walls, and veils are stripped." },
+	air_thunder_boom = { kind = "control", text = "A deafening crack where you aim: everyone near is dazed and thrown back." },
+	air_raincloud = { kind = "utility", text = "A little cloud follows whoever you aim at (or you), raining on them: fires on them go out, and your Call Lightning always finds them and hits harder." },
+	air_call_lightning = { kind = "attack", text = "After a moment's warning, lightning strikes from the sky where you aim. Someone under your raincloud nearby is found wherever they step, and hit harder." },
+	air_hail = { kind = "attack", text = "Hailstones fall on marked spots around where you aim, chilling whoever they hit." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -410,9 +426,9 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
-RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true } :: { [string]: boolean }
+RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"
 
 RouteSummaries.deadModifiers = {

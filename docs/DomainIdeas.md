@@ -269,6 +269,34 @@ Not verified (no Studio run): standing on the Cloud Step (it forms at your feet 
 - **Call Lightning** (`charge · release · touch` aimed at a spot, Stormbrewing): a bolt from the sky; stronger under real cloud (`WeatherFuel`). *A strike from above.*
 - **Clear Sky** (`humidity · reduce · zone`): the rain stops over an area for a while. *Clouds parting, sunlight.*
 
+### Water: confirmed 2026-11-17
+
+Log `specs 1175/1176` (the failure the known "Standing room"), no warnings from Water; owner: "everything works". (An NPC mage's own `feral_escaped source=npc` in that log is the ordinary world event.)
+
+### Air: built 2026-11-17 (not yet run)
+
+On the owner's "do air next". 15 spells, routes `air_<move>`, `Server/Magic/Cast/Effects/AirArt`, `Shared/Magic/Data/AirTuning`, `Client/Fx/AirFx` (cue kind `air`, bolt look `windblade`). Sub-branches only: the root keeps Gust and the cantrips, Thunderclap's amplify burst stays plain harm, Vacuity's reduce stays the choke, Weathercraft's charge bolt stays lightning, and the root's and Sonics' Sense stay Sense. Echo Pulse uses the `sense` verb, so its route sits before the general `sense` route (as Space's and Time's powers do). Combos inside Air: Call Lightning always finds someone under your Raincloud and hits them x1.5; Shatter breaks any conjured stone, ice or crystal (`workspace.ArtSolids`) and shatters frozen people for double. Dropped from the doc's list: Lure (it needs NPC hearing hooks), Clear Sky (the existing `dry_air` route already does it). Flag `air_arts_enabled`. Expected boot line **`specs 1178/1179`** (3 new in `Tests/Air.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Wind Blade | Windshaping | flow · generate · projectile |
+| Gale | Windshaping | pressure · release · beam |
+| Twister | Tempest | flow · bind · summon |
+| Updraft | Aeromancy | buoyancy · generate · pillar |
+| Airless | Vacuity | breath · bind · touch/beam |
+| Pressure Bomb | Windshaping | pressure · transmute · burst |
+| Tailwind | Windshaping | flow · amplify · aura (instant) |
+| Windwall | Windshaping | flow · generate · wall |
+| Sonic Ring | Sonic Arts | sound · release · beam |
+| Shatter | Sonic Arts | sound · release · touch |
+| Echo Pulse | Echolocation | sound · sense · burst/aura (instant) |
+| Thunder Boom | Thunderclap | sound · release · burst |
+| Raincloud | Rainmaking | humidity · generate · touch/projectile |
+| Call Lightning | Stormbrewing | charge · release · pillar |
+| Hail | Stormbrewing | temperature · reduce · ritual (power 7 or less) |
+
+Not verified (no Studio run): riding the Updraft (pushes every 0.3 s through the player's own client), the Echo Pulse outlines (Highlights through walls, caster only; Roblox draws at most 31 Highlights at once), the Windwall turning bolts on the client, the Twister juggling (thrown at most once a second each). Defaults chosen: Updraft lifts everyone in it, foes too; Raincloud can be put on anyone you aim at (or on yourself with nobody there).
+
 ---
 
 ## Life
