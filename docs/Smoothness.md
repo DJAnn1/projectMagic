@@ -106,6 +106,20 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 - `Rotation` on frames inside a SurfaceGui staying crisp when the Part is scaled.
 - A ForceField-material sphere reading as glass from inside.
 
+## Ragdoll on knockdown (2026-11-17, owner: "ragdoll physics ... after certain spells knock a player down"), not yet run
+
+- Every knockdown already goes through the `knockdown` status (HitReactions' heavy and kinetic hits; Earth, Energy and Water arts; spell struggles; admin `knockdown`). StatusEffects now calls `Server/Magic/Cast/Ragdoll.set(humanoid, down)` whenever that changes, for players, NPCs and Wildborn alike.
+- **Limp:** every Motor6D except the root joint is disabled and replaced by a BallSocketConstraint at the joint's C0/C1, with cone and twist limits per joint (`CombatTuning.reactions.ragdoll`: neck 30/40, shoulders 80/60, hips 60/30, others 45/25). Each limb gets an invisible massless collider (85% of the limb) welded on, so limbs rest on the ground instead of sinking, with a NoCollisionConstraint against the torso. RequiresNeck and BreakJointsOnDeath are off while limp.
+- It's done on the server, so everyone sees it. A player's own client still simulates their body and takes the knockback push, so the push throws a limp body.
+- **Getting up:** the motors come back, everything added is removed, the humanoid's settings are restored, then GettingUp (StatusEffects for NPCs, the client for players). A body that dies while limp stays a ragdoll.
+- Skipped: anchored bodies (far NPC rigs, stasis, dummies) and bodies with no motors (creatures).
+- Admin `knockdown [player] [seconds] [launch]`: `knockdown me 4 60` throws you back and up for 4 s.
+- Flag `ragdoll_enabled` (server). Spec `Tests/Ragdoll.spec` (3, on a rig it builds).
+
+**To test:** `knockdown me 4 60`; a heavy kinetic spell (momentum or weight at power 4+) on an NPC and on a Wildborn; a second client watching you go limp; dying while down.
+
+**Unverified (watch for):** whether the client's own simulation picks up the server's joint changes at once (if your body stays stiff for a moment, the client may need to switch the humanoid to the Physics state); joint limits looking natural on R6 (the attachment axes come from the motors' C0/C1); limbs snagging or jittering against the ground; getting up cleanly upright.
+
 ## Sustained circles (2026-11-17, owner: "I want the sustained spells to keep the circles until the spell finishes"), not yet run
 
 Stage 3 looked good to the owner. Spells that keep going now keep their sigil until they end:

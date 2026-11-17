@@ -16,6 +16,7 @@ local Gear = require(Server.Magic.Data.Gear)
 local C = require(Server.Magic.Data.CombatTuning)
 local Resistances = require(Server.Magic.Cast.Resistances)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
+local Net = require(game:GetService("ReplicatedStorage").Shared.Net)
 local NPCCombat = require(Server.NPC.NPCCombat)
 local Players = game:GetService("Players")
 local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
@@ -114,15 +115,24 @@ return function(admin: any, _deps: any)
 	})
 
 	admin:Register({
-		name = "knockdown", category = "Spells", description = "Knock a player down, as a heavy hit would",
-		args = { { name = "player", type = "player", default = "me" } },
+		name = "knockdown", category = "Spells", description = "Knock a player down, as a heavy hit would (they go limp: Cast/Ragdoll)",
+		args = {
+			{ name = "player", type = "player", default = "me" },
+			{ name = "seconds", type = "number", min = 0.5, max = 15, default = 1.6, hint = "how long they stay down" },
+			{ name = "launch", type = "number", min = 0, max = 200, default = 0, hint = "studs/s thrown back and up" },
+		},
 		handler = function(_, a)
 			local humanoid = humanoidOf(a.player.Character)
 			if not humanoid then
 				return "no character"
 			end
-			StatusEffects.apply(humanoid, "knockdown", { duration = C.reactions.knockdownSeconds })
-			return "knocked down " .. a.player.Name
+			StatusEffects.apply(humanoid, "knockdown", { duration = a.seconds })
+			local root = a.player.Character and a.player.Character:FindFirstChild("HumanoidRootPart")
+			if a.launch > 0 and root and root:IsA("BasePart") then
+				local push = (-root.CFrame.LookVector + Vector3.new(0, 0.6, 0)).Unit * a.launch
+				Net.fire("WorldEffect", a.player, { kind = "knockback", velocity = push })
+			end
+			return string.format("knocked down %s for %.1f s%s", a.player.Name, a.seconds, if a.launch > 0 then string.format(", thrown at %d studs/s", a.launch) else "")
 		end,
 	})
 

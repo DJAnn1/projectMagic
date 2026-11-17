@@ -96,6 +96,26 @@ local CombatTuning = {
 		knockdownSeconds = 1.6,
 		knockdownImmunity = 4, -- seconds after getting up before the next knockdown (no stun-lock)
 		knockdownLaunch = 18, -- studs/s of push away from the hit (NPCs; players via their client)
+		-- Ragdoll while knocked down (Cast/Ragdoll): each limb joint becomes a ball socket with
+		-- these limits (degrees; `upper` = the cone, `twist` = the turn either way). Unlisted
+		-- joints (R15's) use `default`. The joint to the root stays a motor.
+		ragdoll = {
+			default = { upper = 45, twist = 25 },
+			joints = {
+				Neck = { upper = 30, twist = 40 },
+				["Left Shoulder"] = { upper = 80, twist = 60 },
+				["Right Shoulder"] = { upper = 80, twist = 60 },
+				["Left Hip"] = { upper = 60, twist = 30 },
+				["Right Hip"] = { upper = 60, twist = 30 },
+				LeftShoulder = { upper = 80, twist = 60 },
+				RightShoulder = { upper = 80, twist = 60 },
+				LeftHip = { upper = 60, twist = 30 },
+				RightHip = { upper = 60, twist = 30 },
+				Waist = { upper = 20, twist = 20 },
+			} :: { [string]: { upper: number, twist: number } },
+			keep = { RootJoint = true, Root = true } :: { [string]: boolean }, -- stay motors
+			colliderShrink = 0.85, -- limb colliders are this share of the limb (so they don't snag)
+		},
 	},
 
 	-- ─── NPC aggro and retaliation (NPC/NPCCombat) ──────────────────────────

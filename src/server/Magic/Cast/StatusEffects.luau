@@ -29,6 +29,7 @@ local CollectionService = game:GetService("CollectionService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
+local Ragdoll = require(script.Parent.Ragdoll)
 
 export type StatusDef = {
 	name: string,
@@ -192,6 +193,10 @@ local function recompute(humanoid: Humanoid)
 			end
 		end
 	end
+
+	-- Ragdoll (Cast/Ragdoll): anyone knocked down goes limp, and stiffens again before getting up.
+	-- It only acts when the state changes, so recomputing often is free.
+	Ragdoll.set(humanoid, down)
 
 	-- Knockdown: an NPC falls limp and gets back up when it ends (players do this on their client).
 	if not playerOf(humanoid) then
