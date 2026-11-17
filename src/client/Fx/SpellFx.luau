@@ -597,10 +597,50 @@ type FlightVisual = {
 	anchor: Part,
 	done: boolean,
 	cue: { [string]: any },
-	finish: (point: Vector3, normal: Vector3?, expired: boolean) -> (),
+	finish: (point: Vector3, normal: Vector3?, expired: boolean, quiet: boolean?) -> (),
+	adopt: ((cue: { [string]: any }) -> ())?, -- local shots only: take the server's path
 }
 local flights: { [string]: FlightVisual } = {}
 local pendingImpacts: { [string]: { [string]: any } } = {} -- impact cues that beat their launch cue
+
+--[[
+	Local shots (Fx/LocalShots, docs/Smoothness.md stage 1): this client's own bolts, put in the air
+	from the hand on the release frame instead of a round trip later. Each waits here, oldest first,
+	for the server's "launch" cue of the same cast; SpellFx.launch hands that cue to it (adopt) and
+	draws nothing new. One the server never launches (refused, a backfire, no flight capacity) fades
+	quietly when its window runs out.
+]]
+type LocalShot = { key: string, visual: FlightVisual, domain: string, at: number, window: number }
+local pendingLocals: { LocalShot } = {}
+local localSerial = 0
+local BLEND_TIME = 0.18 -- seconds to ease a local bolt onto the server's path
+local PARK_WAIT = 0.9 -- seconds a local bolt that hit something waits for the server's impact
+local CATCH_UP_MAX = 1.5 -- at most this much of the server's path is replayed when adopting
+
+-- One step of a bolt's flight, exactly as Cast/Delivery integrates it: homing, then gravity.
+type PathState = {
+	position: Vector3,
+	velocity: Vector3,
+	gravity: number,
+	turnRate: number,
+	homing: BasePart?,
+}
+local function stepPath(s: PathState, dt: number)
+	local homing = s.homing
+	if homing and homing.Parent and s.turnRate > 0 then
+		local to = homing.Position - s.position
+		local speed = s.velocity.Magnitude
+		if to.Magnitude > 0.5 and speed > 0.1 then
+			local current, desired = s.velocity.Unit, to.Unit
+			local angle = math.acos(math.clamp(current:Dot(desired), -1, 1))
+			local k = if angle > 1e-4 then math.min(1, s.turnRate * dt / angle) else 1
+			local turned = current:Lerp(desired, k)
+			s.velocity = (if turned.Magnitude > 1e-3 then turned.Unit else desired) * speed
+		end
+	end
+	s.velocity -= Vector3.new(0, s.gravity * dt, 0)
+	s.position += s.velocity * dt
+end
 
 local function flightKey(cue: { [string]: any }): string?
 	if typeof(cue.projectileId) ~= "number" then
@@ -623,7 +663,22 @@ end
 	the bolt fades at the end of its lifetime).
 ]]
 function SpellFx.launch(cue: { [string]: any })
-	local key = flightKey(cue)
+	-- Our own bolt is already flying from the hand (Fx/LocalShots): it takes this path instead.
+	if not cue.localShot and cue.caster == Players.LocalPlayer.UserId and typeof(cue.velocity) == "Vector3" then
+		local now = os.clock()
+		for i, shot in pendingLocals do
+			if now - shot.at <= shot.window and (shot.domain == cue.domain or cue.domain == nil) and not shot.visual.done then
+				table.remove(pendingLocals, i)
+				local adopt = shot.visual.adopt
+				if adopt then
+					adopt(cue)
+					return
+				end
+				break
+			end
+		end
+	end
+	local key = if cue.localShot then cue.localKey else flightKey(cue)
 	if not key or typeof(cue.origin) ~= "Vector3" or typeof(cue.velocity) ~= "Vector3" then
 		return
 	end
@@ -735,20 +790,41 @@ function SpellFx.launch(cue: { [string]: any })
 		FxLayers.sound(cue.origin, look.sounds.launch, 0.7)
 	end
 
-	-- Integrate exactly as Cast/Delivery does: gravity, then homing steering.
-	local position: Vector3 = cue.origin
-	local velocity: Vector3 = cue.velocity
-	local gravity = if typeof(cue.gravity) == "number" then cue.gravity else 0
-	local turnRate = if typeof(cue.turnRate) == "number" then cue.turnRate else 0
-	local homing = homingRoot(cue.homing)
+	-- Integrate exactly as Cast/Delivery does (stepPath). A local shot may swap to the server's
+	-- path later (adopt): the gap between the two is shown shrinking to nothing over BLEND_TIME.
+	local path: PathState = {
+		position = cue.origin,
+		velocity = cue.velocity,
+		gravity = if typeof(cue.gravity) == "number" then cue.gravity else 0,
+		turnRate = if typeof(cue.turnRate) == "number" then cue.turnRate else 0,
+		homing = homingRoot(cue.homing),
+	}
 	local lifetime = (if typeof(cue.lifetime) == "number" then cue.lifetime else 4) + 0.5
 	local wobble = lookWeave or tier.beamCurve * 0.15 -- a Novice's bolt weaves a little; a serpent winds
 	local started = os.clock()
 	local last = started
+	local isLocal = cue.localShot == true
+	local adopted = not isLocal -- a server bolt is the real one from the start
+	local window = if typeof(cue.window) == "number" then cue.window else 1
+	local offset = Vector3.zero -- shown position minus the true path, shrinking after an adopt
+	local offsetAt = 0
+	local shown: Vector3 = cue.origin
+	local parked: Vector3? = nil -- a local bolt that reached something waits there for the server
+	local parkedAt = 0
+	local castParams: RaycastParams? = nil
+	if isLocal then
+		castParams = RaycastParams.new()
+		castParams.FilterType = Enum.RaycastFilterType.Exclude
+		local own = Players.LocalPlayer.Character
+		castParams.FilterDescendantsInstances = if own then { own } else {}
+		castParams.RespectCanCollide = true -- effects and pickups are non-colliding: fly through them
+		castParams.IgnoreWater = true
+	end
+	local probe = math.clamp((if typeof(cue.hitRadius) == "number" then cue.hitRadius else 0.6) * 0.8, 0.2, 2)
 
 	local visual: FlightVisual
 	local connection: RBXScriptConnection? = nil
-	local function finish(point: Vector3, _normal: Vector3?, expired: boolean)
+	local function finish(point: Vector3, _normal: Vector3?, expired: boolean, quiet: boolean?)
 		if visual.done then
 			return
 		end
@@ -756,6 +832,23 @@ function SpellFx.launch(cue: { [string]: any })
 		flights[key] = nil
 		if connection then
 			connection:Disconnect()
+		end
+		if quiet then
+			-- Never launched by the server (refused, a backfire): just stop being there.
+			for _, e in { halo, body, sparks } do
+				if e then
+					e.Enabled = false
+				end
+			end
+			if lookStop then
+				lookStop()
+			end
+			if light then
+				light.Enabled = false
+			end
+			anchor.Transparency = 1
+			FxPool.releaseAfter(anchor, (if trail then trail.Lifetime else 0) + 0.3)
+			return
 		end
 		anchor.CFrame = CFrame.new(point)
 		anchor.Transparency = 1
@@ -776,32 +869,90 @@ function SpellFx.launch(cue: { [string]: any })
 			SpellFx.burstAt(point, 0.6, style, tier, count(10, p, tier, lod), { lifetime = 0.4, speedMult = 2 })
 		end
 	end
-	visual = { anchor = anchor, done = false, cue = cue, finish = finish }
+	-- The server launched this cast: fly its path from here on. Its bolt left a round trip after
+	-- ours, so its path is replayed by our bolt's age first (no stepping back), then the gap
+	-- between where ours is shown and that path closes over BLEND_TIME.
+	local function adopt(serverCue: { [string]: any })
+		if visual.done then
+			return
+		end
+		adopted = true
+		local serverKey = flightKey(serverCue)
+		if serverKey then
+			flights[key] = nil
+			key = serverKey
+			flights[key] = visual
+		end
+		visual.cue = serverCue
+		local age = os.clock() - started
+		local server: PathState = {
+			position = serverCue.origin,
+			velocity = serverCue.velocity,
+			gravity = if typeof(serverCue.gravity) == "number" then serverCue.gravity else 0,
+			turnRate = if typeof(serverCue.turnRate) == "number" then serverCue.turnRate else 0,
+			homing = homingRoot(serverCue.homing),
+		}
+		local replay = math.min(age, CATCH_UP_MAX)
+		local steps = math.max(1, math.ceil(replay * 60))
+		for _ = 1, steps do
+			stepPath(server, replay / steps)
+		end
+		lifetime = age + (if typeof(serverCue.lifetime) == "number" then serverCue.lifetime else 4) + 0.5
+		if parked then
+			parkedAt = os.clock() -- now it waits for this server bolt's impact
+		else
+			offset = shown - server.position
+			offsetAt = os.clock()
+		end
+		path = server
+		-- The server's impact beat its launch cue to us: land now.
+		local early = pendingImpacts[key]
+		if early then
+			pendingImpacts[key] = nil
+			finish(early.point, early.normal, early.expired == true)
+		end
+	end
+	visual = { anchor = anchor, done = false, cue = cue, finish = finish, adopt = if isLocal then adopt else nil }
 	flights[key] = visual
 
 	connection = RunService.RenderStepped:Connect(function()
 		local t = os.clock()
 		local dt = math.min(t - last, 0.1)
 		last = t
-		if t - started > lifetime then
-			finish(position, nil, true)
+		if not adopted and t - started > window then
+			finish(shown, nil, true, true) -- the server never launched it
 			return
 		end
-		if homing and homing.Parent and turnRate > 0 then
-			local to = homing.Position - position
-			local speed = velocity.Magnitude
-			if to.Magnitude > 0.5 and speed > 0.1 then
-				local current, desired = velocity.Unit, to.Unit
-				local angle = math.acos(math.clamp(current:Dot(desired), -1, 1))
-				local s = if angle > 1e-4 then math.min(1, turnRate * dt / angle) else 1
-				local turned = current:Lerp(desired, s)
-				velocity = (if turned.Magnitude > 1e-3 then turned.Unit else desired) * speed
+		if t - started > lifetime then
+			finish(shown, nil, true)
+			return
+		end
+		if parked then
+			if adopted and t - parkedAt > PARK_WAIT then
+				finish(parked, nil, true) -- no impact came for where it stopped: a small pop
+			end
+			return
+		end
+		stepPath(path, dt)
+		local k = if offsetAt > 0 then math.clamp(1 - (t - offsetAt) / BLEND_TIME, 0, 1) else 0
+		local weave = if wobble > 0 then Vector3.new(0, math.sin((t - started) * 18) * wobble, 0) else Vector3.zero
+		local p0 = path.position + weave + offset * (k * k)
+		-- A local bolt stops on what it reaches and waits there for the server's word on the hit.
+		if castParams then
+			local step = p0 - shown
+			if step.Magnitude > 1e-3 then
+				local hit = workspace:Spherecast(shown, probe, step, castParams)
+				if hit then
+					parked = hit.Position
+					parkedAt = t
+					anchor.CFrame = CFrame.new(hit.Position)
+					shown = hit.Position
+					return
+				end
 			end
 		end
-		velocity -= Vector3.new(0, gravity * dt, 0)
-		position += velocity * dt
-		local weave = if wobble > 0 then Vector3.new(0, math.sin((t - started) * 18) * wobble, 0) else Vector3.zero
-		local p0 = position + weave
+		shown = p0
+		local velocity = path.velocity
 		anchor.CFrame = if velocity.Magnitude > 0.1 then CFrame.lookAt(p0, p0 + velocity) else CFrame.new(p0)
 	end)
 
@@ -810,6 +961,54 @@ function SpellFx.launch(cue: { [string]: any })
 	if early then
 		pendingImpacts[key] = nil
 		finish(early.point, early.normal, early.expired == true)
+	end
+end
+
+--[[
+	This client's own bolt, launched from the hand now (Fx/LocalShots builds the cue). It waits for
+	the server's launch of the same cast and then flies that path; `cue.window` is how long it waits
+	before fading as never launched. Returns its handle for dropLocal, or nil if nothing was drawn.
+]]
+function SpellFx.launchLocal(cue: { [string]: any }): string?
+	local now = os.clock()
+	for i = #pendingLocals, 1, -1 do
+		local shot = pendingLocals[i]
+		if shot.visual.done or now - shot.at > shot.window then
+			table.remove(pendingLocals, i)
+		end
+	end
+	localSerial += 1
+	local key = "local:" .. localSerial
+	cue.localShot = true
+	cue.localKey = key
+	cue.caster = Players.LocalPlayer.UserId
+	SpellFx.launch(cue)
+	local visual = flights[key]
+	if not visual then
+		return nil
+	end
+	table.insert(pendingLocals, {
+		key = key,
+		visual = visual,
+		domain = if typeof(cue.domain) == "string" then cue.domain else "energy",
+		at = now,
+		window = if typeof(cue.window) == "number" then cue.window else 1,
+	})
+	return key
+end
+
+-- A local bolt the server won't launch (the cast was refused): it fades where it is. One the server
+-- already launched is left alone (it's the real bolt now).
+function SpellFx.dropLocal(handle: string?)
+	if not handle then
+		return
+	end
+	for i, shot in pendingLocals do
+		if shot.key == handle then
+			table.remove(pendingLocals, i)
+			shot.visual.finish(shot.visual.anchor.Position, nil, true, true)
+			return
+		end
 	end
 end
 
@@ -1148,6 +1347,13 @@ function SpellFx.spell(cue: { [string]: any })
 
 	-- Resolve.
 	if cue.backfire then
+		-- Our own bolt is already out of the hand, but the spell went wrong instead: it never flew.
+		if form == "projectile" and cue.projectileId == nil and cue.caster == Players.LocalPlayer.UserId then
+			local shot = pendingLocals[1]
+			if shot then
+				SpellFx.dropLocal(shot.key)
+			end
+		end
 		-- Loss of control: the caster's own magic bursts in their face, wild and in the accent colour.
 		SpellFx.impact({ position = origin + Vector3.new(0, 1, 0), radius = 1.5 + p * 0.25, power = p, style = { primary = style.accent, secondary = style.primary, accent = style.secondary, particle = style.particle, motion = style.motion }, look = look, tier = Recipes.tiers[0], tierIndex = 0, lod = lod })
 		return

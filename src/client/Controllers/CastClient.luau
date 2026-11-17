@@ -67,6 +67,7 @@ local Melee = require(Shared.Magic.Melee)
 local Client = script.Parent.Parent
 local Kit = require(Client:WaitForChild("UI").Kit)
 local SpellFx = require(Client:WaitForChild("Fx").SpellFx)
+local LocalShots = require(Client.Fx.LocalShots)
 local FxRecipes = require(Client.Fx.FxRecipes)
 
 local SLOT_COUNT = 8
@@ -126,7 +127,8 @@ local magic: any = nil
 local animation: any = nil
 local aimer: any = nil
 local clicker: any = nil
-local predicted: { key: string, anchor: Part?, at: number }? = nil
+type Prediction = { key: string, anchor: Part?, at: number, shot: string? } -- shot: Fx/LocalShots handle
+local predicted: Prediction? = nil
 local attuneRequest = 0 -- increments per request: a late answer to an old one is ignored
 local channelHeld = false -- a channelled spell we cast is still held down (release ends it)
 local swingLast: { index: number, started: number, speed: number }? = nil -- our last spellblade swing
@@ -147,6 +149,7 @@ local function clearPrediction(cancelFx: boolean)
 	local p = predicted
 	if p and cancelFx then
 		SpellFx.cancel(p.anchor)
+		LocalShots.drop(p.shot) -- already taken over by the server's launch: left alone
 		animation:cancelPrediction()
 	end
 	predicted = nil
@@ -232,11 +235,22 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 	local tier = FxRecipes.tiers[math.clamp(if stats then stats.masteryTier else 2, 0, 8)]
 	local anchor = SpellFx.casting(root.Position, style, tier, castTime, 2, domain, spell.recipe.power, spell.recipe.property)
 	animation:predict("casting", math.max(castTime, MIN_CAST_ANIMATION), domain)
-	local prediction = { key = key, anchor = anchor, at = os.clock() }
+	local prediction: Prediction = { key = key, anchor = anchor, at = os.clock(), shot = nil }
 	predicted = prediction
 	CastClient.casting:set({ key = key, started = os.clock(), castTime = castTime })
 	magic:sendCast(key, point, target)
 	channelHeld = stats ~= nil and stats.flags.channeled == true
+
+	-- A bolt leaves the hand when the cast completes here, not a round trip later (Fx/LocalShots);
+	-- the server's launch takes it over, a refusal drops it.
+	if stats and spell.recipe.form == "projectile" and LocalShots.enabled() then
+		local chargeHeld = if equipMode() and Charge.chargeableStats(stats) then heldFor else nil
+		task.delay(castTime + (stats.delay or 0), function()
+			if predicted == prediction then
+				prediction.shot = LocalShots.fire({ recipe = spell.recipe, stats = stats, held = chargeHeld, point = point, target = target })
+			end
+		end)
+	end
 
 	task.delay(PREDICTION_TIMEOUT, function()
 		if predicted == prediction then
