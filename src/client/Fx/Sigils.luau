@@ -971,6 +971,27 @@ function Sigils.fade(h: Handle, seconds: number?)
 	}
 end
 
+-- How far above the ground at `position` a lying sigil should sit: above the grass blades on grass
+-- terrain (they'd cover a flush drawing), flush everywhere else. `material` skips the raycast.
+local liftParams = RaycastParams.new()
+liftParams.FilterType = Enum.RaycastFilterType.Include
+function Sigils.groundLift(position: Vector3, material: Enum.Material?): number
+	local L = Data.lift
+	local mat = material
+	if not mat then
+		liftParams.FilterDescendantsInstances = { workspace.Terrain }
+		local hit = workspace:Raycast(position + Vector3.new(0, 2, 0), Vector3.new(0, -5, 0), liftParams)
+		mat = if hit then hit.Material else nil
+	end
+	if mat and table.find(L.grassMaterials, mat.Name) then
+		local ok, grass = pcall(function()
+			return workspace.Terrain.GrassLength
+		end)
+		return (if ok and typeof(grass) == "number" then grass else 0.7) + L.aboveGrass
+	end
+	return L.base
+end
+
 -- A mark where a spell landed: it snaps open, holds, then fades.
 function Sigils.stamp(spec: Spec, position: Vector3, normal: Vector3, diameter: number, hold: number?)
 	local S, T = Data.size, Data.timing
@@ -978,7 +999,7 @@ function Sigils.stamp(spec: Spec, position: Vector3, normal: Vector3, diameter: 
 	local up = if normal.Magnitude > 0.1 then normal.Unit else Vector3.yAxis
 	local look = if math.abs(up.Y) < 0.95 then Vector3.yAxis else Vector3.xAxis
 	local right = look:Cross(up).Unit
-	local cf = CFrame.fromMatrix(position + up * 0.08, right, up) -- UpVector = the surface normal
+	local cf = CFrame.fromMatrix(position + up * Sigils.groundLift(position), right, up) -- UpVector = the surface normal
 	local h = Sigils.create(spec, cf, d, { grow = T.stampGrow, from = d * 0.3 })
 	if not h then
 		return

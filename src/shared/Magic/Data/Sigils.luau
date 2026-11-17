@@ -121,6 +121,14 @@ Sigils.size = table.freeze({
 	stampMax = 90,
 })
 
+-- How far a sigil lying on the ground sits above it (studs). Terrain grass blades would cover a
+-- flush drawing, so on grass materials it rides above the place's grass length (Terrain.GrassLength).
+Sigils.lift = table.freeze({
+	base = 0.08,
+	aboveGrass = 0.15, -- added to Terrain.GrassLength on Grass / LeafyGrass
+	grassMaterials = { "Grass", "LeafyGrass" },
+})
+
 Sigils.timing = table.freeze({
 	snap = 18, -- how fast a disc catches up with its new size (higher = snappier)
 	stampGrow = 0.12,

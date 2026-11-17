@@ -300,6 +300,7 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 
 	local groundY: number? = nil
 	local groundAt = -math.huge
+	local groundLift = 0.06
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { character, folderOf() }
@@ -336,8 +337,10 @@ function Conjure.begin(character: Model, palm: Attachment, opts: Opts): Conjurin
 				groundAt = now
 				local hit = workspace:Raycast(root.Position, Vector3.new(0, -12, 0), params)
 				groundY = if hit then hit.Position.Y else root.Position.Y - 3
+				-- Above the grass blades on grass terrain (they hide a flush sigil), flush elsewhere.
+				groundLift = if sigil and hit then Sigils.groundLift(hit.Position, hit.Material) else 0.06
 			end
-			local feet = Vector3.new(root.Position.X, (groundY or root.Position.Y - 3) + 0.06, root.Position.Z)
+			local feet = Vector3.new(root.Position.X, (groundY or root.Position.Y - 3) + groundLift, root.Position.Z)
 			discCFrame = CFrame.new(feet) * CFrame.Angles(0, turn * 0.5, 0)
 			rune.Size = Vector3.new(size, 0.02, size)
 			coreSize = 0.3 + size * 0.12

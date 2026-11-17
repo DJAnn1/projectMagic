@@ -119,6 +119,8 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 
 **To test:** `sigil energy 8 20` then each domain (12) at tier 8, flat and with `standing true`; `sigil time 1` vs `sigil time 8` (detail); `sigil earth 5 14 hardness` (motif). Then real casts: `testmage 8 all`, a quick-mode area spell (a sigil grows at the feet, snaps out to the area), an equip-mode bolt held through all stages (the disc at the hand snaps up each stage, bursts on release, a stamp where it lands), a refused cast (it fades), and another player or NPC mage casting. `flag sigils_enabled false` brings back the old circles.
 
+**Fix 2026-11-17 (owner: "the grass terrain obscures the sigils"):** ground sigils sat 0.06–0.08 studs up, under the grass blades. `Sigils.groundLift` now lifts them by `Terrain.GrassLength` + 0.15 on Grass / LeafyGrass (flush elsewhere), in casting, landing marks and Conjure (`Data/Sigils` `lift`). Not yet re-run.
+
 **Unverified (watch for):** whether children of a rotated Frame turn with it inside a SurfaceGui (if not, the drawings stay still but still show); how bright Brightness 2.2 looks under the project's Bloom; the frame cost at 14 live sigils; whether thin 2–3 px lines vanish on small, far stamps; `[Sigils]` warnings in the Output.
 
 ## Stage 1: built

@@ -560,7 +560,7 @@ end
 local function flatOn(position: Vector3, normal: Vector3): CFrame
 	local up = if normal.Magnitude > 0.1 then normal.Unit else Vector3.yAxis
 	local ref = if math.abs(up.Y) < 0.95 then Vector3.yAxis else Vector3.xAxis
-	return CFrame.fromMatrix(position + up * 0.06, ref:Cross(up).Unit, up)
+	return CFrame.fromMatrix(position + up * Sigils.groundLift(position), ref:Cross(up).Unit, up)
 end
 
 -- The admin command `sigil`: one sigil in front of the admin, held then snapped out.
