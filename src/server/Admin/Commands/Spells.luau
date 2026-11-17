@@ -252,32 +252,39 @@ return function(admin: any, deps: any)
 		end,
 	})
 	--[[
-		moveshow <domain> [gap] [maxPower] [from] [stop]   (docs/Smoothness.md stage 7)
+		moveshow <domain> [gap] [maxPower] [from]   (docs/Smoothness.md stage 7)
 		Casts every example spell of a domain (Data/SpellExamples, weakest first) at a dummy 18 studs
 		ahead, one every `gap` seconds, through the real pipeline (castAs: knowledge, tier and caps
 		waived; no cooldowns while it runs), so you can record and compare. The spell's name shows
 		over the dummy, with the refusal if one is refused; the dummy is healed before each. `from`
-		starts part way down the list; `moveshow <domain> stop true` ends a running show. Use
-		`cheat all on` for the reservoir. Everyone nearby sees the spells (they're real casts).
+		starts part way down the list. `moveshowstop` (or starting another show) ends a running one.
+		Use `cheat all on` for the reservoir. Everyone nearby sees the spells (they're real casts).
 	]]
 	local shows: { [Player]: number } = {}
 	admin:Register({
+		name = "moveshowstop", category = "Spells",
+		description = "End your running moveshow at its next spell",
+		args = {},
+		handler = function(ctx, _a)
+			local player: Player = ctx.player
+			local running = shows[player] ~= nil
+			shows[player] = (shows[player] or 0) + 1 -- the running show sees a newer token and stops
+			return if running then "show stopped" else "no show running"
+		end,
+	})
+	admin:Register({
 		name = "moveshow", category = "Spells",
-		description = "Cast every example spell of a domain at a dummy, one after another, for recording",
+		description = "Cast every example spell of a domain at a dummy, one after another, for recording (moveshowstop ends it)",
 		args = {
 			{ name = "domain", type = "domain" },
 			{ name = "gap", type = "number", min = 1, max = 15, default = 3.5, hint = "seconds between spells" },
 			{ name = "maxPower", type = "number", min = 1, max = 10, default = 10 },
 			{ name = "from", type = "number", min = 1, max = 500, default = 1, hint = "start at this spell in the list" },
-			{ name = "stop", type = "boolean", default = false, hint = "end a running show" },
 		},
 		handler = function(ctx, a)
 			local player: Player = ctx.player
 			local token = (shows[player] or 0) + 1
 			shows[player] = token -- any show already running stops at its next spell
-			if a.stop then
-				return "show stopped"
-			end
 			local list = {}
 			for _, example in SpellExamples do
 				if example.domain == a.domain and example.recipe.power <= a.maxPower then
@@ -351,7 +358,7 @@ return function(admin: any, deps: any)
 					dummy:Destroy()
 				end
 			end)
-			return string.format("moveshow %s: %d spells from #%d, one every %.1f s (moveshow %s stop true ends it)", a.domain, #list - first + 1, first, a.gap, a.domain)
+			return string.format("moveshow %s: %d spells from #%d, one every %.1f s (moveshowstop ends it)", a.domain, #list - first + 1, first, a.gap)
 		end,
 	})
 

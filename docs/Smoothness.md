@@ -106,11 +106,13 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 - `Rotation` on frames inside a SurfaceGui staying crisp when the Part is scaled.
 - A ForceField-material sphere reading as glass from inside.
 
-## Stage 7: built (2026-11-17, owner: "go"), not yet run. All seven stages are now built.
+## Stage 7: built (2026-11-17, owner: "go"); run 2026-11-17: Energy, Time, Earth, Reality, Gravity shows ran. All seven stages are built.
 
-- Admin `moveshow <domain> [gap 3.5] [maxPower 10] [from 1] [stop false]` (Server/Admin/Commands/Spells): spawns a 1,000,000 hp dummy 18 studs ahead and casts every example spell of the domain (`Data/SpellExamples`, weakest first, then by name; 10 to 36 per domain) at it through the real pipeline (`CastService.castAs`: knowledge, tier and caps waived), one every `gap` seconds, healing the dummy before each. The spell's number, name, power and form show over the dummy, with the refusal reason if one is refused. Cooldowns are off for you while it runs and restored after; use `cheat all on` for the reservoir. `from` starts part way down the list; `moveshow <domain> stop true` (or starting another show) ends one at its next spell. The dummy goes 2 s after the end. Real casts: everyone nearby sees them, and casting crimes still apply in towns (do it in the wilds).
+**Seen in that run:** a show leaves real, saved marks on the shared world (the Energy show's fires spread and wrote scorch for ~2.5 min; Earth's quake saved ruptures and embedded the admin, who was rescued). Fine in Studio (mock store); on a live server it would scar every server. Asked the owner whether shows should leave nothing saved.
 
-**To test:** `testmage 8 all`, `cheat all on`, walk out of town, `moveshow energy`, then `moveshow time 2.5`, `moveshow earth 3 10 15`, and `moveshow earth stop true` part way.
+- Admin `moveshow <domain> [gap 3.5] [maxPower 10] [from 1]`, and `moveshowstop` (2026-11-17: `stop` used to be a fifth argument, so `moveshow earth stop true` failed to parse) (Server/Admin/Commands/Spells): spawns a 1,000,000 hp dummy 18 studs ahead and casts every example spell of the domain (`Data/SpellExamples`, weakest first, then by name; 10 to 36 per domain) at it through the real pipeline (`CastService.castAs`: knowledge, tier and caps waived), one every `gap` seconds, healing the dummy before each. The spell's number, name, power and form show over the dummy, with the refusal reason if one is refused. Cooldowns are off for you while it runs and restored after; use `cheat all on` for the reservoir. `from` starts part way down the list; `moveshowstop` (or starting another show) ends one at its next spell. The dummy goes 2 s after the end. Real casts: everyone nearby sees them, and casting crimes still apply in towns (do it in the wilds).
+
+**To test:** `testmage 8 all`, `cheat all on`, walk out of town, `moveshow energy`, then `moveshow time 2.5`, `moveshow earth 3 10 15`, and `moveshowstop` part way.
 
 ## Stage 6: built (2026-11-17, owner: "go"); not yet run
 
