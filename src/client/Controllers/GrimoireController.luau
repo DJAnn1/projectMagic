@@ -53,6 +53,7 @@ local selectedDomain = Kit.value(nil :: string?)
 local selectedBranch = Kit.value(nil :: string?)
 local compactPage = Kit.value("domains") -- "domains" | "tree" | "page"
 local message = Kit.value(nil :: string?) -- result of the last unlock / breakthrough request
+local query = Kit.value("") -- the search box, lower case; non-empty replaces the tree with results
 
 -- ─── Knowledge model ────────────────────────────────────────────────────────
 
@@ -617,15 +618,98 @@ local function buildPage(scope: Scope, book: Book, parent: Instance, compact: bo
 	end
 end
 
+-- ─── Search ─────────────────────────────────────────────────────────────────
+
+local SEARCHABLE: { [string]: boolean } = { known = true, ready = true, hint = true } -- never rumours or hidden ones
+
+local function matches(def: any, q: string): boolean
+	local domain = Registry.domains[def.domains[1]]
+	for _, text in { def.name, if domain then domain.name else "", def.description or "" } do
+		if string.find(string.lower(text), q, 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Every branch you could see in a tree that matches the search, across all domains.
+local function buildResults(book: Book, parent: Instance, compact: boolean)
+	local list = column(parent, {
+		Size = if compact then UDim2.fromScale(1, 1) else UDim2.new(TREE_SHARE, -DOMAIN_COLUMN * TREE_SHARE, 1, 0),
+	})
+	local q = query:get()
+	local found: { any } = {}
+	for id, def in Registry.branches do
+		if not def.isRoot and SEARCHABLE[nodeState(book, id)] and matches(def, q) then
+			table.insert(found, def)
+		end
+	end
+	table.sort(found, function(a, b)
+		if a.domains[1] ~= b.domains[1] then
+			return a.domains[1] < b.domains[1]
+		end
+		if a.tier ~= b.tier then
+			return a.tier < b.tier
+		end
+		return a.name < b.name
+	end)
+	C.text(if #found == 0 then "No branch you know of matches that." else string.format("%d found", #found), "caption", { LayoutOrder = 0 }).Parent = list
+	for index, def in found do
+		local state = nodeState(book, def.id)
+		local view = book.known[def.id]
+		local domain = Registry.domains[def.domains[1]]
+		local where = if domain then domain.name else ""
+		local subtitle = if state == "known" and view then where .. " · " .. view.tierName
+			elseif state == "ready" then where .. " · ✓ Ready to learn"
+			else where .. " · Not yet within reach"
+		entry(list, index, def.domains[1], state ~= "known" and state ~= "ready", def.name, subtitle, selectedBranch:get() == def.id, 0, function()
+			selectedDomain:set(def.domains[1])
+			selectedBranch:set(def.id)
+			message:set(nil)
+			compactPage:set("page")
+		end)
+	end
+end
+
 -- ─── Screen ─────────────────────────────────────────────────────────────────
 
 local function build(scope: Scope, container: Frame, _args: any?)
 	local compact = interface.layout:get() == "Compact"
-	Kit.dynamic(scope, { magic.progression, magic.profile, magic.spellbook, selectedDomain, selectedBranch, compactPage }, function(s)
+	-- The search box sits outside the dynamic region below, so typing rebuilds the book, never the box.
+	local searchHeight = Theme.minTouch
+	local search: TextBox = Kit.create(nil, "TextBox", {
+		Size = UDim2.new(1, 0, 0, searchHeight),
+		BackgroundColor3 = Theme.color.panel,
+		TextColor3 = Theme.color.ink,
+		PlaceholderText = "Search branches (name or domain)...",
+		PlaceholderColor3 = Theme.color.inkFaint,
+		Text = query:get(),
+		ClearTextOnFocus = false,
+		FontFace = Theme.font.body,
+		TextSize = Theme.text("body"),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = container,
+	})
+	C.corner().Parent = search
+	C.stroke().Parent = search
+	C.padding(0, Theme.space.s).Parent = search
+	search:GetPropertyChangedSignal("Text"):Connect(function()
+		local q = string.lower((string.gsub((string.gsub(search.Text, "^%s+", "")), "%s+$", "")))
+		if q ~= query:get() then
+			query:set(q)
+			-- On a phone, searching shows the results page.
+			if q ~= "" and compact and compactPage:get() ~= "tree" then
+				compactPage:set("tree")
+			end
+		end
+	end)
+	local top = searchHeight + Theme.space.s
+	Kit.dynamic(scope, { magic.progression, magic.profile, magic.spellbook, selectedDomain, selectedBranch, compactPage, query }, function(s)
 		local book = readBook()
 		local body: Frame = Kit.create(nil, "Frame", {
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
+			Position = UDim2.fromOffset(0, top),
+			Size = UDim2.new(1, 0, 1, -top),
 			Parent = container,
 		})
 		s:add(body)
@@ -651,7 +735,9 @@ local function build(scope: Scope, container: Frame, _args: any?)
 
 		if compact then
 			local pageId = compactPage:get()
-			if pageId == "domains" then
+			if pageId ~= "page" and query:get() ~= "" then
+				buildResults(book, body, true)
+			elseif pageId == "domains" then
 				buildDomains(book, body, true)
 			elseif pageId == "tree" and selectedDomain:get() and selectedDomain:get() ~= TORN then
 				buildTree(book, selectedDomain:get() :: string, body, true)
@@ -664,7 +750,9 @@ local function build(scope: Scope, container: Frame, _args: any?)
 		C.list("x", Theme.space.l).Parent = body
 		buildDomains(book, body, false)
 		local domainId = selectedDomain:get()
-		if domainId and domainId ~= TORN then
+		if query:get() ~= "" then
+			buildResults(book, body, false)
+		elseif domainId and domainId ~= TORN then
 			buildTree(book, domainId, body, false)
 		end
 		buildPage(s, book, body, false)
