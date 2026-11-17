@@ -147,6 +147,7 @@ local function hitCue(humanoid: Humanoid, amount: number, source: number?, kind:
 		victim = victimOf(humanoid),
 		heavy = amount >= maxHealth * C.feedback.heavyShare,
 		share = math.clamp(amount / maxHealth, 0, 1),
+		from = info.from, -- where it came from: a hit player flinches away from it (Client/Fx/Flinch)
 	}, position, false)
 end
 

@@ -69,7 +69,7 @@ local MAX_KNOCKBACK = 250 -- studs/s; above CastTuning.force.maxSpeed so legitim
 
 local WorldEffectController = {
 	name = "WorldEffectController",
-	dependencies = { "CastClient" },
+	dependencies = { "CastClient", "AnimationController" },
 }
 
 local log: any = nil
@@ -229,6 +229,10 @@ function WorldEffectController.init(_self: any, ctx: any)
 	-- Lower-end devices keep fewer effects alive at once.
 	FxPool.setScale(SpellFx.quality())
 	CombatFeedback.setShake(SpellFx.shake)
+	local animation = ctx.get("AnimationController")
+	CombatFeedback.setAnimHitStop(function(seconds: number)
+		animation:hitStop(seconds)
+	end)
 end
 
 function WorldEffectController.start(_self: any, _ctx: any)

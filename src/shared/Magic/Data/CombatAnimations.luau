@@ -54,6 +54,8 @@ export type StateDef = {
 	holdAt: string?, -- freeze the entry clip at this marker (charging's wind-up pose)
 	allows: { [string]: boolean },
 	interruptedBy: { [string]: boolean }?,
+	-- Actions also allowed in the state's last `seconds` (a cancel window; ActionRules.allowsAt).
+	cancelLast: { seconds: number, actions: { [string]: boolean } }?,
 }
 
 export type DomainStyle = { speed: number, weight: number }
@@ -154,7 +156,9 @@ CombatAnimations.states = {
 	casting = {
 		animation = "CastSpell", duration = 0.8, scaleToDuration = true,
 		allows = set({ "move" }),
-		interruptedBy = set({ "idle", "staggered", "dashing", "casting" }),
+		interruptedBy = set({ "idle", "staggered", "dashing", "casting", "blocking", "slashing" }),
+		-- Its last moments can be cut short (docs/Smoothness.md stage 6): the spell still goes.
+		cancelLast = { seconds = 0.15, actions = set({ "dash", "block", "slash" }) },
 	},
 	slashing = {
 		-- Spellblade (Data/MeleeTuning): Slash1, or Slash2 as the variant. A swing can be cancelled

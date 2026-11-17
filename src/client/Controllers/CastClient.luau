@@ -63,6 +63,7 @@ local Aim = require(Shared.Magic.Aim)
 local Charge = require(Shared.Magic.Charge)
 local Net = require(Shared.Net)
 local Melee = require(Shared.Magic.Melee)
+local Weight = require(Shared.Magic.Data.Weight)
 
 local Client = script.Parent.Parent
 local Kit = require(Client:WaitForChild("UI").Kit)
@@ -127,8 +128,33 @@ local magic: any = nil
 local animation: any = nil
 local aimer: any = nil
 local clicker: any = nil
-type Prediction = { key: string, anchor: Part?, at: number, shot: string? } -- shot: Fx/LocalShots handle
+type Prediction = { key: string, anchor: Part?, at: number, shot: string?, accepted: boolean } -- shot: Fx/LocalShots handle
 local predicted: Prediction? = nil
+-- Casts sent and not yet answered (resolved or refused), by spell key: a late "resolved" for an
+-- earlier cast of the same spell mustn't clear the newer one's prediction.
+local outstanding: { [string]: number } = {}
+
+-- The input buffer (Data/Weight buffer): a press in the last moments of a cast is kept and run the
+-- moment you're free. One at a time; a newer press replaces it. True if it was kept.
+local buffered: (() -> ())? = nil
+local function bufferPress(run: () -> ()): boolean
+	local current = CastClient.casting:get()
+	if not current then
+		return false
+	end
+	local remaining = current.started + current.castTime - os.clock()
+	if remaining > Weight.buffer.seconds then
+		return false
+	end
+	buffered = run
+	task.delay(math.max(0, remaining) + 0.06, function()
+		if buffered == run then
+			buffered = nil
+			run()
+		end
+	end)
+	return true
+end
 local attuneRequest = 0 -- increments per request: a late answer to an old one is ignored
 local channelHeld = false -- a channelled spell we cast is still held down (release ends it)
 local swingLast: { index: number, started: number, speed: number }? = nil -- our last spellblade swing
@@ -187,7 +213,12 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 		return
 	end
 	if CastClient.casting:get() then
-		feedback("You're still casting.", "dim")
+		-- Pressed in the last moments of the cast before: kept and cast the moment you're free.
+		if not bufferPress(function()
+			CastClient:cast(slot, heldFor)
+		end) then
+			feedback("You're still casting.", "dim")
+		end
 		return
 	end
 	local readyAt = magic.cooldowns:get()[key]
@@ -240,11 +271,22 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 		tier = if stats then stats.masteryTier else nil,
 	})
 	animation:predict("casting", math.max(castTime, MIN_CAST_ANIMATION), domain)
-	local prediction: Prediction = { key = key, anchor = anchor, at = os.clock(), shot = nil }
+	local prediction: Prediction = { key = key, anchor = anchor, at = os.clock(), shot = nil, accepted = false }
 	predicted = prediction
-	CastClient.casting:set({ key = key, started = os.clock(), castTime = castTime })
+	local casting: Casting = { key = key, started = os.clock(), castTime = castTime }
+	CastClient.casting:set(casting)
+	outstanding[key] = (outstanding[key] or 0) + 1
 	magic:sendCast(key, point, target)
 	channelHeld = stats ~= nil and stats.flags.channeled == true
+	-- You're free again when the cast completes (the server is too), not when its bolt lands
+	-- (docs/Smoothness.md stage 6); a channel keeps you until it ends.
+	if not channelHeld then
+		task.delay(castTime + (if stats then stats.delay or 0 else 0) + 0.03, function()
+			if CastClient.casting:get() == casting then
+				CastClient.casting:set(nil)
+			end
+		end)
+	end
 
 	-- A bolt leaves the hand when the cast completes here, not a round trip later (Fx/LocalShots);
 	-- the server's launch takes it over, a refusal drops it.
@@ -258,7 +300,7 @@ function CastClient.cast(_self: any, slot: number, heldFor: number?)
 	end
 
 	task.delay(PREDICTION_TIMEOUT, function()
-		if predicted == prediction then
+		if predicted == prediction and not prediction.accepted then
 			clearPrediction(true) -- no answer at all (no CastService, or a dropped packet)
 		end
 	end)
@@ -297,21 +339,33 @@ local function onEvent(event: any)
 		CastClient.charging:set(nil)
 		animation:predict(if CastClient.attuned:get() then "holding" else "idle")
 	end
+	-- One answer fewer outstanding for this spell (a refused charge was never a cast: floored at 0).
+	local key = result.key
+	local stillOut = 0
+	if typeof(key) == "string" and (result.stage == "refused" or result.stage == "resolved") then
+		stillOut = math.max(0, (outstanding[key] or 0) - 1)
+		outstanding[key] = if stillOut > 0 then stillOut else nil
+	end
 	local p = predicted
-	if not p or result.key ~= p.key and result.key ~= nil then
-		if result.stage == "resolved" then
-			CastClient.casting:set(nil)
-		end
-		return
+	if not p or key ~= p.key and key ~= nil then
+		return -- another spell's answer: your casting lock clears on its own time now
 	end
 	if result.stage == "refused" then
 		clearPrediction(true)
 	elseif result.stage == "accepted" then
+		p.accepted = true
 		local casting = CastClient.casting:get()
 		if casting and typeof(result.castTime) == "number" then
-			CastClient.casting:set({ key = casting.key, started = casting.started, castTime = result.castTime })
+			local updated: Casting = { key = casting.key, started = casting.started, castTime = result.castTime }
+			CastClient.casting:set(updated)
+			task.delay(math.max(0, updated.started + updated.castTime - os.clock()) + 0.03, function()
+				if CastClient.casting:get() == updated and not channelHeld then
+					CastClient.casting:set(nil)
+				end
+			end)
 		end
-	elseif result.stage == "resolved" then
+	elseif result.stage == "resolved" and stillOut == 0 then
+		-- The last cast of this spell is done (an earlier one's late answer is ignored).
 		clearPrediction(false)
 	end
 end
@@ -332,7 +386,10 @@ local function struggling(): boolean
 	return character ~= nil and character:GetAttribute("Struggling") ~= nil
 end
 
+local castButtonDown = false -- the cast button is held (a buffered press resumes as a charge)
+
 function CastClient.pressCast(self: any)
+	castButtonDown = true
 	if struggling() then
 		Net.send("StruggleIntent", "down")
 		return
@@ -361,7 +418,18 @@ function CastClient.pressCast(self: any)
 		return
 	end
 	if CastClient.casting:get() then
-		feedback("You're still casting.", "dim")
+		-- Pressed in the last moments of the cast before: kept. If the button is still down when
+		-- you're free the charge starts then; if it was let go, it's cast as a tap.
+		local slot = held.slot
+		if not bufferPress(function()
+			if castButtonDown then
+				self:pressCast()
+			else
+				self:cast(slot, 0)
+			end
+		end) then
+			feedback("You're still casting.", "dim")
+		end
 		return
 	end
 	local character = Players.LocalPlayer.Character
@@ -394,6 +462,7 @@ end
 
 -- Release: a charge is cast at its stage; a held channel ends.
 function CastClient.releaseCast(self: any)
+	castButtonDown = false
 	if struggling() then
 		Net.send("StruggleIntent", "up")
 		return
@@ -444,8 +513,8 @@ function CastClient.pressSlash(self: any)
 	if not character then
 		return
 	end
-	local action = ActionRules.effective(ActionRules.read(character), workspace:GetServerTimeNow())
-	if not ActionRules.allows(action, "slash") then
+	local allowed = ActionRules.allowsAt(ActionRules.read(character), workspace:GetServerTimeNow(), "slash") -- counts a cast's cancel window
+	if not allowed then
 		return
 	end
 	-- The server's last swing speed (weapon) for the timing; 1 before the first swing.
@@ -487,8 +556,8 @@ function CastClient.raiseGuard(_self: any)
 	if not character then
 		return
 	end
-	local action = ActionRules.effective(ActionRules.read(character), workspace:GetServerTimeNow())
-	if not ActionRules.allows(action, "block") then
+	local allowed = ActionRules.allowsAt(ActionRules.read(character), workspace:GetServerTimeNow(), "block") -- counts a cast's cancel window
+	if not allowed then
 		return
 	end
 	local broken = character:GetAttribute("GuardBrokenUntil")

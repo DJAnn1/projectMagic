@@ -152,7 +152,7 @@ function MovementClient.dash(_self: any)
 		return
 	end
 	local snapshot = ActionRules.read(character)
-	if not ActionRules.allows(ActionRules.effective(snapshot, workspace:GetServerTimeNow()), "dash") then
+	if not ActionRules.allowsAt(snapshot, workspace:GetServerTimeNow(), "dash") then -- counts a cast's cancel window
 		return
 	end
 	lastDash = t

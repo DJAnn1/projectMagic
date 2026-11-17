@@ -68,7 +68,7 @@ Every stage is client-side visuals only. The server's cues already say when a sp
 | 3 | **Staged effects** (see "Stage 3: built") | A data timeline per form × power band: `sigil`, `dome`/`sphere` (ForceField-like glass, tweened scale, allowed through the camera), `rings` (one or a stream), `rays`, `slashes` (crescent arcs round the body), `shards`, `pillar`, `flash`, `linger`, `fade`. Build beats run while casting or charging, the flash on resolve, the linger after. Projectile impacts get a target sigil plus a small dome. Ultimates (`Data/Ultimates`) get the long form: build → pause → field-wide reveal → engulf. It reuses existing pieces (`FxLayers`, `ShapeFx`) wherever they fit. | **built 2026-11-17, not yet run** |
 | 4 | **Screen and world** | One flash per release: tint, brightness and bloom pulse, then a short exposure dip after big ones (`ColorCorrectionEffect`, client only), with an edge-only variant for small ones. Ultimates: sky tint or night for nearby clients (Lighting, client-side, distance-faded); Reality and Space ultimates can open a pocket void around the caster. Camera kick on release. Strong caps for others' spells and for the **Reduce motion / Reduce spell effects** settings (no full-screen flashes there; flash frequency capped for everyone). | **built 2026-11-17, not yet run** (see "Stage 4: built"; the pocket void is a near-black, drained tint, not a separate place) |
 | 5 | **Held poses** | Charging holds a pose per kind (arm raised, crouched gather, arms spread, palm forward) and breaks into a short release motion on the flash (`Data/CastPoses`, ActivityPoser). Optionally use uploaded clips (see "Animation sources") instead of procedural poses. | **built 2026-11-17, not yet run** (see "Stage 5: built"; procedural, no clips uploaded) |
-| 6 | **Weight and flow** | Attacker hit-stop, a small lunge within dash tolerance, directional flinches, cancel windows, input buffer, smooth turn to aim (the old stages 4 and 5). | planned |
+| 6 | **Weight and flow** | Attacker hit-stop, a small lunge within dash tolerance, directional flinches, cancel windows, input buffer, smooth turn to aim (the old stages 4 and 5). | **built 2026-11-17, not yet run** (see "Stage 6: built"; no camera turning) |
 | 7 | **Showcase tool** | `moveshow <domain>` casts every spell in a domain at a dummy in turn, for recording and comparing. | planned |
 
 **Recommended order:** 2, then 3, then 4. These three are where the video's look comes from. Then 5, 6, 7.
@@ -106,7 +106,22 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 - `Rotation` on frames inside a SurfaceGui staying crisp when the Part is scaled.
 - A ForceField-material sphere reading as glass from inside.
 
-## Stage 5: built (2026-11-17, owner: "go"), not yet run
+## Stage 6: built (2026-11-17, owner: "go"), not yet run
+
+Nothing in this stage turns the camera (owner's rule after stage 4's kick).
+- **Free when the cast completes:** the client used to hold "You're still casting" until the server's `resolved`, which for a bolt comes when it LANDS (a 1.5 s flight locked the next cast for 1.5 s, though the server was free at the cast time). `CastClient.casting` now clears itself at cast time + delay (a channel keeps it). Answers are counted per spell key (`outstanding`), so a late `resolved` for an earlier cast of the same spell doesn't clear the newer one; another spell's answer no longer clears anything; the 3 s no-answer timeout skips accepted casts.
+- **Input buffer** (`Data/Weight` buffer 0.3 s): a cast pressed in the last 0.3 s of the one before is kept and cast the moment you're free; in equip mode a buffered press starts the charge if the button is still down, else it's a tap.
+- **Cancel window:** `Data/CombatAnimations` casting `cancelLast` (last 0.15 s: dash, block, slash), read by `ActionRules.allowsAt` on the client (dash, slash, block checks) and in the server's `ActionState.can`. Casting can now be interrupted by blocking and slashing too. The spell still goes.
+- **Attacker hit-stop:** your own spell landing (not damage over time) freezes your own animation for 0.035 s + 0.15 × the share it took, at most 0.09 s (`CombatFeedback` → `AnimationController:hitStop`, injected by WorldEffectController).
+- **Directional flinch:** `Client/Fx/Flinch`: a player hit by a spell tilts away from where it came from at the root joint (up to 14° at 25% of their health, 0.3 s), on every client from the hit cue, which now carries `from`. Not while down or ragdolled, not under Reduce motion. NPCs keep their server flinch.
+- **Step:** your own touch spells carry you about 2 studs forward as they land (16 studs/s for 0.12 s; `Data/Weight` step, `enabled` to turn off). Not under Reduce motion.
+- Spec `Tests/Weight.spec` (2).
+
+**To test:** a slow bolt at something far: cast again as soon as the first leaves (it should go, not "still casting"); mash the cast key near the end of a cast (the next one comes out by itself); dash in the last instant of a cast; hit a dummy and feel the catch on hits; get hit from the side by a second player (you lean away); a touch spell (a small step in).
+
+**Unverified (watch for):** the hit-stop clashing with the release follow-through; the flinch fighting the walk animation; whether the step feels good or should go (one data switch).
+
+## Stage 5: built (2026-11-17, owner: "go"); boot confirmed `specs 1207/1208`
 
 The cast poses (docs/CastPoses.md: a gather and a release pose per spell kind, shifted by form, legs never posed) already held a pose while charging. Stage 5 changes their timing in `Controllers/CastPoseController` (numbers in `Data/CastPoses`):
 - **The hold builds:** while charging, the gather pose deepens with the charge (60% of it at the first stage, all of it at full charge, read from `ChargeStart`/`ChargeStep`), and both arms tremble when overcharged (3°, 0.12 s).

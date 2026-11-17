@@ -76,6 +76,22 @@ function ActionRules.allows(state: string, action: string): boolean
 	return def ~= nil and def.allows[action] == true
 end
 
+-- Like allows, for a body's snapshot at time `t`, counting the state's cancel window: some
+-- actions are also allowed in a state's last moments (Data `cancelLast`, docs/Smoothness.md
+-- stage 6). Returns the state in effect too.
+function ActionRules.allowsAt(snapshot: Snapshot, t: number, action: string): (boolean, string)
+	local state = ActionRules.effective(snapshot, t)
+	if ActionRules.allows(state, action) then
+		return true, state
+	end
+	local def = Data.states[state]
+	local window = def and def.cancelLast
+	if window and state == snapshot.state and snapshot.untilTime > 0 and window.actions[action] == true then
+		return snapshot.untilTime - t <= window.seconds, state
+	end
+	return false, state
+end
+
 -- May `to` replace `from` (without forcing)?
 function ActionRules.canEnter(from: string, to: string): boolean
 	local target = Data.states[to]

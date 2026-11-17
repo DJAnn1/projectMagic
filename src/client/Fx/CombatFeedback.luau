@@ -24,7 +24,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Registry = require(Shared.Magic.Registry)
+local Weight = require(Shared.Magic.Data.Weight)
 local FxLayers = require(script.Parent.FxLayers)
+local Flinch = require(script.Parent.Flinch)
 local Audio = require(script.Parent.Parent:WaitForChild("Audio").Audio)
 local DomainFx = require(script.Parent.DomainFx)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
@@ -308,6 +310,12 @@ function CombatFeedback.setShake(fn: (number, number) -> ())
 	shakeFn = fn
 end
 
+-- AnimationController:hitStop, injected by WorldEffectController: your own clip catches on a hit.
+local animHitStopFn: ((number) -> ())? = nil
+function CombatFeedback.setAnimHitStop(fn: (number) -> ())
+	animHitStopFn = fn
+end
+
 function CombatFeedback.hit(cue: { [string]: any })
 	local position = cue.position
 	if typeof(position) ~= "Vector3" then
@@ -338,6 +346,15 @@ function CombatFeedback.hit(cue: { [string]: any })
 	end
 	if mine and not dot and Theme.settings.damageNumbers then
 		showMarker(crit, killed)
+	end
+	-- Weight (docs/Smoothness.md stage 6): your own animation catches for a moment when your spell
+	-- lands, longer for a bigger share; a player who's hit flinches away from where it came from.
+	if mine and not dot and animHitStopFn then
+		local H = Weight.hitStop
+		animHitStopFn(math.min(H.max, H.base + H.perShare * share))
+	end
+	if not dot then
+		Flinch.hit(cue.victim, cue.from, share)
 	end
 	if mine and (cue.heavy or killed or crit) and not dot then
 		hitStop(if killed then 4 elseif cue.heavy then 3 else 1.5)

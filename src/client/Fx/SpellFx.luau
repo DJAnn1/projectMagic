@@ -50,6 +50,7 @@ local SigilData = require(Shared.Magic.Data.Sigils)
 local Sigils = require(script.Parent.Sigils)
 local Staging = require(script.Parent.Staging)
 local ScreenFx = require(script.Parent.ScreenFx)
+local Weight = require(Shared.Magic.Data.Weight)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
@@ -1630,6 +1631,27 @@ function SpellFx.spell(cue: { [string]: any })
 	-- strong and near. An ultimate flashes on its own reveal instead.
 	if not cue.expired and cue.ultimate ~= true and not pulseRepeat then
 		ScreenFx.release(p, style.primary, point, cue.caster == Players.LocalPlayer.UserId, form ~= "projectile")
+	end
+
+	-- Weight (docs/Smoothness.md stage 6): your own close spells carry you a step forward as they
+	-- land (Data/Weight step, about 2 studs; your client moves your body, the server only checks dashes).
+	local step = Weight.step
+	if step.enabled and step.forms[form] and cue.caster == Players.LocalPlayer.UserId and not pulseRepeat and not Theme.settings.reducedMotion then
+		local character = Players.LocalPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if root and root:IsA("BasePart") and humanoid and not humanoid.PlatformStand and not root.Anchored then
+			local facing = root.CFrame.LookVector
+			local forward = Vector3.new(facing.X, 0, facing.Z)
+			if forward.Magnitude > 0.1 then
+				forward = forward.Unit * step.speed
+				FxLayers.animate(step.seconds, function()
+					if root.Parent then
+						root.AssemblyLinearVelocity = Vector3.new(forward.X, root.AssemblyLinearVelocity.Y, forward.Z)
+					end
+				end)
+			end
+		end
 	end
 
 	local impactOpts: ImpactOpts = {

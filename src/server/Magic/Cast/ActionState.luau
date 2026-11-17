@@ -136,7 +136,16 @@ function ActionState.can(model: Model, action: string): (boolean, string)
 	if model:GetAttribute("GravityHeld") or model:GetAttribute("Polymorphed") then
 		return false, state
 	end
-	return ActionRules.allows(state, action), state
+	-- The cancel window (a state's last moments, Data cancelLast) counts here as on the client.
+	if ActionRules.allows(state, action) then
+		return true, state
+	end
+	local snapshot = ActionRules.read(model)
+	if snapshot.state == state then
+		local ok = ActionRules.allowsAt(snapshot, now(), action)
+		return ok, state
+	end
+	return false, state
 end
 
 function ActionState.react(model: Model, clip: string)
