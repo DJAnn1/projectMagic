@@ -44,6 +44,22 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 9. Secrets and the strange: 5 Town Mysteries, 6 Pacts, 55 Secret factions find you, 56 Mythic sightings, 36 Small laws.
 10. Next stages: 58 Magic Marks stage 2, 60 Wild Zones stage 3, 61 Rifts stage 3 + tuning, 63 NPC movement stage 2, 62 the multiplayer queue (news, trade, markets).
 
+**📌 PINNED by the owner (2026-11-17: "pin this for next time"): the domain expansion (`docs/DomainIdeas.md`). Resume here next session.**
+- **Where it stands:** all eight domains are built. Energy, Earth, Water, Air, Life, Void and Spirit are confirmed in play; **Mind** (16 spells, `12f068a`) is built and hasn't been run.
+- **First:** ask for one playtest of Mind (clear the Output first; one `rojo serve`). Expect boot line **`specs 1190/1191`** (the failure the known "Standing room"). Test list:
+  - Far Eye (you see out of the eye, then get your camera back).
+  - False Wall between you and the Meadow Sentinel (it loses you past 4 studs).
+  - Forget Me on a Wildborn that's chasing you (it walks off).
+  - Puppet on a dummy and an NPC.
+  - Pacify and Despair on a Wildborn.
+  - Mirror Images under hits (one copy goes per hit).
+  - Mind Spike, Psychic Push, Mirage Pit, Whispers, Rally, Vanish, Phantom Blade, Phantom Beast.
+- **Then:** fix from that log. After that the expansion is done; back to the build queue (Living History stage 4b).
+- **Unanswered, defaults in use:**
+  - Should Forget Me work on players? Default: no.
+  - Should Puppet count as a crime when seen (Dominion is forbidden magic)? Default: judged like any spell.
+  - Should a False Wall stop bolts as well as sight? Default: no.
+
 **Newest (2026-11-17): Mind expansion BUILT, not yet run** (`docs/DomainIdeas.md` "Mind: built"), on the owner's "everything works, build mind next" (Spirit confirmed, no log). The last domain of the expansion: 16 Mind spells (routes `mind_<move>`, `Effects/MindArt`, `Data/MindTuning`, `Fx/MindFx`, cue kind `mind`). Runtime: `ArtRuntime.addForgetter`/`forget` (Forget Me: Wildborn and creatures drop you and don't notice you for a while, NPC fighters drop their grudge; not on players) and `ArtRuntime.screened`, read by `Concealment.hiddenFrom` (a False Wall hides you from Wildborn, creatures and NPC fighters past 4 studs). Flag `mind_arts_enabled`. Expected boot line **`specs 1190/1191`**. After its playtest the domain expansion is done; back to the build queue (Living History stage 4b).
 
 **Earlier (2026-11-17): Spirit expansion BUILT** (confirmed 2026-11-17, owner: "everything works") (`docs/DomainIdeas.md` "Spirit: built"), on the owner's "continue": 15 Spirit spells (routes `spirit_<move>`, `Effects/SpiritArt`, `Data/SpiritTuning`, `Fx/SpiritFx`, cue kind `spirit`); runtime `victimHit` and `ArtRuntime.oaths` (Shared Fate in ArtService's damage wrap). Also committed first (`85c08a4`): turned Wildborn bolts/boulders hurt Wildborn, deflectors turn boulders, `Cast/Concealment` for creatures and NPC fighters. Flag `spirit_arts_enabled`. Expected boot line **`specs 1187/1188`**. Next after its playtest: Mind (the last domain).
