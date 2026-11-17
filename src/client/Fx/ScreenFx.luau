@@ -171,7 +171,7 @@ end
 -- ─── Public ─────────────────────────────────────────────────────────────────
 
 function ScreenFx.kick(power: number)
-	if not enabled() or gentle() then
+	if not K.enabled or not enabled() or gentle() then
 		return
 	end
 	kickPeak = math.min(K.maxDegrees, power * K.degreesPerPower)

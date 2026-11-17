@@ -34,6 +34,11 @@ ScreenFx.flash = table.freeze({
 })
 
 ScreenFx.kick = table.freeze({
+	-- Off (owner, 2026-11-17: "the camera movement is annoying as I keep having to readjust the
+	-- camera"). Roblox's camera reads its own direction back each frame, so turning it after the
+	-- camera scripts left the view tilted and every cast added to it. Spells don't move the
+	-- camera's direction; if a kick ever comes back it must not turn the camera.
+	enabled = false,
 	degreesPerPower = 0.35,
 	maxDegrees = 3,
 	settle = 0.22, -- seconds back

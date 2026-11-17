@@ -38,7 +38,9 @@ return function(t: any)
 			expect(Data.sky.full < Data.sky.range).toBe(true)
 		end)
 
-		it("keeps the kick small", function()
+		it("keeps the kick off and small", function()
+			-- The owner found any camera turn annoying (it also drifted the view): it stays off.
+			expect(Data.kick.enabled).toBe(false)
 			expect(Data.kick.maxDegrees <= 4).toBe(true)
 			expect(Data.kick.settle > 0.1 and Data.kick.settle < 0.5).toBe(true)
 		end)
