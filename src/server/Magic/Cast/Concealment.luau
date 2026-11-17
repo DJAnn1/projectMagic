@@ -1,0 +1,39 @@
+--!strict
+--[[
+	Concealment: is someone hidden from whoever is looking for them? One rule for everything that picks
+	a target: Wildborn (Services/WildbornService), creatures (Services/CreatureService) and NPCs who fight
+	(NPC/NPCCombat).
+
+		hidden(model, humanoid)               veiled (the status) or Unseen (Void, attribute `Unseen`)
+		hiddenFrom(model, humanoid, from, blind?)   hidden, or the looker is blind, and further away than
+		                                            seenThrough: close enough, a veil doesn't save you
+]]
+
+local StatusEffects = require(script.Parent.StatusEffects)
+
+local Concealment = {}
+
+Concealment.seenThrough = 12 -- studs: closer than this, a veil (or a blind looker) doesn't hide you
+
+function Concealment.hidden(model: Model, humanoid: Humanoid?): boolean
+	local h = humanoid or model:FindFirstChildOfClass("Humanoid")
+	if h and StatusEffects.has(h, "veiled") then
+		return true
+	end
+	local unseen = model:GetAttribute("Unseen")
+	return typeof(unseen) == "number" and unseen > workspace:GetServerTimeNow()
+end
+
+function Concealment.hiddenFrom(model: Model, humanoid: Humanoid?, from: Vector3, blind: boolean?): boolean
+	if not blind and not Concealment.hidden(model, humanoid) then
+		return false
+	end
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+	local d = Vector3.new(root.Position.X - from.X, 0, root.Position.Z - from.Z).Magnitude
+	return d > Concealment.seenThrough
+end
+
+return Concealment

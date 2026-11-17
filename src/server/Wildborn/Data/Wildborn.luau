@@ -380,7 +380,6 @@ Wildborn.enemies = {
 } :: { [string]: Enemy }
 
 Wildborn.tuning = {
-	seenThrough = 12, -- studs: closer than this a Wildborn sees through a veil (or Void's Unseen)
 	stepSeconds = 0.2, -- how often each awake Wildborn thinks
 	wakeRadius = 240,
 	sleepRadius = 320,

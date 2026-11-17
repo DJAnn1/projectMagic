@@ -60,6 +60,7 @@ type Projectile = {
 	expires: number,
 	radius: number,
 	ownerModel: Model?, -- for the deflectors: who threw it (they never turn a caster's own bolts)
+	turnedBy: number?, -- a player's spell turned it: it hurts Wildborn now, and never that player
 }
 type Zone = {
 	actor: Actor,
@@ -76,7 +77,11 @@ local WildbornMoves = {}
 WildbornMoves.swallower = nil :: ((Vector3, Model?) -> boolean)?
 -- Set by Services/ArtService: Ice Mirror, Heat Haze, Repulse and Windwall turning a bolt ("bend" with a
 -- new velocity, "reflect", "stop" or "erase"); `flight` is the projectile itself (ownerModel set).
-WildbornMoves.deflector = nil :: ((Vector3, Vector3, any) -> (string?, any))?
+WildbornMoves.deflector = nil :: ((Vector3, Vector3, any) -> (string?, any, number?))?
+-- Set by Services/WildbornService: living Wildborn bodies within `radius` of a point. A bolt or boulder a
+-- player's spell turned (Ice Mirror, Heat Haze, Repulse, Windwall) hits Wildborn too, its own thrower
+-- included, credited to that player.
+WildbornMoves.wildbornNear = nil :: ((Vector3, number) -> { View })?
 
 local playersNear: () -> { View } = function()
 	return {}
@@ -89,6 +94,7 @@ end
 local projectiles: { Projectile } = {}
 local zones: { Zone } = {}
 local projectileId = 0
+local lobId = 0 -- boulders in the air, so a client can end one that's eaten or turned
 
 function WildbornMoves.setPlayers(fn: () -> { View })
 	playersNear = fn
@@ -157,6 +163,30 @@ local function hurt(actor: Actor, view: View, amount: number, move: Data.Move?, 
 	end
 end
 
+-- A turned bolt or boulder landing on a Wildborn: an ordinary magic hit from the player who turned it
+-- (their kill, their XP: Services/WildbornService reads the source from TargetDamaged).
+local function hurtTurned(actor: Actor, view: View, amount: number, turnedBy: number, from: Vector3)
+	if amount <= 0 or view.humanoid.Health <= 0 then
+		return
+	end
+	Damage.apply(view.humanoid, amount, turnedBy, "wildborn_turned", {
+		domain = actor.enemy.domain,
+		from = from,
+		form = "area",
+		power = actor.enemy.level,
+	})
+end
+
+-- Who a turned thing can land on: the Wildborn near it.
+local function wildbornWithin(at: Vector3, radius: number): { View }
+	local near = WildbornMoves.wildbornNear
+	return if near then near(at, radius) else {}
+end
+
+local function turner(view: View, turnedBy: number?): boolean
+	return turnedBy ~= nil and view.player ~= nil and (view.player :: Player).UserId == turnedBy
+end
+
 local function withinOf(views: { View }, at: Vector3, radius: number): { View }
 	local out: { View } = {}
 	for _, view in views do
@@ -188,7 +218,7 @@ local function groundBelow(at: Vector3): Vector3
 end
 
 -- Telegraph spots, then hit everyone within `radius` of any of them (once each), after `delay`.
-local function strikeSpots(actor: Actor, move: Data.Move, spots: { Vector3 }, radius: number, delay: number, style: string, knockback: Vector3?)
+local function strikeSpots(actor: Actor, move: Data.Move, spots: { Vector3 }, radius: number, delay: number, style: string, knockback: Vector3?, turnedBy: number?)
 	cue(actor, "marks", spots[1] or actor.root.Position, { spots = spots, radius = radius, delay = delay, style = style })
 	task.delay(delay, function()
 		if not actor.model.Parent then
@@ -197,8 +227,16 @@ local function strikeSpots(actor: Actor, move: Data.Move, spots: { Vector3 }, ra
 		cue(actor, "strike", spots[1] or actor.root.Position, { spots = spots, radius = radius, style = style })
 		local struck: { [Humanoid]: boolean } = {}
 		for _, spot in spots do
+			if turnedBy then
+				for _, wild in wildbornWithin(spot, radius + 1) do
+					if not struck[wild.humanoid] then
+						struck[wild.humanoid] = true
+						hurtTurned(actor, wild, move.damage, turnedBy, spot)
+					end
+				end
+			end
 			for _, view in within(spot, radius + 1) do
-				if not struck[view.humanoid] then
+				if not struck[view.humanoid] and not turner(view, turnedBy) then
 					struck[view.humanoid] = true
 					hurt(actor, view, move.damage, move, spot)
 					if move.knockback then
@@ -282,7 +320,7 @@ kinds.lob = function(actor, move, target)
 			local from = actor.root.Position + Vector3.new(0, 3 * actor.enemy.scale, 0)
 			local to = groundBelow(view.root.Position)
 			local flight = math.max(0.45, (to - from).Magnitude / move.speed)
-			cue(actor, "lob", from, { from = from, to = to, time = flight, size = move.size or 3, style = move.style })
+			cue(actor, "lob", from, { id = lobId + 1, from = from, to = to, time = flight, size = move.size or 3, style = move.style })
 			-- A Void spell on its arc eats the boulder in the air: walk the arc in step with the boulder,
 			-- asking at each point as it gets there; eaten anywhere, it never lands.
 			local swallower = WildbornMoves.swallower
@@ -290,14 +328,45 @@ kinds.lob = function(actor, move, target)
 				local apex = math.max(4, (to - from).Magnitude * 0.3)
 				local radius = move.radius or 7
 				cue(actor, "marks", to, { spots = { to }, radius = radius, delay = flight, style = move.style })
+				lobId += 1
+				local id = lobId
+				local flightKey = { ownerModel = actor.model } -- one per boulder: deflectors turn it once
+				local deflector = WildbornMoves.deflector
 				task.spawn(function()
+					local last = from
 					for k = 1, 10 do
 						task.wait(flight / 10)
 						local t = k / 10
 						local point = from:Lerp(to, t) + Vector3.new(0, math.sin(t * math.pi) * apex, 0)
-						if not actor.model.Parent or swallower(point, actor.model) then
+						if not actor.model.Parent then
 							return
 						end
+						if swallower(point, actor.model) then
+							cue(actor, "lobEnd", point, { id = id, at = point, style = move.style })
+							return
+						end
+						if deflector and k < 10 then
+							local velocity = (point - last) / (flight / 10)
+							local action, value, by = deflector(point, velocity, flightKey)
+							if action == "bend" or action == "reflect" then
+								-- Turned: it flies off the new way for what's left of its flight, and lands there.
+								local newDir = if action == "bend" and typeof(value) == "Vector3" then value else -velocity
+								local flatDir = Vector3.new(newDir.X, 0, newDir.Z)
+								flatDir = if flatDir.Magnitude > 0.1 then flatDir.Unit else -Vector3.new(velocity.X, 0, velocity.Z).Unit
+								local left = math.max(8, (1 - t) * Vector3.new(to.X - from.X, 0, to.Z - from.Z).Magnitude)
+								local newTo = groundBelow(point + flatDir * left)
+								local rest = math.max(0.4, flight * (1 - t))
+								cue(actor, "lobEnd", point, { id = id, at = point, style = move.style, quiet = true })
+								lobId += 1
+								cue(actor, "lob", point, { id = lobId, from = point, to = newTo, time = rest, size = move.size or 3, style = move.style })
+								strikeSpots(actor, move, { newTo }, radius, rest, move.style, nil, by)
+								return
+							elseif action == "stop" or action == "erase" then
+								cue(actor, "lobEnd", point, { id = id, at = point, style = move.style })
+								return
+							end
+						end
+						last = point
 					end
 					strikeSpots(actor, move, { to }, radius, 0, move.style)
 				end)
@@ -676,7 +745,10 @@ local function stepProjectiles(views: { View }, dt: number, now: number)
 	for i = #projectiles, 1, -1 do
 		local p = projectiles[i]
 		if deflector then
-			local action, value = deflector(p.position, p.velocity, p)
+			local action, value, by = deflector(p.position, p.velocity, p)
+			if (action == "bend" or action == "reflect") and by then
+				p.turnedBy = by
+			end
 			if action == "bend" and typeof(value) == "Vector3" then
 				p.velocity = value
 				cue(p.actor, "boltEnd", p.position, { id = p.id, at = p.position, style = p.move.style })
@@ -702,9 +774,17 @@ local function stepProjectiles(views: { View }, dt: number, now: number)
 			cue(p.actor, "boltEnd", nextPosition, { id = p.id, at = nextPosition, style = p.move.style })
 			continue
 		end
-		if not done then
+		if not done and p.turnedBy then
+			-- Turned back: it lands on Wildborn now, its own thrower included.
+			for _, wild in wildbornWithin(nextPosition, p.radius) do
+				hurtTurned(p.actor, wild, p.move.damage, p.turnedBy :: number, p.position)
+				hitAt = nextPosition
+				break
+			end
+		end
+		if not done and not hitAt then
 			for _, view in views do
-				if (view.position - nextPosition).Magnitude <= p.radius then
+				if (view.position - nextPosition).Magnitude <= p.radius and not turner(view, p.turnedBy) then
 					hurt(p.actor, view, p.move.damage, p.move, p.position)
 					hitAt = nextPosition
 					break
@@ -719,7 +799,14 @@ local function stepProjectiles(views: { View }, dt: number, now: number)
 		end
 		if hitAt and p.move.splash then
 			for _, view in withinOf(views, hitAt, p.move.splash) do
-				hurt(p.actor, view, p.move.damage * 0.5, p.move, hitAt)
+				if not turner(view, p.turnedBy) then
+					hurt(p.actor, view, p.move.damage * 0.5, p.move, hitAt)
+				end
+			end
+			if p.turnedBy then
+				for _, wild in wildbornWithin(hitAt, p.move.splash) do
+					hurtTurned(p.actor, wild, p.move.damage * 0.5, p.turnedBy :: number, hitAt)
+				end
 			end
 		end
 		if hitAt or done then

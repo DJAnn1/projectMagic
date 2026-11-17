@@ -9,6 +9,7 @@
 		strike   what rises or lands on the marks: spikes, vines, a wave, a blast
 		fall     something falling onto a mark: a meteor, an anvil (lightning strikes on landing)
 		bolt / boltEnd   a projectile flown here along the server's path, ended where the server says
+		lob / lobEnd     a boulder's arc; ended in the air when a spell eats or turns it
 		lob      an arcing boulder
 		chain    lightning jumping between points (also after-images firing)
 		dash     a burning trail along a dash
@@ -293,6 +294,22 @@ handlers.boltEnd = function(cue, primary, secondary)
 	end
 end
 
+local lobs: { [number]: BasePart } = {}
+
+-- A boulder eaten or turned in the air (Void, Ice Mirror, Windwall...): it ends where the server says.
+handlers.lobEnd = function(cue, primary, secondary)
+	local id = tonumber(cue.id)
+	local rock = id and lobs[id]
+	if rock and id then
+		lobs[id] = nil
+		rock:Destroy()
+	end
+	local at = v3(cue.at)
+	if at and not cue.quiet then
+		blast(at, 4, primary, secondary)
+	end
+end
+
 handlers.lob = function(cue, primary, _secondary)
 	local from, to = v3(cue.from), v3(cue.to)
 	local time = math.max(0.3, tonumber(cue.time) or 1)
@@ -307,13 +324,20 @@ handlers.lob = function(cue, primary, _secondary)
 		Color = Color3.fromRGB(95, 75, 55),
 		Material = Enum.Material.Slate,
 	})
-	local height = (to - from).Magnitude * 0.3
+	local height = math.max(4, (to - from).Magnitude * 0.3)
+	local lobId = tonumber(cue.id)
+	if lobId then
+		lobs[lobId] = rock
+	end
 	local started = os.clock()
 	local connection: RBXScriptConnection
 	connection = RunService.RenderStepped:Connect(function()
 		local t = (os.clock() - started) / time
 		if t >= 1 or not rock.Parent then
 			connection:Disconnect()
+			if lobId then
+				lobs[lobId] = nil
+			end
 			if rock.Parent then
 				rock:Destroy()
 				ring(to, 2, size * 2.5, primary, 0.5)

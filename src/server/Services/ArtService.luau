@@ -44,7 +44,7 @@ function ArtService.init(_self: any, ctx: any)
 		return ArtRuntime.swallows(position, ownerModel, nil)
 	end
 	-- ...and the deflectors (Ice Mirror, Heat Haze, Repulse, Windwall) turn them as they turn spell bolts.
-	WildbornMoves.deflector = function(position: Vector3, velocity: Vector3, flight: any): (string?, any)
+	WildbornMoves.deflector = function(position: Vector3, velocity: Vector3, flight: any): (string?, any, number?)
 		return ArtRuntime.deflects(position, velocity, flight)
 	end
 

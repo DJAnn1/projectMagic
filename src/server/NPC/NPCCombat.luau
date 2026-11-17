@@ -42,6 +42,7 @@ local C = require(Server.Magic.Data.CombatTuning)
 local DownedRules = require(Server.Downed.DownedRules)
 local Delivery = require(Server.Magic.Cast.Delivery)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
+local Concealment = require(Server.Magic.Cast.Concealment)
 local DamageModel = require(Server.Magic.Cast.DamageModel)
 local Targeting = require(Server.Magic.Cast.Targeting)
 local ActionState = require(Server.Magic.Cast.ActionState)
@@ -593,7 +594,7 @@ end
 
 -- ─── Stepping (T0, ~10 Hz) ──────────────────────────────────────────────────
 
-local function decay(c: Combat, dt: number): string?
+local function decay(c: Combat, dt: number, from: Vector3?): string?
 	local best, bestThreat = nil, A.forgetBelow
 	for subject, threat in c.threat do
 		local left = threat - A.decayPerSecond * dt
@@ -601,7 +602,10 @@ local function decay(c: Combat, dt: number): string?
 			c.threat[subject] = nil
 		else
 			c.threat[subject] = left
-			if left >= bestThreat and characterOf(subject) then
+			local model = characterOf(subject)
+			-- Veiled or Unseen past arm's length (Cast/Concealment): it can't find them to fight.
+			local lost = model ~= nil and from ~= nil and Concealment.hiddenFrom(model, nil, from :: Vector3)
+			if left >= bestThreat and model and not lost then
 				best, bestThreat = subject, left
 			end
 		end
@@ -618,7 +622,7 @@ function NPCCombat.step(npc: any, dt: number): boolean
 		return false
 	end
 	local clock = os.clock()
-	c.target = decay(c, dt)
+	c.target = decay(c, dt, rig.root.Position)
 	if not c.target or clock - c.lastHit > A.maxEngageSeconds then
 		NPCCombat.disengage(npc)
 		return false

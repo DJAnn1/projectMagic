@@ -41,6 +41,7 @@ local Creatures = require(Server.Creatures.Data.Creatures)
 local CreatureRules = require(Server.Creatures.CreatureRules)
 local CreatureRig = require(Server.Creatures.CreatureRig)
 local Damage = require(Server.Magic.Cast.Damage)
+local Concealment = require(Server.Magic.Cast.Concealment)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
 local DownedRules = require(Server.Downed.DownedRules)
@@ -485,12 +486,17 @@ local function stepCreature(creature: Creature, players: { PlayerView }, now: nu
 	local nearestDistance, playerToDen = math.huge, math.huge
 	local attacker: PlayerView? = nil
 	for _, view in players do
+		local character = view.player.Character
+		-- Veiled or Unseen past arm's length (Cast/Concealment): it doesn't know they're there.
+		local hiddenFromIt = character ~= nil and Concealment.hiddenFrom(character, view.humanoid, position)
 		local d = flat(view.position, position)
-		if d < nearestDistance then
+		if d < nearestDistance and not hiddenFromIt then
 			nearest, nearestDistance = view, d
 		end
-		playerToDen = math.min(playerToDen, flat(view.position, den))
-		if view.player.UserId == creature.attacker then
+		if not hiddenFromIt then
+			playerToDen = math.min(playerToDen, flat(view.position, den))
+		end
+		if view.player.UserId == creature.attacker and not hiddenFromIt then
 			attacker = view
 		end
 	end

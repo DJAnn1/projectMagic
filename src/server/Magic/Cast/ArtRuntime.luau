@@ -495,17 +495,17 @@ end
 
 -- Any flying thing (a Wildborn bolt) asks the deflectors (Ice Mirror, Heat Haze, Repulse, Windwall):
 -- `flight` is a stable table for that projectile (deflectors remember what they've turned) with
--- ownerModel and property. Returns the deflector's action and value, or nil.
-function ArtRuntime.deflects(position: Vector3, velocity: Vector3, flight: any): (string?, any)
+-- ownerModel and property. Returns the deflector's action and value, and whose spell turned it (UserId).
+function ArtRuntime.deflects(position: Vector3, velocity: Vector3, flight: any): (string?, any, number?)
 	for _, body in bodies do
 		if body.deflect and not body.ended then
 			local action, value = body.deflect(body, position, velocity, flight)
 			if action then
-				return action, value
+				return action, value, body.owner
 			end
 		end
 	end
-	return nil, nil
+	return nil, nil, nil
 end
 
 -- Delivery.interceptor's say: the first body that turns this bolt wins; then the swallowers.
