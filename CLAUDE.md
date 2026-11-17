@@ -44,7 +44,25 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 9. Secrets and the strange: 5 Town Mysteries, 6 Pacts, 55 Secret factions find you, 56 Mythic sightings, 36 Small laws.
 10. Next stages: 58 Magic Marks stage 2, 60 Wild Zones stage 3, 61 Rifts stage 3 + tuning, 63 NPC movement stage 2, 62 the multiplayer queue (news, trade, markets).
 
-**Newest (2026-11-17): World Places PLANNED (`docs/WorldPlaces.md`), design only, nothing built.** Owner: "bigger dungeons and more spots in the world such as buildings with cool findings and enemies". Audit: every POI but settlements is an invisible dwell circle (the 10 "Dungeon" POIs included, and rumours already point at them). Plan: seeded histories decide each place; ~70 wayside spots, existing sites given bodies, 10 deep places (underground, 2–3 depths, Rift-style rooms, Wildborn keepers, letters to real NPCs, maps, keys, spell pages); per-server cleared/resettled. Stages 0–5; 6 open questions. Waiting on the owner's go (default start: stage 0).
+**📌 PINNED by the owner (2026-11-17: "pin for next time"): World Places (`docs/WorldPlaces.md`). Resume here next session.** Design only, nothing built.
+- **The request:** "bigger dungeons and more spots in the world such as buildings with cool findings and enemies".
+- **Audit:** every POI except settlements is an invisible dwell circle, including the 10 "Dungeon" POIs, and rumours already send players to them.
+- **The plan:** seeded histories decide each place.
+  - ~70 wayside spots.
+  - The existing sites get bodies.
+  - 10 deep places: underground, 2–3 depths, Rift-style rooms, Wildborn keepers, letters to real NPCs, maps, keys and spell pages.
+  - Per-server cleared/resettled state.
+  - Stages 0–5.
+- **First:** ask the owner for a go and for answers to the doc's §10 open questions:
+  - underground or surface;
+  - no level gate;
+  - respawn after 4–10 h;
+  - shared or instanced;
+  - digging in;
+  - counts 70/45/10.
+  
+  Unanswered questions take their defaults. Then build stage 0: PlaceHistory, PlaceKinds, PlaceService, admin `places`/`place goto`/`placehistory`, and the fix for the dungeon rumour that points at nothing.
+- **Still owed before or alongside it:** Mind's playtest, and the playtest of Smoothness stages 6–7.
 
 **📌 PINNED by the owner (2026-11-17: "pin this for next time"): the domain expansion (`docs/DomainIdeas.md`). Resume here next session.**
 - **Where it stands:** all eight domains are built. Energy, Earth, Water, Air, Life, Void and Spirit are confirmed in play; **Mind** (16 spells, `12f068a`) is built and hasn't been run.
