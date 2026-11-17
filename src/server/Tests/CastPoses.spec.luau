@@ -74,7 +74,11 @@ return function(t: any)
 		end)
 
 		it("timing is ordered, and there's a client flag", function()
-			expect(CastPoses.reachAt > 0 and CastPoses.reachAt < CastPoses.holdTo and CastPoses.holdTo < 1).toBe(true)
+			-- Held poses (stage 5): a quick snap, a short follow-through, a held gather that deepens.
+			expect(CastPoses.snap > 0 and CastPoses.snap < 0.3).toBe(true)
+			expect(CastPoses.follow > 0 and CastPoses.follow + CastPoses.settle < 1.2).toBe(true)
+			expect(CastPoses.overshoot >= 0 and CastPoses.overshoot <= 0.3).toBe(true)
+			expect(CastPoses.depthMin > 0 and CastPoses.depthMin <= 1).toBe(true)
 			local flag = (Flags :: any).cast_poses_enabled
 			expect(flag ~= nil and flag.replicate == true).toBe(true)
 		end)

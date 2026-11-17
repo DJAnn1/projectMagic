@@ -44,6 +44,8 @@ type Tracked = {
 	form: string?,
 	keepUntil: number?, -- NPCs only
 	posed: boolean,
+	inCast: string?, -- "charging", "casting" or "channeling" last frame (nil = none)
+	releasedAt: number?, -- os.clock() when the cast ended (the follow-through runs from it)
 }
 
 local tracked: { [Model]: Tracked } = {}
@@ -54,7 +56,7 @@ local function track(model: Model, keepUntil: number?)
 		entry.keepUntil = if keepUntil then math.max(entry.keepUntil or 0, keepUntil) else nil
 		return
 	end
-	tracked[model] = { model = model, rp = nil, kind = nil, form = nil, keepUntil = keepUntil, posed = false }
+	tracked[model] = { model = model, rp = nil, kind = nil, form = nil, keepUntil = keepUntil, posed = false, inCast = nil, releasedAt = nil }
 end
 
 local function untrack(model: Model)
@@ -71,15 +73,18 @@ local function lerp(a: number, b: number, k: number): number
 	return a + (b - a) * k
 end
 
--- The gather and release poses of a kind, blended by k, shifted by the form's mode.
-local function blended(kind: string, form: string?, k: number): ActivityPoses.Pose
+-- The gather and release poses of a kind, blended by k (past 1 = the follow-through's overshoot),
+-- shifted by the form's mode. `depth` scales the gather (a charge deepens it); `shake` trembles
+-- both arms (overcharged).
+local function blended(kind: string, form: string?, k: number, depth: number, shake: boolean): ActivityPoses.Pose
 	local poses = CastPoses.kinds[kind] or CastPoses.kinds[CastPoses.fallback]
 	local mode = CastPoses.modes[SpellHand.modeFor(form)] or CastPoses.modes.hand
 	local a, b = poses.gather, poses.release
 	local joints: { [string]: { number } } = {}
 	for joint, rot in a.joints do
 		local other = b.joints[joint] or { 0, 0, 0 }
-		joints[joint] = { lerp(rot[1], other[1], k), lerp(rot[2], other[2], k), lerp(rot[3], other[3], k) }
+		local g = { rot[1] * depth, rot[2] * depth, rot[3] * depth }
+		joints[joint] = { lerp(g[1], other[1], k), lerp(g[2], other[2], k), lerp(g[3], other[3], k) }
 	end
 	for joint, rot in b.joints do
 		if not joints[joint] then
@@ -102,10 +107,19 @@ local function blended(kind: string, form: string?, k: number): ActivityPoses.Po
 		addX("RootJoint", mode.lean)
 	end
 	local lower = lerp(a.lower or 0, b.lower or 0, k) + mode.lower
+	local motion = if k < 0.5 then a.motion else {} -- the gather's tremor or breath fades as it's cast
+	local period = a.period
+	if shake and k < 0.5 then
+		motion = {
+			{ joint = "Right Shoulder", axis = "x", amp = CastPoses.shakeAmp, shape = "sine" },
+			{ joint = "Left Shoulder", axis = "x", amp = CastPoses.shakeAmp, shape = "sine", phase = 0.5 },
+		}
+		period = CastPoses.shakePeriod
+	end
 	return {
 		joints = joints,
-		motion = if k < 0.5 then a.motion else {}, -- the gather's tremor or breath fades as it's cast
-		period = a.period,
+		motion = motion,
+		period = period,
 		lower = lower,
 		body = if lower > 0 then "crouch" else nil,
 		variants = a.variants,
@@ -113,26 +127,59 @@ local function blended(kind: string, form: string?, k: number): ActivityPoses.Po
 	}
 end
 
--- How much of the pose shows and how far into the release it is, for this body now (nil = none).
-local function phase(model: Model, t: number): (number?, number)
+--[[
+	How much of the pose shows (nil = none), how far into the release (0 gather .. 1 release, a
+	little past 1 at the moment of casting), how deep the gather is, and whether it trembles:
+		charging    the gather, eased in, deepening with the charge; trembling when overcharged
+		casting     the gather held until the last `snap` seconds, then snapped to the release, so
+		            the release lands as the spell leaves
+		channeling  the release, held
+		after       the follow-through: past the release and easing back for `follow`, then settling
+]]
+local function phase(entry: Tracked, model: Model, t: number, now: number): (number?, number, number, boolean)
 	local snapshot = ActionRules.read(model)
 	local state = ActionRules.effective(snapshot, t)
-	if state ~= snapshot.state then
-		return nil, 0 -- the state ran out; the next one has no cast pose
-	end
+	local live = state == snapshot.state
 	local started = if snapshot.untilTime > 0 then snapshot.untilTime - snapshot.duration else t
 	local elapsed = math.max(0, t - started)
-	if state == "charging" then
-		return math.clamp(elapsed / CastPoses.fadeIn, 0, 1), 0
-	elseif state == "casting" then
-		local e = if snapshot.duration > 0 then math.clamp(elapsed / snapshot.duration, 0, 1) else 1
-		local k = math.clamp(e / CastPoses.reachAt, 0, 1)
-		local w = if e <= CastPoses.holdTo then 1 else math.clamp(1 - (e - CastPoses.holdTo) / (1 - CastPoses.holdTo), 0, 1)
-		return w, k
-	elseif state == "channeling" then
-		return 1, 1
+	if live and state == "charging" then
+		entry.inCast, entry.releasedAt = "charging", nil
+		local depth, shake = 1, false
+		local start, stepSize = model:GetAttribute("ChargeStart"), model:GetAttribute("ChargeStep")
+		if typeof(start) == "number" and typeof(stepSize) == "number" then
+			local progress = SpellHand.progress(t - start, stepSize) -- 0..3; 2 = full, past it overcharged
+			depth = lerp(CastPoses.depthMin, 1, math.clamp(progress / 2, 0, 1))
+			shake = progress > 2
+		end
+		return math.clamp(elapsed / CastPoses.fadeIn, 0, 1), 0, depth, shake
+	elseif live and state == "casting" then
+		entry.inCast, entry.releasedAt = "casting", nil
+		local remaining = if snapshot.untilTime > 0 then snapshot.untilTime - t else 0
+		local k = if remaining >= CastPoses.snap then 0 else 1 - remaining / CastPoses.snap
+		return 1, k, 1, false
+	elseif live and state == "channeling" then
+		entry.inCast, entry.releasedAt = "channeling", nil
+		return 1, 1, 1, false
 	end
-	return nil, 0
+	-- No longer casting: the follow-through after a cast or channel, then settling. A charge that
+	-- was dropped (charging straight back to holding) just lets go, with no thrust.
+	local was = entry.inCast
+	if was then
+		entry.inCast = nil
+		entry.releasedAt = if was ~= "charging" then now else nil
+	end
+	local released = entry.releasedAt
+	if released then
+		local a = now - released
+		if a < CastPoses.follow then
+			local swing = math.clamp(1 - a / (CastPoses.follow * 0.5), 0, 1)
+			return 1, 1 + CastPoses.overshoot * swing, 1, false
+		elseif a < CastPoses.follow + CastPoses.settle then
+			return 1 - (a - CastPoses.follow) / CastPoses.settle, 1, 1, false
+		end
+		entry.releasedAt = nil
+	end
+	return nil, 0, 1, false
 end
 
 local function update()
@@ -157,7 +204,7 @@ local function update()
 		end
 		local root = model:FindFirstChild("HumanoidRootPart")
 		local near = eye ~= nil and root ~= nil and root:IsA("BasePart") and (root.Position - eye).Magnitude <= CastPoses.range
-		local weight, k = phase(model, t)
+		local weight, k, depth, shake = phase(entry, model, t, now)
 		if not enabled or not near or not weight or weight <= 0 then
 			if entry.posed and entry.rp then
 				ActivityPoser.release(entry.rp, OWNER)
@@ -170,7 +217,7 @@ local function update()
 		end
 		local rp = entry.rp
 		if rp then
-			ActivityPoser.setPose(rp, blended(entry.kind or CastPoses.fallback, entry.form, k), t, weight, OWNER)
+			ActivityPoser.setPose(rp, blended(entry.kind or CastPoses.fallback, entry.form, k, depth, shake), t, weight, OWNER)
 			entry.posed = true
 		end
 	end

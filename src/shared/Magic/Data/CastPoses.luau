@@ -123,10 +123,18 @@ return table.freeze({
 	}) :: { [string]: Mode },
 
 	fadeIn = 0.2, -- seconds for the gather pose to come in when a charge starts
-	-- Casting, as shares of the cast state's duration: gather -> release by `reachAt`, held to `holdTo`,
-	-- then faded out by the end (plus `tail` seconds after).
-	reachAt = 0.3,
-	holdTo = 0.7,
-	tail = 0.15,
+	-- Held poses (docs/Smoothness.md stage 5). The gather is held through the whole cast and only
+	-- breaks in its last `snap` seconds, so the release lands as the spell leaves; the body then
+	-- holds the follow-through (`overshoot` past the release, easing back) for `follow` seconds
+	-- and settles over `settle`.
+	snap = 0.12,
+	overshoot = 0.12, -- the release swings this share past its pose at the moment of casting
+	follow = 0.28,
+	settle = 0.3,
+	-- While charging the gather deepens with the charge: `depthMin` of the pose at the first stage,
+	-- all of it by full charge. Overcharged, both arms tremble.
+	depthMin = 0.6,
+	shakeAmp = 3, -- degrees
+	shakePeriod = 0.12, -- seconds
 	range = 120, -- studs from the camera
 })
