@@ -64,6 +64,49 @@ Marks: ✦ = needs a shared piece of tech (see "Shared pieces" at the end). ⚠�
 - **Galvanise** (`charge · amplify · touch` on an ally): a burst of speed with sparks at the feet. *Blue sparks trailing their steps.*
 - **Arc Fence** (`charge · generate · wall`): a crackling fence that shocks whoever crosses it. *Posts of light with lightning strung between.*
 
+### Energy: built 2026-11-17 (not yet run)
+
+On the owner's "amount of spells is fine, start with energy". All 32 spells above, each a route `energy_<move>` in `Data/EffectLibrary` (after the domain strikes, before the broad `light`/`ignite`/`thermal`/`harm`/`force`), resolved by `Server/Magic/Cast/Effects/EnergyArt`. Numbers in `Shared/Magic/Data/EnergyTuning`. What lasts (rings, fences, burning ground, frost, smoke, mirrors, wisps, the puppet, ball lightning, tethers, kindled hands, auras) runs in `Server/Magic/Cast/EnergyRuntime` as invisible anchored parts tagged `EnergyBody` (6 per player, 60 per server), stepped by `Services/EnergyService`, which also wraps `Delivery.interceptor` last (Ice Mirror, Heat Haze and Repulse turn bolts) and listens to `Damage.listenAttacked` (Kindle, Shadow Puppet). The client draws them in `Client/Fx/EnergyFx` (cue kind `energy` + the tag). Two small shared changes: a route may set `params.flight` (speed, homing) and `params.look` (the bolt's own body, drawn by `EnergyFx.flight` from `SpellFx.launch`). `RouteSummaries.summons` is new (summon routes that really bring something), and the three walls joined `builds`. Flag `energy_arts_enabled`; admin `energy`, `energyclear [player]`. Expected boot line **`specs 1169/1170`** (4 new in `Tests/Energy.spec`; Cast.spec checks the 32 new examples).
+
+Recipes (Composer Full mode; `testmage 8 all`, `dummy spawn` for a target):
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Ember Swarm | Pyromancy | combustion · generate · burst |
+| Fire Whip | Pyromancy | combustion · generate · touch (power 2+) |
+| Flame Serpent | Conflagration | combustion · redirect · projectile (needs a fire near) |
+| Ring of Fire | Pyromancy | combustion · generate/amplify · wall |
+| Smother | Thermal (any) | combustion · reduce · touch/projectile/burst/aura/zone |
+| Kindled Hands | Pyromancy | combustion · amplify · touch/aura |
+| Ice Spike Line | Cryothermy | temperature · reduce · pillar |
+| Frost Lance | Cryothermy | temperature · reduce · projectile (power 3+) |
+| Hoarfrost | Cryothermy | temperature · reduce · zone |
+| Ice Mirror | Cryothermy | temperature · transmute/bind · wall |
+| Flurry | Cryothermy | temperature · reduce · aura |
+| Heat Haze | Calefaction | temperature · amplify · aura |
+| Boil | Calefaction | temperature · amplify · touch/projectile (at water) |
+| Searing Ground | Calefaction | temperature · generate/amplify · zone |
+| Prism Bolt | Photomancy | luminosity · generate · projectile |
+| Sunspot | Photomancy | luminosity · generate/amplify · zone |
+| Wisps | Photomancy | luminosity · bind · summon |
+| Flash | Photomancy | luminosity · release · burst/aura |
+| Glowing Poison | Irradiance | radiation · generate/amplify · touch/projectile/beam |
+| Shadow Grasp | Umbramancy | shadow · generate/bind · touch/beam/projectile |
+| Shade Cloak | Umbramancy | shadow · amplify · aura |
+| Shadow Puppet | Umbramancy | shadow · generate/transmute · summon |
+| Stomp | Kinetic (any) | momentum · release · burst |
+| Ricochet | Impetus | momentum · generate · projectile |
+| Repulse | Deflection | momentum · redirect · aura |
+| Inertia Lock | Inertia | momentum · bind · touch/beam |
+| Launch | Impetus | momentum · amplify · touch/aura |
+| Ball Lightning | Arcweaving | charge · generate · projectile |
+| Static Field | Electromancy (any) | charge · generate · zone |
+| Arc Tether | Galvanism/Arcweaving | charge · bind · chain |
+| Galvanise | Galvanism | charge · amplify · touch/aura |
+| Arc Fence | Arcweaving | charge · generate · wall |
+
+Not verified (no Studio run): the ice spike cone mesh (`rbxassetid://1033714`), how the shadow puppet's flat figure reads, Highlight on glowing targets through walls, `bend` from a mirror/haze/repulse redrawing the bolt on the client, slipping on hoarfrost for players (server reads their replicated velocity), and frame cost with many bodies. Defaults chosen: Kindle lights whoever the kindled body hits with anything (spell or weapon); Smother and Wisps aren't crimes; mirrors and hazes turn anyone's bolts but the caster's own (allies' too).
+
 ---
 
 ## Earth

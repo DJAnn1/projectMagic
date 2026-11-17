@@ -12,6 +12,7 @@
 	    byVerb / byProperty / byForm   overrides of kind and/or text (applied in that order: byForm wins)
 	    lasts      the resolver reads stats.duration, so Lingering has something to extend
 	builds       routes where the wall form really raises something
+	summons      routes where the summon form really brings something
 	areaShape    how a wall or summon form behaves when nothing is built
 	deadModifiers  modifiers no code reads yet, and the warning to show
 	wasted       warnings for modifiers the chosen effect can't use
@@ -249,6 +250,39 @@ local routes: { [string]: Summary } = {
 
 	-- Energy
 	light = { kind = "utility", text = "Makes a light that stays with you for a while.", lasts = true },
+	-- Energy's spells (Effects/EnergyArt, docs/DomainIdeas.md).
+	energy_ember_swarm = { kind = "attack", text = "Burns everyone in the burst, then embers scatter out and set alight whatever they land on." },
+	energy_fire_whip = { kind = "attack", text = "A lash of flame swung in an arc in front of you: everyone it catches burns." },
+	energy_flame_serpent = { kind = "attack", text = "Pulls the fire out of a nearby blaze (it goes out) and sends it winding at your target, where it coils and burns." },
+	energy_ring_of_fire = { kind = "control", text = "A ring of flame rises around where you stand for a while. Anyone crossing it burns." },
+	energy_smother = { kind = "utility", text = "Puts out fires, and burning allies, into thick smoke that blinds foes standing in it." },
+	energy_kindle = { kind = "boost", text = "Your hands (or an ally's) burn for a while: whatever they strike catches fire." },
+	energy_ice_spike_line = { kind = "attack", text = "Spikes of ice erupt one after another from you toward the target, chilling and throwing up whoever they meet." },
+	energy_frost_lance = { kind = "attack", text = "A long icicle that pins whoever it hits for a moment, then shatters, chilling everyone near." },
+	energy_hoarfrost = { kind = "control", text = "Frosts the ground: anyone standing on it is chilled, and anyone running across it may fall." },
+	energy_ice_mirror = { kind = "protect", text = "A pane of ice stands where you point. Other people's bolts that hit it come back the way they came." },
+	energy_flurry = { kind = "attack", text = "Snow whirls around you for a while, chilling anyone close." },
+	energy_heat_haze = { kind = "protect", text = "The air around you shimmers: bolts aimed at you drift off line." },
+	energy_boil = { kind = "attack", text = "Water near where you touch flashes into scalding steam that burns and blinds. With no water near, it's an ordinary heat touch." },
+	energy_searing_ground = { kind = "attack", text = "The ground glows red-hot for a while: standing on it burns, and wood in it heats until it catches." },
+	energy_prism_bolt = { kind = "attack", text = "A bolt of light that breaks on its target into a fan of coloured rays, hitting whoever stands behind." },
+	energy_sunspot = { kind = "control", text = "A column of hard light: foes inside are dazzled and burned a little, and veils burn away." },
+	energy_wisps = { kind = "utility", text = "Small lights follow you, light the way and show anyone veiled who comes near." },
+	energy_flash = { kind = "control", text = "A blinding pop: everyone nearby who was looking your way is blinded." },
+	energy_glowing_poison = { kind = "attack", text = "A sickly green glow that keeps hurting, and that everyone can see, even through walls." },
+	energy_shadow_grasp = { kind = "control", text = "Shadows reach up and hold your target's feet for a moment." },
+	energy_shade_cloak = { kind = "protect", text = "You darken and are hard to see for a while; longer at night." },
+	energy_shadow_puppet = { kind = "attack", text = "Your shadow stands up beside you and copies your blows, weaker." },
+	energy_stomp = { kind = "control", text = "A shockwave along the ground: everyone standing on it is knocked off their feet." },
+	energy_ricochet = { kind = "attack", text = "A bolt that bounces on from its target to the next person, and the next, weaker each time." },
+	energy_repulse = { kind = "protect", text = "For a while, bolts coming at you curve away." },
+	energy_inertia_lock = { kind = "control", text = "Your target keeps sliding the way they were going and can't stop for a moment." },
+	energy_launch = { kind = "move", text = "Hurls you, or the ally you touch, forward through the air." },
+	energy_ball_lightning = { kind = "attack", text = "A slow ball of lightning that drifts toward people, zapping whoever's nearest, then pops." },
+	energy_static_field = { kind = "attack", text = "Sparks jump between everyone inside: the more people standing close together, the more arcs." },
+	energy_arc_tether = { kind = "attack", text = "Ties two foes together with an arc that hurts both while it holds. If they pull apart it snaps, hard." },
+	energy_galvanise = { kind = "boost", text = "A burst of speed for you or an ally, with sparks at the feet." },
+	energy_arc_fence = { kind = "control", text = "A crackling fence stands where you point: crossing it shocks and dazes." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -335,7 +369,9 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true } :: { [string]: boolean }
+-- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
+RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"
 
 RouteSummaries.deadModifiers = {

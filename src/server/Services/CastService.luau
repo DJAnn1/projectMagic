@@ -671,6 +671,7 @@ local function strike(
 	if stats.recipe.form == "projectile" and not ctx.backfire and Delivery.capacity() then
 		local flight = Delivery.plan(ctx)
 		cue(player, stats, flight.origin, ctx.point, "launch", p.heavy, false, {
+			look = params.look, -- a route's own bolt body (Client/Fx/EnergyFx.flight)
 			projectileId = flight.id,
 			velocity = flight.velocity,
 			gravity = flight.gravity,
@@ -683,6 +684,7 @@ local function strike(
 		flight.onReflect = function(oldId: number, at: Vector3, velocity: Vector3)
 			cue(player, stats, at, at, "resolve", false, false, { projectileId = oldId, expired = false })
 			cue(player, stats, at, ctx.origin, "launch", p.heavy, false, {
+				look = params.look,
 				projectileId = flight.id,
 				velocity = velocity,
 				gravity = flight.gravity,
@@ -697,6 +699,7 @@ local function strike(
 		flight.onBend = function(oldId: number, at: Vector3, velocity: Vector3, hangSeconds: number?)
 			cue(player, stats, at, at, "resolve", false, false, { projectileId = oldId, expired = true })
 			cue(player, stats, at, at + velocity, "launch", p.heavy, false, {
+				look = params.look,
 				projectileId = flight.id,
 				velocity = velocity,
 				gravity = if hangSeconds then 0 else flight.gravity,
@@ -840,6 +843,16 @@ local function resolve(p: Pending)
 	-- and wait before landing (everyone near sees the warning), then add its follow-ups.
 	local shape = if backfire then nil else Shapes.find(stats, p.route.id)
 	local rainSpots = if shape then Shapes.before(ctx, shape) else nil
+	-- A route may tune its own bolt (Data/EffectLibrary `flight`): Ball Lightning crawls, a Flame Serpent homes.
+	local flightTune = (params :: any).flight
+	if not backfire and typeof(flightTune) == "table" then
+		if typeof(flightTune.speed) == "number" then
+			ctx.speedMult = (ctx.speedMult or 1) * flightTune.speed
+		end
+		if flightTune.homing == true then
+			ctx.shapeHoming = true
+		end
+	end
 	local outcome = strike(p, ctx, params, record)
 	if shape then
 		local ok, err = pcall(Shapes.after, ctx, shape, p.route.id, record, rainSpots)

@@ -19,6 +19,8 @@
 		combo, combo_ready   Fx/ComboFx: a two-player combo erupting, and the "finish it here" ring
 		gravity, gravity_pull  Fx/GravityFx: grips, wells, singularities, shields, slams; a well dragging you
 		space            Fx/SpaceFx: gates, seals, swaps, cuts, strides, dislocations
+		energy           Fx/EnergyFx: Energy's spells (embers, whips, spikes, prisms, zaps...); its lasting
+		                 bodies (rings, fences, wisps, the shadow puppet) come by the EnergyBody tag
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		reality          Fx/RealityFx: luck shells, edict boundaries, conjured matter, unmaking, polymorphs
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
@@ -40,6 +42,7 @@ local DashFx = require(script.Parent.Parent.Fx.DashFx)
 local ComboFx = require(script.Parent.Parent.Fx.ComboFx)
 local GravityFx = require(script.Parent.Parent.Fx.GravityFx)
 local SpaceFx = require(script.Parent.Parent.Fx.SpaceFx)
+local EnergyFx = require(script.Parent.Parent.Fx.EnergyFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local ShapeFx = require(script.Parent.Parent.Fx.ShapeFx)
 local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
@@ -140,6 +143,8 @@ local function handle(effect: { [string]: any })
 		GravityFx.pull(effect)
 	elseif kind == "space" then
 		SpaceFx.cue(effect)
+	elseif kind == "energy" then
+		EnergyFx.cue(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
 		if effect.field == "gravity" then
@@ -188,6 +193,7 @@ function WorldEffectController.init(_self: any, ctx: any)
 end
 
 function WorldEffectController.start(_self: any, _ctx: any)
+	EnergyFx.start()
 	Net.listen("WorldEffect", function(effect)
 		if typeof(effect) ~= "table" then
 			return

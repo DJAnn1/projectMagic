@@ -49,6 +49,7 @@ local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local PropertyFx = require(script.Parent.PropertyFx)
+local EnergyFx = require(script.Parent.EnergyFx)
 local Recipes = require(script.Parent.FxRecipes)
 local KenneyTextures = require(script.Parent.KenneyTextures)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
@@ -638,6 +639,12 @@ function SpellFx.launch(cue: { [string]: any })
 	anchor.Transparency = 0
 
 	local q = SpellFx.quality() * (LOD_FACTOR[lod] or 1)
+	-- A route's own bolt (Data/EffectLibrary `look`: a serpent of fire, an ice lance, ball lightning...).
+	local lookStop: (() -> ())? = nil
+	local lookWeave: number? = nil
+	if typeof(cue.look) == "string" then
+		lookStop, lookWeave = EnergyFx.flight(cue.look, anchor, coreSize)
+	end
 	-- Halo around the core (locked: it moves with the bolt).
 	local halo = FxLayers.emitter(anchor, {
 		texture = TEX.glow,
@@ -727,7 +734,7 @@ function SpellFx.launch(cue: { [string]: any })
 	local turnRate = if typeof(cue.turnRate) == "number" then cue.turnRate else 0
 	local homing = homingRoot(cue.homing)
 	local lifetime = (if typeof(cue.lifetime) == "number" then cue.lifetime else 4) + 0.5
-	local wobble = tier.beamCurve * 0.15 -- a Novice's bolt weaves a little
+	local wobble = lookWeave or tier.beamCurve * 0.15 -- a Novice's bolt weaves a little; a serpent winds
 	local started = os.clock()
 	local last = started
 
@@ -748,6 +755,9 @@ function SpellFx.launch(cue: { [string]: any })
 			if e then
 				e.Enabled = false
 			end
+		end
+		if lookStop then
+			lookStop()
 		end
 		if light then
 			light.Enabled = false

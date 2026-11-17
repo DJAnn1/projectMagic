@@ -101,6 +101,50 @@ local routes: { Route } = {
 	-- win over fortune (probability) and restore (growth) for those point forms.
 	{ id = "strike", effect = "Strike", strike = true, repeatable = true },
 
+	-- ─── Energy's spells (Effects/EnergyArt, Data/EnergyTuning, docs/DomainIdeas.md) ─────
+	-- After the strikes (the cantrips stay theirs) and before the broad light, ignite, thermal, darken,
+	-- still, binding, force and harm routes. Each is narrow: its own branch, property, verbs and forms.
+	-- `flight` tunes the projectile (Cast/Delivery) and `look` gives the bolt its own body (Client/Fx/EnergyFx).
+	-- Fire
+	{ id = "energy_ember_swarm", effect = "EnergyArt", branches = { "pyromancy" }, properties = { "combustion" }, verbs = { "generate" }, forms = { "burst" }, params = { move = "ember_swarm" }, heavy = true },
+	{ id = "energy_fire_whip", effect = "EnergyArt", branches = { "pyromancy" }, properties = { "combustion" }, verbs = { "generate" }, forms = { "touch" }, minPower = 2, params = { move = "fire_whip" } },
+	{ id = "energy_flame_serpent", effect = "EnergyArt", branches = { "conflagration" }, properties = { "combustion" }, verbs = { "redirect" }, forms = { "projectile" }, params = { move = "flame_serpent", look = "serpent", flight = { speed = 0.8, homing = true } } },
+	{ id = "energy_ring_of_fire", effect = "EnergyArt", branches = { "pyromancy" }, properties = { "combustion" }, verbs = { "generate", "amplify" }, forms = { "wall" }, params = { move = "ring_of_fire" } },
+	{ id = "energy_smother", effect = "EnergyArt", branches = { "thermal" }, properties = { "combustion" }, verbs = { "reduce" }, forms = { "touch", "projectile", "burst", "aura", "zone" }, params = { move = "smother" } },
+	{ id = "energy_kindle", effect = "EnergyArt", branches = { "pyromancy" }, properties = { "combustion" }, verbs = { "amplify" }, forms = { "touch", "aura" }, params = { move = "kindle" } },
+	-- Frost
+	{ id = "energy_ice_spike_line", effect = "EnergyArt", branches = { "cryothermy" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "pillar" }, params = { move = "ice_spike_line" } },
+	{ id = "energy_frost_lance", effect = "EnergyArt", branches = { "cryothermy" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "projectile" }, minPower = 3, params = { move = "frost_lance", look = "lance" } },
+	{ id = "energy_hoarfrost", effect = "EnergyArt", branches = { "cryothermy" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "hoarfrost" } },
+	{ id = "energy_ice_mirror", effect = "EnergyArt", branches = { "cryothermy" }, properties = { "temperature" }, verbs = { "transmute", "bind" }, forms = { "wall" }, params = { move = "ice_mirror" } },
+	{ id = "energy_flurry", effect = "EnergyArt", branches = { "cryothermy" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "aura" }, params = { move = "flurry" } },
+	-- Heat
+	{ id = "energy_heat_haze", effect = "EnergyArt", branches = { "calefaction" }, properties = { "temperature" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "heat_haze" }, instant = true },
+	{ id = "energy_boil", effect = "EnergyArt", branches = { "calefaction" }, properties = { "temperature" }, verbs = { "amplify" }, forms = { "touch", "projectile" }, params = { move = "boil" } },
+	{ id = "energy_searing_ground", effect = "EnergyArt", branches = { "calefaction" }, properties = { "temperature" }, verbs = { "generate", "amplify" }, forms = { "zone" }, params = { move = "searing_ground" } },
+	-- Light
+	{ id = "energy_prism_bolt", effect = "EnergyArt", branches = { "photomancy" }, properties = { "luminosity" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "prism_bolt", look = "prism" } },
+	{ id = "energy_sunspot", effect = "EnergyArt", branches = { "photomancy" }, properties = { "luminosity" }, verbs = { "generate", "amplify" }, forms = { "zone" }, params = { move = "sunspot" } },
+	{ id = "energy_wisps", effect = "EnergyArt", branches = { "photomancy" }, properties = { "luminosity" }, verbs = { "bind" }, forms = { "summon" }, params = { move = "wisps" } },
+	{ id = "energy_flash", effect = "EnergyArt", branches = { "photomancy" }, properties = { "luminosity" }, verbs = { "release" }, forms = { "burst", "aura" }, params = { move = "flash" }, instant = true },
+	{ id = "energy_glowing_poison", effect = "EnergyArt", branches = { "irradiance" }, properties = { "radiation" }, verbs = { "generate", "amplify" }, forms = { "touch", "projectile", "beam" }, params = { move = "glowing_poison" } },
+	-- Shadow
+	{ id = "energy_shadow_grasp", effect = "EnergyArt", branches = { "umbramancy" }, properties = { "shadow" }, verbs = { "generate", "bind" }, forms = { "touch", "beam", "projectile" }, params = { move = "shadow_grasp" } },
+	{ id = "energy_shade_cloak", effect = "EnergyArt", branches = { "umbramancy" }, properties = { "shadow" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "shade_cloak" }, instant = true },
+	{ id = "energy_shadow_puppet", effect = "EnergyArt", branches = { "umbramancy" }, properties = { "shadow" }, verbs = { "generate", "transmute" }, forms = { "summon" }, params = { move = "shadow_puppet" } },
+	-- Kinetic
+	{ id = "energy_stomp", effect = "EnergyArt", branches = { "kinetic" }, properties = { "momentum" }, verbs = { "release" }, forms = { "burst" }, params = { move = "stomp" } },
+	{ id = "energy_ricochet", effect = "EnergyArt", branches = { "impetus" }, properties = { "momentum" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "ricochet", look = "ricochet" } },
+	{ id = "energy_repulse", effect = "EnergyArt", branches = { "deflection" }, properties = { "momentum" }, verbs = { "redirect" }, forms = { "aura" }, params = { move = "repulse" }, instant = true },
+	{ id = "energy_inertia_lock", effect = "EnergyArt", branches = { "inertia" }, properties = { "momentum" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "inertia_lock" } },
+	{ id = "energy_launch", effect = "EnergyArt", branches = { "impetus" }, properties = { "momentum" }, verbs = { "amplify" }, forms = { "touch", "aura" }, params = { move = "launch" }, instant = true },
+	-- Lightning
+	{ id = "energy_ball_lightning", effect = "EnergyArt", branches = { "arcweaving" }, properties = { "charge" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "ball_lightning", look = "ball", flight = { speed = 0.3 } } },
+	{ id = "energy_static_field", effect = "EnergyArt", branches = { "electric" }, properties = { "charge" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "static_field" } },
+	{ id = "energy_arc_tether", effect = "EnergyArt", branches = { "electric" }, properties = { "charge" }, verbs = { "bind" }, forms = { "chain" }, params = { move = "arc_tether" } },
+	{ id = "energy_galvanise", effect = "EnergyArt", branches = { "galvanism" }, properties = { "charge" }, verbs = { "amplify" }, forms = { "touch", "aura" }, params = { move = "galvanise" } },
+	{ id = "energy_arc_fence", effect = "EnergyArt", branches = { "arcweaving" }, properties = { "charge" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "arc_fence" } },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },
