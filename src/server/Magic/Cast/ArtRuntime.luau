@@ -80,6 +80,9 @@ export type SpawnOpts = {
 local ArtRuntime = {}
 
 ArtRuntime.TAG = "ArtBody"
+-- Set by Services/DownedService: brings a downed player round where they lie (Life's Raise Them).
+ArtRuntime.revive = nil :: ((Player, Player) -> boolean)?
+
 ArtRuntime.caps = {
 	server = 80, -- bodies on the whole server, every domain together
 	perPlayer = 8, -- a ninth ends the caster's oldest

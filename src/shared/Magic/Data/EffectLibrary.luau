@@ -218,6 +218,29 @@ local routes: { Route } = {
 	{ id = "air_call_lightning", effect = "AirArt", branches = { "stormbrewing" }, properties = { "charge" }, verbs = { "release" }, forms = { "pillar" }, params = { move = "call_lightning" } },
 	{ id = "air_hail", effect = "AirArt", branches = { "stormbrewing" }, properties = { "temperature" }, verbs = { "reduce" }, forms = { "ritual" }, maxPower = 7, params = { move = "hail" } },
 
+	-- ─── Life's spells (Effects/LifeArt, Data/LifeTuning, docs/DomainIdeas.md) ─────
+	-- Sub-branches only: the root and Restoration keep healing and Thornlash (the strike), Purgation's
+	-- cleanse, Beastspeech's calm, Blight's poison bolt and Arborism's grove stay as they were.
+	{ id = "life_healing_grove", effect = "LifeArt", branches = { "mending" }, properties = { "vitality" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "healing_grove" } },
+	{ id = "life_lifeline", effect = "LifeArt", branches = { "mending" }, properties = { "vitality" }, verbs = { "transfer" }, forms = { "beam", "touch" }, params = { move = "lifeline" } },
+	{ id = "life_petal_ward", effect = "LifeArt", branches = { "mending" }, properties = { "vitality" }, verbs = { "bind" }, forms = { "aura" }, params = { move = "petal_ward" }, instant = true },
+	{ id = "life_second_wind", effect = "LifeArt", branches = { "restoration" }, properties = { "metabolism" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "second_wind" }, instant = true },
+	{ id = "life_raise_them", effect = "LifeArt", branches = { "resurgence" }, properties = { "vitality" }, verbs = { "amplify" }, forms = { "touch", "beam" }, params = { move = "raise_them" } },
+	{ id = "life_vine_lash", effect = "LifeArt", branches = { "flora" }, properties = { "growth" }, verbs = { "redirect" }, forms = { "beam" }, params = { move = "vine_lash" } },
+	{ id = "life_root_snare", effect = "LifeArt", branches = { "flora" }, properties = { "growth" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "root_snare" } },
+	{ id = "life_thorn_burst", effect = "LifeArt", branches = { "flora" }, properties = { "growth" }, verbs = { "transmute" }, forms = { "burst" }, params = { move = "thorn_burst" } },
+	{ id = "life_bramble_wall", effect = "LifeArt", branches = { "flora" }, properties = { "growth" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "bramble_wall" } },
+	{ id = "life_sapling", effect = "LifeArt", branches = { "arborism" }, properties = { "growth" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "sapling" } },
+	{ id = "life_spore_cloud", effect = "LifeArt", branches = { "mycology" }, properties = { "decay" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "spore_cloud" } },
+	{ id = "life_fairy_ring", effect = "LifeArt", branches = { "mycology" }, properties = { "decay" }, verbs = { "amplify" }, forms = { "burst" }, params = { move = "fairy_ring" } },
+	{ id = "life_swarm", effect = "LifeArt", branches = { "fauna" }, properties = { "instinct" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "swarm" } },
+	{ id = "life_flock", effect = "LifeArt", branches = { "fauna" }, properties = { "instinct" }, verbs = { "release" }, forms = { "burst", "aura" }, params = { move = "flock" }, instant = true },
+	{ id = "life_beast_claws", effect = "LifeArt", branches = { "wildshape" }, properties = { "metabolism" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "beast_claws" }, instant = true },
+	{ id = "life_rot", effect = "LifeArt", branches = { "blight" }, properties = { "decay" }, verbs = { "transmute" }, forms = { "touch", "projectile" }, params = { move = "rot" } },
+	{ id = "life_withering_field", effect = "LifeArt", branches = { "withering" }, properties = { "decay" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "withering_field" } },
+	{ id = "life_plague_flies", effect = "LifeArt", branches = { "pestilence" }, properties = { "toxin" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "plague_flies" } },
+	{ id = "life_corpse_bloom", effect = "LifeArt", branches = { "blight" }, properties = { "toxin" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "corpse_bloom" } },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },

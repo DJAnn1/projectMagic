@@ -331,6 +331,38 @@ Not verified (no Studio run): riding the Updraft (pushes every 0.3 s through the
 - **Plague Flies** (`toxin · generate · projectile`, Pestilence): a swarm that poisons whoever it touches.
 - **Corpse Bloom** (`toxin · generate · pillar`): a fat flower bursts into toxic spores when hit or when someone comes near.
 
+### Air: confirmed 2026-11-17, Updraft fixed
+
+Log `specs 1178/1179`; every Air branch cast, Raincloud + Call Lightning discovered the `conduction` reaction; owner: "everything else is good", but the Updraft lifted only about 5 studs. Cause: a standing Humanoid pins itself to the ground against a server push (the Moor's old problem), so a 32 stud/s push every 0.3 s was a hop. Fixed (`1e2740d`): players ride it on their own client (freefall, rise at 42 studs/s to the column's height, 30 to 60 studs by power, then hover); NPCs are still pushed by the server. Also fixed for every spell: the client's knockback now lets go of the ground (freefall) when a push points upward, so Geyser, Gravel Burst, Spike Trail, Fairy Ring and the rest throw people as high as they were tuned to.
+
+### Life: built 2026-11-17 (not yet run)
+
+On the owner's "fix anything wrong and build next". 19 spells, routes `life_<move>`, `Server/Magic/Cast/Effects/LifeArt`, `Shared/Magic/Data/LifeTuning`, `Client/Fx/LifeFx` (cue kind `life`). Sub-branches only: the root and Restoration keep healing and Thornlash (the strike takes growth · generate on touch, bolt, beam and chain in every Life branch), Purgation's cleanse, Beastspeech's calm, Blight's poison bolt and Arborism's grove stay as they were. Raise Them uses a new hook, `ArtRuntime.revive`, set by `Services/DownedService` (log `downed_raised`): a downed player comes round where they lie with 35% health instead of being carried. Flag `life_arts_enabled`. Expected boot line **`specs 1181/1182`** (3 new in `Tests/Life.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Healing Grove | Mending | vitality · generate · zone |
+| Lifeline | Mending | vitality · transfer · beam/touch |
+| Petal Ward | Mending | vitality · bind · aura (instant) |
+| Second Wind | Restoration | metabolism · amplify · aura (instant) |
+| Raise Them | Resurgence | vitality · amplify · touch/beam |
+| Vine Lash | Floramancy | growth · redirect · beam |
+| Root Snare | Arborism/Mycology | growth · bind · touch/beam |
+| Thorn Burst | Arborism/Mycology | growth · transmute · burst |
+| Bramble Wall | Floramancy | growth · generate · wall |
+| Sapling | Arborism | growth · generate · pillar |
+| Spore Cloud | Mycology | decay · generate · zone |
+| Fairy Ring | Mycology | decay · amplify · burst |
+| Swarm | Faunacraft | instinct · generate · projectile |
+| Flock | Faunacraft | instinct · release · burst/aura (instant) |
+| Beast Claws | Wildshape | metabolism · amplify · aura (instant) |
+| Rot | Withering/Pestilence | decay · transmute · touch/projectile |
+| Withering Field | Withering | decay · generate · zone |
+| Plague Flies | Pestilence | toxin · generate · projectile |
+| Corpse Bloom | Blight | toxin · generate · pillar |
+
+Not verified (no Studio run): Raise Them on a real downed player (needs two players, or `downme` on yourself and a second client), the claws welded to arms on the client, the bounce height on the Fairy Ring. Defaults chosen: Lifeline never takes you below a quarter of your health; Petal Ward covers you and up to three allies; Plague Flies move on at most three times and only to people you may harm; Rot weakens buildings at the spot (it goes through the world's ordinary structure damage).
+
 ---
 
 ## Mind

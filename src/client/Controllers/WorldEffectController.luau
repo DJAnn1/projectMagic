@@ -24,6 +24,7 @@
 		earth            Fx/EarthFx: Earth's spells (rubble, gravel, spikes, blades, spires, fissures, sand...)
 		water            Fx/WaterFx: Water's spells (whips, jets, bubbles, geysers, icicles, steam, clouds...)
 		air              Fx/AirFx: Air's spells (slices, gales, rings, booms, echoes, strikes from the sky, hail...)
+		life             Fx/LifeFx: Life's spells (lifelines, vines, roots, thorns, trees growing, flocks, flies, blooms...)
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		reality          Fx/RealityFx: luck shells, edict boundaries, conjured matter, unmaking, polymorphs
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
@@ -50,6 +51,7 @@ local EnergyFx = require(script.Parent.Parent.Fx.EnergyFx)
 local EarthFx = require(script.Parent.Parent.Fx.EarthFx)
 local WaterFx = require(script.Parent.Parent.Fx.WaterFx)
 local AirFx = require(script.Parent.Parent.Fx.AirFx)
+local LifeFx = require(script.Parent.Parent.Fx.LifeFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local ShapeFx = require(script.Parent.Parent.Fx.ShapeFx)
 local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
@@ -80,6 +82,14 @@ local function knockback(velocity: any)
 	end
 	if root and root:IsA("BasePart") then
 		local clamped = if velocity.Magnitude > MAX_KNOCKBACK then velocity.Unit * MAX_KNOCKBACK else velocity
+		-- A standing Humanoid pins itself to the ground and eats an upward push (2026-11-17: an Updraft
+		-- lifted ~5 studs). Anything that throws you up lets go of the ground first.
+		if humanoid and clamped.Y > 12 and humanoid.Health > 0 and not humanoid.PlatformStand then
+			local state = humanoid:GetState()
+			if state == Enum.HumanoidStateType.Running or state == Enum.HumanoidStateType.Landed or state == Enum.HumanoidStateType.RunningNoPhysics then
+				humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+			end
+		end
 		root.AssemblyLinearVelocity += clamped
 	end
 end
@@ -158,6 +168,8 @@ local function handle(effect: { [string]: any })
 		WaterFx.cue(effect)
 	elseif kind == "air" then
 		AirFx.cue(effect)
+	elseif kind == "life" then
+		LifeFx.cue(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
 		if effect.field == "gravity" then

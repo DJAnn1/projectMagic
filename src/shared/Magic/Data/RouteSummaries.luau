@@ -340,6 +340,26 @@ local routes: { [string]: Summary } = {
 	air_raincloud = { kind = "utility", text = "A little cloud follows whoever you aim at (or you), raining on them: fires on them go out, and your Call Lightning always finds them and hits harder." },
 	air_call_lightning = { kind = "attack", text = "After a moment's warning, lightning strikes from the sky where you aim. Someone under your raincloud nearby is found wherever they step, and hit harder." },
 	air_hail = { kind = "attack", text = "Hailstones fall on marked spots around where you aim, chilling whoever they hit." },
+	-- Life's spells (Effects/LifeArt, docs/DomainIdeas.md).
+	life_healing_grove = { kind = "heal", text = "Flowers spring up where you aim for a while: allies standing among them heal every second." },
+	life_lifeline = { kind = "heal", text = "Gives part of your own health to an ally you aim at; they get more than you give. You never give below a quarter of yours." },
+	life_petal_ward = { kind = "protect", text = "Petals circle you and up to three allies near you: a ward on each of you that soaks up hits." },
+	life_second_wind = { kind = "heal", text = "You and allies near you shake off slows and daze, heal a little and run faster for a few seconds." },
+	life_raise_them = { kind = "heal", text = "Brings a downed player round where they lie, instead of being carried off. With nobody down, it heals like Mending." },
+	life_vine_lash = { kind = "control", text = "A thorny vine lashes out at your target, cutting them and dragging them to you." },
+	life_root_snare = { kind = "control", text = "Roots burst up and hold your target for a moment; the thorns keep biting while they're held." },
+	life_thorn_burst = { kind = "attack", text = "Thorns shoot out in every direction where you aim; the wounds bleed for a while." },
+	life_bramble_wall = { kind = "control", text = "A thicket of brambles grows where you point for a while: anyone pushing through it is scratched and slowed." },
+	life_sapling = { kind = "land", text = "A tree shoots up where you point: real cover that blocks people and bolts, for a while." },
+	life_spore_cloud = { kind = "control", text = "Puffballs burst into a haze over an area for a while: foes in it are dazed." },
+	life_fairy_ring = { kind = "move", text = "A ring of mushrooms grows where you aim for a while: anyone who steps in is bounced high into the air." },
+	life_swarm = { kind = "attack", text = "A cloud of wasps flies at your target and keeps stinging them for a while." },
+	life_flock = { kind = "control", text = "Birds burst out of you and wheel round everyone near, blinding them." },
+	life_beast_claws = { kind = "boost", text = "Your hands are claws for a while: every blow you land, weapon or spell, tears a little more." },
+	life_rot = { kind = "attack", text = "Rot where you aim: your target rots and comes apart for a while, and wood and buildings there weaken." },
+	life_withering_field = { kind = "attack", text = "Colour drains out of an area for a while: foes in it wither and their blows go soft." },
+	life_plague_flies = { kind = "attack", text = "Flies that poison your target, then move on to the next person near them, up to three times." },
+	life_corpse_bloom = { kind = "attack", text = "A fat flower grows where you aim and waits: when a foe comes near, it bursts into poison." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -426,7 +446,7 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true, life_bramble_wall = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
 RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"

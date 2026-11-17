@@ -43,6 +43,7 @@ local Rules = require(Server.Downed.DownedRules)
 local LineData = require(Server.Downed.Data.DownedLines)
 local Damage = require(Server.Magic.Cast.Damage)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
+local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 local RelationshipGraph = require(Server.NPC.RelationshipGraph)
 local PromptRouter = require(Server.Interact.PromptRouter)
 local Util = require(Server.Admin.Util)
@@ -858,6 +859,17 @@ function DownedService.init(_self: any, ctx: any)
 	worldService = ctx.get("WorldService")
 	registerAdmin(ctx.get("AdminService"))
 	Damage.downer = downer
+	-- Life's Raise Them (Effects/LifeArt): a downed player brought round where they lie, by a healer's magic.
+	ArtRuntime.revive = function(player: Player, by: Player): boolean
+		local down = downs[player]
+		if not down or not stillDown(player, down) then
+			return false
+		end
+		down.outcome = "raised"
+		release(player, down, 0.35)
+		log:info("downed_raised", { userId = player.UserId, by = by.UserId })
+		return true
+	end
 	ambient:setGreetHook(greetHook)
 	npcs:setRumorHook(rumorHook)
 	ctx.bus:subscribe(Topics.NpcTalked, onTalked)
