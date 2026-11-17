@@ -909,37 +909,115 @@ BUILD.wisps = function(v)
 	end
 end
 
--- A flat black figure: a head, a body, two arms, two legs.
-BUILD.shadow_puppet = function(v)
-	local pieces = {
-		{ Vector3.new(1.2, 1.2, 0.2), Vector3.new(0, 1.5, 0) },
-		{ Vector3.new(2, 2, 0.2), Vector3.new(0, 0, 0) },
-		{ Vector3.new(0.9, 2, 0.2), Vector3.new(-1.5, 0, 0) },
-		{ Vector3.new(0.9, 2, 0.2), Vector3.new(1.5, 0, 0) },
-		{ Vector3.new(0.9, 2, 0.2), Vector3.new(-0.5, -2, 0) },
-		{ Vector3.new(0.9, 2, 0.2), Vector3.new(0.5, -2, 0) },
-	}
-	v.extra.pieces = {}
-	for _, piece in pieces do
-		local p = own(v, part({ Size = piece[1], Color = L.shadow, Material = Enum.Material.SmoothPlastic, Transparency = 0.15 }))
-		table.insert(v.extra.pieces, { part = p, offset = piece[2] })
+-- Your shadow, standing up: a dark copy of every part of you (hats and hair too), posed from your own
+-- limbs every frame, so it moves exactly as you do, a step behind and to your left, joined to your feet
+-- by a band of shadow on the ground. It rises out of the ground when cast.
+local PUPPET_OFFSET = CFrame.new(-3.2, 0, 3.2)
+
+local function shadowCopy(source: BasePart): BasePart?
+	local ok, copy = pcall(function()
+		return source:Clone()
+	end)
+	if not ok or not copy then
+		return nil
 	end
-	emitter(v.root, {
-		texture = TEX.smoke,
-		color = ColorSequence.new(L.shadow, L.shadowEdge),
-		size = seq(0, 1.2, 1, 2),
-		transparency = seq(0, 0.5, 1, 1),
-		lifetime = NumberRange.new(0.5, 0.9),
-		speed = NumberRange.new(0.5, 1.5),
-		emission = 0,
-		rate = 10,
-	})
-	v.update = function(vis, _dt)
-		local root = vis.model and rootOf(vis.model)
-		local facing = if root then root.CFrame.LookVector else Vector3.new(0, 0, -1)
-		local frame = CFrame.lookAt(vis.root.Position, vis.root.Position + Vector3.new(facing.X, 0, facing.Z))
-		for _, entry in vis.extra.pieces do
-			entry.part.CFrame = frame * CFrame.new(entry.offset)
+	for _, child in copy:GetChildren() do
+		if not (child:IsA("SpecialMesh") or child:IsA("DataModelMesh")) then
+			child:Destroy()
+		end
+	end
+	local mesh = copy:FindFirstChildOfClass("SpecialMesh")
+	if mesh then
+		mesh.TextureId = ""
+	end
+	if copy:IsA("MeshPart") then
+		pcall(function()
+			(copy :: any).TextureID = ""
+		end)
+	end
+	copy.Name = "Shadow"
+	copy.Anchored = true
+	copy.CanCollide = false
+	copy.CanQuery = false
+	copy.CanTouch = false
+	copy.CastShadow = false
+	copy.Massless = true
+	copy.Color = L.shadow
+	copy.Material = Enum.Material.SmoothPlastic
+	copy.Reflectance = 0
+	copy.Transparency = 0.15
+	return copy
+end
+
+BUILD.shadow_puppet = function(v)
+	local model = v.model
+	if not model then
+		return
+	end
+	local figure = own(v, Instance.new("Model"))
+	figure.Name = "ShadowPuppet"
+	local copies: { { copy: BasePart, source: BasePart } } = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and d.Transparency < 0.95 then
+			local copy = shadowCopy(d)
+			if copy then
+				copy.Parent = figure
+				table.insert(copies, { copy = copy, source = d })
+			end
+		end
+	end
+	figure.Parent = holder()
+	local outline = Instance.new("Highlight")
+	outline.FillColor = L.shadow
+	outline.FillTransparency = 0.1
+	outline.OutlineColor = L.shadowEdge
+	outline.OutlineTransparency = 0.15
+	outline.DepthMode = Enum.HighlightDepthMode.Occluded
+	outline.Parent = figure
+	-- Wisps of dark coming off it.
+	local torso = figure:FindFirstChild("Torso") or figure:FindFirstChild("UpperTorso")
+	if torso and torso:IsA("BasePart") then
+		emitter(torso, {
+			texture = TEX.smoke,
+			color = ColorSequence.new(L.shadow, L.shadowEdge),
+			size = seq(0, 1.2, 1, 2.4),
+			transparency = seq(0, 0.55, 1, 1),
+			lifetime = NumberRange.new(0.6, 1.1),
+			speed = NumberRange.new(0.5, 1.5),
+			acceleration = Vector3.new(0, 1.5, 0),
+			emission = 0,
+			rate = 12,
+		})
+	end
+	-- The band of shadow from your feet to its feet.
+	local band = own(v, part({ Size = Vector3.new(1.6, 0.06, 1), Color = L.shadow, Material = Enum.Material.SmoothPlastic, Transparency = 0.3 }))
+	v.extra.copies = copies
+	v.extra.born = os.clock()
+	v.extra.at = nil
+	v.update = function(vis, dt)
+		local root = rootOf(model)
+		if not root then
+			return
+		end
+		local want = (root.CFrame * PUPPET_OFFSET).Position
+		local at: Vector3 = vis.extra.at or want
+		at = at:Lerp(want, math.clamp(dt * 7, 0, 1))
+		vis.extra.at = at
+		-- It rises out of the ground over the first half second.
+		local rise = math.clamp((os.clock() - vis.extra.born) / 0.5, 0, 1)
+		local sink = (1 - rise) * 5.5
+		local base = CFrame.new(at - Vector3.new(0, sink, 0)) * root.CFrame.Rotation
+		for _, pair in vis.extra.copies do
+			if pair.source.Parent then
+				pair.copy.CFrame = base * root.CFrame:ToObjectSpace(pair.source.CFrame)
+			end
+		end
+		local fromFeet = root.Position - Vector3.new(0, 2.9, 0)
+		local toFeet = at - Vector3.new(0, 2.9, 0)
+		local d = toFeet - fromFeet
+		if d.Magnitude > 0.3 then
+			band.Size = Vector3.new(1.4, 0.06, d.Magnitude)
+			band.CFrame = CFrame.lookAt(fromFeet + d / 2, toFeet)
 		end
 	end
 end
@@ -1153,7 +1231,10 @@ local function step(dt: number)
 		end
 		-- Followers stand where their body is now; free bodies ease toward the server's part.
 		local root = v.model and rootOf(v.model)
-		if root then
+		if root and v.look == "shadow_puppet" then
+			-- Its own place, a step behind you (the update eases it there); the root rides along.
+			v.root.CFrame = CFrame.new(v.extra.at or root.Position)
+		elseif root then
 			v.root.CFrame = CFrame.new(root.Position)
 		elseif v.look ~= "ring_of_fire" and v.look ~= "ice_mirror" and v.look ~= "arc_fence" then
 			v.root.CFrame = v.root.CFrame:Lerp(CFrame.new(bodyPart.Position), math.clamp(dt * 10, 0, 1))

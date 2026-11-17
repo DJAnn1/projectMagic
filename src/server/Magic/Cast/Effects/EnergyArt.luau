@@ -743,7 +743,7 @@ local function shadowPuppet(ctx: Ctx): Outcome
 				return
 			end
 			-- A step behind you and to the left, catching up smoothly.
-			local want = (root.CFrame * CFrame.new(-3, 0, 3)).Position
+			local want = (root.CFrame * CFrame.new(-3.2, 0, 3.2)).Position -- where the client draws it (EnergyFx PUPPET_OFFSET)
 			R.place(body, body.position:Lerp(want, math.clamp(dt * 8, 0, 1)))
 		end,
 		ownerHit = function(body, victim: Humanoid)
