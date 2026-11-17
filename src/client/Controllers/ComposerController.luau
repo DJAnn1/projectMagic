@@ -170,6 +170,7 @@ local cardPowers: { [string]: Kit.Value<number> } = {}
 -- Guided's "Try something": { recipe } from the server, { none = true } when nothing's left, or nil.
 local suggestion: Kit.Value<any> = Kit.value(nil)
 local focused = Kit.value(nil :: string?) -- the option the About card explains (hover / gamepad selection)
+local branchQuery = Kit.value("") -- the Branch step's search, lower case (empty = every branch)
 local showHelp = Kit.value(false) -- the "How spells work" walkthrough
 local helpPage = Kit.value(1)
 local helpAutoShown = false -- opened once per session at most, even before the setting saves
@@ -287,7 +288,21 @@ end
 
 -- ─── Options per step ───────────────────────────────────────────────────────
 
-local function branchOptions(d: Draft): { Option }
+-- Does a branch match the search? Its name, its domain's name or its description, anywhere, any case.
+local function branchMatches(def: any, query: string): boolean
+	if query == "" then
+		return true
+	end
+	local domain = Registry.domains[def.domains[1]]
+	for _, text in { def.name, if domain then domain.name else "", def.description or "" } do
+		if string.find(string.lower(text), query, 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+local function branchOptions(d: Draft, query: string?): { Option }
 	local progression = magic.progression:get()
 	local options: { Option } = {}
 	if not progression then
@@ -306,6 +321,9 @@ local function branchOptions(d: Draft): { Option }
 	end)
 	for _, view in views do
 		local def = Registry.branches[view.id]
+		if not branchMatches(def, query or "") then
+			continue
+		end
 		table.insert(options, {
 			id = view.id,
 			name = def.name,
@@ -1051,8 +1069,47 @@ local function buildPowerStep(parent: Instance, d: Draft)
 end
 
 local function buildOptions(scope: Scope, parent: Instance)
-	Kit.dynamic(scope, { draft, step, magic.known, magic.region }, function(s)
-		local scroll = C.scroll({ Parent = parent })
+	-- The Branch step's search box. Outside the dynamic region below, so typing rebuilds the list but
+	-- never the box (it keeps focus); it only shows on the Branch step.
+	local searchHeight = Theme.minTouch
+	local search: TextBox = Kit.create(nil, "TextBox", {
+		Size = UDim2.new(1, 0, 0, searchHeight),
+		BackgroundColor3 = Theme.color.panel,
+		TextColor3 = Theme.color.ink,
+		PlaceholderText = "Search branches (name or domain)...",
+		PlaceholderColor3 = Theme.color.inkFaint,
+		Text = branchQuery:get(),
+		ClearTextOnFocus = false,
+		FontFace = Theme.font.body,
+		TextSize = Theme.text("body"),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = parent,
+	})
+	C.corner().Parent = search
+	C.stroke().Parent = search
+	C.padding(0, Theme.space.s).Parent = search
+	search:GetPropertyChangedSignal("Text"):Connect(function()
+		local query = string.lower((string.gsub(search.Text, "^%s+", "")))
+		query = (string.gsub(query, "%s+$", ""))
+		if query ~= branchQuery:get() then
+			branchQuery:set(query)
+		end
+	end)
+	local listHolder: Frame = Kit.create(nil, "Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Parent = parent,
+	})
+	Kit.dynamic(scope, { step }, function(_s)
+		local onBranch = STEPS[step:get()].id == "branch"
+		search.Visible = onBranch
+		local top = if onBranch then searchHeight + Theme.space.s else 0
+		listHolder.Position = UDim2.fromOffset(0, top)
+		listHolder.Size = UDim2.new(1, 0, 1, -top)
+	end)
+
+	Kit.dynamic(scope, { draft, step, magic.known, magic.region, branchQuery }, function(s)
+		local scroll = C.scroll({ Parent = listHolder })
 		s:add(scroll)
 		C.list("y", Theme.space.s).Parent = scroll
 		C.padding(Theme.space.xs).Parent = scroll
@@ -1069,7 +1126,11 @@ local function buildOptions(scope: Scope, parent: Instance)
 		local help = SpellHelp.steps[def.id]
 		local hint = help.question
 		if def.id == "branch" then
-			options = branchOptions(d)
+			options = branchOptions(d, branchQuery:get())
+			local query = branchQuery:get()
+			if query ~= "" and #options == 0 then
+				hint = string.format("No branch you know matches \"%s\".", search.Text)
+			end
 		elseif def.id == "property" then
 			options = propertyOptions(d)
 		elseif def.id == "verb" then
