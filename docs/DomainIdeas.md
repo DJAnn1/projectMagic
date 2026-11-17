@@ -1,198 +1,319 @@
-# Domain ideas: making the eight ordinary domains their own (design only)
+# Domain expansion: more spells for the eight ordinary domains (design only)
 
-Written 2026-11-16 on the owner's "I want ideas on how to improve all the other domains to be more unique and fun". Nothing here is built or approved.
+Written 2026-11-17. Owner: "I just want the domain itself to be expanded with more possible moves that are visually interesting and fun. Do not approach this with an ultimate move mindset. Approach it with naturally expanding the domains with new possible spells that fit." (Replaces the first version of this doc, which pitched one signature power per domain; that one is in git at `67628da`.)
 
-## Why
+Nothing here is built or approved.
 
-Space, Time, Gravity and Reality each had their own pass (`docs/Space.md`, `Time.md`, `Gravity.md`, `Reality.md`): powers that only that domain has, cast as ordinary spells, and changing how you move through the world. The other eight (Energy, Earth, Water, Air, Life, Mind, Spirit, Void) share the general machinery: property behaviours, shapes, looks, elementals, ultimates, Sense sight, Travel styles, strikes. That makes them work, but in a fight a fire bolt and a stone bolt still do roughly the same thing, and outside a fight most of them don't do much.
+## The problem
 
-## The test each domain should pass
+Energy, Earth, Water, Air, Life, Mind, Spirit and Void have about 117 routes between them and every other domain, but most offensive recipes still land in a few broad routes (`harm`, `force`, `afflict`, `ward`), given variety by property behaviours and shapes (`docs/SpellOverhaul.md`). So a stone bolt and a fire bolt fly the same way and differ mostly in colour and status. These domains need **more distinct moves**: spells that do a different thing, look like nothing else, and sit naturally in their branch.
 
-1. **A verb only it has.** Something you couldn't do with any other domain. That's what makes people pick it.
-2. **It touches the simulated world.** The deep systems (NPC memories and opinions, the Chronicle, fire and heat, weather, wild zones, ferals, downed players, crime, towns that repair) should *react* to this domain in a way they don't to others. This is the design rule: causes inside the world, not a layer on top.
-3. **A job.** Something an NPC with this magic would do for a living, which a player can do too (feeds #33 Magic as a trade).
-4. **Its own way across the world and its own way of seeing.** Travel and Sense exist; these ideas sharpen them.
+## How a new spell fits the grammar
 
-Same rules as the Space pass: ordinary casts on existing branches (no new keys), routes in `EffectLibrary`, numbers in a `Data/<Domain>Tuning`, server-authoritative, and helpful verbs help (harm only where the property plainly means it).
+Each spell below is a **recipe**: property · verb · form (plus the branch that opens it). Building one means a specific route in `EffectLibrary` placed **before** the broad routes it would otherwise fall into, a resolver (often a small variant of an existing one), its look in `Fx/`, its words in `RouteSummaries`, and an example in `SpellExamples`. Power changes size and strength, the same as today. None of these are ultimates: most work from power 1–3 and grow with power and mastery like anything else.
 
-Ideas marked ⚠️ risk feeling like a game system; ideas marked 🔗 overlap a queued or discarded idea (named).
+Notation: **Name** (`property · verb · form`, branch): what it does. *What it looks like.*
 
----
-
-## Energy: power you store and spend
-
-*Identity: energy is never made or lost, only moved. An Energy mage is a battery.*
-
-- **Heat Bank** (Thermal). Draw heat out of a fire, lava, a sunlit rock or a burning enemy, which goes out or cools (`ThermalSim`, `FireSim`), and hold it as a charge you spend on your next fire spells. Cryothermy is the same act turned round: cooling anything *charges* you. The only domain that puts out fires by eating them; towns would ask for it during a blaze.
-- **Momentum Bank** (Kinetic/Deflection). Hits you block with a kinetic ward are stored, and your next push releases them all. A falling person can be caught (velocity arrested), the only real fall-saving outside Gravity.
-- **Ride the Current** (Electromancy). Travel *along* metal: lamp posts, chain-mailed guards, iron fences, lightning rods. You jump from conductor to conductor as a spark. Uses `LightningRods`' metal finder.
-- **Hard Light** (Photomancy). A beam held steady turns solid for a few seconds: a bridge, a step, a shield. A sun-angle twist: stronger at noon, nothing at night without a fire to borrow from.
-- **Blinding Flash / Lightbend** (Photomancy). A flash that dazzles everyone facing you, or bend light round yourself to be hard to see at range (not invisible: a shimmer). NPC witnesses half-see you (crime judgement uncertain).
-- **Job:** lamplighter, forge-heater, smith's assistant; keeping a town warm in a cold snap.
-
-## Earth: the ground is yours
-
-*Identity: the ground is solid and permanent, and you're the only one who can change that.*
-
-- **Stonewalk** (Geomancy). Sink into the ground and move through it slowly, unseen, surfacing elsewhere. Feel footsteps above (a tremorsense ping of moving bodies on the ground; nothing that flies or swims).
-- **Raise and Keep** (Lithomancy). Stairs up a cliff, a bridge over a gully, a shelter for the night that stays for a real while. 🔗 #32 Make your own road: this is the domain that should own it.
-- **Disarm and Bend** (Metallurgy). Pull a weapon out of a hand, crush a guard's chain mail into a hindrance, bend a locked iron gate. Metal doors exist (`Buildings`), and guards wear metal (`LightningRods`).
-- **Ore and Seams** (Geomancy/Crystallurgy). Sense shows real ore veins and crystal geodes in rock (the open question from Sense sight: "buried metal" has nothing to find yet). Earth mages mine them; smiths buy. A new resource the world needs, not only Earth.
-- **Crystal Lens** (Crystallurgy). Grow a crystal anywhere; light and charge spells passed through it are focused (+power, longer range). Ally Energy mages fight next to it. 🔗 partly #34 Rune traps (a crystal holding a spell); keep them apart: a lens bends, a rune trap waits.
-- **Quicksand and Burial** (Sandshaping). Turn ground to sand that slows and sinks; bury things (a chest, a purse) and dig up things others buried. Wildborn and robbers could bury loot too.
-- **Job:** builder, miner, mason, the person towns call after a quake.
-
-## Water: the sea and the weather inside you
-
-*Identity: water goes anywhere and takes the shape of what holds it; an island world is mostly water.*
-
-- **Part the Water** (Tidal). Push the sea back to walk the seabed for a while. That needs something down there: **wrecks** seeded on the sea floor with old cargo and a story (Chronicle-style lines). The island is 39% ocean that nothing uses.
-- **Ice Road** (Glaciation). Freeze a path across a lake or a stretch of sea that stays until it melts (sun, heat spells, Energy mages). Others can use it, and it can be broken under them.
-- **Mist Form** (Vaporism). Become mist: slow, can't be hit by weapons, can't cast harmful spells, can pass under doors. Water's escape.
-- **Wells and Clean Water** (Purification). Drought events exist: a Water mage can fill a town's well or call water up from the ground, and the farmers remember it (NPC memory, opinion). Purify cleanses statuses (poison, blight, sickness) on others.
-- **Breath Under Water** (Hydromancy). Give yourself and your party gills for a while; swim fast. Pairs with wrecks.
-- **Job:** well-keeper, fisher, ship's mage, healer's partner.
-
-## Air: what carries
-
-*Identity: air carries: bodies, sound, weather, news.*
-
-- **Far Hearing** (Sonics). Listen to a spot up to a few hundred studs away and hear what's said there: NPC talk, `RumorService` exchanges, two people plotting. The only domain that overhears on purpose. Ties into Rumours (#39) and Noticing.
-- **Thrown Voice** (Sonics). Make a sound or a line happen somewhere else: NPCs turn to look, guards go to check, a deer bolts. Distraction and stealth with the real NPC reactions.
-- **Call the Weather** (Weathercraft). Bring rain over a field, push a storm away or pull one in, for a few minutes over a real area. It changes `WeatherFuel` for everyone there, wets fires, feeds Lightning rods. Farmers thank you in a drought; a town doesn't when you bring a storm over a festival.
-- **Updraft and Glide** (Windshaping). A column that lifts anyone standing in it, and a glide after. Travel has a style already; this is shared lift for a party.
-- **Windwall** (Windshaping). A wall of wind that bends arrows and slow bolts aside (not beams). Air's defence.
-- **Job:** messenger (🔗 #1 Letters and couriers), farmer's weather-caller, town crier.
-
-## Life: things that grow and keep growing
-
-*Identity: what Life makes is alive, so it keeps going after the spell ends.*
-
-- **Raise Them** (Restoration/Mending). Downed players (`DownedService`) can be brought round on the spot by a Life mage instead of carried off. The carrier-remembers system works the same way: they remember who raised them.
-- **Plant It** (Floramancy). Real growth that stays: a tree you plant grows over real hours, a hedge wall, a vine bridge, a garden that ripens food. Uses the town-repair regrowth code.
-- **Speak With Beasts** (Faunacraft). Deer, fowl, hares and creatures in dens tell you things (where a Wildborn walked, where a feral went), in a few words. Animals as rumour sources. Calm or turn a wild creature.
-- **Take Their Shape** (Faunacraft). Become a deer (fast), a bird (short flights), a hare (small, hidden) for a while. Creature rigs exist (`CreatureRig`). NPCs don't recognise you; guards don't see a criminal.
-- **Contagion** (Pestilence). A sickness that spreads from person to person nearby, slowly. Towns react (the healer gets busy, people stay in, a Life mage with Purify is asked for help). ⚠️ needs limits so it can't sweep a whole server; a crime in towns.
-- **Job:** healer, gardener, herder, the person who brings the deer back.
-
-## Mind: the people are the content
-
-*Identity: this game has hundreds of NPCs with traits, memories and opinions. Mind is the domain that touches that directly.*
-
-- **Read Them** (Telepathy/Perceptics). See what an NPC is thinking right now: their current action and why, a need that's pressing, how they feel about you, one memory involving you. Nothing new to generate: it's the NPC brain read aloud in first-person lines.
-- **Stir and Soothe** (Empathy). Calm a brawl or start one (`NpcFightService`), make a crowd uneasy, make a guard warm to you for a while. The person remembers how they *felt*, not that you did it, unless they're a mage.
-- **Make Them Forget** (Mnemonics). Take a memory out of one NPC: they forget they saw your crime, forget a rumour, forget you. Witnesses are how settlement law works, so this matters. A strong mage can notice the gap.
-- **Wear a Face** (Illusion). Look like a specific NPC for a while. People treat you as them: their friends greet you, their enemies don't. Breaks when you cast a harmful spell or someone touches you.
-- **Read a Place** (Mnemonics). Touch an item with a history (`h`/`hn`/`hl`) or stand at a monument and hear what happened, in the Chronicle's own words. 🔗 different from Echoes (discarded: ghosts replaying moments for everyone); this is private, on demand, text only.
-- **Job:** confessor, judge's witness-reader, someone people hire to find a liar.
-
-## Spirit: what comes after, and what's promised
-
-*Identity: Spirit deals with souls, oaths and the dead: things that outlast a body.*
-
-- **Speak With the Dead** (Necrourgy). Named NPCs die permanently in big events (Living History). A Spirit mage at their grave or where they fell can ask them a question; they answer from their own memories. Wildborn bosses' lairs hold old spirits too.
-- **Bind a Feral** (Binding). Ferals roam and run down. A binder can catch one in a vessel (a jar, a stone) and carry it: release it later as a one-shot spell, or keep it as a curio. Gives ferals an ending other than a kill.
-- **Conditional Hexes** (Hexcraft). A hex that waits on the target's own action: "the next time you cast fire, it turns on you", "the next time you lie to someone, they'll know". NPCs who see a hex mark on someone avoid them.
-- **Ward a Door** (Warding/Sanctums). Ward your house or a chest: anyone who opens it is shocked and marked, and the mark is how you find out who. No safe zones (owner's rule): wards can be broken by a stronger Void or Spirit mage.
-- **Walk Out of Your Body** (Raw Spirit). Leave your body standing and move as a spirit for a while: scout, pass through walls, see spirits. Your body can be hurt while you're out.
-- **Job:** priest, oath-keeper, the one called after a death in town. 🔗 #6 Pacts: bound oaths are Spirit's.
-
-## Void: nothing, on purpose
-
-*Identity: Void takes away. It's the domain that answers all the others.*
-
-- **Swallow a Spell** (Absorption). Catch an incoming spell in your hand, hold it, throw it back as your own. 🔗 #17 Catch and throw: Void should own the strongest form of it.
-- **Null Ground** (Negation). Make a patch where no magic works for a while: any domain, including Time's stop and Reality's edicts. The Hollow wild zone already does this permanently; this is a portable version.
-- **Unmake the Magical** (Dispelling). End a ward, a hex, a conjured wall, a feral, a Wildborn's zone, a Space seal, a Rift's twist in one room. Every other domain's lasting thing becomes something Void can answer.
-- **Silence** (Dampening). A zone of no sound: steps, voices, casting. People inside can't call for help and witnesses outside hear nothing. Stealth and crime with real consequences.
-- **Shadowstep** (Obscurance). Step from one deep shadow to another in sight. Stronger at night, weaker at noon. Darkness zones put out lamps (and the lamplighter notices).
-- **Job:** curse-breaker, the person a town calls when a mage loses control.
+Marks: ✦ = needs a shared piece of tech (see "Shared pieces" at the end). ⚠️ = a design worry, noted.
 
 ---
 
-## New things: bigger builds that add to the world
+## Energy
 
-Added on the owner's "don't be afraid to also add new things". The ideas above mostly reuse systems that exist. These add new places, creatures, resources and realms, each led by one domain but open to everyone.
+### Pyromancy, Conflagration (combustion)
+- **Ember Swarm** (`combustion · generate · burst`, Pyromancy): dozens of embers scatter outward and drift down, each one lighting what it lands on (grass, wood, cloth). *A fountain of orange sparks that hang and flicker before falling.*
+- **Fire Whip** (`combustion · generate · touch`, power 3+): a lash 14 studs long swung in an arc, hitting everything along it. *A rope of flame that leaves a fading curve of sparks.* ✦ arc hits
+- **Flame Serpent** (`combustion · redirect · projectile`, Conflagration): pull the fire out of something already burning and send it winding through the air at a target; it puts the source out. *A ribbon of fire that coils and snakes instead of flying straight.*
+- **Ring of Fire** (`combustion · generate · wall`, Conflagration): a circle of flame around you that burns anyone crossing it. *Flames rising from a ring of scorched ground.*
+- **Smother** (`combustion · reduce · zone`): fires in the area choke out into thick black smoke that blocks sight for a while. *Fire collapses into rolling smoke.*
+- **Kindle Blade** (`combustion · amplify · touch` on an ally or yourself): your weapon burns for a while; hits ignite. *Flame running along the edge.*
 
-### Energy
-- **Sun Jars.** Glass jars that catch sunlight by day and glow at night. Photomancers fill them; townspeople buy them for houses that have no fire. A real trade, and towns at night get warmer light where a Photomancer lives.
-- **Town Lamp Lines.** Electromancers can wire a town's lamp posts together and light the whole street from one spot. A town with a resident Electromancer is visibly brighter; when that NPC dies or leaves, the street goes dark.
-- **Auroras.** When enough Energy is spent on one night (a big fight, several mages), the sky lights up over that region. Everyone sees it; NPCs talk about it the next day. Uses the Omens sky tint.
+### Cryothermy, Stillfrost (temperature, cold)
+- **Ice Spike Line** (`temperature · reduce · pillar`): a row of ice spikes erupts from you toward the target, one after another. *Spikes punching up out of the ground in sequence.* ✦ travelling ground line
+- **Frost Lance** (`temperature · reduce · projectile`, power 3+): a long icicle that pins whoever it hits in place for a moment, then shatters. *A glinting spear of ice, a burst of shards.*
+- **Hoarfrost** (`temperature · reduce · zone`): the ground frosts over and turns slippery: people slide when they turn or stop. *White frost spreading across the ground, a crackle.* ✦ slippery ground (on the Combat.md to-do list)
+- **Ice Mirror** (`temperature · transmute · wall`, Stillfrost): a wall of clear ice that bends beams back toward the caster. *A pane of ice with a bright glint.* ✦ beam reflection (Combat.md to-do)
+- **Flurry** (`temperature · reduce · aura`): a whirl of snow around you that chills anyone close. *Snowflakes circling you.*
 
-### Earth
-- **Caves and Tunnels.** The caves stage was already planned for the world. Earth makes it a system: Earth mages dig tunnels that stay (saved terrain edits), and seeded caves lie under the island with ore, crystal geodes, old bones and things that live in the dark.
-- **A Golem of Your Own** (Clayshaping). A clay body you shape over many sessions: you add stone, metal and crystal, and it gets stronger and changes shape. It carries, guards your house and works a quarry. Slower and heavier than a familiar, and it can be broken.
-- **Gemcutting.** Crystals cut into gems that set into gear (a new item slot on weapons and foci). A Crystallurgy trade.
+### Calefaction (temperature, heat)
+- **Heat Haze** (`temperature · amplify · aura`): shimmering air around you; bolts aimed at you drift off line. *The air wobbles like over a road in summer.*
+- **Boil** (`temperature · amplify · touch` on water): the water you touch flashes into a scalding burst of steam. *A white explosion of steam.*
+- **Searing Ground** (`temperature · generate · zone`): the ground glows red-hot for a while; standing on it burns. *Cracks of orange light in the soil.*
 
-### Water
-- **Wrecks and a Drowned Town.** Seeded wrecks on the seabed, and one drowned town far out (a settlement the sea took in the island's past, with its own lines in the Chronicle). Reached by parting the water, breathing under water, or diving.
-- **Boats.** Small boats that row, plus sail with an Air mage's wind or ride a Water mage's current. Towns with docks (tidecall culture) gain fishers going out and coming back.
-- **Real Tides.** The sea rises and falls on a game-day cycle. Low tide uncovers shore caves and tide pools for a few hours. Tidal mages can push the tide early for a while.
-- **Something Large in the Sea.** One sea creature that surfaces now and then, sighted far off. Not a boss to farm: something people report and draw.
+### Photomancy, Irradiance, Umbramancy (luminosity, radiation, shadow)
+- **Prism Bolt** (`luminosity · generate · projectile`): splits on impact into a fan of 3–5 coloured rays that hit what's behind. *A white bolt breaking into a rainbow.*
+- **Sunspot** (`luminosity · generate · zone`): a column of hard light from above; foes inside are dazzled, allies glow. *A shaft of sunlight with dust in it.*
+- **Wisps** (`luminosity · generate · summon`, non-harmful): small lights that follow you and light the way, and show veiled things they pass. *Floating motes that bob around your head.* ✦ small followers
+- **Flash** (`luminosity · release · burst`): a blinding pop; everyone facing you is blinded. *A white flash and a ring of light.*
+- **Glowing Poison** (`radiation · generate · touch`, Irradiance): the target glows a sickly green for a while, takes damage over time, and can't hide (they show through Sense and in the dark). *A faint green halo.*
+- **Shadow Grasp** (`shadow · generate · touch`, Umbramancy): the shadows of nearby things stretch across the ground and hold the target's feet (root). *Dark hands rising out of shadows.*
+- **Shade Cloak** (`shadow · amplify · aura`, Umbramancy): you darken, harder to see at range, stronger in shade and at night. *Your outline goes dim and smoky.*
+- **Shadow Puppet** (`shadow · generate · summon`, Umbramancy): your shadow peels off the ground and fights beside you for a short while, copying your strikes weakly. *A flat black figure that stands up.* ✦ small followers
 
-### Air
-- **Sky Rocks.** A few floating islands high over the island, seeded, reachable only by flying, gliding updrafts or Space. Old nests, a hermit, a wind-shrine. The first content made *for* air travel.
-- **Wind Roads.** Steady high winds that cross the island along seeded lines (shown when you see the air). Ride one and you cross a region fast. Changes with the weather.
-- **Message Birds.** Teach a bird a short message and send it to a player or an NPC anywhere. 🔗 #1 Letters and couriers.
+### Kinetic, Impetus, Deflection, Inertia (momentum)
+- **Stomp** (`momentum · release · burst`): a shockwave ring along the ground that knocks people off their feet. *A ring of dust racing outward.*
+- **Ricochet** (`momentum · generate · projectile`, Impetus): a bolt that bounces between up to 3 targets or off walls. *A glowing pellet pinging off surfaces.*
+- **Repulse** (`momentum · redirect · aura`, Deflection): projectiles coming at you curve away. *Bolts bending round a faint bubble.*
+- **Inertia Lock** (`momentum · bind · touch`, Inertia): the target can't change direction for a moment and keeps sliding the way they were going. *A blue trail behind them.*
+- **Launch** (`momentum · amplify · touch` on an ally or yourself): hurl someone forward through the air. *A burst of force behind them.*
 
-### Life
-- **The Great Tree.** One sapling somewhere on the island that every server shares. Life mages tend it (water, growth spells, clearing blight), and it grows over real days into a landmark. If nobody tends it, it sickens. A world wonder players build together without a progress bar: you see it bigger next time you visit.
-- **Grown Houses.** A Floramancer can grow a house from a tree over a few real days: a living home that flowers in spring (🔗 #3 Seasons).
-- **Breeding and Herds.** Calmed animals follow you home; two of a kind breed. A Faunacraft player can keep a real herd that NPC hunters respect, or steal from.
-- **Grafting.** Combine two plants into a new one with mixed properties: alchemy ingredients nobody else can grow.
-
-### Mind
-- **Dreamwalking.** Dreams exist (`DreamService`). A Mind mage can enter a sleeping player's or NPC's dream: a small pocket realm (Hideaway tech) built from that person's memories, latents and fears. Help a player find a latent; learn an NPC's secret; plant an idea.
-- **The Mind Palace.** A private room in your own head (another pocket) where you keep what you've learned: memories you took from NPCs, overheard lines, faces you can wear. A journal you walk around in.
-- **Ride an Animal's Eyes.** Look out of a bird's eyes and steer it a little. Scouting with real creatures.
-
-### Spirit
-- **The Other Side.** A second layer over the world, seen only with spirit sight or when you walk out of your body: the dead of this server (NPCs and Wildborn), spirits tied to places, things people lost. It's the same island, quieter and greyer. The biggest new thing on this list.
-- **Graveyards.** Each town gets a burial ground that fills as its people die in big events. Names on the stones, mourners on the day after, and Spirit mages to speak there.
-- **Ancestors.** Every NPC household has one dead ancestor a Spirit mage can call on, who knows the family's history and the town's oldest secrets (🔗 #5 Town Mysteries).
-
-### Void
-- **The Hollow Beneath.** Things Void erases aren't gone: they go to a dim realm underneath. Destroyed items, dispelled ferals, dropped purses that vanished. A Void mage can go down and bring things back, and something that eats there doesn't like being disturbed.
-- **Void Hunger.** A Void mage's own resource: what they swallow (spells, light, heat) fills a hunger. Fed, Void spells grow stronger; left empty too long, it starts eating your reservoir. Unlike any other domain's upkeep.
-- **Eclipses.** A rare world event where the sun darkens for a few minutes. Void and Obscurance are at their strongest; Photomancy is weakest; NPCs are frightened. 🔗 Omens foreshadow it.
+### Electromancy, Galvanism, Arcweaving (charge)
+- **Ball Lightning** (`charge · generate · projectile`, Arcweaving): a slow, wandering ball that zaps anyone near it every half second until it pops. *A crackling sphere drifting along.*
+- **Static Field** (`charge · generate · zone`): sparks jump between everyone inside; the more people, the more arcs. *Arcs flickering between bodies.*
+- **Arc Tether** (`charge · bind · chain`): links two foes with an arc that hurts both while they stay near each other and snaps when they part. *A crackling line between two people.* ✦ tethers
+- **Galvanise** (`charge · amplify · touch` on an ally): a burst of speed with sparks at the feet. *Blue sparks trailing their steps.*
+- **Arc Fence** (`charge · generate · wall`): a crackling fence that shocks whoever crosses it. *Posts of light with lightning strung between.*
 
 ---
 
-## The eight hybrids, briefly
+## Earth
 
-They inherit from both parents, plus one thing of their own:
-- **Clayshaping:** shape clay figures that walk for a while (small workers, decoys).
-- **Stormcalling:** a lightning strike called down on a spot from the sky, only under real cloud.
-- **Verdancy:** a whole stretch of land turns lush (crops grow, grass returns faster).
-- **Magmacraft:** lava that cools into new rock you can stand on (builds land into the sea).
-- **Mistweaving:** fog banks that hide a town or a road for a while.
-- **Necromancy:** the dead creatures you killed rise to follow you for a fight.
-- **Runesmithing:** 🔗 #34 Rune traps belongs here.
-- **Nullwarding:** a ward against magic specifically (the Void + Spirit answer to mythic domains).
-- **Singularity** and **Mindlink** already have their own work.
+### Lithomancy, Architectonics (hardness, cohesion, density, contour)
+- **Stone Fist** (`hardness · generate · projectile`): a fist of rock tears out of the ground and flies at the target. *Ground cracks, a boulder fist launches, dust trail.*
+- **Gravel Burst** (`hardness · release · burst`): the ground under the target bursts into flying stones. *A spray of rock chunks.*
+- **Spike Trail** (`contour · generate · pillar`): a line of stone spikes runs from you to the target. *Spikes rising one after another.* ✦ travelling ground line
+- **Stone Step** (`contour · generate · pillar` on yourself, power 1+): a column pushes you up to a ledge or rooftop. *A pillar rising under your feet.*
+- **Stone Grip** (`cohesion · bind · touch`): stone climbs the target's legs and holds them until it cracks off. *Rock creeping up from the ground.* ✦ prisons
+- **Dust Cloud** (`cohesion · reduce · zone`): the ground crumbles to dust and hangs in the air, blinding. *A brown cloud rising.*
+- **Ramp** (`contour · transmute · wall`, Architectonics): a sloped stone ramp, for climbing or launching. *Rock rising in a wedge.*
+- **Boulder** (`density · generate · projectile`, power 3+): a boulder that rolls along the ground and knocks people flat in its path. *A rock bowling across the ground, bouncing.*
 
-## Recommended first pick per domain
+### Metallurgy, Ferromancy, Alloycraft (magnetism, purity)
+- **Iron Storm** (`magnetism · generate · zone`, Ferromancy): metal shavings whirl round the area and cut; worse for anyone wearing metal. *A grey whirlwind glinting.*
+- **Magnet Pull** and **Magnet Push** (`magnetism · redirect · touch` / `beam`): pull someone in metal toward you, or throw them away. *Lines of force flickering.*
+- **Blade Rain** (`magnetism · generate · ritual`): iron shards rain on the marked spots. *Glinting blades falling from above.*
+- **Rust** (`purity · reduce · touch`, Alloycraft): armour weakens and weapons dull (item durability). *Orange rust spreading.*
+- **Quicksilver Lash** (`magnetism · transmute · touch`, Alloycraft): liquid metal whips out and returns to your hand. *A silver line that ripples.*
 
-If each domain gets one thing first, the one with the most world reach:
+### Crystallurgy, Focuscraft (resonance, purity)
+- **Crystal Spires** (`resonance · generate · pillar`): a cluster of crystals bursts up; they hum and shatter when struck, hitting everyone near. *Coloured crystals jutting from the ground.*
+- **Singing Shard** (`resonance · generate · projectile`): a shard that sticks in the target and pulses damage a few times. *A crystal embedded and glowing in beats.*
+- **Crystal Prison** (`resonance · bind · touch`): the target is encased in crystal for a moment. *A faceted shell growing round them.* ✦ prisons
+- **Geode Shell** (`purity · amplify · aura`, Focuscraft): crystals grow over you like armour and crack away as you're hit. *Crystal plates that chip off.*
 
-| Domain | First pick | Why |
-|---|---|---|
-| Energy | Heat Bank | Uses fire and heat sims that already exist; puts out town fires |
-| Earth | Ore and Seams | Closes the Sense "buried metal" gap and gives smiths a reason to trade |
-| Water | Part the Water + wrecks | 39% of the world is unused sea |
-| Air | Far Hearing | Rumours and NPC talk already exist; Air makes them reachable |
-| Life | Raise Them | DownedService exists; makes Life the friend you want along |
-| Mind | Read Them | The NPC sim's depth is mostly invisible today |
-| Spirit | Bind a Feral | Gives ferals a better ending |
-| Void | Unmake the Magical | Every other domain's lasting effect needs an answer |
+### Seismic, Faultwork, Tremorsense (seismicity)
+- **Fissure** (`seismicity · release · beam`, Faultwork): a crack runs along the ground toward the target, knocking down everyone along it. *The ground splitting in a line.* ✦ travelling ground line
+- **Ground Ripple** (`seismicity · generate · burst`): a wave travels outward through the ground, lifting people as it passes. *The ground bulging in a ring.*
+- **Tremor Ping** (`seismicity · sense · burst`, Tremorsense): everyone walking on the ground nearby is outlined for a moment. *Rings spreading out, figures lit.*
 
-Suggested order to build: Mind, Life, Void, Air, Energy, Earth, Spirit, Water (the last needs wrecks built as content first). One stage per domain, the same as Space: 3 to 5 powers, a spec file and a test script.
+### Sandshaping, Dunecalling (cohesion)
+- **Sand Blast** (`cohesion · release · beam`): a cone of sand that blinds and pushes. *A spray of sand.*
+- **Quicksand** (`cohesion · reduce · zone`): the ground goes soft; people sink and slow. *The ground rippling and swallowing feet.*
+- **Dust Devil** (`cohesion · generate · summon`, Dunecalling): a small sand whirlwind that wanders and blinds whoever it passes. *A spinning column of sand.* ✦ small followers
+- **Sand Shroud** (`cohesion · generate · aura`): a whirl of sand that hides you at range and stings anyone close.
+
+---
+
+## Water
+
+### Hydromancy, Hydrostatics (pressure, viscosity, flow, humidity)
+- **Water Whip** (`flow · generate · touch`): a whip of water that lashes and pulls the target a step toward you. *A water rope with droplets flying.*
+- **Pressure Jet** (`pressure · generate · beam`): a cutting jet of water that pushes back hard. *A white high-pressure stream.*
+- **Bubble** (`pressure · bind · touch`, Hydrostatics): the target is caught in a floating bubble that drifts up a little and pops after a moment. *A shimmering sphere with them inside.* ✦ prisons
+- **Geyser** (`pressure · release · pillar`): water blasts up from the ground and throws people into the air. *A column of water and spray.*
+- **Mire** (`viscosity · amplify · zone`): water in the area thickens to slow sludge. *Water turning dark and sticky.*
+
+### Tidal, Tsunamancy (buoyancy)
+- **Wave Surge** (`flow · generate · wall`, Tidal): a short wave rolls forward and carries people with it. *A curling wave moving across the ground.*
+- **Whirlpool** (`flow · redirect · zone` in water): water spins and pulls people toward the centre. *A spiral on the surface.*
+- **Riptide** (`flow · redirect · beam`): a current that drags the target toward you through water or wet ground.
+- **Float** (`buoyancy · amplify · touch`): the target bobs up and floats in air for a moment. *Water droplets lifting around them.*
+
+### Glaciation, Permafrost (phase)
+- **Ice Slide** (`phase · transmute · beam` on the ground): a strip of ice you can slide along fast. *A gleaming path.* ✦ slippery ground
+- **Permafrost** (`phase · bind · zone`, Permafrost): feet freeze to the ground (root). *Ice creeping over boots.*
+- **Icicle Rain** (`phase · transmute · ritual`): icicles drop on warned spots. *Icicles forming in the air and falling.*
+- **Ice Dome** (`phase · transmute · wall`): a dome of ice over you and allies. *A dome closing overhead.*
+
+### Vapor, Fogweaving (phase)
+- **Scald** (`phase · release · burst`, Vaporism): a cloud of scalding steam. *White steam billowing.*
+- **Fog Bank** (`phase · generate · zone`, Fogweaving): thick fog that hides everyone inside from those outside. *A grey wall of fog.*
+- **Cloud Step** (`phase · transmute · pillar` on yourself): a small cloud under your feet holds you up for a few seconds. *A puff of cloud.*
+
+### Purification, Wellspring (purity)
+- **Cleansing Rain** (`purity · generate · zone`): a short rain that washes statuses (poison, burning, blight) off allies. *Soft rain with a glint.*
+- **Water Shield** (`purity · amplify · aura`): a sphere of water that swallows the first fire hit. *Water wrapping around you.*
+- **Spring** exists (`wellspring`); a smaller **Fountain** (`flow · generate · pillar`) gives water anywhere for a minute (to drink, fill a bucket or wet a fire).
+
+---
+
+## Air
+
+### Aeromancy, Windshaping, Tempest, Vacuity (flow, pressure, buoyancy, breath)
+- **Wind Blade** (`flow · generate · projectile`): a crescent of air that cuts. *A visible ripple shaped like a blade, carrying leaves.*
+- **Gust** (`pressure · release · beam`): a cone of wind that throws people back. *Streaks of wind and dust.*
+- **Twister** (`flow · generate · summon`, Tempest): a small tornado wanders a short path, picking up loose things and people. *A funnel of grey air with debris.* ✦ small followers
+- **Updraft** (`buoyancy · generate · pillar`): a column that lifts whoever stands in it. *Leaves spiralling upward.*
+- **Cushion** (`buoyancy · amplify · aura`): your falls are caught. *A puff at your feet when you land.*
+- **Vacuum** (`breath · reduce · touch`, Vacuity): a bubble of no air around the target's head (the `suffocating` status with its own look). *A clear bubble, rippling.*
+- **Pressure Bomb** (`pressure · release · burst`): the air pulls in, then blows out. *Dust drawn inward, then thrown out.*
+
+### Sonics, Echolocation, Thunderclap (sound)
+- **Sonic Ring** (`sound · generate · projectile`): a ring of sound that flies forward and hits everyone it passes. *An expanding ring in the air.*
+- **Shatter** (`sound · release · touch`): breaks ice, crystal, glass and stone walls. *A high note, cracks spreading.*
+- **Echo Pulse** (`sound · sense · burst`, Echolocation): outlines everything around you for a moment, even in the dark. *A white ring tracing every shape.*
+- **Thunderclap** (`sound · release · burst`, Thunderclap): a deafening crack that dazes everyone close.
+- **Lure** (`sound · generate · zone`): a sound at a spot that draws creatures and people to look. *Ripples at the spot.*
+
+### Weathercraft, Rainmaking, Stormbrewing (humidity, temperature, charge)
+- **Raincloud** (`humidity · generate · touch`, Rainmaking): a small cloud follows the target, raining on them: wet, fires go out, lightning finds them. *A grey cloud over someone's head.*
+- **Hail** (`temperature · reduce · ritual`): hailstones fall on warned spots. *Ice pellets bouncing.*
+- **Call Lightning** (`charge · release · touch` aimed at a spot, Stormbrewing): a bolt from the sky; stronger under real cloud (`WeatherFuel`). *A strike from above.*
+- **Clear Sky** (`humidity · reduce · zone`): the rain stops over an area for a while. *Clouds parting, sunlight.*
+
+---
+
+## Life
+
+### Restoration, Mending, Resurgence, Purgation (vitality, metabolism, toxin)
+- **Healing Grove** (`vitality · generate · zone`): flowers spring up and heal allies standing among them. *Grass and flowers growing in a circle.*
+- **Lifeline** (`vitality · transfer · beam`): give your own health to an ally. *A green ribbon between you.*
+- **Petal Ward** (`vitality · amplify · aura`): petals circle an ally; each absorbs one hit. *Petals orbiting, falling as they're struck.*
+- **Purge** (`toxin · reduce · touch`, Purgation): draws poison out. *Dark droplets pulled out of the body.*
+- **Second Wind** (`metabolism · amplify · touch`): stamina refills. *A breath of green.*
+
+### Floramancy, Arborism, Mycology (growth, decay)
+- **Vine Lash** (`growth · generate · touch`): a thorny vine whips out and pulls. *A green whip.*
+- **Root Snare** (`growth · bind · touch`): roots burst up and hold the target (root). *Roots wrapping legs.* ✦ prisons
+- **Thorn Burst** (`growth · release · burst`): thorns shoot out in all directions. *A spiky bloom.*
+- **Bramble Wall** (`growth · generate · wall`): a thicket that scratches anyone pushing through.
+- **Sapling** (`growth · generate · pillar`, Arborism): a tree grows in a second as cover, and stays for a while. *A trunk shooting up, leaves unfolding.*
+- **Seed Pod** (`growth · generate · projectile`): a seed bursts into a thicket where it lands.
+- **Spore Cloud** (`decay · generate · zone`, Mycology): puffballs burst into a sleepy haze (dazed). *Mushrooms popping, yellow dust.*
+- **Fairy Ring** (`decay · generate · burst`, Mycology): a ring of mushrooms that springs you into the air when you step in.
+
+### Faunacraft, Beastspeech, Wildshape (instinct, metabolism)
+- **Swarm** (`instinct · generate · projectile`): a cloud of bees or wasps flies at the target and stings for a while. *A buzzing dark cloud.* ✦ small followers
+- **Flock** (`instinct · generate · burst`): birds burst out of you and swirl round foes, blinding them. *Wings everywhere.*
+- **Beast Claws** (`metabolism · amplify · touch`, Wildshape): your hands become claws for a while; slashes hit harder. *Claw marks hanging in the air after a swing.*
+- **Beast Senses** (`instinct · amplify · aura`, Wildshape): you smell and hear further (nearby living things outlined).
+- **Calm Beast** (`instinct · reduce · touch`, Beastspeech): a wild creature stops fighting and wanders off.
+
+### Blight, Pestilence, Withering (decay, toxin)
+- **Rot** (`decay · generate · touch`): wood, bridges and doors rot and break. *Black spreading over the surface.*
+- **Withering Field** (`decay · generate · zone`, Withering): grass browns and creatures inside weaken. *Colour draining from the ground.*
+- **Plague Flies** (`toxin · generate · projectile`, Pestilence): a swarm that poisons whoever it touches.
+- **Corpse Bloom** (`toxin · generate · pillar`): a fat flower bursts into toxic spores when hit or when someone comes near.
+
+---
+
+## Mind
+
+### Perceptics, Farsight, Insight (perception, thought)
+- **Far Eye** (`perception · generate · projectile`, Farsight): an eye of light flies where you aim and you look through it for a few seconds. *A glowing eye floating along.*
+- **Mark Weakness** (`perception · sense · touch`): the target's weak spot shows; your next hit on them is a critical.
+- **Read Intent** (`thought · sense · burst`, Insight): foes nearby show a faint arrow of what they're about to do (charge, flee, cast).
+
+### Empathy, Charm, Dread (emotion)
+- **Terror** (`emotion · generate · touch`, Dread): fear with dark tendrils at the edges of the target's screen. (The `fear` route with a look.)
+- **Rally** (`emotion · amplify · aura`): allies near you fight harder and shrug off fear. *A warm glow.*
+- **Rage** (`emotion · amplify · touch`): the target lashes out at whoever is nearest, friend or foe. *Red at the edges.*
+- **Despair** (`emotion · reduce · zone`): everyone inside slows and casts more slowly. *Grey haze.*
+
+### Illusion, Phantasms, Grand Illusion, Veiling (illusion)
+- **Mirror Images** (`illusion · generate · aura`): copies of you circle you; each takes one hit and vanishes. *Translucent doubles.* ⚠️ check it's not the discarded Afterimage (#37): that left a ghost behind you; this is decoys around you.
+- **Phantom Blade** (`illusion · generate · projectile`, Phantasms): an imaginary blade that hurts only because they believe it (Mind damage, resisted by Mind). *A pale sword that flies and fades.*
+- **False Wall** (`illusion · generate · wall`): a wall that looks real; things pass through it. *A wall that ripples when touched.*
+- **Phantom Beast** (`illusion · generate · summon`, Phantasms): a monster only the target sees, chasing them (fear). *Shimmering shape.*
+- **Vanish** (`illusion · amplify · aura`, Veiling): unseen until you attack. (The `veil` route at higher power.)
+- **Pit** (`illusion · generate · zone`, Grand Illusion): the ground looks like a drop; people won't step in.
+
+### Mnemonics, Oblivion (memory)
+- **Forget Me** (`memory · reduce · touch`, Oblivion): the target loses track of you (loses aggro and lock-on).
+- **Déjà Vu** (`memory · redirect · touch`): the target repeats what they just did.
+
+### Telepathy, Dominion (thought, will)
+- **Mind Spike** (`thought · generate · projectile`): a purple bolt that dazes. *A thin violet streak.*
+- **Psychic Push** (`thought · release · beam`): an invisible cone that throws people back. *Ripples in the air, nothing else.*
+- **Whispers** (`thought · generate · zone`): voices distract everyone inside; casts slow.
+- **Puppet** (`will · bind · touch`, Dominion): steer an NPC or creature for a few seconds. Dominion is tagged forbidden: a crime if seen.
+
+---
+
+## Spirit
+
+### Warding, Sanctums, Hallowing, Counterwarding (warding, essence)
+- **Glyph Shield** (`warding · generate · wall`): a rune circle stands in front of you and blocks shots. *A glowing ring of runes.*
+- **Sigil Trap** (`warding · generate · zone`): a sigil on the ground throws back whoever steps on it. *A faint symbol.* 🔗 close to #34 Rune traps: build them together.
+- **Hallowed Ground** (`warding · amplify · zone`, Hallowing): hurts undead and spirits, steadies the living.
+- **Reflect** (`warding · redirect · aura`, Counterwarding): the next hostile status cast on you bounces back.
+
+### Hexcraft, Greater Curses (malediction)
+- **Hex Bolt** (`malediction · generate · projectile`): a crawling curse. *A black-purple wisp with eyes.*
+- **Deepening Curse** (`malediction · amplify · touch`): each hit the target takes adds a little more damage while it lasts.
+- **Ill Luck** (`malediction · generate · aura`, Greater Curses): foes near you stumble, miss and drop things.
+- **Hex Doll** (`malediction · bind · touch`): a small doll appears; hits on the doll hurt the target. ✦ tethers
+
+### Binding, Pactcraft, Soulbinding (bond, will, soul)
+- **Spirit Chains** (`bond · bind · touch`): chains of light rise and hold the target. *Glowing chains from the ground.* ✦ prisons
+- **Tether** (`bond · bind · chain`): two targets bound; they can't move apart. ✦ tethers
+- **Soul Lantern** (`soul · store · touch`, Soulbinding): catch the spirit of a creature you killed in a small light that you can release as a short-lived ally. *A lantern with a ghost inside.*
+
+### Necrourgy, Deathspeech, Revenancy (unlife, soul)
+- **Grave Hand** (`unlife · generate · touch`): a bony hand bursts from the ground and grabs. *Bones and dirt.*
+- **Spirit Wolves** (`soul · generate · summon`, Revenancy): a pack of ghost wolves runs down a target. *Pale wolves that flicker.* ✦ small followers
+- **Ghost Step** (`soul · transmute · aura`): for a moment you're intangible and pass through people. *Your body goes see-through.*
+- **Wail** (`soul · release · burst`): a spirit's scream; fear on everyone near.
+- **Grave Mist** (`unlife · generate · zone`): cold mist that slows the living.
+
+---
+
+## Void
+
+### Negation, Dispelling, Antimagic (aether, presence)
+- **Null Bolt** (`aether · reduce · projectile`): strips one good status off the target. *A black bolt with a white rim.*
+- **Unravel** (`aether · reduce · beam`): a conjured thing (wall, prison, elemental, ward) comes apart. *It unwinds into threads that fade.*
+- **Antimagic Shell** (`aether · reduce · aura`, Antimagic): spells that hit you are weaker. *A dark film.*
+
+### Dampening, Silence, Eclipse, Stillness (momentum, sound, luminosity, temperature, charge)
+- **Dark** (`luminosity · reduce · zone`, Eclipse): lights go out in an area; it's night inside. *Light draining inward.*
+- **Black Sun** (`luminosity · reduce · pillar`, Eclipse): a small dark orb overhead dims an area and chills it. *A black disc with a pale ring.*
+- **Ground Out** (`charge · reduce · zone`): lightning and charge spells fizzle inside.
+- **Stillness** (`momentum · reduce · touch`, Stillness): the target slows nearly to a stop. (Today's `still`, with a look.)
+
+### Absorption, Siphoning (essence)
+- **Sponge** (`essence · store · aura`): the next spell that hits you is swallowed and refills your reservoir. 🔗 #17 Catch and throw.
+- **Hungry Mouth** (`essence · redirect · zone`): bolts flying through the zone are pulled in and eaten. *A black hole the size of a fist.*
+
+### Obscurance, Nullsign (presence)
+- **Shadow Step** (`presence · redirect · touch`): step from one deep shadow to another in sight. Instant.
+- **Rift Mote** (`presence · reduce · projectile`): a small black tear that pulls things near it, then collapses. *A crack in the air with light bending into it.*
+- **Black Flame** (`presence · transmute · touch`, Nullsign): a cold black fire that burns magic (reservoir) instead of flesh.
+- **Unseen** (`presence · reduce · aura`, Nullsign): you can't be found by Sense, rumours or tracks for a while.
+
+---
+
+## Shared pieces (build once, used everywhere)
+
+Many spells above share a mechanic. Building each piece once makes a domain's spells cheap:
+
+| Piece | Used by |
+|---|---|
+| **Travelling ground line** (an effect that runs along the ground from you to the target) | Ice Spike Line, Spike Trail, Fissure, Ice Slide |
+| **Small followers** (a short-lived thing that moves on its own; not an elemental) | Wisps, Shadow Puppet, Ball Lightning, Dust Devil, Twister, Swarm, Spirit Wolves |
+| **Prisons** (the target is held in a shell that cracks after a moment) | Stone Grip, Crystal Prison, Bubble, Root Snare, Spirit Chains |
+| **Tethers** (two bodies linked by a line that does something while it holds) | Arc Tether, Tether, Hex Doll |
+| **Arc hits** (everything along a swing) | Fire Whip, Water Whip, Vine Lash, Quicksilver Lash |
+| **Slippery ground** and **beam reflection** (already on the Combat.md to-do list) | Hoarfrost, Ice Slide, Ice Mirror |
+
+## Suggested order
+
+One domain per stage, about 12–20 spells each, with the shared pieces it needs built as it goes:
+
+1. **Energy** (the most common starting domain; brings small followers, tethers, arc hits)
+2. **Earth** (brings the travelling ground line and prisons)
+3. **Water**, 4. **Air**, 5. **Life**, 6. **Void**, 7. **Spirit**, 8. **Mind** (Mind and Spirit last: most of their spells act on NPCs and need the most care).
+
+## Risks
+
+- **Existing spells change.** Routes are resolved at cast time, so a saved spell that was a plain `harm` bolt may become Ember Swarm or Ricochet after a stage. That's the point, but players' spellbooks will change under them.
+- **Followers, prisons and zones stack** on a crowded server: each needs a cap in `EffectBudget`.
+- **Crowd control** (prisons, roots, tethers) needs the same caps as the stage 1c statuses (`Effects/Status` hard-control caps).
+- **Mind's NPC spells** (Puppet, Forget Me, Rage on NPCs) touch crime and witnesses.
 
 ## Open questions
 
-1. Build one domain fully at a time (like Space), or one first pick per domain across all eight first?
-2. Should Mind's Make Them Forget and Wear a Face work on crime witnesses, which weakens settlement law, or should guards be immune?
-3. Should Life's Take Their Shape exist? It needs creature rigs for players, the biggest single cost on this list.
-4. Is Contagion (Pestilence) wanted at all, given how it could spread through a full server?
-5. Seabed wrecks are new world content: worth building for Water, or keep Water to the land?
-6. Which of the bigger new things appeal most? The largest are the Other Side (Spirit), Caves (Earth), the Great Tree (Life), Dreamwalking (Mind) and Sky Rocks (Air). Each is its own multi-stage project.
+1. Is this the right density (about 15–20 new spells per domain), or fewer and more polished?
+2. Start with Energy, or another domain first?
+3. Should old saved spells change into the new moves (default), or keep the old behaviour for spells saved before?
+4. Any spells above that don't fit, or ones you'd like that are missing?

@@ -44,7 +44,7 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
 9. Secrets and the strange: 5 Town Mysteries, 6 Pacts, 55 Secret factions find you, 56 Mythic sightings, 36 Small laws.
 10. Next stages: 58 Magic Marks stage 2, 60 Wild Zones stage 3, 61 Rifts stage 3 + tuning, 63 NPC movement stage 2, 62 the multiplayer queue (news, trade, markets).
 
-**Newest (2026-11-16): domain ideas written (`docs/DomainIdeas.md`), design only, on the owner's "ideas on how to improve all the other domains to be more unique and fun" + "don't be afraid to also add new things".** Covers Energy, Earth, Water, Air, Life, Mind, Spirit and Void: 5–6 powers each, a "New things" section of bigger builds (caves, wrecks and a drowned town, sky rocks, the Great Tree, Dreamwalking, the Other Side, the Hollow Beneath, eclipses...), hybrids, a first pick per domain, and 6 open questions. Waiting on the owner's picks; nothing approved.
+**Newest (2026-11-17): domain expansion catalogue (`docs/DomainIdeas.md`), design only.** Owner: expand Energy, Earth, Water, Air, Life, Mind, Spirit and Void with many new, visually interesting spells that fit each branch; **no "signature" single powers and no ultimate mindset** (the first version pitching those was rejected; it's in `67628da`). The doc lists ~150 spells as recipes (property · verb · form, branch) with effect and look, shared pieces (travelling ground line, small followers, prisons, tethers, arc hits, slippery ground, beam reflection), a suggested order (Energy, Earth, Water, Air, Life, Void, Spirit, Mind) and 4 open questions. Waiting on the owner's go and picks.
 
 **Mindlink and Space guards CONFIRMED 2026-11-16** (log `specs 1165/1166`, `mindlink_cast`, `mindlink_npc`; owner: "everything looks good").
 
