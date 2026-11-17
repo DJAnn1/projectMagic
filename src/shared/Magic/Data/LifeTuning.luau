@@ -53,7 +53,8 @@ LifeTuning.raise_them = {
 
 LifeTuning.vine_lash = {
 	share = 0.6,
-	pull = 50,
+	stopShort = 4, -- studs in front of you they land
+	dragSeconds = 0.4,
 }
 
 LifeTuning.root_snare = {

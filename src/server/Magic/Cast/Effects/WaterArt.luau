@@ -245,9 +245,9 @@ local function riptide(ctx: Ctx): Outcome
 	if not target then
 		return { effective = false, hits = 0, note = "The current finds nobody to take." }
 	end
-	R.hit(ctx, target, T.share, "flow")
-	R.push(target, flat(ctx.origin - target.root.Position) * T.pull + UP * 8)
+	R.hit(ctx, target, T.share)
 	cue(ctx, { fx = "riptide", from = target.root.Position, to = ctx.origin }, target.root.Position)
+	R.drag(target, ctx.origin + flat(target.root.Position - ctx.origin) * T.stopShort, T.dragSeconds)
 	return { effective = true, hits = 1 }
 end
 

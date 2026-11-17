@@ -238,8 +238,9 @@ local function vineLash(ctx: Ctx): Outcome
 		return { effective = false, hits = 0, note = "The vine whips out and catches nothing." }
 	end
 	R.hit(ctx, target, T.share)
-	R.push(target, flat(ctx.origin - target.root.Position) * T.pull + UP * 10)
 	cue(ctx, { fx = "vine", from = ctx.root.Position, to = target.root.Position }, target.root.Position)
+	-- Dragged right up to you (a few studs in front, not on top of you).
+	R.drag(target, ctx.origin + flat(target.root.Position - ctx.origin) * T.stopShort, T.dragSeconds)
 	return { effective = true, hits = 1 }
 end
 

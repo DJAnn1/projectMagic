@@ -76,7 +76,8 @@ WaterTuning.whirlpool = {
 
 WaterTuning.riptide = {
 	share = 0.5,
-	pull = 55,
+	stopShort = 4, -- studs in front of you they land
+	dragSeconds = 0.45,
 }
 
 -- ─── Glaciation, Permafrost ─────────────────────────────────────────────────

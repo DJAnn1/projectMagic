@@ -263,6 +263,43 @@ function ArtRuntime.push(hit: Targeting.Hit, velocity: Vector3)
 	end
 end
 
+-- Drags someone to `to` (a vine, a riptide, a magnet: a pull that has to arrive). A push alone is eaten
+-- by ground friction within a couple of studs (owner, 2026-11-17: Vine Lash moved people ~2 studs), so:
+-- a player gets a hop timed to land them there (their own client flies it); anyone else (NPCs, creatures,
+-- practice dummies, anchored or not) is moved there over `seconds`.
+local GRAVITY = 196.2
+function ArtRuntime.drag(hit: Targeting.Hit, to: Vector3, seconds: number?)
+	local t = math.clamp(seconds or 0.4, 0.15, 1)
+	local from = hit.root.Position
+	local flat = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	if flat.Magnitude < 1 then
+		return
+	end
+	local player = Players:GetPlayerFromCharacter(hit.model)
+	if player then
+		-- Across in `t`, rising enough to land at the same height (gravity brings it back).
+		local velocity = flat / t + Vector3.new(0, 0.5 * GRAVITY * t + (to.Y - from.Y) / t, 0)
+		Net.fire("WorldEffect", player, { kind = "knockback", velocity = velocity })
+		return
+	end
+	local model = hit.model
+	local start = model:GetPivot()
+	local goal = start + flat
+	task.spawn(function()
+		local steps = math.max(3, math.floor(t / 0.03))
+		for i = 1, steps do
+			if not model.Parent then
+				return
+			end
+			local a = i / steps
+			local eased = 1 - (1 - a) * (1 - a)
+			-- A little arc so it reads as being pulled off the ground.
+			model:PivotTo(start:Lerp(goal, eased) + Vector3.new(0, math.sin(a * math.pi) * 2, 0))
+			task.wait(t / steps)
+		end
+	end)
+end
+
 -- A one-shot look for every client near: cue kind `kind` ("energy" -> Client/Fx/EnergyFx, "earth" -> EarthFx).
 function ArtRuntime.cue(ctx: Ctx, fields: { [string]: any }, position: Vector3, heavy: boolean?, kind: string?)
 	local payload: { [string]: any } = {
