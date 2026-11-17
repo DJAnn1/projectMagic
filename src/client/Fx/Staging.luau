@@ -37,6 +37,7 @@ local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local SlashFx = require(script.Parent.SlashFx)
 local Sigils = require(script.Parent.Sigils)
+local ScreenFx = require(script.Parent.ScreenFx)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
 
 type Style = FxLayers.Style
@@ -372,15 +373,23 @@ function Staging.play(form: string, centre: Vector3, normal: Vector3, radius: nu
 end
 
 -- An ultimate: build, stillness, reveal on the first hit, linger, fade.
-function Staging.ultimate(centre: Vector3, normal: Vector3, reach: number, style: Style, reveal: number, length: number, sigil: Sigils.Spec?)
-	if not inRange(centre) then
-		return
-	end
+function Staging.ultimate(centre: Vector3, normal: Vector3, reach: number, style: Style, reveal: number, length: number, sigil: Sigils.Spec?, domain: string?)
 	local U = Data.ultimate
 	local r = math.clamp(reach, 6, U.maxReach)
 	local revealAt = math.max(reveal, U.minBuild)
 	local buildEnd = math.max(0.2, revealAt - U.pause)
 	local lasting = math.max(revealAt + 1, length)
+	-- The sky turns as it builds and stays turned until it ends (Fx/ScreenFx, faded by distance;
+	-- reaches further than the staging itself).
+	if domain then
+		ScreenFx.sky(domain, centre, lasting)
+	end
+	task.delay(revealAt, function()
+		ScreenFx.ultimate(style.primary, centre)
+	end)
+	if not inRange(centre) then
+		return
+	end
 
 	-- BUILD: the sigil spreads under it and light rises, until the stillness.
 	local handle: Sigils.Handle? = nil

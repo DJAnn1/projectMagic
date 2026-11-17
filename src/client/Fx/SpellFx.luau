@@ -49,6 +49,7 @@ local FeatureFlags = require(Shared.Core.FeatureFlags)
 local SigilData = require(Shared.Magic.Data.Sigils)
 local Sigils = require(script.Parent.Sigils)
 local Staging = require(script.Parent.Staging)
+local ScreenFx = require(script.Parent.ScreenFx)
 local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
@@ -885,6 +886,14 @@ function SpellFx.launch(cue: { [string]: any })
 	if not key or typeof(cue.origin) ~= "Vector3" or typeof(cue.velocity) ~= "Vector3" then
 		return
 	end
+	-- Your bolt leaving your hand kicks the camera (Fx/ScreenFx); a turned or bent one doesn't.
+	if cue.caster == Players.LocalPlayer.UserId then
+		local character = Players.LocalPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if cue.localShot or (root and root:IsA("BasePart") and (root.Position - cue.origin).Magnitude < 6) then
+			ScreenFx.kick(powerOf(cue))
+		end
+	end
 	-- The property's layer over the domain (Data/PropertyLooks): its colour pull, particles, light.
 	local style = PropertyFx.tint(SpellFx.styleFor(cue.caster, cue.domain or "energy", cue.signature), cue.property)
 	local look = DomainFx.look(cue.domain, cue.property)
@@ -1614,6 +1623,13 @@ function SpellFx.spell(cue: { [string]: any })
 		local at = if form == "aura" and rootPart then rootPart.Position else point
 		local ground, up = FxLayers.ground(at + Vector3.new(0, 2, 0), 8)
 		Staging.play(form, ground or at, up or Vector3.yAxis, radius, style, p, { root = rootPart, look = look })
+	end
+
+	-- The screen (docs/Smoothness.md stage 4, Fx/ScreenFx): your own spell flashes by power and
+	-- kicks the camera (bolts kicked when they left the hand); someone else's flashes only when
+	-- strong and near. An ultimate flashes on its own reveal instead.
+	if not cue.expired and cue.ultimate ~= true and not pulseRepeat then
+		ScreenFx.release(p, style.primary, point, cue.caster == Players.LocalPlayer.UserId, form ~= "projectile")
 	end
 
 	local impactOpts: ImpactOpts = {

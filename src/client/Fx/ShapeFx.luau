@@ -303,7 +303,7 @@ handlers.ultimate = function(cue, kit)
 	local property = if typeof(cue.property) == "string" then cue.property else nil
 	local verb = if typeof(cue.verb) == "string" then cue.verb else nil
 	local sigil = if FeatureFlags.get("sigils_enabled") ~= false then SpellFx.sigilSpec(cue.caster, domain, property, verb, kit.tierIndex, kit.style) else nil
-	Staging.ultimate(spot, up or Vector3.yAxis, tonumber(cue.radius) or 20, kit.style, tonumber(cue.reveal) or 1, tonumber(cue.length) or 4, sigil)
+	Staging.ultimate(spot, up or Vector3.yAxis, tonumber(cue.radius) or 20, kit.style, tonumber(cue.reveal) or 1, tonumber(cue.length) or 4, sigil, domain)
 end
 
 function ShapeFx.handle(cue: { [string]: any })
