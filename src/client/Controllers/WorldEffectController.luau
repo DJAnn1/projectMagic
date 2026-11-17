@@ -25,6 +25,7 @@
 		water            Fx/WaterFx: Water's spells (whips, jets, bubbles, geysers, icicles, steam, clouds...)
 		air              Fx/AirFx: Air's spells (slices, gales, rings, booms, echoes, strikes from the sky, hail...)
 		life             Fx/LifeFx: Life's spells (lifelines, vines, roots, thorns, trees growing, flocks, flies, blooms...)
+		void             Fx/VoidFx: Void's spells (unravelling, swallowed bolts, black flame, steps through shadow...)
 		time             Fx/TimeFx: afterimages, recalls, a stopped world, wounds, foreseen spells
 		reality          Fx/RealityFx: luck shells, edict boundaries, conjured matter, unmaking, polymorphs
 		surge            Fx/SurgeFx: transforming, the finisher, a relic waking
@@ -52,6 +53,7 @@ local EarthFx = require(script.Parent.Parent.Fx.EarthFx)
 local WaterFx = require(script.Parent.Parent.Fx.WaterFx)
 local AirFx = require(script.Parent.Parent.Fx.AirFx)
 local LifeFx = require(script.Parent.Parent.Fx.LifeFx)
+local VoidFx = require(script.Parent.Parent.Fx.VoidFx)
 local TimeFx = require(script.Parent.Parent.Fx.TimeFx)
 local ShapeFx = require(script.Parent.Parent.Fx.ShapeFx)
 local RealityFx = require(script.Parent.Parent.Fx.RealityFx)
@@ -170,6 +172,8 @@ local function handle(effect: { [string]: any })
 		AirFx.cue(effect)
 	elseif kind == "life" then
 		LifeFx.cue(effect)
+	elseif kind == "void" then
+		VoidFx.cue(effect)
 	elseif kind == "field" then
 		SpellFx.field(effect)
 		if effect.field == "gravity" then

@@ -374,9 +374,14 @@ local function echoPulse(ctx: Ctx): Outcome
 	local radius = at(T.radius, ctx)
 	local seconds = at(T.seconds, ctx)
 	local models: { Model } = {}
+	local now = workspace:GetServerTimeNow()
 	for _, hit in Targeting.inRadius(ctx.origin, radius, T.maxShown, { [ctx.character] = true }) do
-		StatusEffects.remove(hit.humanoid, "veiled")
-		table.insert(models, hit.model)
+		-- Void's Unseen (Effects/VoidArt) leaves no echo.
+		local unseen = hit.model:GetAttribute("Unseen")
+		if not (typeof(unseen) == "number" and unseen > now) then
+			StatusEffects.remove(hit.humanoid, "veiled")
+			table.insert(models, hit.model)
+		end
 	end
 	-- Only the caster sees the outlines (EchoFx checks `caster`); everyone near hears the click.
 	cue(ctx, { fx = "echo", at = ctx.origin, radius = radius, seconds = seconds, models = models }, ctx.origin)

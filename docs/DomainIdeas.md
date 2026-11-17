@@ -396,6 +396,32 @@ Not verified (no Studio run): Raise Them on a real downed player (needs two play
 - **Whispers** (`thought · generate · zone`): voices distract everyone inside; casts slow.
 - **Puppet** (`will · bind · touch`, Dominion): steer an NPC or creature for a few seconds. Dominion is tagged forbidden: a crime if seen.
 
+### Life: confirmed 2026-11-17, drags fixed
+
+Log `specs 1181/1182`; every Life branch cast; owner: "everything else looks good", but Vine Lash dragged people only ~2 studs. Cause: a sideways push is eaten by ground friction within a couple of studs, and practice dummies are anchored. Fixed (`850818e`): `ArtRuntime.drag(hit, to, seconds)`: a player gets a hop timed to land them there (their own client flies it); NPCs, creatures and dummies are moved there over the time. Vine Lash and Riptide now pull to 4 studs in front of you.
+
+### Void: built 2026-11-17 (not yet run)
+
+On the owner's "build next". 13 spells, routes `void_<move>`, `Server/Magic/Cast/Effects/VoidArt`, `Shared/Magic/Data/VoidTuning`, `Client/Fx/VoidFx` (cue kind `void`). Void is the domain that answers the others: Unravel and Null Ground end other people's lasting spells (`ArtRuntime.all`) and break conjured stone, ice and wood; Ground Out, Sponge and Hungry Mouth eat bolts in flight (`Delivery.interceptor` "erase"); Antimagic Shell softens all magic and won't let harmful statuses hold; Unseen hides you from Air's Echo Pulse (character attribute `Unseen`). Sub-branches only, ahead of the old Void routes: Negation's burst stays Dispel, Silence's zone Silence, Eclipse's zone darkness, Stillness Still, Siphoning's transfer Siphon, and the root keeps Unmake (the strike). Flag `void_arts_enabled`. Expected boot line **`specs 1184/1185`** (3 new in `Tests/Void.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Null Bolt | Negation | aether · reduce · projectile |
+| Unravel | Dispelling | aether · transmute · beam |
+| Antimagic Shell | Antimagic | aether · bind · aura (instant) |
+| Null Ground | Antimagic | aether · reduce · zone |
+| Black Sun | Eclipse | luminosity · reduce · pillar |
+| Hush | Silence | sound · reduce · projectile/touch |
+| Ground Out | Dampening | charge · reduce · zone |
+| Sponge | Siphoning | essence · bind · aura (instant) |
+| Hungry Mouth | Absorption | essence · redirect · zone |
+| Shadow Step | Obscurance | presence · redirect · touch/beam/projectile (instant) |
+| Rift Mote | Obscurance | presence · reduce · projectile |
+| Black Flame | Nullsign | presence · transmute · touch/projectile |
+| Unseen | Nullsign | presence · reduce · aura (instant) |
+
+Not verified (no Studio run): bolts being eaten by Sponge and Hungry Mouth on screen (the client is told through the existing erase path), Shadow Step's landing on slopes and roofs, Black Sun's disc read from below. Defaults chosen: Antimagic Shell also clears holds (roots, frozen, sealed) the moment it's cast and every half second while it lasts, which makes it a strong escape; Unravel and Null Ground end anyone else's lasting spells, allies' included (Void doesn't take sides); Black Flame burns at most 30 reservoir.
+
 ---
 
 ## Spirit

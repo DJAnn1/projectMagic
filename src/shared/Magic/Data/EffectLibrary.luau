@@ -241,6 +241,24 @@ local routes: { Route } = {
 	{ id = "life_plague_flies", effect = "LifeArt", branches = { "pestilence" }, properties = { "toxin" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "plague_flies" } },
 	{ id = "life_corpse_bloom", effect = "LifeArt", branches = { "blight" }, properties = { "toxin" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "corpse_bloom" } },
 
+	-- ─── Void's spells (Effects/VoidArt, Data/VoidTuning, docs/DomainIdeas.md) ─────
+	-- Sub-branches only, ahead of the old Void routes just below: Negation's burst stays Dispel, Silence's
+	-- zone stays Silence, Eclipse's zone stays darkness, Stillness stays Still, Siphoning's transfer stays
+	-- Siphon, and the root keeps Unmake (the strike).
+	{ id = "void_null_bolt", effect = "VoidArt", branches = { "negation" }, properties = { "aether" }, verbs = { "reduce" }, forms = { "projectile" }, params = { move = "null_bolt" } },
+	{ id = "void_unravel", effect = "VoidArt", branches = { "dispelling" }, properties = { "aether" }, verbs = { "transmute" }, forms = { "beam" }, params = { move = "unravel" } },
+	{ id = "void_antimagic_shell", effect = "VoidArt", branches = { "antimagic" }, properties = { "aether" }, verbs = { "bind" }, forms = { "aura" }, params = { move = "antimagic_shell" }, instant = true },
+	{ id = "void_null_ground", effect = "VoidArt", branches = { "antimagic" }, properties = { "aether" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "null_ground" } },
+	{ id = "void_black_sun", effect = "VoidArt", branches = { "eclipse" }, properties = { "luminosity" }, verbs = { "reduce" }, forms = { "pillar" }, params = { move = "black_sun" } },
+	{ id = "void_hush", effect = "VoidArt", branches = { "silence" }, properties = { "sound" }, verbs = { "reduce" }, forms = { "projectile", "touch" }, params = { move = "hush" } },
+	{ id = "void_ground_out", effect = "VoidArt", branches = { "dampening" }, properties = { "charge" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "ground_out" } },
+	{ id = "void_sponge", effect = "VoidArt", branches = { "absorption" }, properties = { "essence" }, verbs = { "bind" }, forms = { "aura" }, params = { move = "sponge" }, instant = true },
+	{ id = "void_hungry_mouth", effect = "VoidArt", branches = { "absorption" }, properties = { "essence" }, verbs = { "redirect" }, forms = { "zone" }, params = { move = "hungry_mouth" } },
+	{ id = "void_shadow_step", effect = "VoidArt", branches = { "obscurance" }, properties = { "presence" }, verbs = { "redirect" }, forms = { "touch", "beam", "projectile" }, params = { move = "shadow_step" }, instant = true },
+	{ id = "void_rift_mote", effect = "VoidArt", branches = { "obscurance" }, properties = { "presence" }, verbs = { "reduce" }, forms = { "projectile" }, params = { move = "rift_mote" } },
+	{ id = "void_black_flame", effect = "VoidArt", branches = { "nullsign" }, properties = { "presence" }, verbs = { "transmute" }, forms = { "touch", "projectile" }, params = { move = "black_flame" } },
+	{ id = "void_unseen", effect = "VoidArt", branches = { "nullsign" }, properties = { "presence" }, verbs = { "reduce" }, forms = { "aura" }, params = { move = "unseen" }, instant = true },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },

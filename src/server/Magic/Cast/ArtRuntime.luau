@@ -513,6 +513,11 @@ function ArtRuntime.clear(owner: number?): number
 	return n
 end
 
+-- Every running body (a copy): Void's Unravel and Null Ground end other people's.
+function ArtRuntime.all(): { Body }
+	return table.clone(bodies)
+end
+
 function ArtRuntime.count(): number
 	return #bodies
 end
