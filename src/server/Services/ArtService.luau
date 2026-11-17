@@ -57,6 +57,18 @@ function ArtService.init(_self: any, ctx: any)
 			local resist = humanoid:GetAttribute("AntimagicResist")
 			amount *= 1 - math.clamp(if typeof(resist) == "number" then resist else 0.3, 0, 0.8)
 		end
+		-- Spirit's Shared Fate: part of the hit goes to the other one (straight to their health, so it
+		-- isn't split again).
+		local oath = ArtRuntime.oaths[humanoid]
+		if oath and kind ~= "internal" then
+			if os.clock() > oath.untilAt or oath.partner.Health <= 0 or not oath.partner.Parent then
+				ArtRuntime.oaths[humanoid] = nil
+			else
+				local share = amount * oath.split
+				amount -= share
+				Damage.internal(oath.partner, share)
+			end
+		end
 		if nextDamage then
 			return nextDamage(humanoid, amount, source, kind, info)
 		end

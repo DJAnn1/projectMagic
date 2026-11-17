@@ -259,6 +259,25 @@ local routes: { Route } = {
 	{ id = "void_black_flame", effect = "VoidArt", branches = { "nullsign" }, properties = { "presence" }, verbs = { "transmute" }, forms = { "touch", "projectile" }, params = { move = "black_flame" } },
 	{ id = "void_unseen", effect = "VoidArt", branches = { "nullsign" }, properties = { "presence" }, verbs = { "reduce" }, forms = { "aura" }, params = { move = "unseen" }, instant = true },
 
+	-- ─── Spirit's spells (Effects/SpiritArt, Data/SpiritTuning, docs/DomainIdeas.md) ─────
+	-- Narrow: Warding's aura stays the Ward, Hexcraft's bolt stays the hex, Soulbinding's soul bind and
+	-- Necrourgy's burst stay as they were, and the root keeps Soul Prick (the strike) and Sense.
+	{ id = "spirit_glyph_shield", effect = "SpiritArt", branches = { "warding" }, properties = { "warding" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "glyph_shield" } },
+	{ id = "spirit_sigil_trap", effect = "SpiritArt", branches = { "sanctum" }, properties = { "warding" }, verbs = { "bind" }, forms = { "zone" }, params = { move = "sigil_trap" } },
+	{ id = "spirit_hallowed_ground", effect = "SpiritArt", branches = { "hallowing" }, properties = { "warding" }, verbs = { "amplify" }, forms = { "zone" }, params = { move = "hallowed_ground" } },
+	{ id = "spirit_mirror_ward", effect = "SpiritArt", branches = { "counterwarding" }, properties = { "warding" }, verbs = { "redirect" }, forms = { "aura" }, params = { move = "mirror_ward" }, instant = true },
+	{ id = "spirit_doom_mark", effect = "SpiritArt", branches = { "hexcraft" }, properties = { "malediction" }, verbs = { "amplify" }, forms = { "touch", "beam", "projectile" }, params = { move = "doom_mark" } },
+	{ id = "spirit_ill_luck", effect = "SpiritArt", branches = { "greatercurses" }, properties = { "malediction" }, verbs = { "generate" }, forms = { "aura" }, params = { move = "ill_luck" }, instant = true },
+	{ id = "spirit_thorn_curse", effect = "SpiritArt", branches = { "greatercurses" }, properties = { "malediction" }, verbs = { "transmute" }, forms = { "touch", "beam", "projectile" }, params = { move = "thorn_curse" } },
+	{ id = "spirit_spirit_chains", effect = "SpiritArt", branches = { "binding" }, properties = { "bond" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "spirit_chains" } },
+	{ id = "spirit_soul_tether", effect = "SpiritArt", branches = { "binding" }, properties = { "bond" }, verbs = { "bind" }, forms = { "chain" }, params = { move = "soul_tether" } },
+	{ id = "spirit_shared_fate", effect = "SpiritArt", branches = { "pactcraft" }, properties = { "will" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "shared_fate" } },
+	{ id = "spirit_grave_hand", effect = "SpiritArt", branches = { "necrourgy" }, properties = { "unlife" }, verbs = { "generate" }, forms = { "touch", "beam" }, params = { move = "grave_hand" } },
+	{ id = "spirit_spirit_wolves", effect = "SpiritArt", branches = { "revenancy" }, properties = { "soul" }, verbs = { "generate" }, forms = { "summon" }, params = { move = "spirit_wolves" } },
+	{ id = "spirit_ghost_form", effect = "SpiritArt", branches = { "deathspeech" }, properties = { "soul" }, verbs = { "transmute" }, forms = { "aura" }, params = { move = "ghost_form" }, instant = true },
+	{ id = "spirit_wail", effect = "SpiritArt", branches = { "necrourgy" }, properties = { "soul" }, verbs = { "release" }, forms = { "burst", "aura" }, params = { move = "wail" }, instant = true },
+	{ id = "spirit_grave_mist", effect = "SpiritArt", branches = { "deathspeech" }, properties = { "unlife" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "grave_mist" } },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },

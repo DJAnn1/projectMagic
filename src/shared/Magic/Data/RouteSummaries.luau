@@ -374,6 +374,22 @@ local routes: { [string]: Summary } = {
 	void_rift_mote = { kind = "attack", text = "A small black tear where your bolt lands pulls people in for two seconds, then collapses on them." },
 	void_black_flame = { kind = "attack", text = "A cold black fire that burns magic, not flesh: a player's reservoir drains. On anything without one it bites harder." },
 	void_unseen = { kind = "protect", text = "You leave no trace for a while: veiled, and Echo Pulses pass over you." },
+	-- Spirit's spells (Effects/SpiritArt, docs/DomainIdeas.md).
+	spirit_glyph_shield = { kind = "protect", text = "A standing ring of runes where you point: other people's bolts stop at it, while people walk through." },
+	spirit_sigil_trap = { kind = "control", text = "A sigil sinks into the ground where you aim and waits: the first foe to step on it is hurt, thrown back and dazed." },
+	spirit_hallowed_ground = { kind = "heal", text = "Hallowed ground for a while: allies standing on it heal and shed curses, and cursed foes on it burn." },
+	spirit_mirror_ward = { kind = "protect", text = "The next few bolts coming at you go back the way they came, at whoever cast them." },
+	spirit_doom_mark = { kind = "attack", text = "Marks your target: every blow anyone lands on them while it lasts adds to a hit that falls on them all at once when the mark ends." },
+	spirit_ill_luck = { kind = "control", text = "Bad luck follows you for a while: foes near you are jinxed (hits on them crit more) and dazed." },
+	spirit_thorn_curse = { kind = "attack", text = "A curse on your target for a while: every blow they land, by spell or weapon, hurts them too." },
+	spirit_spirit_chains = { kind = "control", text = "Chains of light drag your target toward you and hold them for a moment." },
+	spirit_soul_tether = { kind = "control", text = "Binds two foes together for a while: whenever they get more than a few strides apart, the bond pulls them back." },
+	spirit_shared_fate = { kind = "protect", text = "You and the ally you aim at share every hit either of you takes, half each, for a while." },
+	spirit_grave_hand = { kind = "control", text = "A bony hand bursts out of the ground under your target, hurting them and holding them for a moment." },
+	spirit_spirit_wolves = { kind = "attack", text = "A pack of ghost wolves runs down whoever's nearest for a while, then comes back to heel." },
+	spirit_ghost_form = { kind = "protect", text = "For a moment you're barely there: most of every blow passes through you, and you're hard to see." },
+	spirit_wail = { kind = "control", text = "A spirit's scream: everyone near you is hurt a little and afraid." },
+	spirit_grave_mist = { kind = "attack", text = "Cold mist hangs over an area for a while: foes in it are slowed, chilled and gnawed at." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -460,9 +476,9 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true, life_bramble_wall = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true, life_bramble_wall = true, spirit_glyph_shield = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
-RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true } :: { [string]: boolean }
+RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true, spirit_spirit_wolves = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"
 
 RouteSummaries.deadModifiers = {

@@ -15,6 +15,7 @@
 		                        Sponge, Hungry Mouth, Ground Out, Null Ground): spell bolts (Delivery) AND
 		                        Wildborn bolts and boulders (Wildborn/WildbornMoves.swallower)
 		ownerHit(body, victim)  their owner just hurt someone (a kindled hand, the shadow puppet)
+		victimHit(body, attacker)  anyone just hurt data.victim (a Humanoid: Spirit's Doom Mark counts blows)
 		finish(body)            once, as it ends (a ball of lightning pops)
 	Capped per player (ArtRuntime.caps.perPlayer: a new one ends the oldest) and per server.
 	Every hit goes through Cast/DamageModel and Cast/Damage (wards, guards, PvP), only on people the
@@ -58,6 +59,7 @@ export type Body = {
 	deflect: ((Body, Vector3, Vector3, any) -> (string?, any))?,
 	swallow: ((Body, Vector3, Model?, string?) -> boolean)?,
 	ownerHit: ((Body, Humanoid) -> ())?,
+	victimHit: ((Body, Model) -> ())?,
 	finish: ((Body) -> ())?,
 	ended: boolean?,
 }
@@ -79,6 +81,7 @@ export type SpawnOpts = {
 	deflect: ((Body, Vector3, Vector3, any) -> (string?, any))?,
 	swallow: ((Body, Vector3, Model?, string?) -> boolean)?,
 	ownerHit: ((Body, Humanoid) -> ())?,
+	victimHit: ((Body, Model) -> ())?,
 	finish: ((Body) -> ())?,
 }
 
@@ -206,6 +209,7 @@ function ArtRuntime.spawn(opts: SpawnOpts): Body?
 		deflect = opts.deflect,
 		swallow = opts.swallow,
 		ownerHit = opts.ownerHit,
+		victimHit = opts.victimHit,
 		finish = opts.finish,
 	}
 	table.insert(bodies, body)
@@ -531,6 +535,12 @@ function ArtRuntime.attacked(victim: Humanoid, attacker: Model)
 	for _, body in bodies do
 		local wielder = body.data.wielder
 		local mine = if wielder ~= nil then wielder == attacker else (player ~= nil and body.owner == player.UserId)
+		if body.victimHit and body.data.victim == victim and not body.ended then
+			local ok, err = pcall(body.victimHit, body, attacker)
+			if not ok then
+				warn("[Art] victimHit " .. body.look .. ": " .. tostring(err))
+			end
+		end
 		if body.ownerHit and mine and not body.ended then
 			local ok, err = pcall(body.ownerHit, body, victim)
 			if not ok then
@@ -551,6 +561,10 @@ function ArtRuntime.clear(owner: number?): number
 	end
 	return n
 end
+
+-- Spirit's Shared Fate: two people who split every hit either takes (Services/ArtService reads it in
+-- Damage.interceptor). [humanoid] = { partner, untilAt (os.clock), split }.
+ArtRuntime.oaths = {} :: { [Humanoid]: { partner: Humanoid, untilAt: number, split: number } }
 
 -- Every running body (a copy): Void's Unravel and Null Ground end other people's.
 function ArtRuntime.all(): { Body }

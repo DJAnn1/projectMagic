@@ -363,6 +363,30 @@ On the owner's "fix anything wrong and build next". 19 spells, routes `life_<mov
 
 Not verified (no Studio run): Raise Them on a real downed player (needs two players, or `downme` on yourself and a second client), the claws welded to arms on the client, the bounce height on the Fairy Ring. Defaults chosen: Lifeline never takes you below a quarter of your health; Petal Ward covers you and up to three allies; Plague Flies move on at most three times and only to people you may harm; Rot weakens buildings at the spot (it goes through the world's ordinary structure damage).
 
+### Spirit: built 2026-11-17 (not yet run)
+
+On the owner's "continue" after the Wildborn fixes. 15 spells, routes `spirit_<move>`, `Server/Magic/Cast/Effects/SpiritArt`, `Shared/Magic/Data/SpiritTuning`, `Client/Fx/SpiritFx` (cue kind `spirit`). Narrow routes: Warding's aura stays the Ward, Hexcraft's bolt stays the hex (`afflict`), Soulbinding's soul bind and Necrourgy's burst stay as they were, and the root keeps Soul Prick (the strike) and Sense. Two runtime additions: bodies may have `victimHit` (anyone hurting `data.victim`: Doom Mark counts blows) and `ArtRuntime.oaths` (Shared Fate: ArtService's `Damage.interceptor` wrap sends half of each hit to the partner through `Damage.internal`, which isn't split again). Mirror Ward and Glyph Shield work on Wildborn bolts too (the deflectors path). Dropped from the doc's list: Hex Doll (needs a damageable doll), Soul Lantern (captured allies need their own AI), Ward Break (the existing `unward` route does it), Reflect-a-status (needs a status hook; Mirror Ward reflects bolts instead). Flag `spirit_arts_enabled`. Expected boot line **`specs 1187/1188`** (3 new in `Tests/Spirit.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Glyph Shield | Warding | warding · generate · wall |
+| Sigil Trap | Sanctums | warding · bind · zone |
+| Hallowed Ground | Hallowing | warding · amplify · zone |
+| Mirror Ward | Counterwarding | warding · redirect · aura (instant) |
+| Doom Mark | Hexcraft | malediction · amplify · touch/beam/projectile |
+| Ill Luck | Greater Curses | malediction · generate · aura (instant) |
+| Thorn Curse | Greater Curses | malediction · transmute · touch/beam/projectile |
+| Spirit Chains | Pactcraft/Soulbinding | bond · bind · touch/beam |
+| Soul Tether | Pactcraft/Soulbinding | bond · bind · chain |
+| Shared Fate | Pactcraft | will · bind · touch/beam |
+| Grave Hand | Necrourgy | unlife · generate · touch/beam |
+| Spirit Wolves | Revenancy | soul · generate · summon |
+| Ghost Form | Deathspeech | soul · transmute · aura (instant) |
+| Wail | Necrourgy | soul · release · burst/aura (instant) |
+| Grave Mist | Deathspeech | unlife · generate · zone |
+
+Not verified (no Studio run): Doom Mark counting hits that come with no attacker (fire ticks, statuses don't count), Shared Fate between two players (needs two clients; with an NPC ally it works the same), Mirror Ward returning a bolt to an NPC mage, the wolves' bobbing run. Defaults chosen: Shared Fate splits half; Ghost Form lets 15% of a blow through; Sigil Trap waits up to 90 s and fires once.
+
 ---
 
 ## Mind
