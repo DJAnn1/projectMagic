@@ -22,6 +22,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
@@ -29,6 +30,7 @@ local Net = require(Shared.Net)
 local Cast = script.Parent
 local CastTypes = require(Cast.CastTypes)
 local Damage = require(Cast.Damage)
+local EffectBudget = require(Cast.EffectBudget)
 local DamageModel = require(Cast.DamageModel)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
@@ -269,6 +271,130 @@ function ArtRuntime.cue(ctx: Ctx, fields: { [string]: any }, position: Vector3, 
 		payload[k] = v
 	end
 	ctx.runtime:cue(kind or "energy", payload, position, heavy == true)
+end
+
+-- ─── Shared helpers for the domains' resolvers (EnergyArt, EarthArt, WaterArt) ───
+
+local groundParams = RaycastParams.new()
+groundParams.FilterType = Enum.RaycastFilterType.Exclude
+
+function ArtRuntime.flat(v: Vector3): Vector3
+	local f = Vector3.new(v.X, 0, v.Z)
+	return if f.Magnitude > 0.01 then f.Unit else Vector3.new(0, 0, -1)
+end
+
+function ArtRuntime.aimDir(ctx: CastTypes.EffectContext): Vector3
+	local d = ctx.point - ctx.origin
+	if Vector3.new(d.X, 0, d.Z).Magnitude < 0.5 then
+		return ArtRuntime.flat(ctx.root.CFrame.LookVector)
+	end
+	return ArtRuntime.flat(d)
+end
+
+function ArtRuntime.ground(position: Vector3): Vector3
+	local ignore: { Instance } = {}
+	local bodiesFolder = workspace:FindFirstChild("ArtBodies")
+	if bodiesFolder then
+		table.insert(ignore, bodiesFolder)
+	end
+	local solids = workspace:FindFirstChild("ArtSolids")
+	if solids then
+		table.insert(ignore, solids)
+	end
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignore, player.Character)
+		end
+	end
+	groundParams.FilterDescendantsInstances = ignore
+	local result = workspace:Raycast(position + Vector3.new(0, 12, 0), Vector3.new(0, -40, 0), groundParams)
+	return if result then result.Position else position
+end
+
+function ArtRuntime.foesStruck(ctx: CastTypes.EffectContext, max: number?): { Targeting.Hit }
+	local out: { Targeting.Hit } = {}
+	for _, hit in Targeting.select(ctx, max) do
+		if hit.model ~= ctx.character and Targeting.canHarm(ctx.player, hit.model) then
+			table.insert(out, hit)
+		end
+	end
+	return out
+end
+
+function ArtRuntime.isPlayer(hit: Targeting.Hit): boolean
+	return Players:GetPlayerFromCharacter(hit.model) ~= nil
+end
+
+function ArtRuntime.solidFolder(): Folder
+	local f = workspace:FindFirstChild("ArtSolids")
+	if f and f:IsA("Folder") then
+		return f
+	end
+	local made = Instance.new("Folder")
+	made.Name = "ArtSolids"
+	made.Parent = workspace
+	return made
+end
+
+-- Is anyone standing where a solid part would go? (It must never close round a body.)
+function ArtRuntime.bodyInside(cframe: CFrame, size: Vector3): boolean
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { ArtRuntime.solidFolder() }
+	for _, part in workspace:GetPartBoundsInBox(cframe, size + Vector3.new(0.6, 0.6, 0.6), params) do
+		if Targeting.characterOf(part) then
+			return true
+		end
+	end
+	return false
+end
+
+-- A real standing thing (stone, ice, cloud): anchored, blocks and holds weight, unless someone stands
+-- where it rises (then it stays passable). Sinks and fades after `seconds`. Nil when the part budget is
+-- spent. Defaults to grey Slate; `props` sets anything else.
+function ArtRuntime.solid(props: { [string]: any }, seconds: number): Part?
+	if EffectBudget.takeParts(1) < 1 then
+		return nil
+	end
+	local p = Instance.new("Part")
+	p.Name = "ArtSolid"
+	p.Anchored = true
+	p.CanQuery = true
+	p.CanTouch = false
+	p.Material = Enum.Material.Slate
+	p.Color = Color3.fromRGB(120, 112, 104)
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for k, v in props do
+		(p :: any)[k] = v
+	end
+	p.CanCollide = props.CanCollide ~= false and not ArtRuntime.bodyInside(p.CFrame, p.Size)
+	p.Parent = ArtRuntime.solidFolder()
+	task.delay(seconds, function()
+		if not p.Parent then
+			return
+		end
+		p.CanCollide = false
+		local tween = TweenService:Create(p, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			CFrame = p.CFrame - Vector3.new(0, p.Size.Y * 0.6, 0),
+			Transparency = 1,
+		})
+		tween:Play()
+		task.delay(0.65, function()
+			p:Destroy()
+		end)
+	end)
+	return p
+end
+
+function ArtRuntime.cone(ctx: CastTypes.EffectContext, reach: number, arc: number, max: number): { Targeting.Hit }
+	local out: { Targeting.Hit } = {}
+	for _, hit in Targeting.inCone(ctx.origin, ArtRuntime.aimDir(ctx), reach, arc / 2, max, { [ctx.character] = true }) do
+		if Targeting.canHarm(ctx.player, hit.model) then
+			table.insert(out, hit)
+		end
+	end
+	return out
 end
 
 -- ─── Stepping ───────────────────────────────────────────────────────────────

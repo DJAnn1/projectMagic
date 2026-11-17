@@ -175,6 +175,28 @@ local routes: { Route } = {
 	{ id = "earth_dust_devil", effect = "EarthArt", branches = { "dunecalling" }, properties = { "cohesion" }, verbs = { "bind" }, forms = { "summon" }, params = { move = "dust_devil" } },
 	{ id = "earth_sand_shroud", effect = "EarthArt", branches = { "sandshaping" }, properties = { "cohesion" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "sand_shroud" }, instant = true },
 
+	-- ─── Water's spells (Effects/WaterArt, Data/WaterTuning, docs/DomainIdeas.md) ─────
+	-- Sub-branches only: the root keeps Pour and the cantrip's Scald, Glaciation's reduce zone stays Freeze,
+	-- Tidal keeps Undertow (redirect zone) and Breaker (redirect burst), Tsunamancy the tsunami.
+	{ id = "water_water_whip", effect = "WaterArt", branches = { "hydromancy" }, properties = { "flow" }, verbs = { "generate" }, forms = { "touch" }, minPower = 2, params = { move = "water_whip" } },
+	{ id = "water_pressure_jet", effect = "WaterArt", branches = { "hydrostatics" }, properties = { "pressure" }, verbs = { "generate" }, forms = { "beam" }, params = { move = "pressure_jet" } },
+	{ id = "water_bubble", effect = "WaterArt", branches = { "hydrostatics" }, properties = { "pressure" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "bubble" } },
+	{ id = "water_geyser", effect = "WaterArt", branches = { "hydromancy" }, properties = { "pressure" }, verbs = { "release" }, forms = { "pillar" }, params = { move = "geyser" } },
+	{ id = "water_mire", effect = "WaterArt", branches = { "hydromancy" }, properties = { "viscosity" }, verbs = { "amplify" }, forms = { "zone" }, params = { move = "mire" } },
+	{ id = "water_wave_surge", effect = "WaterArt", branches = { "tidal" }, properties = { "flow" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "wave_surge" } },
+	{ id = "water_whirlpool", effect = "WaterArt", branches = { "tidal" }, properties = { "flow" }, verbs = { "transmute" }, forms = { "zone" }, params = { move = "whirlpool" } },
+	{ id = "water_riptide", effect = "WaterArt", branches = { "tidal" }, properties = { "flow" }, verbs = { "redirect" }, forms = { "beam" }, params = { move = "riptide" } },
+	{ id = "water_ice_slide", effect = "WaterArt", branches = { "glaciation" }, properties = { "phase" }, verbs = { "transmute" }, forms = { "beam" }, params = { move = "ice_slide" } },
+	{ id = "water_permafrost", effect = "WaterArt", branches = { "permafrost" }, properties = { "phase" }, verbs = { "bind" }, forms = { "zone" }, params = { move = "permafrost" } },
+	{ id = "water_icicle_rain", effect = "WaterArt", branches = { "glaciation" }, properties = { "phase" }, verbs = { "transmute" }, forms = { "ritual" }, maxPower = 7, params = { move = "icicle_rain" } },
+	{ id = "water_ice_dome", effect = "WaterArt", branches = { "glaciation" }, properties = { "phase" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "ice_dome" } },
+	{ id = "water_scald", effect = "WaterArt", branches = { "vapor" }, properties = { "phase" }, verbs = { "release" }, forms = { "burst" }, params = { move = "scald" } },
+	{ id = "water_fog_bank", effect = "WaterArt", branches = { "fogweaving" }, properties = { "phase" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "fog_bank" } },
+	{ id = "water_cloud_step", effect = "WaterArt", branches = { "vapor" }, properties = { "phase" }, verbs = { "amplify" }, forms = { "pillar" }, params = { move = "cloud_step" }, instant = true },
+	{ id = "water_cleansing_rain", effect = "WaterArt", branches = { "purification" }, properties = { "purity" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "cleansing_rain" } },
+	{ id = "water_water_shield", effect = "WaterArt", branches = { "purification" }, properties = { "purity" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "water_shield" }, instant = true },
+	{ id = "water_fountain", effect = "WaterArt", branches = { "wellspring" }, properties = { "humidity" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "fountain" } },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },

@@ -212,6 +212,37 @@ Not verified (no Studio run): the WedgePart's slope direction for the Ramp (assu
 - **Water Shield** (`purity · amplify · aura`): a sphere of water that swallows the first fire hit. *Water wrapping around you.*
 - **Spring** exists (`wellspring`); a smaller **Fountain** (`flow · generate · pillar`) gives water anywhere for a minute (to drink, fill a bucket or wet a fire).
 
+### Earth: confirmed 2026-11-17
+
+Log `specs 1172/1173` (the failure the known "Standing room"); spells cast in Lithomancy, Architectonics, Crystallurgy, Faultwork and Dunecalling with no warnings; owner: "everything seems to work well". Not bugs in that log: a power-7 Shadow Puppet lost control and escaped as a feral (the ordinary risk of strong spells); `world_first` repeats per new recipe, not per branch.
+
+### Water: built 2026-11-17 (not yet run)
+
+On the owner's "do water next". 18 spells (the doc's list minus Float, which Featherweight already is), routes `water_<move>`, `Server/Magic/Cast/Effects/WaterArt`, `Shared/Magic/Data/WaterTuning`, `Client/Fx/WaterFx` (cue kind `water`). Sub-branches only: the root keeps Pour and the cantrip's Scald, Glaciation's reduce zone stays Freeze, Tidal keeps Undertow (redirect zone) and Breaker (redirect burst), Tsunamancy the tsunami; a power-1 Hydromancy touch still pours (the whip starts at power 2). Earth's standing-part and ground helpers moved into `Cast/ArtRuntime` (`solid`, `ground`, `aimDir`, `cone`, `foesStruck`, folder `workspace.ArtSolids`), now used by Earth and Water's ice dome and cloud. Flag `water_arts_enabled`. Expected boot line **`specs 1175/1176`** (3 new in `Tests/Water.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Water Whip | Hydromancy | flow · generate · touch (power 2+) |
+| Pressure Jet | Hydrostatics | pressure · generate · beam |
+| Bubble | Hydrostatics | pressure · bind · touch/beam |
+| Geyser | Hydromancy | pressure · release · pillar |
+| Mire | Hydromancy | viscosity · amplify · zone |
+| Wave Surge | Tidal | flow · generate · wall |
+| Whirlpool | Tidal | flow · transmute · zone |
+| Riptide | Tidal | flow · redirect · beam |
+| Ice Slide | Glaciation | phase · transmute · beam |
+| Permafrost | Permafrost | phase · bind · zone |
+| Icicle Rain | Glaciation | phase · transmute · ritual (power 7 or less) |
+| Ice Dome | Glaciation | phase · generate · wall |
+| Scald Burst | Vaporism | phase · release · burst |
+| Fog Bank | Fogweaving | phase · generate · zone |
+| Cloud Step | Vaporism | phase · amplify · pillar (instant) |
+| Cleansing Rain | Purification | purity · generate · zone |
+| Water Shield | Purification | purity · amplify · aura (instant) |
+| Fountain | Wellspring | humidity · generate · pillar |
+
+Not verified (no Studio run): standing on the Cloud Step (it forms at your feet and is solid at once), the Ice Dome's panels meeting cleanly at every radius, the bubble lifting an NPC before the stasis anchors it, Fog Bank's veil reading as "hidden from outside". Defaults chosen: Cleansing Rain and the Fountain help anyone you may help (party, the unflagged) and put out fires; Wave Surge pushes each person once (not every frame).
+
 ---
 
 ## Air

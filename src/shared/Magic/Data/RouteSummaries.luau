@@ -305,6 +305,25 @@ local routes: { [string]: Summary } = {
 	earth_quicksand = { kind = "control", text = "The ground goes soft: anyone in it is slowed, and held fast if they stay too long." },
 	earth_dust_devil = { kind = "attack", text = "A small whirlwind of sand that goes after people, blinding and stinging whoever it passes." },
 	earth_sand_shroud = { kind = "protect", text = "Sand whirls around you for a while: you're hard to see, and it stings anyone close." },
+	-- Water's spells (Effects/WaterArt, docs/DomainIdeas.md).
+	water_water_whip = { kind = "attack", text = "A whip of water lashed in an arc in front of you: it hurts and pulls whoever it catches a step toward you." },
+	water_pressure_jet = { kind = "attack", text = "A cutting jet of water along your aim: everyone in its way is hurt and shoved back." },
+	water_bubble = { kind = "control", text = "Catches your target in a floating bubble: they can't move or act for a moment." },
+	water_geyser = { kind = "attack", text = "After a moment's warning, water blasts up out of the ground where you aim, throwing everyone on it high. It puts out fires there." },
+	water_mire = { kind = "control", text = "Water in an area thickens to sludge for a while: everyone in it is slowed." },
+	water_wave_surge = { kind = "attack", text = "A short wave rolls forward from you, hurting and carrying off everyone it meets. It puts out fires on its way." },
+	water_whirlpool = { kind = "control", text = "Water spins in an area for a while, dragging everyone in it round and toward the middle." },
+	water_riptide = { kind = "control", text = "A current drags your target toward you." },
+	water_ice_slide = { kind = "move", text = "A strip of ice runs out ahead of you for a while: you and your allies run fast along it, and foes may slip and fall." },
+	water_permafrost = { kind = "control", text = "The ground freezes hard over an area: feet keep sticking to it, and the cold builds." },
+	water_icicle_rain = { kind = "attack", text = "Icicles fall on marked spots around where you aim, chilling whoever they hit." },
+	water_ice_dome = { kind = "protect", text = "A ring of ice walls rises round you for a while. They block people and bolts." },
+	water_scald = { kind = "attack", text = "A burst of scalding steam that burns and blinds everyone in it." },
+	water_fog_bank = { kind = "protect", text = "Thick fog over an area for a while: you and your allies inside are hidden from anyone outside." },
+	water_cloud_step = { kind = "move", text = "A cloud forms under your feet and holds you up for a few seconds, even in mid-air." },
+	water_cleansing_rain = { kind = "heal", text = "A soft rain over an area: allies in it are washed of bad statuses and healed a little each second, and fires go out." },
+	water_water_shield = { kind = "protect", text = "Water wraps you: a ward that soaks up hits, and nothing on you can keep burning while it lasts." },
+	water_fountain = { kind = "utility", text = "Water springs up where you aim for a while: fires near it go out and nobody near it keeps burning." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -391,7 +410,7 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
 RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"

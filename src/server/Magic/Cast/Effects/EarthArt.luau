@@ -32,12 +32,11 @@
 		dust_devil     a small sand whirlwind that wanders after people, blinding and stinging
 		sand_shroud    whirling sand hides you at range and stings anyone close
 
-	Stone that stands is a real anchored part (Slate, Glass for crystal): it blocks and can be stood on,
+	Stone that stands is a real anchored part (ArtRuntime.solid: Slate, Glass for crystal): it blocks and can be stood on,
 	never spawns solid inside someone (it waits, or stays passable), and crumbles at the end. Parts come
 	from EffectBudget.takeParts. A backfire lands on the caster as any harmful spell's does.
 ]]
 
-local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -80,129 +79,17 @@ local function at(curve: E.Curve, ctx: Ctx): number
 	return E.at(curve, ctx.stats.recipe.power)
 end
 
-local function flat(v: Vector3): Vector3
-	local f = Vector3.new(v.X, 0, v.Z)
-	return if f.Magnitude > 0.01 then f.Unit else Vector3.new(0, 0, -1)
-end
-
-local function aimDir(ctx: Ctx): Vector3
-	local d = ctx.point - ctx.origin
-	if Vector3.new(d.X, 0, d.Z).Magnitude < 0.5 then
-		return flat(ctx.root.CFrame.LookVector)
-	end
-	return flat(d)
-end
-
-local groundParams = RaycastParams.new()
-groundParams.FilterType = Enum.RaycastFilterType.Exclude
-
-local function ground(position: Vector3): Vector3
-	local ignore: { Instance } = {}
-	local folder = workspace:FindFirstChild("ArtBodies")
-	if folder then
-		table.insert(ignore, folder)
-	end
-	local stone = workspace:FindFirstChild("ArtStone")
-	if stone then
-		table.insert(ignore, stone)
-	end
-	for _, player in Players:GetPlayers() do
-		if player.Character then
-			table.insert(ignore, player.Character)
-		end
-	end
-	groundParams.FilterDescendantsInstances = ignore
-	local result = workspace:Raycast(position + Vector3.new(0, 12, 0), Vector3.new(0, -40, 0), groundParams)
-	return if result then result.Position else position
-end
-
-local function foesStruck(ctx: Ctx, max: number?): { Hit }
-	local out: { Hit } = {}
-	for _, hit in Targeting.select(ctx, max) do
-		if hit.model ~= ctx.character and Targeting.canHarm(ctx.player, hit.model) then
-			table.insert(out, hit)
-		end
-	end
-	return out
-end
-
 local function cue(ctx: Ctx, fields: { [string]: any }, position: Vector3, heavy: boolean?)
 	R.cue(ctx, fields, position, heavy, "earth")
 end
 
-local function isPlayer(hit: Hit): boolean
-	return Players:GetPlayerFromCharacter(hit.model) ~= nil
-end
+local flat, aimDir, ground, foesStruck, isPlayer = R.flat, R.aimDir, R.ground, R.foesStruck, R.isPlayer
+local bodyInside, cone = R.bodyInside, R.cone
+local stoneFolder = R.solidFolder
 
-local function stoneFolder(): Folder
-	local f = workspace:FindFirstChild("ArtStone")
-	if f and f:IsA("Folder") then
-		return f
-	end
-	local made = Instance.new("Folder")
-	made.Name = "ArtStone"
-	made.Parent = workspace
-	return made
-end
-
--- Is anyone standing where a solid part would go? (It must never close round a body.)
-local function bodyInside(cframe: CFrame, size: Vector3): boolean
-	local params = OverlapParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { stoneFolder() }
-	for _, part in workspace:GetPartBoundsInBox(cframe, size + Vector3.new(0.6, 0.6, 0.6), params) do
-		if Targeting.characterOf(part) then
-			return true
-		end
-	end
-	return false
-end
-
--- A real piece of stone: anchored, blocks and holds weight, unless someone stands where it rises.
--- Crumbles (a quick sink and fade) after `seconds`. Nil when the part budget is spent.
+-- Earth's stone: the shared standing part, in grey Slate unless told otherwise.
 local function raiseStone(props: { [string]: any }, seconds: number): Part?
-	if EffectBudget.takeParts(1) < 1 then
-		return nil
-	end
-	local p = Instance.new("Part")
-	p.Name = "EarthStone"
-	p.Anchored = true
-	p.CanQuery = true
-	p.CanTouch = false
-	p.Material = Enum.Material.Slate
-	p.Color = L.stone
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	for k, v in props do
-		(p :: any)[k] = v
-	end
-	p.CanCollide = props.CanCollide ~= false and not bodyInside(p.CFrame, p.Size)
-	p.Parent = stoneFolder()
-	task.delay(seconds, function()
-		if not p.Parent then
-			return
-		end
-		p.CanCollide = false
-		local tween = TweenService:Create(p, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			CFrame = p.CFrame - Vector3.new(0, p.Size.Y * 0.6, 0),
-			Transparency = 1,
-		})
-		tween:Play()
-		task.delay(0.65, function()
-			p:Destroy()
-		end)
-	end)
-	return p
-end
-
-local function cone(ctx: Ctx, reach: number, arc: number, max: number): { Hit }
-	local out: { Hit } = {}
-	for _, hit in Targeting.inCone(ctx.origin, aimDir(ctx), reach, arc / 2, max, { [ctx.character] = true }) do
-		if Targeting.canHarm(ctx.player, hit.model) then
-			table.insert(out, hit)
-		end
-	end
-	return out
+	return R.solid(props, seconds)
 end
 
 -- ─── Stone ──────────────────────────────────────────────────────────────────
