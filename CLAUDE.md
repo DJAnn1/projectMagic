@@ -625,7 +625,7 @@ Full reference: `docs/AdminPanel.md`. `help` lists everything and `help <command
 - **Buildings:** `house claim` (free nearest vacant house), `lamps on`, `lights`, `buildingcheck` (teleports into the nearest house + checklist), `buildingcheck smithy`, `buildingaudit`, `door unlock`, `flag buildings_lock_doors false`.
 - **Items:** `kit me caster`, `give me oak_staff 1 legendary`, `give me ember_orb 1 epic ember_touched,of_haste`, `itemstats`, `itemroll ember_orb 5000`, `wear me chest 200`, `repairall`, `invlog`.
 - **Fast test setup:** `unlockall 8` or `setmastery earth/metallurgy Grandmaster`, `cheat all`, `testspells`, `tp shrine`, `timescale 20`, `overlay ley`, `npclist`.
-- **Studio only:** `testmage`, `testspells`. **Owner only:** `reseed`, `regenworld` (typed `RESEED`), `resetallprogress` (typed `RESET`), `restoreprogress` (typed `RESTORE`).
+- **Live too (2026-11-17, owner):** `testmage`, `testspells` (admins only; on live they save to the file you play: test on a spare file). **Owner only:** `reseed`, `regenworld` (typed `RESEED`), `resetallprogress` (typed `RESET`), `restoreprogress` (typed `RESTORE`).
 - **Spellbook** (local to the panel): `book`, `learn …`, `rename <n>`, `forget <n>`.
 
 ## NPC simulation system (written 2026-11-02, not yet run in Studio)

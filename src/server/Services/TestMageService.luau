@@ -1,6 +1,6 @@
 --!strict
 --[[
-	TestMageService: Studio-only console shortcuts for trying magic at any level of power.
+	TestMageService: admin console shortcuts for trying magic at any level of power.
 
 		testmage <tier 1-8> [domain ...|all]
 		    Makes you a mage of that mastery tier (1 Sensing, 2 Novice, 3 Adept, 4 Skilled,
@@ -14,11 +14,12 @@
 		    that your current mastery can cast, optionally only one domain's, and puts up to 8 of
 		    them on hotbar keys 1-8 in increasing power (the 8 strongest when more qualify).
 
-	Both refuse outside Studio: they rewrite progression and the innate profile, and a live save
-	would keep that. In Studio the mock DataStore forgets it when the session ends.
+	Available on live servers too (owner, 2026-11-17), to admins only (AdminConfig). They rewrite
+	progression and the innate profile, and on a live server that is SAVED to the save file you're
+	playing: test on a spare file (2 or 3) to keep your main one clean, or use the File screen's
+	Reset. In Studio the mock DataStore forgets it when the session ends.
 ]]
 
-local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
@@ -184,8 +185,8 @@ function TestMageService.init(_self: any, ctx: any)
 	local admin = ctx.get("AdminService")
 
 	admin:Register({
-		name = "testmage", category = "Magic", studioOnly = true,
-		description = "(Studio) Become a mage of a mastery tier in every branch of some domains",
+		name = "testmage", category = "Magic",
+		description = "Become a mage of a mastery tier in every branch of some domains (live: saved to your file)",
 		args = {
 			{ name = "tier", type = "integer", min = 1, max = 8, default = 6, slider = true, hint = "1 Sensing .. 8 Transcendent" },
 			{ name = "domains", type = "text", default = "all", hint = "domain ids separated by spaces, or all" },
@@ -200,8 +201,8 @@ function TestMageService.init(_self: any, ctx: any)
 	})
 
 	admin:Register({
-		name = "testspells", category = "Spells", studioOnly = true,
-		description = "(Studio) Learn every example spell you can cast and fill hotbar 1-8",
+		name = "testspells", category = "Spells",
+		description = "Learn every example spell you can cast and fill hotbar 1-8 (live: saved to your file)",
 		args = {
 			{ name = "maxPower", type = "integer", min = 1, max = 10, default = 10, slider = true },
 			{ name = "domain", type = "domain", optional = true },
