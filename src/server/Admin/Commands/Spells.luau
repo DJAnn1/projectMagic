@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local Util = require(script.Parent.Parent.Util)
 local SpellAudit = require(game:GetService("ReplicatedStorage").Shared.Magic.SpellAudit)
 local MagicHealth = require(game:GetService("ReplicatedStorage").Shared.Magic.MagicHealth)
+local SpellExamples = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.SpellExamples)
 local CombatAnimations = require(game:GetService("ReplicatedStorage").Shared.Magic.Data.CombatAnimations)
 
 local DUMMY_TAG = "AdminTestDummy"
@@ -250,6 +251,110 @@ return function(admin: any, deps: any)
 			return if spawnDummy(at, a.hp) then "dummy (" .. a.hp .. " hp) at " .. Util.fmt(at) else "couldn't build a dummy rig"
 		end,
 	})
+	--[[
+		moveshow <domain> [gap] [maxPower] [from] [stop]   (docs/Smoothness.md stage 7)
+		Casts every example spell of a domain (Data/SpellExamples, weakest first) at a dummy 18 studs
+		ahead, one every `gap` seconds, through the real pipeline (castAs: knowledge, tier and caps
+		waived; no cooldowns while it runs), so you can record and compare. The spell's name shows
+		over the dummy, with the refusal if one is refused; the dummy is healed before each. `from`
+		starts part way down the list; `moveshow <domain> stop true` ends a running show. Use
+		`cheat all on` for the reservoir. Everyone nearby sees the spells (they're real casts).
+	]]
+	local shows: { [Player]: number } = {}
+	admin:Register({
+		name = "moveshow", category = "Spells",
+		description = "Cast every example spell of a domain at a dummy, one after another, for recording",
+		args = {
+			{ name = "domain", type = "domain" },
+			{ name = "gap", type = "number", min = 1, max = 15, default = 3.5, hint = "seconds between spells" },
+			{ name = "maxPower", type = "number", min = 1, max = 10, default = 10 },
+			{ name = "from", type = "number", min = 1, max = 500, default = 1, hint = "start at this spell in the list" },
+			{ name = "stop", type = "boolean", default = false, hint = "end a running show" },
+		},
+		handler = function(ctx, a)
+			local player: Player = ctx.player
+			local token = (shows[player] or 0) + 1
+			shows[player] = token -- any show already running stops at its next spell
+			if a.stop then
+				return "show stopped"
+			end
+			local list = {}
+			for _, example in SpellExamples do
+				if example.domain == a.domain and example.recipe.power <= a.maxPower then
+					table.insert(list, example)
+				end
+			end
+			table.sort(list, function(x, y)
+				if x.recipe.power ~= y.recipe.power then
+					return x.recipe.power < y.recipe.power
+				end
+				return x.name < y.name
+			end)
+			local first = math.max(1, math.floor(a.from))
+			if first > #list then
+				return string.format("%s has %d example spells at power %d or less", a.domain, #list, a.maxPower)
+			end
+			local at = Util.ahead(player, world, 18)
+			if not at then
+				return "no character"
+			end
+			local dummy = spawnDummy(at, 1000000)
+			if not dummy then
+				return "couldn't build a dummy rig"
+			end
+			-- The spell's name over the dummy, above its health label.
+			local billboard = Instance.new("BillboardGui")
+			billboard.Size = UDim2.fromOffset(360, 60)
+			billboard.StudsOffset = Vector3.new(0, 6.5, 0)
+			billboard.AlwaysOnTop = true
+			billboard.MaxDistance = 200
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 0.35
+			label.BackgroundColor3 = Color3.new(0, 0, 0)
+			label.TextColor3 = Color3.new(1, 1, 1)
+			label.Size = UDim2.fromScale(1, 1)
+			label.Font = Enum.Font.GothamBold
+			label.TextScaled = true
+			label.Text = a.domain
+			label.Parent = billboard
+			billboard.Parent = dummy:FindFirstChild("Head") or dummy.PrimaryPart
+			local cheats = cast:cheats(player)
+			local hadNoCooldown = cheats.noCooldown
+			cheats.noCooldown = true
+			task.spawn(function()
+				for i = first, #list do
+					if shows[player] ~= token or not player.Parent or not dummy.Parent then
+						break
+					end
+					local example = list[i]
+					local humanoid = dummy:FindFirstChildOfClass("Humanoid")
+					local root = dummy:FindFirstChild("HumanoidRootPart")
+					if not humanoid or not root or not root:IsA("BasePart") then
+						break
+					end
+					humanoid.Health = humanoid.MaxHealth
+					label.Text = string.format("%d/%d  %s  · power %d %s", i, #list, example.name, example.recipe.power, example.recipe.form)
+					local recipe = table.clone(example.recipe) :: any
+					recipe.modifiers = if recipe.modifiers then table.clone(recipe.modifiers) else {}
+					local reason = cast:castAs(player, recipe, root.Position, dummy)
+					if reason then
+						label.Text ..= "\nrefused: " .. tostring(reason)
+					end
+					task.wait(a.gap)
+				end
+				if shows[player] == token then
+					shows[player] = nil
+				end
+				cheats.noCooldown = hadNoCooldown
+				task.wait(2)
+				if dummy.Parent then
+					dummy:Destroy()
+				end
+			end)
+			return string.format("moveshow %s: %d spells from #%d, one every %.1f s (moveshow %s stop true ends it)", a.domain, #list - first + 1, first, a.gap, a.domain)
+		end,
+	})
+
 	admin:Register({
 		name = "spellaudit", category = "Spells",
 		description = "Every recipe the grammar allows (any mastery) at one power, counted by the effect it routes to: how many are plain damage (harm) or do nothing (manifest)",

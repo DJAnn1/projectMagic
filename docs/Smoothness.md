@@ -69,7 +69,7 @@ Every stage is client-side visuals only. The server's cues already say when a sp
 | 4 | **Screen and world** | One flash per release: tint, brightness and bloom pulse, then a short exposure dip after big ones (`ColorCorrectionEffect`, client only), with an edge-only variant for small ones. Ultimates: sky tint or night for nearby clients (Lighting, client-side, distance-faded); Reality and Space ultimates can open a pocket void around the caster. Camera kick on release. Strong caps for others' spells and for the **Reduce motion / Reduce spell effects** settings (no full-screen flashes there; flash frequency capped for everyone). | **built 2026-11-17, not yet run** (see "Stage 4: built"; the pocket void is a near-black, drained tint, not a separate place) |
 | 5 | **Held poses** | Charging holds a pose per kind (arm raised, crouched gather, arms spread, palm forward) and breaks into a short release motion on the flash (`Data/CastPoses`, ActivityPoser). Optionally use uploaded clips (see "Animation sources") instead of procedural poses. | **built 2026-11-17, not yet run** (see "Stage 5: built"; procedural, no clips uploaded) |
 | 6 | **Weight and flow** | Attacker hit-stop, a small lunge within dash tolerance, directional flinches, cancel windows, input buffer, smooth turn to aim (the old stages 4 and 5). | **built 2026-11-17, not yet run** (see "Stage 6: built"; no camera turning) |
-| 7 | **Showcase tool** | `moveshow <domain>` casts every spell in a domain at a dummy in turn, for recording and comparing. | planned |
+| 7 | **Showcase tool** | `moveshow <domain>` casts every spell in a domain at a dummy in turn, for recording and comparing. | **built 2026-11-17, not yet run** (see "Stage 7: built") |
 
 **Recommended order:** 2, then 3, then 4. These three are where the video's look comes from. Then 5, 6, 7.
 
@@ -106,7 +106,13 @@ Verb adds motion (amplify pushes outward, reduce draws inward, redirect spins, b
 - `Rotation` on frames inside a SurfaceGui staying crisp when the Part is scaled.
 - A ForceField-material sphere reading as glass from inside.
 
-## Stage 6: built (2026-11-17, owner: "go"), not yet run
+## Stage 7: built (2026-11-17, owner: "go"), not yet run. All seven stages are now built.
+
+- Admin `moveshow <domain> [gap 3.5] [maxPower 10] [from 1] [stop false]` (Server/Admin/Commands/Spells): spawns a 1,000,000 hp dummy 18 studs ahead and casts every example spell of the domain (`Data/SpellExamples`, weakest first, then by name; 10 to 36 per domain) at it through the real pipeline (`CastService.castAs`: knowledge, tier and caps waived), one every `gap` seconds, healing the dummy before each. The spell's number, name, power and form show over the dummy, with the refusal reason if one is refused. Cooldowns are off for you while it runs and restored after; use `cheat all on` for the reservoir. `from` starts part way down the list; `moveshow <domain> stop true` (or starting another show) ends one at its next spell. The dummy goes 2 s after the end. Real casts: everyone nearby sees them, and casting crimes still apply in towns (do it in the wilds).
+
+**To test:** `testmage 8 all`, `cheat all on`, walk out of town, `moveshow energy`, then `moveshow time 2.5`, `moveshow earth 3 10 15`, and `moveshow earth stop true` part way.
+
+## Stage 6: built (2026-11-17, owner: "go"); not yet run
 
 Nothing in this stage turns the camera (owner's rule after stage 4's kick).
 - **Free when the cast completes:** the client used to hold "You're still casting" until the server's `resolved`, which for a bolt comes when it LANDS (a 1.5 s flight locked the next cast for 1.5 s, though the server was free at the cast time). `CastClient.casting` now clears itself at cast time + delay (a channel keeps it). Answers are counted per spell key (`outstanding`), so a late `resolved` for an earlier cast of the same spell doesn't clear the newer one; another spell's answer no longer clears anything; the 3 s no-answer timeout skips accepted casts.
