@@ -566,6 +566,44 @@ end
 -- Damage.interceptor). [humanoid] = { partner, untilAt (os.clock), split }.
 ArtRuntime.oaths = {} :: { [Humanoid]: { partner: Humanoid, untilAt: number, split: number } }
 
+-- Mind's Forget Me: whoever is looking for someone can be made to forget them. Services register how
+-- their own minds forget (WildbornService, CreatureService, NPCService): fn(model, userId, seconds) ->
+-- whether that model was theirs.
+local forgetters: { (Model, number, number) -> boolean } = {}
+function ArtRuntime.addForgetter(fn: (Model, number, number) -> boolean)
+	table.insert(forgetters, fn)
+end
+function ArtRuntime.forget(model: Model, userId: number, seconds: number): boolean
+	for _, fn in forgetters do
+		local ok, mine = pcall(fn, model, userId, seconds)
+		if ok and mine then
+			return true
+		end
+	end
+	return false
+end
+
+-- Mind's False Wall: does a screen (a body with data.screen = { center, normal, right, width, height })
+-- stand between two points? Cast/Concealment asks (through ArtService): nobody sees through it.
+function ArtRuntime.screened(from: Vector3, to: Vector3): boolean
+	for _, body in bodies do
+		local sc = body.data.screen
+		if sc and not body.ended then
+			local dFrom = (from - sc.center):Dot(sc.normal)
+			local dTo = (to - sc.center):Dot(sc.normal)
+			if dFrom * dTo < 0 then
+				local t = dFrom / (dFrom - dTo)
+				local p = from + (to - from) * t
+				local rel = p - sc.center
+				if math.abs(rel:Dot(sc.right)) <= sc.width / 2 and math.abs(rel.Y) <= sc.height / 2 then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
 -- Every running body (a copy): Void's Unravel and Null Ground end other people's.
 function ArtRuntime.all(): { Body }
 	return table.clone(bodies)

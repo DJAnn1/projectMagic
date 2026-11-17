@@ -390,6 +390,23 @@ local routes: { [string]: Summary } = {
 	spirit_ghost_form = { kind = "protect", text = "For a moment you're barely there: most of every blow passes through you, and you're hard to see." },
 	spirit_wail = { kind = "control", text = "A spirit's scream: everyone near you is hurt a little and afraid." },
 	spirit_grave_mist = { kind = "attack", text = "Cold mist hangs over an area for a while: foes in it are slowed, chilled and gnawed at." },
+	-- Mind's spells (Effects/MindArt, docs/DomainIdeas.md).
+	mind_far_eye = { kind = "sense", text = "An eye of light flies where you aim; when it lands you look out of it for a few seconds." },
+	mind_weak_spot = { kind = "control", text = "You see where your target is weak: for a while hits on them crit more often and land harder." },
+	mind_rally = { kind = "boost", text = "You and allies near you take heart: faster for a few seconds, healed a little, and fear, daze and charm shaken off." },
+	mind_despair = { kind = "control", text = "A weight hangs over an area for a while: foes in it are slowed and dazed (their spells go wrong more)." },
+	mind_pacify = { kind = "control", text = "A calm settles over an area for a while: foes standing in it stop fighting." },
+	mind_mirror_images = { kind = "protect", text = "Copies of you circle you for a while; each one takes a blow for you and vanishes." },
+	mind_phantom_blade = { kind = "attack", text = "An imaginary blade that hurts because they believe it, and leaves them dazed." },
+	mind_false_wall = { kind = "protect", text = "A wall that isn't there stands where you point for a while: people and bolts pass through it, but nobody can see through it to find you." },
+	mind_phantom_beast = { kind = "control", text = "Something only your target can see hounds them for a while: they stay afraid." },
+	mind_vanish = { kind = "protect", text = "Minds slide off you for a while: nobody further than arm's length notices you." },
+	mind_mirage_pit = { kind = "control", text = "The ground where you aim looks like a drop for a while: foes who see it back off it, afraid." },
+	mind_forget_me = { kind = "control", text = "Your target forgets you: a Wildborn or a creature stops chasing you and doesn't notice you for a while, an NPC drops its grudge. Not on other players." },
+	mind_mind_spike = { kind = "attack", text = "A thin violet bolt into the mind: it hurts and dazes." },
+	mind_psychic_push = { kind = "control", text = "An invisible shove: everyone in front of you is thrown back." },
+	mind_whispers = { kind = "control", text = "Voices fill an area for a while: foes in it are dazed and slowed." },
+	mind_puppet = { kind = "control", text = "Your target's feet are yours for a moment: you walk them toward where you aim (not far, for another player)." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -476,9 +493,9 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true, life_bramble_wall = true, spirit_glyph_shield = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true, water_wave_surge = true, water_ice_dome = true, air_windwall = true, life_bramble_wall = true, spirit_glyph_shield = true, mind_false_wall = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
-RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true, spirit_spirit_wolves = true } :: { [string]: boolean }
+RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true, air_twister = true, spirit_spirit_wolves = true, mind_phantom_beast = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"
 
 RouteSummaries.deadModifiers = {

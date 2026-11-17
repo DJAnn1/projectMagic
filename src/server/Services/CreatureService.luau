@@ -42,6 +42,7 @@ local CreatureRules = require(Server.Creatures.CreatureRules)
 local CreatureRig = require(Server.Creatures.CreatureRig)
 local Damage = require(Server.Magic.Cast.Damage)
 local Concealment = require(Server.Magic.Cast.Concealment)
+local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 local WorldConfig = require(Server.World.WorldConfig)
 local Util = require(Server.Admin.Util)
 local DownedRules = require(Server.Downed.DownedRules)
@@ -69,6 +70,7 @@ type DenState = {
 }
 
 type Creature = {
+	forgot: { [number]: number }?, -- Mind's Forget Me: userId -> os.clock() until it notices them again
 	def: Creatures.Def,
 	den: DenState,
 	slot: Slot,
@@ -488,7 +490,8 @@ local function stepCreature(creature: Creature, players: { PlayerView }, now: nu
 	for _, view in players do
 		local character = view.player.Character
 		-- Veiled or Unseen past arm's length (Cast/Concealment): it doesn't know they're there.
-		local hiddenFromIt = character ~= nil and Concealment.hiddenFrom(character, view.humanoid, position)
+		local forgotten = creature.forgot ~= nil and ((creature.forgot :: { [number]: number })[view.player.UserId] or 0) > now
+		local hiddenFromIt = forgotten or (character ~= nil and Concealment.hiddenFrom(character, view.humanoid, position))
 		local d = flat(view.position, position)
 		if d < nearestDistance and not hiddenFromIt then
 			nearest, nearestDistance = view, d
@@ -908,6 +911,19 @@ function CreatureService.shoot(_self: any, herdId: string, from: Vector3, hits: 
 end
 
 function CreatureService.init(_self: any, ctx: any)
+	-- Mind's Forget Me: it forgets who hurt it, and doesn't notice them for a while.
+	ArtRuntime.addForgetter(function(model: Model, userId: number, seconds: number): boolean
+		local creature = byModel[model]
+		if not creature then
+			return false
+		end
+		if creature.attacker == userId then
+			creature.attacker = nil
+		end
+		creature.forgot = creature.forgot or {}
+		;(creature.forgot :: { [number]: number })[userId] = os.clock() + seconds
+		return true
+	end)
 	log = ctx.log
 	world = ctx.get("WorldStateService")
 	worldService = ctx.get("WorldService")

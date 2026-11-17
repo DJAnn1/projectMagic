@@ -15,6 +15,7 @@ local Server = script.Parent.Parent
 local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 local Delivery = require(Server.Magic.Cast.Delivery)
 local Damage = require(Server.Magic.Cast.Damage)
+local Concealment = require(Server.Magic.Cast.Concealment)
 local WildbornMoves = require(Server.Wildborn.WildbornMoves)
 
 local ArtService = {
@@ -38,6 +39,9 @@ function ArtService.init(_self: any, ctx: any)
 		end
 		return nil, nil
 	end
+
+	-- Mind's False Wall: nobody sees through it (Wildborn, creatures and NPC fighters ask Concealment).
+	Concealment.screened = ArtRuntime.screened
 
 	-- Wildborn bolts and boulders fly in their own simulation: they ask the same swallowers.
 	WildbornMoves.swallower = function(position: Vector3, ownerModel: Model?): boolean

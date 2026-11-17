@@ -48,6 +48,7 @@ local DownedRules = require(Server.Downed.DownedRules)
 local Damage = require(Server.Magic.Cast.Damage)
 local StatusEffects = require(Server.Magic.Cast.StatusEffects)
 local Concealment = require(Server.Magic.Cast.Concealment)
+local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 local NPCCombat = require(Server.NPC.NPCCombat)
 
 local T = Data.tuning
@@ -500,11 +501,6 @@ local function viewOf(players: { View }, userId: number?): View?
 	return nil
 end
 
--- Veiled (a status) or Unseen (Void): not noticed from further than Concealment.seenThrough.
-local function hidden(view: View): boolean
-	return Concealment.hidden(view.model, view.humanoid)
-end
-
 local function stepActor(actor: Actor, players: { View }, now: number)
 	local enemy = actor.enemy
 	local humanoid, root = actor.humanoid, actor.root
@@ -589,7 +585,7 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 	end
 	local target = viewOf(players, actor.attacker)
 	-- Someone who hurt it and then went veiled (or Unseen) slips away once they're out of reach.
-	if target and (hidden(target) or blind) and flat(target.position, position) > Concealment.seenThrough then
+	if target and Concealment.hiddenFrom(target.model, target.humanoid, position, blind) then
 		target = nil
 		actor.attacker = nil
 	end
@@ -607,7 +603,7 @@ local function stepActor(actor: Actor, players: { View }, now: number)
 			local spared = (actor.spare and (actor.spare[uid] or 0) > now)
 				or (hold ~= nil and actor.hold ~= nil and hold.userId == uid and flat(view.position, hold.center) <= hold.radius)
 			local charmer = charmedBy ~= nil and uid == charmedBy
-			if d <= best and not spared and not charmer and not ((hidden(view) or blind) and d > Concealment.seenThrough) then
+			if d <= best and not spared and not charmer and not Concealment.hiddenFrom(view.model, view.humanoid, position, blind) then
 				target, best = view, d
 			end
 		end
@@ -1170,6 +1166,19 @@ function WildbornService.init(_self: any, ctx: any)
 	Moves.setTargets(targets)
 	npcs = ctx.get("NPCService")
 	Damage.listenAttacked(onAttackedBy)
+	-- Mind's Forget Me: it forgets who hurt it, and doesn't notice them for a while.
+	ArtRuntime.addForgetter(function(model: Model, userId: number, seconds: number): boolean
+		local actor = byModel[model]
+		if not actor then
+			return false
+		end
+		if actor.attacker == userId then
+			actor.attacker = nil
+		end
+		actor.spare = actor.spare or {}
+		;(actor.spare :: { [number]: number })[userId] = os.clock() + seconds
+		return true
+	end)
 	-- A bolt or boulder a player turned back lands on Wildborn (Wildborn/WildbornMoves).
 	Moves.wildbornNear = function(at: Vector3, radius: number): { View }
 		local out: { View } = {}

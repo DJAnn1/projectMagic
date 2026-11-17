@@ -363,7 +363,7 @@ On the owner's "fix anything wrong and build next". 19 spells, routes `life_<mov
 
 Not verified (no Studio run): Raise Them on a real downed player (needs two players, or `downme` on yourself and a second client), the claws welded to arms on the client, the bounce height on the Fairy Ring. Defaults chosen: Lifeline never takes you below a quarter of your health; Petal Ward covers you and up to three allies; Plague Flies move on at most three times and only to people you may harm; Rot weakens buildings at the spot (it goes through the world's ordinary structure damage).
 
-### Spirit: built 2026-11-17 (not yet run)
+### Spirit: confirmed 2026-11-17 (owner: "everything works")
 
 On the owner's "continue" after the Wildborn fixes. 15 spells, routes `spirit_<move>`, `Server/Magic/Cast/Effects/SpiritArt`, `Shared/Magic/Data/SpiritTuning`, `Client/Fx/SpiritFx` (cue kind `spirit`). Narrow routes: Warding's aura stays the Ward, Hexcraft's bolt stays the hex (`afflict`), Soulbinding's soul bind and Necrourgy's burst stay as they were, and the root keeps Soul Prick (the strike) and Sense. Two runtime additions: bodies may have `victimHit` (anyone hurting `data.victim`: Doom Mark counts blows) and `ArtRuntime.oaths` (Shared Fate: ArtService's `Damage.interceptor` wrap sends half of each hit to the partner through `Damage.internal`, which isn't split again). Mirror Ward and Glyph Shield work on Wildborn bolts too (the deflectors path). Dropped from the doc's list: Hex Doll (needs a damageable doll), Soul Lantern (captured allies need their own AI), Ward Break (the existing `unward` route does it), Reflect-a-status (needs a status hook; Mirror Ward reflects bolts instead). Flag `spirit_arts_enabled`. Expected boot line **`specs 1187/1188`** (3 new in `Tests/Spirit.spec`).
 
@@ -419,6 +419,35 @@ Not verified (no Studio run): Doom Mark counting hits that come with no attacker
 - **Psychic Push** (`thought · release · beam`): an invisible cone that throws people back. *Ripples in the air, nothing else.*
 - **Whispers** (`thought · generate · zone`): voices distract everyone inside; casts slow.
 - **Puppet** (`will · bind · touch`, Dominion): steer an NPC or creature for a few seconds. Dominion is tagged forbidden: a crime if seen.
+
+### Mind: built 2026-11-17 (not yet run)
+
+On the owner's "everything works, build mind next" (Spirit confirmed). The last domain of the expansion. 16 spells, routes `mind_<move>`, `Server/Magic/Cast/Effects/MindArt`, `Shared/Magic/Data/MindTuning`, `Client/Fx/MindFx` (cue kind `mind`). Narrow routes: the root keeps Psychic Spike (the strike) and Sense, Dread's burst stays `fear`, Charm's touch stays `charm`, Illusion's burst stays the blinding illusion, Veiling's reduce aura stays the veil, Insight's sense stays Sense, Mindlink stays its own. Two runtime additions:
+- **Forgetting** (`ArtRuntime.addForgetter`/`forget`): WildbornService, CreatureService and NPCService each say how their minds forget. A Wildborn or creature drops you as its attacker and doesn't notice you for 10–25 s (`spare`/`forgot`); an NPC fighter drops its grudge (threat). Refused on players.
+- **Screens** (`ArtRuntime.screened`, read by `Cast/Concealment.hiddenFrom` through ArtService): a False Wall between a looker and you hides you from Wildborn, creatures and NPC fighters unless they're within 4 studs (`Concealment.screenReach`). It has no collision: people and bolts pass through.
+
+Changed from the list above: Mark Weakness became **Weak Spot** (`amplify`, jinxed + crumbling for a while, not one guaranteed crit); **Pacify** added (a calm zone); dropped Read Intent (needs a client readout of NPC intent), Terror (the `fear` route already is it), Rage (NPCs can't yet turn on their own side), Déjà Vu (no "last action" record to repeat). Puppet works on anyone, walking them toward your aim (8 studs and 1.5 s at most on another player). Flag `mind_arts_enabled`. Expected boot line **`specs 1190/1191`** (3 new in `Tests/Mind.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Far Eye | Farsight | perception · amplify · projectile |
+| Weak Spot | Insight | perception · amplify · touch/beam |
+| Rally | Empathy | emotion · amplify · aura (instant) |
+| Despair | Dread | emotion · reduce · zone |
+| Pacify | Charm | emotion · reduce · zone |
+| Mirror Images | Illusion | illusion · generate · aura (instant) |
+| Phantom Blade | Phantasms | illusion · generate · projectile |
+| False Wall | Phantasms | illusion · transmute · wall |
+| Phantom Beast | Phantasms | illusion · generate · summon |
+| Vanish | Veiling | illusion · amplify · aura (instant) |
+| Mirage Pit | Grand Illusion | illusion · transmute · zone |
+| Forget Me | Oblivion | memory · reduce · touch/beam |
+| Mind Spike | Telepathy | thought · generate · projectile |
+| Psychic Push | Telepathy | thought · release · beam |
+| Whispers | Telepathy | thought · generate · zone |
+| Puppet | Dominion | will · bind · touch/beam |
+
+Not verified (no Studio run): Far Eye's camera handing back cleanly (it restores `Custom`), how the Mirror Images copies look on an R6 body with accessories (only body parts are copied), the Phantom Beast drawn only on its victim's screen (other players see nothing, on purpose), False Wall against a Wildborn already mid-chase (it re-checks every step). Defaults chosen: Mirror Images is a ward split into 3 copies (one vanishes per third of it used); Forget Me does nothing to players; Vanish is the veil for longer.
 
 ### Life: confirmed 2026-11-17, drags fixed
 

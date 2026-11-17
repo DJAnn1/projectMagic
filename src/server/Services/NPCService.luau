@@ -82,6 +82,7 @@ local NPCCombat = require(NPC.NPCCombat)
 local Combat = require(Server.Magic.Data.CombatTuning)
 local Resistances = require(Server.Magic.Cast.Resistances)
 local Damage = require(Server.Magic.Cast.Damage)
+local ArtRuntime = require(Server.Magic.Cast.ArtRuntime)
 
 local LOD_INTERVAL = 0.5
 local ENTER_REACH = 6 -- studs from their door, or their bed, that counts as being there
@@ -2582,6 +2583,18 @@ end
 -- ─── Lifecycle ──────────────────────────────────────────────────────────────
 
 function NPCService.init(_self: any, ctx: any)
+	-- Mind's Forget Me: an NPC fighting someone forgets its grudge against them.
+	ArtRuntime.addForgetter(function(model: Model, userId: number, _seconds: number): boolean
+		local npc = byId[model:GetAttribute("NpcId") :: any]
+		if not npc then
+			return false
+		end
+		local combat = npc.combat
+		if combat and combat.threat then
+			combat.threat["u:" .. userId] = nil
+		end
+		return true
+	end)
 	log, bus, flags = ctx.log, ctx.bus, ctx.flags
 	worldService = ctx.get("WorldService")
 	world = ctx.get("WorldStateService")

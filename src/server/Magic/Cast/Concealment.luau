@@ -14,6 +14,10 @@ local StatusEffects = require(script.Parent.StatusEffects)
 local Concealment = {}
 
 Concealment.seenThrough = 12 -- studs: closer than this, a veil (or a blind looker) doesn't hide you
+Concealment.screenReach = 4 -- studs: behind a False Wall you're only seen from closer than this
+
+-- Set by Services/ArtService: is there an illusion (Mind's False Wall) between these two points?
+Concealment.screened = nil :: ((Vector3, Vector3) -> boolean)?
 
 function Concealment.hidden(model: Model, humanoid: Humanoid?): boolean
 	local h = humanoid or model:FindFirstChildOfClass("Humanoid")
@@ -25,14 +29,19 @@ function Concealment.hidden(model: Model, humanoid: Humanoid?): boolean
 end
 
 function Concealment.hiddenFrom(model: Model, humanoid: Humanoid?, from: Vector3, blind: boolean?): boolean
-	if not blind and not Concealment.hidden(model, humanoid) then
-		return false
-	end
 	local root = model:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
 		return false
 	end
 	local d = Vector3.new(root.Position.X - from.X, 0, root.Position.Z - from.Z).Magnitude
+	-- Behind a False Wall: the looker sees a wall, not you.
+	local screened = Concealment.screened
+	if screened and d > Concealment.screenReach and screened(from + Vector3.new(0, 1.5, 0), root.Position) then
+		return true
+	end
+	if not blind and not Concealment.hidden(model, humanoid) then
+		return false
+	end
 	return d > Concealment.seenThrough
 end
 

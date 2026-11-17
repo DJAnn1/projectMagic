@@ -278,6 +278,27 @@ local routes: { Route } = {
 	{ id = "spirit_wail", effect = "SpiritArt", branches = { "necrourgy" }, properties = { "soul" }, verbs = { "release" }, forms = { "burst", "aura" }, params = { move = "wail" }, instant = true },
 	{ id = "spirit_grave_mist", effect = "SpiritArt", branches = { "deathspeech" }, properties = { "unlife" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "grave_mist" } },
 
+	-- ─── Mind's spells (Effects/MindArt, Data/MindTuning, docs/DomainIdeas.md) ─────
+	-- Narrow: the root keeps Psychic Spike (the strike: perception generate) and Sense, Dread's burst stays
+	-- fear, Charm's touch stays charm, Illusion's burst stays blinding, Veiling's reduce aura stays the veil,
+	-- Insight's sense stays Sense, and Mindlink (the Space hybrid) stays its own.
+	{ id = "mind_far_eye", effect = "MindArt", branches = { "farsight" }, properties = { "perception" }, verbs = { "amplify" }, forms = { "projectile" }, params = { move = "far_eye", look = "eye", flight = { speed = 1.2 } } },
+	{ id = "mind_weak_spot", effect = "MindArt", branches = { "insight" }, properties = { "perception" }, verbs = { "amplify" }, forms = { "touch", "beam" }, params = { move = "weak_spot" } },
+	{ id = "mind_rally", effect = "MindArt", branches = { "empathy" }, properties = { "emotion" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "rally" }, instant = true },
+	{ id = "mind_despair", effect = "MindArt", branches = { "dread" }, properties = { "emotion" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "despair" } },
+	{ id = "mind_pacify", effect = "MindArt", branches = { "charm" }, properties = { "emotion" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "pacify" } },
+	{ id = "mind_mirror_images", effect = "MindArt", branches = { "illusion" }, properties = { "illusion" }, verbs = { "generate" }, forms = { "aura" }, params = { move = "mirror_images" }, instant = true },
+	{ id = "mind_phantom_blade", effect = "MindArt", branches = { "phantasm" }, properties = { "illusion" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "phantom_blade", look = "blade" } },
+	{ id = "mind_false_wall", effect = "MindArt", branches = { "phantasm" }, properties = { "illusion" }, verbs = { "transmute" }, forms = { "wall" }, params = { move = "false_wall" } },
+	{ id = "mind_phantom_beast", effect = "MindArt", branches = { "phantasm" }, properties = { "illusion" }, verbs = { "generate" }, forms = { "summon" }, params = { move = "phantom_beast" } },
+	{ id = "mind_vanish", effect = "MindArt", branches = { "veiling" }, properties = { "illusion" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "vanish" }, instant = true },
+	{ id = "mind_mirage_pit", effect = "MindArt", branches = { "grandillusion" }, properties = { "illusion" }, verbs = { "transmute" }, forms = { "zone" }, params = { move = "mirage_pit" } },
+	{ id = "mind_forget_me", effect = "MindArt", branches = { "oblivion" }, properties = { "memory" }, verbs = { "reduce" }, forms = { "touch", "beam" }, params = { move = "forget_me" } },
+	{ id = "mind_mind_spike", effect = "MindArt", branches = { "telepathy" }, properties = { "thought" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "mind_spike", look = "spike" } },
+	{ id = "mind_psychic_push", effect = "MindArt", branches = { "telepathy" }, properties = { "thought" }, verbs = { "release" }, forms = { "beam" }, params = { move = "psychic_push" } },
+	{ id = "mind_whispers", effect = "MindArt", branches = { "telepathy" }, properties = { "thought" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "whispers" } },
+	{ id = "mind_puppet", effect = "MindArt", branches = { "dominion" }, properties = { "will" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "puppet" } },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },
