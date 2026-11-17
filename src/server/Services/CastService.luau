@@ -843,7 +843,8 @@ local function resolve(p: Pending)
 	-- and wait before landing (everyone near sees the warning), then add its follow-ups.
 	local shape = if backfire then nil else Shapes.find(stats, p.route.id)
 	local rainSpots = if shape then Shapes.before(ctx, shape) else nil
-	-- A route may tune its own bolt (Data/EffectLibrary `flight`): Ball Lightning crawls, a Flame Serpent homes.
+	-- A route may tune its own bolt (Data/EffectLibrary `flight`): Ball Lightning crawls, a Flame Serpent homes,
+	-- a Stone Fist drops.
 	local flightTune = (params :: any).flight
 	if not backfire and typeof(flightTune) == "table" then
 		if typeof(flightTune.speed) == "number" then
@@ -851,6 +852,9 @@ local function resolve(p: Pending)
 		end
 		if flightTune.homing == true then
 			ctx.shapeHoming = true
+		end
+		if typeof(flightTune.gravity) == "number" then
+			ctx.shapeGravityMult = (ctx.shapeGravityMult or 1) * flightTune.gravity -- a heavy stone drops
 		end
 	end
 	local outcome = strike(p, ctx, params, record)

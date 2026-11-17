@@ -3,14 +3,14 @@
 	EnergyTuning: the numbers behind Energy's spells (docs/DomainIdeas.md, "Energy"). Ordinary spells
 	that fit their branches, not ultimates: each is a narrow route in Data/EffectLibrary (route id =
 	"energy_" .. move), resolved by Server/Magic/Cast/Effects/EnergyArt; anything that lasts is kept by
-	Server/Magic/Cast/EnergyRuntime and drawn by Client/Fx/EnergyFx.
+	Server/Magic/Cast/ArtRuntime and drawn by Client/Fx/ArtFx with EnergyFx's builders.
 
 	A `{ base, perPower, max }` grows with the recipe's power: EnergyTuning.at(c, power) =
 	min(max, base + perPower x power). `share` is a fraction of a normal hit (Cast/DamageModel.base):
 	1 = what a plain bolt of that power deals.
 
-	Looks (colours) are here so client and server agree; every move's body is tagged EnergyBody with
-	attribute EnergyLook = the move id.
+	Looks (colours) are here so client and server agree; every move's body is tagged ArtBody with
+	attribute ArtLook = the move id.
 ]]
 
 local EnergyTuning = {}
@@ -21,10 +21,8 @@ function EnergyTuning.at(curve: Curve, power: number): number
 	return math.min(curve.max, curve.base + curve.perPower * math.max(0, power))
 end
 
--- Things that last (rings, fences, burning ground, wisps, balls of lightning...).
+-- How far an Arc Tether stretches before it snaps. (Caps on lasting things: Server/Magic/Cast/ArtRuntime.caps.)
 EnergyTuning.caps = {
-	server = 60, -- bodies on the whole server
-	perPlayer = 6, -- a seventh ends the caster's oldest
 	tetherReach = 26,
 }
 

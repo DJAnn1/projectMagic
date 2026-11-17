@@ -49,7 +49,10 @@ local FxPool = require(script.Parent.FxPool)
 local FxLayers = require(script.Parent.FxLayers)
 local DomainFx = require(script.Parent.DomainFx)
 local PropertyFx = require(script.Parent.PropertyFx)
-local EnergyFx = require(script.Parent.EnergyFx)
+local ArtFx = require(script.Parent.ArtFx)
+-- The domains' own bolt looks register with ArtFx when these load.
+require(script.Parent.EnergyFx)
+require(script.Parent.EarthFx)
 local Recipes = require(script.Parent.FxRecipes)
 local KenneyTextures = require(script.Parent.KenneyTextures)
 local Theme = require(script.Parent.Parent:WaitForChild("UI").Theme)
@@ -643,7 +646,7 @@ function SpellFx.launch(cue: { [string]: any })
 	local lookStop: (() -> ())? = nil
 	local lookWeave: number? = nil
 	if typeof(cue.look) == "string" then
-		lookStop, lookWeave = EnergyFx.flight(cue.look, anchor, coreSize)
+		lookStop, lookWeave = ArtFx.flight(cue.look, anchor, coreSize)
 	end
 	-- Halo around the core (locked: it moves with the bolt).
 	local halo = FxLayers.emitter(anchor, {

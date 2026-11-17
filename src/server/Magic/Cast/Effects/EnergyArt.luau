@@ -2,7 +2,7 @@
 --[[
 	EnergyArt: Energy's own spells (docs/DomainIdeas.md, "Energy"). Ordinary moves that fit their branch,
 	each reached by a narrow route in Data/EffectLibrary ("energy_" .. move, with params.move). Numbers:
-	Data/EnergyTuning. Anything that lasts runs in Cast/EnergyRuntime; looks in Client/Fx/EnergyFx.
+	Data/EnergyTuning. Anything that lasts runs in Cast/ArtRuntime; looks in Client/Fx/EnergyFx.
 
 	Fire (Pyromancy, Conflagration)
 		ember_swarm   embers scatter out of the burst and light what they land on
@@ -64,7 +64,7 @@ local ThermalSim = require(Cast.ThermalSim)
 local StatusEffects = require(Cast.StatusEffects)
 local Targeting = require(Cast.Targeting)
 local PropertyBehaviour = require(Cast.PropertyBehaviour)
-local R = require(Cast.EnergyRuntime)
+local R = require(Cast.ArtRuntime)
 
 type Ctx = CastTypes.EffectContext
 type Outcome = CastTypes.Outcome
@@ -78,7 +78,7 @@ function EnergyArt.precheck(_params: { [string]: any }, _stats: Types.SpellStats
 	if FeatureFlags.get("energy_arts_enabled") == false then
 		return "WORLD_STRAINED"
 	end
-	if R.count() >= E.caps.server then
+	if R.count() >= R.caps.server then
 		return "WORLD_STRAINED"
 	end
 	return nil
@@ -109,7 +109,7 @@ groundParams.FilterType = Enum.RaycastFilterType.Exclude
 -- The ground under `position` (characters and energy bodies ignored), or `position` itself.
 local function ground(position: Vector3): Vector3
 	local ignore: { Instance } = {}
-	local folder = workspace:FindFirstChild("EnergyBodies")
+	local folder = workspace:FindFirstChild("ArtBodies")
 	if folder then
 		table.insert(ignore, folder)
 	end

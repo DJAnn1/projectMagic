@@ -1,20 +1,21 @@
 --!strict
 --[[
-	EnergyRuntime: what Energy's spells leave running (docs/DomainIdeas.md, "Energy"): rings of fire,
-	burning ground, frost, smoke, ice mirrors, wisps, a shadow puppet, balls of lightning, tethers,
-	fences, kindled hands, auras. Effects/EnergyArt casts; this keeps them going.
+	ArtRuntime: what the domains' own spells leave running (docs/DomainIdeas.md): Energy's rings of fire,
+	burning ground, frost, ice mirrors, wisps, shadow puppet, ball lightning, tethers and fences; Earth's
+	spike walls, boulders, quicksand, dust, crystal spires... Effects/EnergyArt and Effects/EarthArt cast;
+	this keeps them going.
 
-	A BODY is one lasting thing. Each has a small invisible anchored part in workspace.EnergyBodies,
-	tagged "EnergyBody" with attributes (EnergyLook = the move, Owner, Radius, Ends in server time, and
-	whatever the move adds), which Client/Fx/EnergyFx draws. Bodies may:
+	A BODY is one lasting thing. Each has a small invisible anchored part in workspace.ArtBodies, tagged
+	"ArtBody" with attributes (ArtLook = the move, Owner, Radius, Ends in server time, and whatever the
+	move adds), which Client/Fx/ArtFx draws with the domain's builders (Fx/EnergyFx, Fx/EarthFx). Bodies may:
 		tick(body)              every `every` seconds (hurting, chilling, revealing...)
 		move(body, dt)          every frame (wisps follow, a ball of lightning drifts)
 		deflect(body, position, velocity, flight) -> (action, value)?   a bolt passing it (Delivery)
 		ownerHit(body, victim)  their owner just hurt someone (a kindled hand, the shadow puppet)
 		finish(body)            once, as it ends (a ball of lightning pops)
-	Capped per player (Data/EnergyTuning.caps.perPlayer: a new one ends the oldest) and per server.
+	Capped per player (ArtRuntime.caps.perPlayer: a new one ends the oldest) and per server.
 	Every hit goes through Cast/DamageModel and Cast/Damage (wards, guards, PvP), only on people the
-	caster may harm (Targeting.canHarm). Services/EnergyService steps and wraps Delivery.interceptor.
+	caster may harm (Targeting.canHarm). Services/ArtService steps and wraps Delivery.interceptor.
 
 	Known gap (as for Shapes): hits after the cast resolved aren't judged by settlement law.
 ]]
@@ -24,7 +25,6 @@ local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Net = require(Shared.Net)
-local E = require(Shared.Magic.Data.EnergyTuning)
 
 local Cast = script.Parent
 local CastTypes = require(Cast.CastTypes)
@@ -75,38 +75,43 @@ export type SpawnOpts = {
 	finish: ((Body) -> ())?,
 }
 
-local EnergyRuntime = {}
+local ArtRuntime = {}
 
-EnergyRuntime.TAG = "EnergyBody"
+ArtRuntime.TAG = "ArtBody"
+ArtRuntime.caps = {
+	server = 80, -- bodies on the whole server, every domain together
+	perPlayer = 8, -- a ninth ends the caster's oldest
+}
 
 local bodies: { Body } = {}
 local nextId = 0
 local log: any = nil
 
 local function folder(): Folder
-	local f = workspace:FindFirstChild("EnergyBodies")
+	local f = workspace:FindFirstChild("ArtBodies")
 	if f and f:IsA("Folder") then
 		return f
 	end
 	local made = Instance.new("Folder")
-	made.Name = "EnergyBodies"
+	made.Name = "ArtBodies"
 	made.Parent = workspace
 	return made
 end
 
 -- A frozen copy of the cast for work that happens later (the live one is reused by echoes).
-function EnergyRuntime.later(ctx: Ctx): Ctx
+function ArtRuntime.later(ctx: Ctx): Ctx
 	local copy = table.clone(ctx)
 	copy.delivered = nil
 	copy.target = nil
 	return copy
 end
 
-function EnergyRuntime.alive(ctx: Ctx): boolean
-	return ctx.player ~= nil and ctx.player.Parent ~= nil and ctx.character.Parent ~= nil
+function ArtRuntime.alive(ctx: Ctx): boolean
+	local player: Player? = ctx.player
+	return player ~= nil and player.Parent ~= nil and ctx.character.Parent ~= nil
 end
 
-function EnergyRuntime.endBody(body: Body)
+function ArtRuntime.endBody(body: Body)
 	if body.ended then
 		return
 	end
@@ -120,13 +125,13 @@ function EnergyRuntime.endBody(body: Body)
 	if body.finish then
 		local ok, err = pcall(body.finish, body)
 		if not ok then
-			warn("[Energy] finish " .. body.look .. ": " .. tostring(err))
+			warn("[Art] finish " .. body.look .. ": " .. tostring(err))
 		end
 	end
 	body.part:Destroy()
 end
 
-function EnergyRuntime.bodiesOf(owner: number, look: string?): { Body }
+function ArtRuntime.bodiesOf(owner: number, look: string?): { Body }
 	local out: { Body } = {}
 	for _, b in bodies do
 		if b.owner == owner and (look == nil or b.look == look) then
@@ -136,15 +141,15 @@ function EnergyRuntime.bodiesOf(owner: number, look: string?): { Body }
 	return out
 end
 
-function EnergyRuntime.spawn(opts: SpawnOpts): Body?
+function ArtRuntime.spawn(opts: SpawnOpts): Body?
 	local caster: Player? = opts.ctx.player
 	local owner = if caster then caster.UserId else 0
 	-- The caster's oldest gives way to a new one; the server as a whole has a ceiling.
-	local mine = EnergyRuntime.bodiesOf(owner)
-	if #mine >= E.caps.perPlayer then
-		EnergyRuntime.endBody(mine[1])
+	local mine = ArtRuntime.bodiesOf(owner)
+	if #mine >= ArtRuntime.caps.perPlayer then
+		ArtRuntime.endBody(mine[1])
 	end
-	if #bodies >= E.caps.server then
+	if #bodies >= ArtRuntime.caps.server then
 		return nil
 	end
 	nextId += 1
@@ -157,7 +162,7 @@ function EnergyRuntime.spawn(opts: SpawnOpts): Body?
 	part.Transparency = 1
 	part.Size = opts.size or Vector3.one
 	part.CFrame = opts.cframe or CFrame.new(opts.position)
-	part:SetAttribute("EnergyLook", opts.look)
+	part:SetAttribute("ArtLook", opts.look)
 	part:SetAttribute("Owner", owner)
 	part:SetAttribute("Radius", opts.radius)
 	part:SetAttribute("Ends", workspace:GetServerTimeNow() + opts.seconds)
@@ -172,13 +177,13 @@ function EnergyRuntime.spawn(opts: SpawnOpts): Body?
 		link.Parent = part
 	end
 	part.Parent = folder()
-	CollectionService:AddTag(part, EnergyRuntime.TAG)
+	CollectionService:AddTag(part, ArtRuntime.TAG)
 	local now = os.clock()
 	local body: Body = {
 		id = nextId,
 		look = opts.look,
 		owner = owner,
-		ctx = EnergyRuntime.later(opts.ctx),
+		ctx = ArtRuntime.later(opts.ctx),
 		part = part,
 		position = opts.position,
 		radius = opts.radius,
@@ -197,7 +202,7 @@ function EnergyRuntime.spawn(opts: SpawnOpts): Body?
 end
 
 -- Moves a body's part (and where it counts from).
-function EnergyRuntime.place(body: Body, position: Vector3)
+function ArtRuntime.place(body: Body, position: Vector3)
 	body.position = position
 	body.part.CFrame = CFrame.new(position)
 end
@@ -205,7 +210,7 @@ end
 -- ─── Hit helpers (shared with Effects/EnergyArt) ────────────────────────────
 
 -- One hit of `share` of a normal one, plus `behaviour` (Data/PropertyBehaviours) when given.
-function EnergyRuntime.hit(ctx: Ctx, hit: Targeting.Hit, share: number, behaviour: string?, opts: DamageModel.Options?): number
+function ArtRuntime.hit(ctx: Ctx, hit: Targeting.Hit, share: number, behaviour: string?, opts: DamageModel.Options?): number
 	local dealt, result = DamageModel.hit(ctx, hit, share, "energy", opts or { noFalloff = true })
 	if behaviour then
 		PropertyBehaviour.apply(ctx, hit, dealt, result, behaviour)
@@ -214,7 +219,7 @@ function EnergyRuntime.hit(ctx: Ctx, hit: Targeting.Hit, share: number, behaviou
 end
 
 -- Everyone the caster may harm around `center` (never the caster).
-function EnergyRuntime.foesAround(ctx: Ctx, center: Vector3, radius: number, exclude: { [Model]: boolean }?): { Targeting.Hit }
+function ArtRuntime.foesAround(ctx: Ctx, center: Vector3, radius: number, exclude: { [Model]: boolean }?): { Targeting.Hit }
 	local skip = exclude or {}
 	skip[ctx.character] = true
 	local out: { Targeting.Hit } = {}
@@ -227,7 +232,7 @@ function EnergyRuntime.foesAround(ctx: Ctx, center: Vector3, radius: number, exc
 end
 
 -- Sets someone alight for `seconds`, burning `share` of a normal hit each second.
-function EnergyRuntime.burn(ctx: Ctx, humanoid: Humanoid, seconds: number, share: number)
+function ArtRuntime.burn(ctx: Ctx, humanoid: Humanoid, seconds: number, share: number)
 	StatusEffects.apply(humanoid, "burning", {
 		duration = seconds,
 		magnitude = DamageModel.base(ctx.power) * share,
@@ -235,7 +240,7 @@ function EnergyRuntime.burn(ctx: Ctx, humanoid: Humanoid, seconds: number, share
 	})
 end
 
-function EnergyRuntime.status(ctx: Ctx, humanoid: Humanoid, id: string, seconds: number, magnitude: number?)
+function ArtRuntime.status(ctx: Ctx, humanoid: Humanoid, id: string, seconds: number, magnitude: number?)
 	StatusEffects.apply(humanoid, id, {
 		duration = seconds,
 		magnitude = magnitude,
@@ -244,7 +249,7 @@ function EnergyRuntime.status(ctx: Ctx, humanoid: Humanoid, id: string, seconds:
 end
 
 -- A push: a player's own client moves them (as Force and Shapes do), anything else here.
-function EnergyRuntime.push(hit: Targeting.Hit, velocity: Vector3)
+function ArtRuntime.push(hit: Targeting.Hit, velocity: Vector3)
 	local player = Players:GetPlayerFromCharacter(hit.model)
 	if player then
 		Net.fire("WorldEffect", player, { kind = "knockback", velocity = velocity })
@@ -253,8 +258,8 @@ function EnergyRuntime.push(hit: Targeting.Hit, velocity: Vector3)
 	end
 end
 
--- A one-shot look for every client near (Client/Fx/EnergyFx).
-function EnergyRuntime.cue(ctx: Ctx, fields: { [string]: any }, position: Vector3, heavy: boolean?)
+-- A one-shot look for every client near: cue kind `kind` ("energy" -> Client/Fx/EnergyFx, "earth" -> EarthFx).
+function ArtRuntime.cue(ctx: Ctx, fields: { [string]: any }, position: Vector3, heavy: boolean?, kind: string?)
 	local payload: { [string]: any } = {
 		caster = if ctx.player then ctx.player.UserId else nil,
 		power = ctx.stats.recipe.power,
@@ -263,14 +268,14 @@ function EnergyRuntime.cue(ctx: Ctx, fields: { [string]: any }, position: Vector
 	for k, v in fields do
 		payload[k] = v
 	end
-	ctx.runtime:cue("energy", payload, position, heavy == true)
+	ctx.runtime:cue(kind or "energy", payload, position, heavy == true)
 end
 
 -- ─── Stepping ───────────────────────────────────────────────────────────────
 
 local function stepBody(body: Body, now: number, dt: number)
-	if now >= body.ends or not EnergyRuntime.alive(body.ctx) or not body.part.Parent then
-		EnergyRuntime.endBody(body)
+	if now >= body.ends or not ArtRuntime.alive(body.ctx) or not body.part.Parent then
+		ArtRuntime.endBody(body)
 		return
 	end
 	if body.move then
@@ -282,7 +287,7 @@ local function stepBody(body: Body, now: number, dt: number)
 	end
 end
 
-function EnergyRuntime.step(dt: number)
+function ArtRuntime.step(dt: number)
 	if #bodies == 0 then
 		return
 	end
@@ -293,16 +298,16 @@ function EnergyRuntime.step(dt: number)
 			local ok, err = pcall(stepBody, body, now, dt)
 			if not ok then
 				if log then
-					log:throttled("energy_" .. body.look, 30, "Warn", "energy_step_failed", { look = body.look, err = err })
+					log:throttled("art_" .. body.look, 30, "Warn", "art_step_failed", { look = body.look, err = err })
 				end
-				EnergyRuntime.endBody(body)
+				ArtRuntime.endBody(body)
 			end
 		end
 	end
 end
 
 -- Delivery.interceptor's say: the first body that turns this bolt wins.
-function EnergyRuntime.intercept(position: Vector3, velocity: Vector3, flight: any): (string?, any)
+function ArtRuntime.intercept(position: Vector3, velocity: Vector3, flight: any): (string?, any)
 	for _, body in bodies do
 		if body.deflect and not body.ended then
 			local action, value = body.deflect(body, position, velocity, flight)
@@ -316,7 +321,7 @@ end
 
 -- Damage.listenAttacked: bodies that care hear when their wielder (data.wielder, a Model: a kindled
 -- ally) or, without one, their owner's character lands a blow.
-function EnergyRuntime.attacked(victim: Humanoid, attacker: Model)
+function ArtRuntime.attacked(victim: Humanoid, attacker: Model)
 	local player = Players:GetPlayerFromCharacter(attacker)
 	for _, body in bodies do
 		local wielder = body.data.wielder
@@ -324,31 +329,31 @@ function EnergyRuntime.attacked(victim: Humanoid, attacker: Model)
 		if body.ownerHit and mine and not body.ended then
 			local ok, err = pcall(body.ownerHit, body, victim)
 			if not ok then
-				warn("[Energy] ownerHit " .. body.look .. ": " .. tostring(err))
+				warn("[Art] ownerHit " .. body.look .. ": " .. tostring(err))
 			end
 		end
 	end
 end
 
-function EnergyRuntime.clear(owner: number?): number
+function ArtRuntime.clear(owner: number?): number
 	local n = 0
 	for i = #bodies, 1, -1 do
 		local body = bodies[i]
 		if owner == nil or body.owner == owner then
-			EnergyRuntime.endBody(body)
+			ArtRuntime.endBody(body)
 			n += 1
 		end
 	end
 	return n
 end
 
-function EnergyRuntime.count(): number
+function ArtRuntime.count(): number
 	return #bodies
 end
 
-function EnergyRuntime.report(): string
+function ArtRuntime.report(): string
 	if #bodies == 0 then
-		return "no Energy spells running"
+		return "no domain spells running"
 	end
 	local lines: { string } = {}
 	local now = os.clock()
@@ -358,9 +363,9 @@ function EnergyRuntime.report(): string
 	return string.format("%d running\n%s", #bodies, table.concat(lines, "\n"))
 end
 
-function EnergyRuntime.start(logger: any)
+function ArtRuntime.start(logger: any)
 	log = logger
-	Damage.listenAttacked(EnergyRuntime.attacked)
+	Damage.listenAttacked(ArtRuntime.attacked)
 end
 
-return EnergyRuntime
+return ArtRuntime

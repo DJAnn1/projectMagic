@@ -84,6 +84,7 @@ return {
 	npc_enabled = { default = true, description = "Simulate settlement NPCs (NPCService)." },
 	space_powers_enabled = { default = true, description = "Space's powers: gates, swap, seal, Folding Stride, cut and a truer Dislocation (Effects/SpacePower, docs/Space.md). Off refuses new casts; blink and push/pull still work." },
 	energy_arts_enabled = { default = true, description = "Energy's spells: ember swarms, fire whips, rings of fire, ice mirrors, wisps, shadow puppets, ricochets, ball lightning, arc fences and the rest (Effects/EnergyArt, docs/DomainIdeas.md). Off refuses new casts of them." },
+	earth_arts_enabled = { default = true, description = "Earth's spells: stone fists, spike trails, stone steps, ramps, boulders, iron storms, blade rain, crystal spires and prisons, fissures, quicksand, dust devils and the rest (Effects/EarthArt, docs/DomainIdeas.md). Off refuses new casts of them." },
 	hunting_enabled = { default = true, description = "Hunters work at their town's real herds of game and shoot them; fishers face the water on the real shoreline (Services/HuntService, docs/Hunting.md)." },
 	npc_fights_enabled = { default = true, description = "NPCs fight each other for reasons in the world: brawls between rivals, live raids between feuding towns, Wildborn turning on the guards who shoot them (Services/NpcFightService, docs/NpcFights.md)." },
 	npc_day_seconds = { default = 1440, description = "Real seconds per game day (NPC schedules, day/night)." },

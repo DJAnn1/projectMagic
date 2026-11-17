@@ -283,6 +283,28 @@ local routes: { [string]: Summary } = {
 	energy_arc_tether = { kind = "attack", text = "Ties two foes together with an arc that hurts both while it holds. If they pull apart it snaps, hard." },
 	energy_galvanise = { kind = "boost", text = "A burst of speed for you or an ally, with sparks at the feet." },
 	energy_arc_fence = { kind = "control", text = "A crackling fence stands where you point: crossing it shocks and dazes." },
+	-- Earth's spells (Effects/EarthArt, docs/DomainIdeas.md).
+	earth_stone_fist = { kind = "attack", text = "A fist of rock tears out of the ground and flies at your target, knocking them back and spraying stone." },
+	earth_gravel_burst = { kind = "attack", text = "The ground where you aim bursts into flying stones, throwing everyone on it into the air." },
+	earth_spike_trail = { kind = "attack", text = "Stone spikes erupt one after another from you toward the target, throwing up whoever they meet. They stand a few seconds and block the way." },
+	earth_stone_step = { kind = "move", text = "A column of stone rises under you and lifts you up. It stays a while." },
+	earth_stone_grip = { kind = "control", text = "Stone climbs your target's legs and holds them until it cracks off." },
+	earth_ramp = { kind = "land", text = "A sloped stone ramp rises where you point: climb it, or run off its end. It sinks back after a while." },
+	earth_boulder = { kind = "attack", text = "A boulder that lands and keeps rolling, knocking down everyone in its path." },
+	earth_iron_storm = { kind = "attack", text = "Iron shavings whirl over an area for a while, cutting everyone in it. Anyone wearing metal is cut worse and dragged in." },
+	earth_blade_rain = { kind = "attack", text = "Iron blades fall on marked spots around where you aim." },
+	earth_quicksilver_lash = { kind = "attack", text = "A lash of liquid metal swung in an arc: it cuts and drags whoever it catches toward you." },
+	earth_crystal_spires = { kind = "attack", text = "Crystals burst up around where you aim, throwing people up. They stand a few seconds, blocking, then shatter." },
+	earth_singing_shard = { kind = "attack", text = "A crystal shard that sticks in its target and rings, hurting again with each pulse." },
+	earth_crystal_prison = { kind = "control", text = "Encases your target in crystal: they can't move or act for a moment." },
+	earth_geode_shell = { kind = "protect", text = "Crystal plates grow over you: a ward that soaks up hits and chips away as it does." },
+	earth_fissure = { kind = "control", text = "A crack runs along the ground toward your aim, knocking down everyone standing on it." },
+	earth_ground_ripple = { kind = "control", text = "A wave runs out through the ground from where you aim, throwing people up as it passes." },
+	earth_sand_blast = { kind = "control", text = "A cone of sand that blinds and pushes back everyone in front of you." },
+	earth_dust_cloud = { kind = "control", text = "Dust hangs over an area for a while, blinding foes inside it." },
+	earth_quicksand = { kind = "control", text = "The ground goes soft: anyone in it is slowed, and held fast if they stay too long." },
+	earth_dust_devil = { kind = "attack", text = "A small whirlwind of sand that goes after people, blinding and stinging whoever it passes." },
+	earth_sand_shroud = { kind = "protect", text = "Sand whirls around you for a while: you're hard to see, and it stings anyone close." },
 	ignite = { kind = "attack", text = "Sets people, flammable things and the ground alight. Strong fire jumps to whoever stands beside them." },
 	heat_transfer = { kind = "attack", text = "Draws the heat out of a target and into what's around it. A person chilled this way is hurt a little." },
 	thermal = {
@@ -369,9 +391,9 @@ end
 
 RouteSummaries.routes = routes
 
-RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true } :: { [string]: boolean }
+RouteSummaries.builds = { construct = true, stoneshape = true, energy_ring_of_fire = true, energy_ice_mirror = true, energy_arc_fence = true, earth_ramp = true } :: { [string]: boolean }
 -- Routes where the summon form really brings something (the rest are a blast, like a plain wall).
-RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true } :: { [string]: boolean }
+RouteSummaries.summons = { conjure_being = true, energy_wisps = true, energy_shadow_puppet = true, earth_dust_devil = true } :: { [string]: boolean }
 RouteSummaries.areaShape = "as a blast over the area where you aim"
 
 RouteSummaries.deadModifiers = {

@@ -145,6 +145,36 @@ local routes: { Route } = {
 	{ id = "energy_galvanise", effect = "EnergyArt", branches = { "galvanism" }, properties = { "charge" }, verbs = { "amplify" }, forms = { "touch", "aura" }, params = { move = "galvanise" } },
 	{ id = "energy_arc_fence", effect = "EnergyArt", branches = { "arcweaving" }, properties = { "charge" }, verbs = { "generate" }, forms = { "wall" }, params = { move = "arc_fence" } },
 
+	-- ─── Earth's spells (Effects/EarthArt, Data/EarthTuning, docs/DomainIdeas.md) ─────
+	-- Same place and rule as Energy's: each narrow, in a sub-branch, so the root and Geomancy keep Raise
+	-- Stone, Pebble Rise, Slip and Stone Skin, Seismic keeps Tremor and the quakes, Ferromancy Iron Pull.
+	-- Stone
+	{ id = "earth_stone_fist", effect = "EarthArt", branches = { "lithomancy" }, properties = { "contour" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "stone_fist", look = "fist", flight = { speed = 0.75, gravity = 1.6 } } },
+	{ id = "earth_gravel_burst", effect = "EarthArt", branches = { "lithomancy" }, properties = { "cohesion" }, verbs = { "reduce" }, forms = { "burst" }, params = { move = "gravel_burst" } },
+	{ id = "earth_spike_trail", effect = "EarthArt", branches = { "lithomancy" }, properties = { "contour" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "spike_trail" } },
+	{ id = "earth_stone_step", effect = "EarthArt", branches = { "lithomancy" }, properties = { "contour" }, verbs = { "amplify" }, forms = { "pillar" }, params = { move = "stone_step" }, instant = true },
+	{ id = "earth_stone_grip", effect = "EarthArt", branches = { "lithomancy" }, properties = { "cohesion" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "stone_grip" } },
+	{ id = "earth_ramp", effect = "EarthArt", branches = { "architectonics" }, properties = { "contour" }, verbs = { "transmute" }, forms = { "wall" }, params = { move = "ramp" } },
+	{ id = "earth_boulder", effect = "EarthArt", branches = { "lithomancy" }, properties = { "density" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "boulder", look = "boulder", flight = { speed = 0.85, gravity = 1.4 } } },
+	-- Metal
+	{ id = "earth_iron_storm", effect = "EarthArt", branches = { "ferromancy" }, properties = { "magnetism" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "iron_storm" } },
+	{ id = "earth_blade_rain", effect = "EarthArt", branches = { "metallurgy" }, properties = { "magnetism" }, verbs = { "generate" }, forms = { "ritual" }, maxPower = 7, params = { move = "blade_rain" } },
+	{ id = "earth_quicksilver_lash", effect = "EarthArt", branches = { "alloycraft" }, properties = { "purity" }, verbs = { "transmute" }, forms = { "touch" }, params = { move = "quicksilver_lash" } },
+	-- Crystal
+	{ id = "earth_crystal_spires", effect = "EarthArt", branches = { "crystallurgy" }, properties = { "resonance" }, verbs = { "generate" }, forms = { "pillar" }, params = { move = "crystal_spires" } },
+	{ id = "earth_singing_shard", effect = "EarthArt", branches = { "crystallurgy" }, properties = { "resonance" }, verbs = { "generate" }, forms = { "projectile" }, params = { move = "singing_shard", look = "shard" } },
+	{ id = "earth_crystal_prison", effect = "EarthArt", branches = { "crystallurgy" }, properties = { "resonance" }, verbs = { "bind" }, forms = { "touch", "beam" }, params = { move = "crystal_prison" } },
+	{ id = "earth_geode_shell", effect = "EarthArt", branches = { "focuscraft" }, properties = { "purity" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "geode_shell" }, instant = true },
+	-- Seismic
+	{ id = "earth_fissure", effect = "EarthArt", branches = { "faultwork" }, properties = { "seismicity" }, verbs = { "redirect" }, forms = { "beam" }, params = { move = "fissure" } },
+	{ id = "earth_ground_ripple", effect = "EarthArt", branches = { "seismic" }, properties = { "seismicity" }, verbs = { "amplify" }, forms = { "burst" }, params = { move = "ground_ripple" } },
+	-- Sand
+	{ id = "earth_sand_blast", effect = "EarthArt", branches = { "sandshaping" }, properties = { "cohesion" }, verbs = { "redirect" }, forms = { "beam" }, params = { move = "sand_blast" } },
+	{ id = "earth_dust_cloud", effect = "EarthArt", branches = { "sandshaping" }, properties = { "cohesion" }, verbs = { "generate" }, forms = { "zone" }, params = { move = "dust_cloud" } },
+	{ id = "earth_quicksand", effect = "EarthArt", branches = { "sandshaping" }, properties = { "cohesion" }, verbs = { "reduce" }, forms = { "zone" }, params = { move = "quicksand" } },
+	{ id = "earth_dust_devil", effect = "EarthArt", branches = { "dunecalling" }, properties = { "cohesion" }, verbs = { "bind" }, forms = { "summon" }, params = { move = "dust_devil" } },
+	{ id = "earth_sand_shroud", effect = "EarthArt", branches = { "sandshaping" }, properties = { "cohesion" }, verbs = { "amplify" }, forms = { "aura" }, params = { move = "sand_shroud" }, instant = true },
+
 	-- ─── Void: unmaking magic itself ────────────────────────────────────────
 	{ id = "dispel", effect = "Dispel", properties = { "aether" }, verbs = { "reduce", "transmute", "bind" } },
 	{ id = "silence", effect = "Status", properties = { "sound" }, verbs = { "reduce" }, params = { status = "silence", targets = "area" } },

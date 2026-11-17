@@ -66,7 +66,7 @@ Marks: ✦ = needs a shared piece of tech (see "Shared pieces" at the end). ⚠�
 
 ### Energy: built 2026-11-17 (not yet run)
 
-On the owner's "amount of spells is fine, start with energy". All 32 spells above, each a route `energy_<move>` in `Data/EffectLibrary` (after the domain strikes, before the broad `light`/`ignite`/`thermal`/`harm`/`force`), resolved by `Server/Magic/Cast/Effects/EnergyArt`. Numbers in `Shared/Magic/Data/EnergyTuning`. What lasts (rings, fences, burning ground, frost, smoke, mirrors, wisps, the puppet, ball lightning, tethers, kindled hands, auras) runs in `Server/Magic/Cast/EnergyRuntime` as invisible anchored parts tagged `EnergyBody` (6 per player, 60 per server), stepped by `Services/EnergyService`, which also wraps `Delivery.interceptor` last (Ice Mirror, Heat Haze and Repulse turn bolts) and listens to `Damage.listenAttacked` (Kindle, Shadow Puppet). The client draws them in `Client/Fx/EnergyFx` (cue kind `energy` + the tag). Two small shared changes: a route may set `params.flight` (speed, homing) and `params.look` (the bolt's own body, drawn by `EnergyFx.flight` from `SpellFx.launch`). `RouteSummaries.summons` is new (summon routes that really bring something), and the three walls joined `builds`. Flag `energy_arts_enabled`; admin `energy`, `energyclear [player]`. Expected boot line **`specs 1169/1170`** (4 new in `Tests/Energy.spec`; Cast.spec checks the 32 new examples).
+On the owner's "amount of spells is fine, start with energy". All 32 spells above, each a route `energy_<move>` in `Data/EffectLibrary` (after the domain strikes, before the broad `light`/`ignite`/`thermal`/`harm`/`force`), resolved by `Server/Magic/Cast/Effects/EnergyArt`. Numbers in `Shared/Magic/Data/EnergyTuning`. What lasts (rings, fences, burning ground, frost, smoke, mirrors, wisps, the puppet, ball lightning, tethers, kindled hands, auras) runs in `Server/Magic/Cast/ArtRuntime` (was EnergyRuntime; shared with Earth since 2026-11-17) as invisible anchored parts tagged `ArtBody` (8 per player, 80 per server, every domain together), stepped by `Services/ArtService`, which also wraps `Delivery.interceptor` last (Ice Mirror, Heat Haze and Repulse turn bolts) and listens to `Damage.listenAttacked` (Kindle, Shadow Puppet). The client draws them with `Client/Fx/ArtFx` (shared helpers, bodies by `ArtLook`, bolt looks) and EnergyFx's builders (cue kind `energy`). Two small shared changes: a route may set `params.flight` (speed, homing) and `params.look` (the bolt's own body, drawn by `EnergyFx.flight` from `SpellFx.launch`). `RouteSummaries.summons` is new (summon routes that really bring something), and the three walls joined `builds`. Flag `energy_arts_enabled`; admin `arts`/`energy`, `artsclear`/`energyclear [player]`. Expected boot line **`specs 1169/1170`** (4 new in `Tests/Energy.spec`; Cast.spec checks the 32 new examples).
 
 Recipes (Composer Full mode; `testmage 8 all`, `dummy spawn` for a target):
 
@@ -144,6 +144,40 @@ Not verified (no Studio run): the ice spike cone mesh (`rbxassetid://1033714`), 
 - **Quicksand** (`cohesion · reduce · zone`): the ground goes soft; people sink and slow. *The ground rippling and swallowing feet.*
 - **Dust Devil** (`cohesion · generate · summon`, Dunecalling): a small sand whirlwind that wanders and blinds whoever it passes. *A spinning column of sand.* ✦ small followers
 - **Sand Shroud** (`cohesion · generate · aura`): a whirl of sand that hides you at range and stings anyone close.
+
+### Energy: confirmed 2026-11-17
+
+Log `specs 1169/1170` (the failure the known "Standing room"); Energy spells cast with no `[Energy]` or `fx_failed` warnings. The owner's screenshot showed the Shadow Puppet as flat black slabs drawn on top of the caster (the client snapped every follower to its owner's root). Rebuilt: a dark copy of every part of you (hats and hair too) with a purple rim, posed from your own limbs every frame, rising from the ground a step behind and to your left, joined to your feet by a band of shadow. Not yet seen.
+
+### Earth: built 2026-11-17 (not yet run)
+
+On the owner's "make it better then do earth". 21 spells (the doc's list, minus magnet pull and push, which `metal` already does, Rust and the Tremor Ping, which the generic `sense` route owns), each a route `earth_<move>` resolved by `Server/Magic/Cast/Effects/EarthArt`, numbers in `Shared/Magic/Data/EarthTuning`, looks in `Client/Fx/EarthFx` (cue kind `earth`). Lasting things share `Cast/ArtRuntime` with Energy. Standing stone (spike trail, stone step, ramp, crystal spires) is a real anchored part in `workspace.ArtStone` from `EffectBudget.takeParts`: it blocks and holds weight, is passable where someone stood as it rose, and sinks away when its time is up (nothing saved). Routes are in sub-branches only, so the root and Geomancy keep Raise Stone, Pebble Rise, Slip and Stone Skin; Seismic keeps Tremor and the quakes; Ferromancy keeps Iron Pull. Route `flight` gained `gravity` (a Stone Fist drops). Flag `earth_arts_enabled`. Expected boot line **`specs 1172/1173`** (3 new in `Tests/Earth.spec`).
+
+| Spell | Branch | Property · verb · form |
+|---|---|---|
+| Stone Fist | Lithomancy | contour · generate · projectile |
+| Gravel Burst | Lithomancy | cohesion · reduce · burst |
+| Spike Trail | Lithomancy | contour · generate · pillar |
+| Stone Step | Lithomancy | contour · amplify · pillar (instant) |
+| Stone Grip | Lithomancy | cohesion · bind · touch/beam |
+| Ramp | Architectonics | contour · transmute · wall |
+| Boulder | Lithomancy | density · generate · projectile |
+| Iron Storm | Ferromancy | magnetism · generate · zone |
+| Blade Rain | Metallurgy | magnetism · generate · ritual (power 7 or less) |
+| Quicksilver Lash | Alloycraft | purity · transmute · touch |
+| Crystal Spires | Crystallurgy | resonance · generate · pillar |
+| Singing Shard | Crystallurgy | resonance · generate · projectile |
+| Crystal Prison | Crystallurgy | resonance · bind · touch/beam |
+| Geode Shell | Focuscraft | purity · amplify · aura (instant) |
+| Fissure | Faultwork | seismicity · redirect · beam |
+| Ground Ripple | Seismic (any) | seismicity · amplify · burst |
+| Sand Blast | Sandshaping | cohesion · redirect · beam |
+| Dust Cloud | Sandshaping | cohesion · generate · zone |
+| Quicksand | Sandshaping | cohesion · reduce · zone |
+| Dust Devil | Dunecalling | cohesion · bind · summon |
+| Sand Shroud | Sandshaping | cohesion · amplify · aura (instant) |
+
+Not verified (no Studio run): the WedgePart's slope direction for the Ramp (assumed full height at +Z, as BuildingGenerator's roofs; if it slopes the wrong way, flip the lookAt), lifting the caster with `PivotTo` while the Stone Step grows, the boulder rolling over uneven ground, and stone in towns (it isn't refused there). Defaults chosen: standing stone isn't a crime; Iron Storm drags anyone in metal (guards' chain mail) toward its middle.
 
 ---
 
