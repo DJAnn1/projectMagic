@@ -162,4 +162,4 @@ On the owner's "continue" (taken as the go). The §10 questions weren't answered
 2. Run `places deep` (10 places, mostly fitting their land) and `placehistory` near spawn.
 3. Run `placegoto` to one deep place and `placehistory` there.
 4. Run `rumors` in a town: no deep place in the list.
-5. Run `flag places_enabled false` then `rumors clear`, and deep places should show again. This only takes effect if the rumour cache isn't the issue: the filter runs on every gather.
+5. Run `flag places_enabled false`, then `rumors` again: the deep places come back right away, because the filter runs every time rumours are gathered.
