@@ -144,3 +144,22 @@ StarterPlayerScripts/Client
 4. **Shared or instanced?** Default: shared and open world, so anyone can follow you in. Should a party get its own copy instead?
 5. **Digging in.** Default: Earth, Space and Void can get you inside, but the vault still needs the keeper. Agree?
 6. **How many?** About 70 wayside places, 45 sites and 10 deep places. More deep places (20)?
+
+## Stage 0: built (2026-11-17, not yet run)
+
+On the owner's "continue" (taken as the go). The §10 questions weren't answered, so they take their defaults: underground, no level gate, resettled after 4–10 real hours, shared, digging in allowed (the vault still needs the keeper), about 70 / 45 / 10.
+
+- **`Places/Data/PlaceKinds`:** which POI types are places (10 deep places plus libraries, hermit towers, academies, mines and shrines), the 8 deep kinds weighted by biome, nearby town and magic density, 11 builders, 12 fates, 7 occupants, and ages said in words ("in my grandparents' time"). Every pick list is an array, so a seeded pick is the same on every server.
+- **`Places/PlaceHistory`** (pure): `of(worldSeed, poi, context)` draws, in a fixed order, the kind, builder, fate, occupant, age, name, danger, depths and rooms, plus `leaves` (keys for stage 1's loot), `signs` (what shows outside) and `lines` (what people will say: words only, no digits).
+- **`Services/PlaceService`:** builds every history once the world is ready (`places_ready deep= sites=`), keeps per-server state (`untouched`, `entered`, `cleared`, `resettled`; `place_state`), `nearest`, `rumorable`.
+- **The rumour fix:** RumorService asks `PlaceService:rumorable`. A place with no body that grants nothing (today, the 10 deep places) isn't talked about, so nobody is sent to an empty hillside. Libraries, mines and shrines still are: standing there grants something real.
+- **Not changed:** the quest "The Quiet Student" still sends you to "the old delve". Its objectives work at that spot. Stage 3 gives it the place's real name.
+- **Flag:** `places_enabled`. **Admin (World):** `places [near|deep|site|all]`, `placegoto <poi>`, `placehistory [poi]`.
+- **`Tests/Places.spec`:** 7 new specs. Expected boot line **`specs 1216/1217`**, if Smoothness 6's `1209/1210` holds; the failure is the known "Standing room".
+
+**To test:** clear the Output first and run one `rojo serve`. Then:
+1. Look for `places_ready deep=10`.
+2. Run `places deep` (10 places, mostly fitting their land) and `placehistory` near spawn.
+3. Run `placegoto` to one deep place and `placehistory` there.
+4. Run `rumors` in a town: no deep place in the list.
+5. Run `flag places_enabled false` then `rumors clear`, and deep places should show again. This only takes effect if the rumour cache isn't the issue: the filter runs on every gather.

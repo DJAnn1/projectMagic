@@ -53,7 +53,8 @@ An open-world Roblox magic sandbox. There's no linear story: everyone (players a
   - 10 deep places: underground, 2–3 depths, Rift-style rooms, Wildborn keepers, letters to real NPCs, maps, keys and spell pages.
   - Per-server cleared/resettled state.
   - Stages 0–5.
-- **First:** ask the owner for a go and for answers to the doc's §10 open questions:
+- **Stage 0 BUILT 2026-11-17, not yet run** (doc "Stage 0: built"): `Places/Data/PlaceKinds`, `Places/PlaceHistory`, `Services/PlaceService`, the rumour fix (deep places held back until they have a body), flag `places_enabled`, admin `places`/`placegoto`/`placehistory`, log `places_ready`/`place_state`. The §10 questions took their defaults (said to the owner). Expected boot line **`specs 1216/1217`**. Next: ask for its playtest, then stage 1 (wayside places).
+- **(Original first step, done:)** ask the owner for a go and for answers to the doc's §10 open questions:
   - underground or surface;
   - no level gate;
   - respawn after 4–10 h;

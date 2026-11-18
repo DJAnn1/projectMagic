@@ -48,6 +48,7 @@ local RumorService = {
 		"JournalService",
 		"MapService",
 		"NPCService",
+		"PlaceService",
 		"WildbornService",
 		"WildZoneService",
 		"WorldService",
@@ -68,8 +69,10 @@ local creatures: any = nil
 local ferals: any = nil
 local wildborn: any = nil
 local wildZones: any = nil
+local places: any = nil
 
 local poiFacts: { RumorRules.Fact }? = nil
+local poiOf: { [string]: any } = {} -- fact id -> its POI (PlaceService decides whether it may be told)
 local heardBy: { [Player]: { [string]: Heard } } = {}
 local playerLast: { [Player]: number } = {}
 local townLast: { [string]: number } = {}
@@ -120,6 +123,7 @@ local function placesOnce(): { RumorRules.Fact }
 		if kind then
 			local place = if kind == "shrine" then RumorRules.shrinePlace(string.sub(poi.type, 8)) else nil
 			table.insert(out, { id = "poi:" .. poi.id, kind = kind, group = "place", x = poi.x, z = poi.z, place = place, tellable = true })
+			poiOf["poi:" .. poi.id] = poi
 		end
 	end
 	poiFacts = out
@@ -127,7 +131,14 @@ local function placesOnce(): { RumorRules.Fact }
 end
 
 local function gather(): { RumorRules.Fact }
-	local out = table.clone(placesOnce())
+	-- Places that don't exist yet (no body, nothing granted) aren't talked about (docs/WorldPlaces.md §1).
+	local out: { RumorRules.Fact } = {}
+	for _, fact in placesOnce() do
+		local poi = poiOf[fact.id]
+		if not poi or places:rumorable(poi) then
+			table.insert(out, fact)
+		end
+	end
 	local function each(source: any, method: string, make: (any) -> RumorRules.Fact?)
 		local ok, list = pcall(source[method], source)
 		if ok and typeof(list) == "table" then
@@ -391,6 +402,7 @@ function RumorService.init(_self: any, ctx: any)
 	ferals = ctx.get("FeralService")
 	wildborn = ctx.get("WildbornService")
 	wildZones = ctx.get("WildZoneService")
+	places = ctx.get("PlaceService")
 	registerAdmin(ctx.get("AdminService"))
 	-- First: something you just overheard is what you'd ask about.
 	npcs:setRumorHook(rumorHook, true)
